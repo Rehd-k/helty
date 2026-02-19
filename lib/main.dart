@@ -3,31 +3,34 @@
 // import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:provider/provider.dart';
 
 import 'src/helper/theme.dart';
+import 'src/providers/auth_provider.dart';
 import 'src/services/navigation.service.dart';
-import 'src/services/theme_provider.dart';
 
 void main() {
   runApp(ProviderScope(child: const MyApp()));
-  // if (Platform.isWindows) {
-  //   doWhenWindowReady(() {
-  //     final win = appWindow;
-  //     win.maximize();
-  //     win.title = "Helty";
-  //     win.alignment = Alignment.center;
-  //     win.show();
-  //   });
-  // }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Try to restore the existing session on startup.
+    // If a valid token exists, staff is loaded into AuthState;
+    // otherwise the AuthGuard will redirect to login.
+    Future.microtask(() => ref.read(authProvider.notifier).restoreSession());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // final themeProvider = context.watch<ThemeProvider>();
     return MaterialApp.router(
       title: 'Helty Hospital',
       theme: AppTheme.lightTheme,

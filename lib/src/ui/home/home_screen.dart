@@ -12,10 +12,39 @@ class HomeScreen extends StatelessWidget {
     DashboardRoute(),
     PatientListRoute(),
     AppointmentListRoute(),
+    TodayPatientsRoute(),
+    PendingTransactionsRoute(),
+    EnlistServiceRoute(),
+    RenderServiceRoute(),
+    ViewServiceRoute(),
   ];
 
-  static const _labels = ['Dashboard', 'Patients', 'Appointments'];
-  static const _icons = [Icons.dashboard, Icons.person, Icons.event];
+  static const _labels = [
+    'Dashboard',
+    'All Patients',
+    'Appointments',
+    'Today\'s Patients',
+    'Pending Transactions',
+    'Enlist Service',
+    'Render Investigation Service',
+    'View OPD service',
+  ];
+
+  static const smallScreenLabels = [
+    'Dashboard',
+    'All Patients',
+    'Appointments',
+  ];
+  static const _icons = [
+    Icons.dashboard_outlined,
+    Icons.list_alt_outlined,
+    Icons.group_outlined,
+    Icons.calendar_today_outlined,
+    Icons.pending_actions_outlined,
+    Icons.add_task_outlined,
+    Icons.science_outlined,
+    Icons.view_agenda_outlined,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +64,7 @@ class HomeScreen extends StatelessWidget {
                 for (var i = 0; i < _labels.length; i++)
                   ListTile(
                     leading: Icon(_icons[i]),
-                    title: Text(_labels[i]),
+                    title: Text(_labels[i], style: TextStyle(fontSize: 14)),
                     selected: tabsRouter.activeIndex == i,
                     onTap: () => tabsRouter.setActiveIndex(i),
                   ),
@@ -44,7 +73,7 @@ class HomeScreen extends StatelessWidget {
           ),
           body: child,
           bottomItems: List.generate(
-            _labels.length,
+            smallScreenLabels.length,
             (i) => BottomNavigationBarItem(
               icon: Icon(_icons[i]),
               label: _labels[i],

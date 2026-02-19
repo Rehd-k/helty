@@ -1,21 +1,42 @@
+import 'package:dio/dio.dart';
 import 'dart:developer';
 
 import '../models/patient_model.dart';
 import 'api_service.dart';
 
 class PatientService {
-  final _dio = ApiService().dio;
+  PatientService() : _dio = ApiService().dio;
+  final Dio _dio;
 
-  Future<List<Patient>> fetchPatients({String? query}) async {
+  // ── Read ─────────────────────────────────────────────────────────────────
+
+  Future<List<Patient>> fetchPatients({
+    String? query,
+    int page = 1,
+    int limit = 20,
+  }) async {
     final resp = await _dio.get(
       '/patients',
-      queryParameters: {if (query != null && query.isNotEmpty) 'q': query},
+      queryParameters: {
+        if (query != null && query.isNotEmpty) 'q': query,
+        'page': page,
+        'limit': limit,
+      },
     );
-    final data = resp.data as List;
+    final data = resp.data is List
+        ? resp.data as List
+        : (resp.data['data'] as List);
     return data
         .map((e) => Patient.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<Patient> getPatientById(String id) async {
+    final resp = await _dio.get('/patients/$id');
+    return Patient.fromJson(resp.data as Map<String, dynamic>);
+  }
+
+  // ── Write ─────────────────────────────────────────────────────────────────
 
   Future<Patient> createPatient(Patient p) async {
     log('Creating patient: ${p.toJson()}');
@@ -31,4 +52,9 @@ class PatientService {
   Future<void> deletePatient(String id) async {
     await _dio.delete('/patients/$id');
   }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  Future<List<Patient>> searchPatients(String query) =>
+      fetchPatients(query: query, limit: 50);
 }

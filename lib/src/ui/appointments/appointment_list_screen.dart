@@ -4,38 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/models/appointment_model.dart';
 
-import '../../providers/appointment_providers.dart';
 import '../../widgets/table/reusable_async_table.dart';
-
-class Appintment {
-  final String id;
-  final String firstName;
-  final String lastName;
-  final String datereported;
-  final String appointmentDate;
-  final String status;
-
-  Appintment({
-    required this.id,
-    required this.firstName,
-    required this.lastName,
-    required this.datereported,
-    required this.appointmentDate,
-    required this.status,
-  });
-
-  // Factory to create from JSON
-  factory Appintment.fromJson(Map<String, dynamic> json) {
-    return Appintment(
-      id: json['id'],
-      firstName: json['first_name'],
-      lastName: json['last_name'],
-      datereported: json['date_reported'],
-      appointmentDate: json['appointment_date'],
-      status: json['status'],
-    );
-  }
-}
 
 @RoutePage()
 class AppointmentListScreen extends ConsumerStatefulWidget {
@@ -50,29 +19,39 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   // 2. The API Fetcher Function
-  // Updated Fetcher: Returns PagedData<Appintment>
-  Future<PagedData<Appintment>> fetchAppointments(int start, int count) async {
+  // Updated Fetcher: Returns PagedData<Appointement>
+  Future<PagedData<Appointment>> fetchAppointments(int start, int count) async {
     await Future.delayed(const Duration(milliseconds: 500)); // Mock delay
 
     // MOCK DATA logic
     final mockData = List.generate(count, (index) {
       final absoluteIndex = start + index;
-      return Appintment(
+      return Appointment(
         id: 'APPT-$absoluteIndex',
         firstName: 'John $absoluteIndex',
         lastName: 'Doe',
-        datereported: '2024-01-${10 + absoluteIndex}',
-        appointmentDate: '2024-02-${15 + absoluteIndex}',
+        appointmentDate: DateTime(2024, 02, 15 + absoluteIndex),
+        createdAt: DateTime(2024, 01, 10 + absoluteIndex),
         status: absoluteIndex % 3 == 0
             ? 'Confirmed'
             : absoluteIndex % 3 == 1
             ? 'Pending'
             : 'Cancelled',
+        patientId: 'PAT-$absoluteIndex',
       );
     });
 
     // Use PagedData instead of AsyncRowsResponse
     return PagedData(totalCount: 1000, items: mockData);
+  }
+
+  // 3. The Action Menu Handler
+  void _handleAction(String action, Appointment patient, BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Action $action performed on ${patient.firstName}'),
+      ),
+    );
   }
 
   @override
@@ -92,68 +71,56 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
             },
           ),
         ),
-        ReusableAsyncTable<Appointment>(
-          fetchData: fetchAppointments,
-          idGetter: (appointment) => appointment.id, // Used for selection logic
-          onSelectionChanged: (selected) {
-            print("Selected Appointments: ${selected.length}");
-          },
-          // 4. Define Columns
-          columns: const [
-            DataColumn2(label: Text('ID'), size: ColumnSize.S),
-            DataColumn2(label: Text('Card No'), size: ColumnSize.S),
-            DataColumn2(label: Text('Title'), fixedWidth: 60),
-            DataColumn2(label: Text('Surname'), size: ColumnSize.M),
-            DataColumn2(label: Text('First Name'), size: ColumnSize.M),
-            DataColumn2(label: Text('Other Name'), size: ColumnSize.M),
-            DataColumn2(label: Text('DOB'), size: ColumnSize.S),
-            DataColumn2(label: Text('Gender'), fixedWidth: 70),
-            DataColumn2(label: Text('Marital Status'), size: ColumnSize.S),
-            DataColumn2(label: Text('Nationality'), size: ColumnSize.M),
-            DataColumn2(label: Text('State'), size: ColumnSize.M),
-            DataColumn2(label: Text('Address'), size: ColumnSize.L),
-            DataColumn2(label: Text('Next of Kin'), size: ColumnSize.M),
-            DataColumn2(label: Text('User'), size: ColumnSize.S),
-            DataColumn2(label: Text('Joined At'), size: ColumnSize.M),
-            DataColumn2(label: Text('Updated At'), size: ColumnSize.M),
-            DataColumn2(
-              label: Text('Action'),
-              fixedWidth: 60,
-            ), // Fixed width for menu
-          ],
-          // 5. Build the Rows
-          rowBuilder: (patient) {
-            return [
-              DataCell(Text(patient.id)),
-              DataCell(Text(patient.patientName)),
-              DataCell(Text(patient.status)),
-              DataCell(Text(patient.date.toString())),
-              DataCell(Text(patient.firstName)),
-              const DataCell(Text("-")), // Other Name
-              const DataCell(Text("01/01/1990")), // DOB
-              const DataCell(Text("M")), // Gender
-              const DataCell(Text("Single")), // Marital
-              const DataCell(Text("Nigerian")), // Nationality
-              const DataCell(Text("Lagos")), // State
-              const DataCell(Text("123 Street")), // Address
-              const DataCell(Text("Jane Doe")), // Next of Kin
-              const DataCell(Text("Admin")), // User
-              const DataCell(Text("2023-01-01")), // Join
-              const DataCell(Text("2023-01-02")), // Update
-              // The Action Menu
-              DataCell(
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
-                  onSelected: (value) => _handleAction(value, patient, context),
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'view', child: Text('View')),
-                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
-                  ],
+        Expanded(
+          child: ReusableAsyncTable<Appointment>(
+            fetchData: fetchAppointments,
+            idGetter: (appointment) =>
+                appointment.id, // Used for selection logic
+            onSelectionChanged: (selected) {
+              // print("Selected Appointments: ${selected.length}");
+            },
+            // 4. Define Columns
+            columns: const [
+              DataColumn2(label: Text('ID'), size: ColumnSize.S),
+              DataColumn2(label: Text('First Name'), size: ColumnSize.S),
+              DataColumn2(label: Text('Last Name'), fixedWidth: 60),
+              DataColumn2(label: Text('Status'), size: ColumnSize.M),
+              DataColumn2(label: Text('Date Reported'), size: ColumnSize.M),
+              DataColumn2(label: Text('Appointment Date'), size: ColumnSize.M),
+              DataColumn2(
+                label: Text('Action'),
+                fixedWidth: 60,
+              ), // Fixed width for menu
+            ],
+            // 5. Build the Rows
+            rowBuilder: (patient) {
+              return [
+                DataCell(Text(patient.id)),
+                DataCell(Text(patient.firstName)),
+                DataCell(Text(patient.lastName)),
+                DataCell(Text(patient.status)),
+                DataCell(Text(patient.appointmentDate.toString())),
+                DataCell(Text(patient.createdAt.toString())),
+
+                // The Action Menu
+                DataCell(
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) =>
+                        _handleAction(value, patient, context),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 'view', child: Text('View')),
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ];
-          },
+              ];
+            },
+          ),
         ),
       ],
     );

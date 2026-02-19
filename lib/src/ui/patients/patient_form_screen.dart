@@ -132,12 +132,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       final newPatient = Patient(
         id: widget.patient?.id ?? '',
         patientId: _patientIdController.text.trim(),
-        cardNo: _cardNoController.text.trim().isEmpty
-            ? null
-            : _cardNoController.text.trim(),
-        title: _titleController.text.trim().isEmpty
-            ? null
-            : _titleController.text.trim(),
+        cardNo: _cardNoController.text.trim(),
+        title: _titleController.text.trim(),
         surname: _surnameController.text.trim(),
         firstName: _firstNameController.text.trim(),
         otherName: _otherNameController.text.trim().isEmpty

@@ -1,11 +1,4 @@
-import 'dart:io';
-
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/services/theme_switch_button.dart';
-
-import '../services/notificationbar.dart';
-import '../services/title_bar.dart';
 
 class ResponsiveScaffold extends StatelessWidget {
   final Widget body;

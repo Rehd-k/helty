@@ -1,42 +1,11 @@
-import 'package:auto_route/annotations.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 import 'package:helty/src/ui/patients/patient_form_screen.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 
-import '../../../app_router.gr.dart';
+import '../../models/patient_model.dart';
 import '../../widgets/table/reusable_async_table.dart';
-
-// 1. Your Data Model
-class Patient {
-  final String id;
-  final String cardNo;
-  final String title;
-  final String surname;
-  final String firstName;
-  // ... add other fields
-
-  Patient({
-    required this.id,
-    required this.cardNo,
-    required this.title,
-    required this.surname,
-    required this.firstName,
-  });
-
-  // Factory to create from JSON
-  factory Patient.fromJson(Map<String, dynamic> json) {
-    return Patient(
-      id: json['id'],
-      cardNo: json['card_no'],
-      title: json['title'],
-      surname: json['surname'],
-      firstName: json['first_name'],
-    );
-  }
-}
 
 @RoutePage()
 class PatientListScreen extends StatelessWidget {
@@ -56,6 +25,15 @@ class PatientListScreen extends StatelessWidget {
         title: absoluteIndex % 2 == 0 ? 'Mr' : 'Mrs',
         surname: 'Doe',
         firstName: 'John $absoluteIndex',
+        patientId: '',
+        dob: DateTime(2029, 01, 01 + absoluteIndex),
+        gender: '',
+        maritalStatus: '',
+        nationality: '',
+        stateOfOrigin: '',
+        lga: '',
+        town: '',
+        permanentAddress: '',
       );
     });
 
@@ -93,7 +71,7 @@ class PatientListScreen extends StatelessWidget {
         fetchData: fetchPatients,
         idGetter: (patient) => patient.id, // Used for selection logic
         onSelectionChanged: (selected) {
-          print("Selected Patients: ${selected.length}");
+          // print("Selected Patients: ${selected.length}");
         },
         // 4. Define Columns
         columns: const [

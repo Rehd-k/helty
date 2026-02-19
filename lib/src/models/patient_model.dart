@@ -1,8 +1,8 @@
 class Patient {
   final String id;
   final String patientId;
-  final String? cardNo;
-  final String? title;
+  final String cardNo;
+  final String title;
   final String surname;
   final String firstName;
   final String? otherName;
@@ -30,8 +30,8 @@ class Patient {
   Patient({
     required this.id,
     required this.patientId,
-    this.cardNo,
-    this.title,
+    required this.cardNo,
+    required this.title,
     required this.surname,
     required this.firstName,
     this.otherName,
@@ -61,8 +61,8 @@ class Patient {
     return Patient(
       id: json['id'] as String,
       patientId: json['patientId'] as String,
-      cardNo: json['cardNo'] as String?,
-      title: json['title'] as String?,
+      cardNo: json['cardNo'] as String,
+      title: json['title'] as String,
       surname: json['surname'] as String,
       firstName: json['firstName'] as String,
       otherName: json['otherName'] as String?,

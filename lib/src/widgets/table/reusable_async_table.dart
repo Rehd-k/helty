@@ -20,6 +20,7 @@ class ReusableAsyncTable<T> extends StatefulWidget {
   final String Function(T item) idGetter;
   final Function(List<T> selectedItems)? onSelectionChanged;
   final int rowsPerPage;
+  final bool showFooter;
 
   const ReusableAsyncTable({
     super.key,
@@ -29,6 +30,7 @@ class ReusableAsyncTable<T> extends StatefulWidget {
     required this.idGetter,
     this.onSelectionChanged,
     this.rowsPerPage = 10,
+    this.showFooter = true,
   });
 
   @override
@@ -36,7 +38,9 @@ class ReusableAsyncTable<T> extends StatefulWidget {
 }
 
 class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
+  final PaginatorController _paginatorController = PaginatorController();
   late _GenericDataSource<T> _source;
+
   bool _initialized = false;
 
   @override
@@ -56,7 +60,9 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
 
   @override
   void dispose() {
+    _paginatorController.dispose();
     _source.dispose();
+    super.dispose();
     super.dispose();
   }
 
@@ -64,12 +70,15 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
   Widget build(BuildContext context) {
     return AsyncPaginatedDataTable2(
       columns: widget.columns,
+      controller: _paginatorController,
       source: _source,
       rowsPerPage: widget.rowsPerPage,
       columnSpacing: 12,
       horizontalMargin: 12,
       minWidth: 1600,
       checkboxAlignment: Alignment.center,
+      // hidePaginator: widget.showFooter,
+      availableRowsPerPage: [20, 50, 100],
       onSelectAll: (bool? isAll) {
         // FIXED: Renamed method to avoid override conflict
         _source.updateSelection(isAll);
