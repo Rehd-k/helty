@@ -1,6 +1,9 @@
 // import 'dart:io';
 
 // import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'dart:io';
+
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +13,15 @@ import 'src/services/navigation.service.dart';
 
 void main() {
   runApp(ProviderScope(child: const MyApp()));
+
+  if (Platform.isWindows) {
+    doWhenWindowReady(() {
+      final win = appWindow;
+      win.maximize();
+      win.title = "Helty";
+      win.show();
+    });
+  }
 }
 
 class MyApp extends ConsumerStatefulWidget {

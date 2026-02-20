@@ -56,6 +56,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final response = await _repo.login(email: email, password: password);
+
       state = state.copyWith(staff: response.staff, isLoading: false);
       return true;
     } catch (e) {

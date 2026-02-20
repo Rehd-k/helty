@@ -2,9 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/patient_model.dart';
-import '../../providers/patient_providers.dart';
-import '../../widgets/responsive_grid.dart';
+import 'patient_model.dart';
+import 'patient_providers.dart';
+import '../widgets/responsive_grid.dart';
 
 @RoutePage()
 class PatientFormScreen extends ConsumerStatefulWidget {
@@ -19,7 +19,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // controllers for all fields
-  late TextEditingController _patientIdController;
+
   late TextEditingController _cardNoController;
   late TextEditingController _titleController;
   late TextEditingController _surnameController;
@@ -50,7 +50,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   void initState() {
     super.initState();
     final p = widget.patient;
-    _patientIdController = TextEditingController(text: p?.patientId);
     _cardNoController = TextEditingController(text: p?.cardNo ?? '');
     _titleController = TextEditingController(text: p?.title ?? '');
     _surnameController = TextEditingController(text: p?.surname);
@@ -98,7 +97,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
   @override
   void dispose() {
-    _patientIdController.dispose();
     _cardNoController.dispose();
     _titleController.dispose();
     _surnameController.dispose();
@@ -130,8 +128,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   Future<void> _save() async {
     if (_formKey.currentState?.validate() ?? false) {
       final newPatient = Patient(
-        id: widget.patient?.id ?? '',
-        patientId: _patientIdController.text.trim(),
         cardNo: _cardNoController.text.trim(),
         title: _titleController.text.trim(),
         surname: _surnameController.text.trim(),
@@ -216,15 +212,15 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // identification section
-              _sectionHeader('Identification'),
-              responsiveFormGrid(
+              ModernFormCard(
+                title: 'Patient Information', // Patient Information
+                leadingIcon: Icons.person_outline,
+                headerAction: IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {},
+                ),
+
                 children: [
-                  _buildTextField(
-                    _patientIdController,
-                    'Patient ID *',
-                    required: true,
-                  ),
                   _buildTextField(_cardNoController, 'Card Number'),
                   _buildTextField(_titleController, 'Title'),
                   _buildTextField(
@@ -241,10 +237,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              _sectionHeader('Demographics'),
 
-              // demographics
-              responsiveFormGrid(
+              ModernFormCard(
+                title: 'Demographics',
                 children: [
                   _buildDateField(
                     _dobController,
@@ -273,10 +268,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                 ],
               ),
 
-              // contact
               const SizedBox(height: 12),
-              _sectionHeader('Contact'),
-              responsiveFormGrid(
+              ModernFormCard(
+                title: 'Contact',
                 children: [
                   _buildTextField(
                     _emailController,
@@ -305,9 +299,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
               ),
               const SizedBox(height: 24),
 
-              // next of kin
-              _sectionHeader('Next of Kin'),
-              responsiveFormGrid(
+              ModernFormCard(
+                title: 'Next of Kin',
                 children: [
                   _buildTextField(_nextOfKinNameController, 'Name'),
 
@@ -325,7 +318,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
               // other
               const SizedBox(height: 32),
               _sectionHeader('Other Info'),
-              responsiveFormGrid(
+              ModernFormCard(
+                title: 'Other Info',
                 children: [
                   _buildTextField(_hmoController, 'HMO'),
                   _buildTextField(_fingerprintController, 'Fingerprint Data'),

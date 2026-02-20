@@ -11,7 +11,9 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:auto_route/auto_route.dart' as _i15;
 import 'package:flutter/material.dart' as _i16;
-import 'package:helty/src/models/patient_model.dart' as _i17;
+import 'package:helty/src/paitients/patient_form_screen.dart' as _i7;
+import 'package:helty/src/paitients/patient_list_screen.dart' as _i8;
+import 'package:helty/src/paitients/patient_model.dart' as _i17;
 import 'package:helty/src/ui/appointments/appointment_list_screen.dart' as _i1;
 import 'package:helty/src/ui/auth/forgot_password_screen.dart' as _i4;
 import 'package:helty/src/ui/auth/login_screen.dart' as _i6;
@@ -19,8 +21,6 @@ import 'package:helty/src/ui/auth/register_screen.dart' as _i10;
 import 'package:helty/src/ui/auth/reset_password_screen.dart' as _i12;
 import 'package:helty/src/ui/dashboard/dashboard_screen.dart' as _i2;
 import 'package:helty/src/ui/home/home_screen.dart' as _i5;
-import 'package:helty/src/ui/patients/patient_form_screen.dart' as _i7;
-import 'package:helty/src/ui/patients/patient_list_screen.dart' as _i8;
 import 'package:helty/src/ui/patients/today_patients.dart' as _i13;
 import 'package:helty/src/ui/patinets_services/enlist_service_screen.dart'
     as _i3;

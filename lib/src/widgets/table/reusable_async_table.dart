@@ -63,7 +63,6 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
     _paginatorController.dispose();
     _source.dispose();
     super.dispose();
-    super.dispose();
   }
 
   @override

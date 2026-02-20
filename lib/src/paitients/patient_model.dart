@@ -1,6 +1,6 @@
 class Patient {
-  final String id;
-  final String patientId;
+  final String? id;
+  final String? patientId;
   final String cardNo;
   final String title;
   final String surname;
@@ -28,8 +28,8 @@ class Patient {
   final String? fingerprintData;
 
   Patient({
-    required this.id,
-    required this.patientId,
+    this.id,
+    this.patientId,
     required this.cardNo,
     required this.title,
     required this.surname,

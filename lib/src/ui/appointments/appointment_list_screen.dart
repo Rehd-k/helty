@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/models/appointment_model.dart';
 
+import '../../widgets/filter.patients.dart';
 import '../../widgets/table/reusable_async_table.dart';
 
 @RoutePage()
@@ -16,10 +17,6 @@ class AppointmentListScreen extends ConsumerStatefulWidget {
 }
 
 class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
-  final TextEditingController _searchController = TextEditingController();
-
-  // 2. The API Fetcher Function
-  // Updated Fetcher: Returns PagedData<Appointement>
   Future<PagedData<Appointment>> fetchAppointments(int start, int count) async {
     await Future.delayed(const Duration(milliseconds: 500)); // Mock delay
 
@@ -58,19 +55,31 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              labelText: 'Search appointments',
-              prefixIcon: Icon(Icons.search),
-            ),
-            onChanged: (_) {
-              setState(() {});
-            },
-          ),
+        PatientsFilterWidget(
+          searchCategories: const [
+            'Patient ID',
+            'Card No',
+            'Surname',
+            'First Name',
+          ],
+          onFilterChanged:
+              (String query, String category, DateTime? from, DateTime? to) {
+                // ref
+                //     .read(patientProvider.notifier)
+                //     .searchPatients(
+                //       skip,
+                //       take,
+                //       query,
+                //       category,
+                //       from,
+                //       to,
+                //       null,
+                //       null,
+                //       null,
+                //     );
+              },
         ),
+
         Expanded(
           child: ReusableAsyncTable<Appointment>(
             fetchData: fetchAppointments,

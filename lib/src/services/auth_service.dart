@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:dio/dio.dart';
 
 import '../models/auth_response.dart';
@@ -50,7 +48,7 @@ class AuthService {
         if (email != null) 'email': email,
         if (phone != null) 'phone': phone,
         if (departmentId != null) 'departmentId': departmentId,
-        if (accountType != null) 'accountType': accountType.name,
+        if (accountType != null) 'accountType': 'OTHER',
       },
     );
     return AuthResponse.fromJson(resp.data as Map<String, dynamic>);

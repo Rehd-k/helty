@@ -121,6 +121,7 @@ class AppTheme {
           side: BorderSide(color: colorScheme.outlineVariant),
         ),
       ),
+      dataTableTheme: DataTableThemeData(),
 
       chipTheme: ChipThemeData(
         backgroundColor: colorScheme.secondaryContainer,

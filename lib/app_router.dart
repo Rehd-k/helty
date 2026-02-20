@@ -22,6 +22,7 @@ class AppRouter extends RootStackRouter {
       children: [
         AutoRoute(page: DashboardRoute.page, initial: true),
         AutoRoute(page: PatientListRoute.page),
+        AutoRoute(page: PatientFormRoute.page),
         AutoRoute(page: AppointmentListRoute.page),
         AutoRoute(page: TodayPatientsRoute.page),
         AutoRoute(page: PendingTransactionsRoute.page),

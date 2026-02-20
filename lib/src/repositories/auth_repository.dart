@@ -15,6 +15,7 @@ class AuthRepository {
     required String password,
   }) async {
     final response = await _authService.login(email: email, password: password);
+
     await _persist(response);
     return response;
   }
