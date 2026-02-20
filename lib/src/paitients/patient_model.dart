@@ -26,6 +26,9 @@ class Patient {
   final String? nextOfKinRelationship;
   final String? hmo;
   final String? fingerprintData;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? createdBy;
 
   Patient({
     this.id,
@@ -43,6 +46,7 @@ class Patient {
     required this.lga,
     required this.town,
     required this.permanentAddress,
+    this.createdAt,
     this.religion,
     this.email,
     this.preferredLanguage,
@@ -55,25 +59,29 @@ class Patient {
     this.nextOfKinRelationship,
     this.hmo,
     this.fingerprintData,
+    this.createdBy,
+    this.updatedAt,
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
+    // use nullable casts to avoid runtime type errors when keys are missing
+    final String? dobStr = json['dob'] as String?;
     return Patient(
-      id: json['id'] as String,
-      patientId: json['patientId'] as String,
-      cardNo: json['cardNo'] as String,
-      title: json['title'] as String,
-      surname: json['surname'] as String,
-      firstName: json['firstName'] as String,
+      id: json['id'] as String?,
+      patientId: json['patientId'] as String?,
+      cardNo: json['cardNo'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      surname: json['surname'] as String? ?? '',
+      firstName: json['firstName'] as String? ?? '',
       otherName: json['otherName'] as String?,
-      dob: DateTime.parse(json['dob'] as String),
-      gender: json['gender'] as String,
-      maritalStatus: json['maritalStatus'] as String,
-      nationality: json['nationality'] as String,
-      stateOfOrigin: json['stateOfOrigin'] as String,
-      lga: json['lga'] as String,
-      town: json['town'] as String,
-      permanentAddress: json['permanentAddress'] as String,
+      dob: dobStr != null ? DateTime.parse(dobStr) : DateTime(1970),
+      gender: json['gender'] as String? ?? '',
+      maritalStatus: json['maritalStatus'] as String? ?? '',
+      nationality: json['nationality'] as String? ?? '',
+      stateOfOrigin: json['stateOfOrigin'] as String? ?? '',
+      lga: json['lga'] as String? ?? '',
+      town: json['town'] as String? ?? '',
+      permanentAddress: json['permanentAddress'] as String? ?? '',
       religion: json['religion'] as String?,
       email: json['email'] as String?,
       preferredLanguage: json['preferredLanguage'] as String?,
@@ -85,6 +93,9 @@ class Patient {
       nextOfKinAddress: json['nextOfKinAddress'] as String?,
       nextOfKinRelationship: json['nextOfKinRelationship'] as String?,
       hmo: json['hmo'] as String?,
+      createdAt: json['createdAt'],
+      createdBy: json['createdBy'],
+      updatedAt: json['updatedAt'],
       fingerprintData: json['fingerprintData'] as String?,
     );
   }
@@ -118,6 +129,9 @@ class Patient {
       'nextOfKinRelationship': nextOfKinRelationship,
       'hmo': hmo,
       'fingerprintData': fingerprintData,
+      'createdAt': createdAt,
+      'createdBy': createdBy,
+      'updatedAt': updatedAt,
     };
   }
 }

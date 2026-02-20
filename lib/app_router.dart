@@ -29,6 +29,11 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: EnlistServiceRoute.page),
         AutoRoute(page: RenderServiceRoute.page),
         AutoRoute(page: ViewServiceRoute.page),
+        // helper screens for creating new entities
+        AutoRoute(page: AddServiceRoute.page),
+        AutoRoute(page: AddCategoryRoute.page),
+        AutoRoute(page: AddDepartmentRoute.page),
+        AutoRoute(page: RegisterRoute.page),
       ],
     ),
 

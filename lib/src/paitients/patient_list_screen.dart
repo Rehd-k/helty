@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +31,11 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
     );
   }
 
+  void makeCallAgain() {
+    print('object');
+    ref.read(patientProvider.notifier).fetchPatients();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +48,7 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(patientProvider);
+    log(state.patients.toList().toString());
     return Scaffold(
       // appBar: AppBar(title: const Text("Patient Records")),
       floatingActionButtonLocation: FloatingActionButtonLocation.miniStartFloat,
@@ -76,12 +84,15 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
                         null,
                       );
                 },
+            doRefresh: makeCallAgain,
           ),
-
+          IconButton(
+            onPressed: () => ref.read(patientProvider.notifier).fetchPatients(),
+            icon: Icon(Icons.refresh),
+          ),
           Expanded(
             child: ReusableAsyncTable<Patient>(
               fetchData: (start, count) async {
-                // mark parameters as used so analyzer doesn't complain
                 start;
                 count;
                 // return the current patient list (pagination handled externally)
@@ -90,8 +101,10 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
                   items: state.patients,
                 );
               },
-              idGetter: (patient) =>
-                  patient.id ?? '', // Used for selection logic
+              idGetter: (patient) {
+                log(patient.toString());
+                return patient.id ?? '';
+              }, // Used for selection logic
               onSelectionChanged: (selected) {
                 if (selected.isNotEmpty) {
                   ref

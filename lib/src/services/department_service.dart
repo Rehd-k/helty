@@ -17,7 +17,7 @@ class Department {
   );
 
   Map<String, dynamic> toJson() => {
-    'id': id,
+    if (id.isNotEmpty) 'id': id,
     'name': name,
     if (description != null) 'description': description,
   };
@@ -36,7 +36,7 @@ class DepartmentService {
     );
     final data = resp.data is List
         ? resp.data as List
-        : (resp.data['data'] as List);
+        : (resp.data['departments'] as List);
     return data
         .map((e) => Department.fromJson(e as Map<String, dynamic>))
         .toList();

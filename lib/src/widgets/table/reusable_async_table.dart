@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:data_table_2/data_table_2.dart';
 
@@ -49,13 +51,26 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
     if (!_initialized) {
       _source = _GenericDataSource<T>(
         context: context,
-        fetchData: widget.fetchData,
-        rowBuilder: widget.rowBuilder,
-        idGetter: widget.idGetter,
+        initialFetchData: widget.fetchData,
+        initialRowBuilder: widget.rowBuilder,
+        initialIdGetter: widget.idGetter,
         onSelectionChanged: widget.onSelectionChanged,
       );
       _initialized = true;
     }
+  }
+
+  @override
+  void didUpdateWidget(ReusableAsyncTable<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update the data source with new callbacks and refresh
+    _source.updateCallbacks(
+      fetchData: widget.fetchData,
+      rowBuilder: widget.rowBuilder,
+      idGetter: widget.idGetter,
+      onSelectionChanged: widget.onSelectionChanged,
+    );
+    _source.refreshDatasource();
   }
 
   @override
@@ -88,21 +103,37 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
 
 class _GenericDataSource<T> extends AsyncDataTableSource {
   final BuildContext context;
-  final FetchDataCallback<T> fetchData;
-  final List<DataCell> Function(T item) rowBuilder;
-  final String Function(T item) idGetter;
-  final Function(List<T> selectedItems)? onSelectionChanged;
+  late FetchDataCallback<T> fetchData;
+  late List<DataCell> Function(T item) rowBuilder;
+  late String Function(T item) idGetter;
+  Function(List<T> selectedItems)? onSelectionChanged;
 
   final Set<String> _selectedIds = {};
   final Map<String, T> _cachedItems = {};
 
   _GenericDataSource({
     required this.context,
-    required this.fetchData,
-    required this.rowBuilder,
-    required this.idGetter,
+    required FetchDataCallback<T> initialFetchData,
+    required List<DataCell> Function(T item) initialRowBuilder,
+    required String Function(T item) initialIdGetter,
     this.onSelectionChanged,
-  });
+  }) {
+    fetchData = initialFetchData;
+    rowBuilder = initialRowBuilder;
+    idGetter = initialIdGetter;
+  }
+
+  void updateCallbacks({
+    required FetchDataCallback<T> fetchData,
+    required List<DataCell> Function(T item) rowBuilder,
+    required String Function(T item) idGetter,
+    required Function(List<T> selectedItems)? onSelectionChanged,
+  }) {
+    this.fetchData = fetchData;
+    this.rowBuilder = rowBuilder;
+    this.idGetter = idGetter;
+    this.onSelectionChanged = onSelectionChanged;
+  }
 
   // FIXED: Renamed from 'selectAll' to 'updateSelection'
   void updateSelection(bool? isAll) {
@@ -132,7 +163,7 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
   Future<AsyncRowsResponse> getRows(int start, int count) async {
     try {
       final PagedData<T> data = await fetchData(start, count);
-
+      log(data.items.length.toString());
       final rows = data.items.map((item) {
         final id = idGetter(item);
         _cachedItems[id] = item;

@@ -4,6 +4,7 @@ import '../helper/date.formatter.dart';
 
 class PatientsFilterWidget extends StatefulWidget {
   final List<String> searchCategories;
+  final Function doRefresh;
   final Function(String query, String category, DateTime? from, DateTime? to)
   onFilterChanged;
 
@@ -11,6 +12,7 @@ class PatientsFilterWidget extends StatefulWidget {
     super.key,
     required this.searchCategories,
     required this.onFilterChanged,
+    required this.doRefresh,
   });
 
   @override
@@ -22,14 +24,17 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
   String? _selectedCategory;
   DateTime? _fromDate;
   DateTime? _toDate;
+  Function? doRefresh;
 
   @override
   void initState() {
     super.initState();
+    doRefresh = widget.doRefresh;
     _selectedCategory = widget.searchCategories.first;
   }
 
   void _resetFilters() {
+    doRefresh!();
     setState(() {
       _searchController.clear();
       _selectedCategory = widget.searchCategories.first;
@@ -164,7 +169,10 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
               ),
               const Spacer(),
               TextButton.icon(
-                onPressed: _resetFilters,
+                onPressed: () {
+                  _resetFilters;
+                  doRefresh;
+                },
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Reset'), // French for Reset
                 style: TextButton.styleFrom(foregroundColor: Colors.redAccent),

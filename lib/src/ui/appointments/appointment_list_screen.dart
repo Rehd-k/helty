@@ -78,6 +78,7 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                 //       null,
                 //     );
               },
+          doRefresh: () {},
         ),
 
         Expanded(

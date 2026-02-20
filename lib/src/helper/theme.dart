@@ -121,7 +121,29 @@ class AppTheme {
           side: BorderSide(color: colorScheme.outlineVariant),
         ),
       ),
-      dataTableTheme: DataTableThemeData(),
+      dataTableTheme: DataTableThemeData(
+        // 1. L'en-tête (The Header) Background
+        headingRowColor: WidgetStateProperty.all(_darkSeedColor.shade100),
+        headingTextStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+          letterSpacing: 0.5,
+        ),
+
+        // 2. Row styling
+        dataRowMinHeight: 52,
+        dataRowMaxHeight: 60,
+        horizontalMargin: 24,
+        columnSpacing: 20,
+
+        // 3. Border/Divider styling
+        dividerThickness: 1,
+        headingRowHeight: 56,
+
+        // Checkbox styling (if used)
+        checkboxHorizontalMargin: 12,
+      ),
 
       chipTheme: ChipThemeData(
         backgroundColor: colorScheme.secondaryContainer,

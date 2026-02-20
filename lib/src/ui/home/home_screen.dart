@@ -21,6 +21,7 @@ class HomeScreen extends StatelessWidget {
     EnlistServiceRoute(),
     RenderServiceRoute(),
     ViewServiceRoute(),
+    RegisterRoute(),
   ];
 
   static const _labels = [
@@ -32,6 +33,7 @@ class HomeScreen extends StatelessWidget {
     'Enlist Service',
     'Render Investigation Service',
     'View OPD service',
+    'Register',
   ];
 
   static const _icons = [
@@ -43,6 +45,7 @@ class HomeScreen extends StatelessWidget {
     Icons.add_task_outlined,
     Icons.science_outlined,
     Icons.view_agenda_outlined,
+    Icons.verified_user_outlined,
   ];
 
   @override
