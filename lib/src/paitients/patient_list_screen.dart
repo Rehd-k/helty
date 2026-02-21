@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +30,6 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
   }
 
   void makeCallAgain() {
-    print('object');
     ref.read(patientProvider.notifier).fetchPatients();
   }
 
@@ -48,7 +45,6 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(patientProvider);
-    log(state.patients.toList().toString());
     return Scaffold(
       // appBar: AppBar(title: const Text("Patient Records")),
       floatingActionButtonLocation: FloatingActionButtonLocation.miniStartFloat,
@@ -86,8 +82,12 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
                 },
             doRefresh: makeCallAgain,
           ),
+
           IconButton(
-            onPressed: () => ref.read(patientProvider.notifier).fetchPatients(),
+            // onPressed: () => ref.read(patientProvider.notifier).fetchPatients(),
+            onPressed: () {
+              context.router.push(PendingBillsRoute());
+            },
             icon: Icon(Icons.refresh),
           ),
           Expanded(
@@ -102,7 +102,6 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
                 );
               },
               idGetter: (patient) {
-                log(patient.toString());
                 return patient.id ?? '';
               }, // Used for selection logic
               onSelectionChanged: (selected) {

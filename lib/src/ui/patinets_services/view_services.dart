@@ -1,45 +1,43 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
+import 'package:helty/src/services/service_service.dart';
 
 import '../../models/service_model.dart';
-import '../../providers/service_providers.dart';
 import '../../widgets/table/reusable_async_table.dart';
 import 'add_category_screen.dart';
 import 'add_department_screen.dart';
 import 'add_service_screen.dart';
 
 @RoutePage()
-class ViewServiceScreen extends ConsumerStatefulWidget {
+class ViewServiceScreen extends StatefulWidget {
   const ViewServiceScreen({super.key});
 
   @override
   ViewServiceScreenState createState() => ViewServiceScreenState();
 }
 
-class ViewServiceScreenState extends ConsumerState<ViewServiceScreen> {
+class ViewServiceScreenState extends State<ViewServiceScreen> {
+  final serviceService = ServiceService();
   final TextEditingController _searchController = TextEditingController();
 
-  /// Fetches services from the backend using the provider.  Because the
-  /// API currently returns a flat list we implement simple client-side
-  /// pagination to satisfy the `ReusableAsyncTable` contract.
   Future<PagedData<ServiceModel>> fetchServices(int start, int count) async {
-    // read service once (provider is `autoDispose` by default but okay)
-    final service = ref.read(serviceServiceProvider);
+    final service = await serviceService.fetchServices();
 
-    final all = await service.fetchServices(query: _searchController.text);
-
-    // simple slice for pagination
-    final slice = all.skip(start).take(count).toList();
-    return PagedData(totalCount: all.length, items: slice);
+    return PagedData(totalCount: service.length, items: service);
   }
 
   void _handleRowAction(String action, ServiceModel service, BuildContext ctx) {
     ScaffoldMessenger.of(ctx).showSnackBar(
       SnackBar(content: Text('Action "\$action" on \\$service.name')),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchServices(0, 10);
   }
 
   @override

@@ -3,323 +3,911 @@ import 'dart:io';
 import 'package:auto_route/auto_route.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
+import '../../providers/auth_provider.dart';
 import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
 
+// ---------------------------------------------------------------------------
+// Data model
+// ---------------------------------------------------------------------------
+
+class MenuItem {
+  final String label;
+  final IconData icon;
+  final PageRouteInfo route;
+  final List<MenuItem>? children;
+
+  const MenuItem({
+    required this.label,
+    required this.icon,
+    required this.route,
+    this.children,
+  });
+}
+
+enum UserRole { admin, staff, receptionist }
+
+// ---------------------------------------------------------------------------
+// Design tokens
+// ---------------------------------------------------------------------------
+
+const _kSidebarWidth = 260.0;
+const _kSidebarCollapsedWidth = 64.0;
+const _kSidebarBg = Color(0xFF0F172A); // slate-900
+const _kSidebarAccent = Color(0xFF6366F1); // indigo-500
+const _kSidebarAccentBg = Color(0xFF1E1B4B); // indigo-950
+const _kSidebarText = Color(0xFFCBD5E1); // slate-300
+const _kSidebarTextMuted = Color(0xFF64748B); // slate-500
+const _kSidebarHover = Color(0xFF1E293B); // slate-800
+const _kSidebarDivider = Color(0xFF1E293B);
+
+// ---------------------------------------------------------------------------
+// HomeScreen – shell only; navigation happens via context.router.push()
+// ---------------------------------------------------------------------------
+
 @RoutePage()
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
-  static const _tabs = [
-    DashboardRoute(),
-    PatientListRoute(),
-    AppointmentListRoute(),
-    TodayPatientsRoute(),
-    PendingTransactionsRoute(),
-    EnlistServiceRoute(),
-    RenderServiceRoute(),
-    ViewServiceRoute(),
-    RegisterRoute(),
-  ];
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
 
-  static const _labels = [
-    'Dashboard',
-    'All Patients',
-    'Appointments',
-    'Today\'s Patients',
-    'Pending Transactions',
-    'Enlist Service',
-    'Render Investigation Service',
-    'View OPD service',
-    'Register',
-  ];
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _sidebarOpen = true;
 
-  static const _icons = [
-    Icons.dashboard_outlined,
-    Icons.list_alt_outlined,
-    Icons.group_outlined,
-    Icons.calendar_today_outlined,
-    Icons.pending_actions_outlined,
-    Icons.add_task_outlined,
-    Icons.science_outlined,
-    Icons.view_agenda_outlined,
-    Icons.verified_user_outlined,
-  ];
+  List<MenuItem> _menuForRole(String role) {
+    print(role);
+    final common = <MenuItem>[
+      const MenuItem(
+        label: 'Dashboard',
+        icon: Icons.dashboard_rounded,
+        route: DashboardRoute(),
+      ),
+      MenuItem(
+        label: 'Patients',
+        icon: Icons.people_alt_rounded,
+        route: const PatientListRoute(),
+        children: [
+          const MenuItem(
+            label: 'All Patients',
+            icon: Icons.list_alt_rounded,
+            route: PatientListRoute(),
+          ),
+          MenuItem(
+            label: 'Add Patient',
+            icon: Icons.person_add_rounded,
+            route: PatientFormRoute(),
+          ),
+        ],
+      ),
+      const MenuItem(
+        label: 'Appointments',
+        icon: Icons.event_rounded,
+        route: AppointmentListRoute(),
+      ),
+      const MenuItem(
+        label: "Today's Patients",
+        icon: Icons.today_rounded,
+        route: TodayPatientsRoute(),
+      ),
+      const MenuItem(
+        label: 'Pending Transactions',
+        icon: Icons.pending_actions_rounded,
+        route: PendingBillsRoute(),
+      ),
+      const MenuItem(
+        label: 'Enlist Service',
+        icon: Icons.add_task_rounded,
+        route: EnlistServiceRoute(),
+      ),
+      const MenuItem(
+        label: 'Render Investigation',
+        icon: Icons.science_rounded,
+        route: RenderServiceRoute(),
+      ),
+      const MenuItem(
+        label: 'View OPD Service',
+        icon: Icons.view_agenda_rounded,
+        route: ViewServiceRoute(),
+      ),
+    ];
+
+    if (role == 'ADMIN') {
+      common.add(
+        const MenuItem(
+          label: 'Register',
+          icon: Icons.verified_user_rounded,
+          route: RegisterRoute(),
+        ),
+      );
+    }
+
+    return common;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+    final menuItems = _menuForRole(auth.staff!.role);
+    final isMobile = MediaQuery.of(context).size.width < 720;
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
       body: Column(
         children: [
-          if (Platform.isWindows)
-            WindowTitleBarBox(
-              child: Container(
-                height: 50,
-                color: Colors.grey.shade900,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: MoveWindow(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.health_and_safety_outlined,
-                                size: 24,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Helty Hospital Management',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: Row(
-                        spacing: 16,
-                        children: [
-                          const SlidingNotificationDropdown(),
-                          _TitleBarLogoutButton(),
-                          const WindowButtons(),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          if (Platform.isWindows) _buildTitleBar(context),
           Expanded(
-            child: AutoTabsRouter(
-              routes: _tabs,
-              transitionBuilder: (context, child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
-              builder: (context, child) {
-                final tabsRouter = AutoTabsRouter.of(context);
-                final isMobile = MediaQuery.of(context).size.width < 600;
-
-                if (isMobile) {
-                  return Column(
-                    children: [
-                      Expanded(child: child),
-                      BottomNavigationBar(
-                        currentIndex: tabsRouter.activeIndex,
-                        onTap: tabsRouter.setActiveIndex,
-                        items: [
-                          for (int i = 0; i < 3; i++)
-                            BottomNavigationBarItem(
-                              icon: Icon(_icons[i]),
-                              label: _labels[i],
-                            ),
-                        ],
-                      ),
-                    ],
-                  );
-                }
-
-                return Row(
-                  children: [
-                    _SidebarNavigation(
-                      activeIndex: tabsRouter.activeIndex,
-                      onItemTapped: tabsRouter.setActiveIndex,
-                    ),
-                    Expanded(
-                      child: Container(
-                        color: Colors.grey.shade50,
-                        child: child,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
+            child: isMobile
+                ? _buildMobileLayout(context, menuItems)
+                : _buildDesktopLayout(context, menuItems),
           ),
         ],
       ),
     );
   }
+
+  // ── Desktop: persistent sidebar that collapses to icon rail ──────────────
+
+  Widget _buildDesktopLayout(BuildContext context, List<MenuItem> menuItems) {
+    return Row(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          width: _sidebarOpen ? _kSidebarWidth : _kSidebarCollapsedWidth,
+          child: _SidebarNavigation(
+            menuItems: menuItems,
+            collapsed: !_sidebarOpen,
+            onToggle: () => setState(() => _sidebarOpen = !_sidebarOpen),
+          ),
+        ),
+        Expanded(
+          child: Container(color: const Color(0xFFF1F5F9), child: AutoRouter()),
+        ),
+      ],
+    );
+  }
+
+  // ── Mobile: top bar with hamburger + drawer overlay ──────────────────────
+
+  Widget _buildMobileLayout(BuildContext context, List<MenuItem> menuItems) {
+    return Stack(
+      children: [
+        Column(
+          children: [
+            _MobileTopBar(onMenuTap: () => setState(() => _sidebarOpen = true)),
+            const Expanded(child: AutoRouter()),
+          ],
+        ),
+        if (_sidebarOpen) ...[
+          // scrim
+          GestureDetector(
+            onTap: () => setState(() => _sidebarOpen = false),
+            child: Container(color: Colors.black54),
+          ),
+          // drawer
+          AnimatedSlide(
+            duration: const Duration(milliseconds: 250),
+            offset: _sidebarOpen ? Offset.zero : const Offset(-1, 0),
+            curve: Curves.easeInOut,
+            child: SizedBox(
+              width: _kSidebarWidth,
+              height: double.infinity,
+              child: _SidebarNavigation(
+                menuItems: menuItems,
+                collapsed: false,
+                onToggle: () => setState(() => _sidebarOpen = false),
+                closeLabel: true,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Windows Custom Title Bar ──────────────────────────────────────────────
+
+  Widget _buildTitleBar(BuildContext context) {
+    return WindowTitleBarBox(
+      child: Container(
+        height: 48,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: MoveWindow(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: _kSidebarAccent.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.health_and_safety_rounded,
+                          size: 20,
+                          color: _kSidebarAccent,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Helty',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Hospital Management',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: _kSidebarTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Row(
+                spacing: 8,
+                children: [
+                  const SlidingNotificationDropdown(),
+                  _TitleBarLogoutButton(),
+                  const WindowButtons(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Sidebar Navigation
+// ---------------------------------------------------------------------------
+
 class _SidebarNavigation extends StatelessWidget {
-  final int activeIndex;
-  final Function(int) onItemTapped;
+  final List<MenuItem> menuItems;
+  final bool collapsed;
+  final VoidCallback onToggle;
+  final bool closeLabel;
 
   const _SidebarNavigation({
-    required this.activeIndex,
-    required this.onItemTapped,
+    required this.menuItems,
+    required this.collapsed,
+    required this.onToggle,
+    this.closeLabel = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final currentName = context.router.current.name;
+
     return Container(
-      width: 280,
-      color: Colors.white,
+      color: _kSidebarBg,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          _buildHeader(context),
+          const _SidebarDivider(),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _getColorForIndex(0),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.health_and_safety_outlined,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Helty',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Hospital Management',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                for (int i = 0; i < menuItems.length; i++)
+                  _SidebarEntry(
+                    item: menuItems[i],
+                    index: i,
+                    currentName: currentName,
+                    collapsed: collapsed,
+                  ),
               ],
             ),
           ),
-          const Divider(),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: HomeScreen._labels.length,
-              itemBuilder: (context, index) => _NavItem(
-                icon: HomeScreen._icons[index],
-                label: HomeScreen._labels[index],
-                isSelected: activeIndex == index,
-                onTap: () => onItemTapped(index),
-                color: _getColorForIndex(index),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: _SidebarLogoutButton(),
-          ),
+          const _SidebarDivider(),
+          _buildFooter(context),
         ],
       ),
     );
   }
 
-  Color _getColorForIndex(int index) {
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.red,
-      Colors.teal,
-      Colors.indigo,
-      Colors.amber,
-    ];
-    return colors[index % colors.length];
-  }
-}
-
-class _NavItem extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final Color color;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    required this.color,
-  });
-
-  @override
-  State<_NavItem> createState() => _NavItemState();
-}
-
-class _NavItemState extends State<_NavItem> {
-  bool _isHovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: widget.isSelected
-              ? widget.color.withValues(alpha: 0.1)
-              : _isHovering
-              ? Colors.grey.shade100
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: widget.isSelected
-              ? Border.all(
-                  color: widget.color.withValues(alpha: 0.3),
-                  width: 1.5,
-                )
-              : null,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: _kSidebarAccent.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.health_and_safety_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          if (!collapsed) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    widget.icon,
-                    color: widget.isSelected
-                        ? widget.color
-                        : Colors.grey.shade700,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.label,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: widget.isSelected
-                            ? widget.color
-                            : Colors.grey.shade800,
-                        fontWeight: widget.isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    'Helty',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: 0.3,
                     ),
+                  ),
+                  Text(
+                    'Hospital Management',
+                    style: TextStyle(color: _kSidebarTextMuted, fontSize: 11),
                   ),
                 ],
               ),
             ),
+          ],
+          _ToggleButton(
+            collapsed: collapsed,
+            onToggle: onToggle,
+            closeLabel: closeLabel,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: collapsed ? _IconLogoutButton() : _FullLogoutButton(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar toggle button
+// ---------------------------------------------------------------------------
+
+class _ToggleButton extends StatefulWidget {
+  final bool collapsed;
+  final VoidCallback onToggle;
+  final bool closeLabel;
+
+  const _ToggleButton({
+    required this.collapsed,
+    required this.onToggle,
+    this.closeLabel = false,
+  });
+
+  @override
+  State<_ToggleButton> createState() => _ToggleButtonState();
+}
+
+class _ToggleButtonState extends State<_ToggleButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onToggle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: _hover ? _kSidebarHover : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            widget.closeLabel || widget.collapsed
+                ? Icons.menu_open_rounded
+                : Icons.menu_rounded,
+            color: _kSidebarText,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar divider
+// ---------------------------------------------------------------------------
+
+class _SidebarDivider extends StatelessWidget {
+  const _SidebarDivider();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 1,
+    margin: const EdgeInsets.symmetric(horizontal: 12),
+    color: _kSidebarDivider,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar menu entry
+// ---------------------------------------------------------------------------
+
+class _SidebarEntry extends StatefulWidget {
+  final MenuItem item;
+  final int index;
+  final String? currentName;
+  final bool collapsed;
+
+  const _SidebarEntry({
+    required this.item,
+    required this.index,
+    required this.currentName,
+    required this.collapsed,
+  });
+
+  @override
+  State<_SidebarEntry> createState() => _SidebarEntryState();
+}
+
+class _SidebarEntryState extends State<_SidebarEntry> {
+  bool _hover = false;
+  bool _expanded = false;
+
+  bool get _isActive {
+    final name = widget.currentName;
+    if (name == widget.item.route.runtimeType.toString()) return true;
+    if (widget.item.children != null) {
+      return widget.item.children!.any(
+        (c) => name == c.route.runtimeType.toString(),
+      );
+    }
+    return false;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = _isActive;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasChildren = widget.item.children?.isNotEmpty ?? false;
+
+    if (hasChildren && !widget.collapsed) {
+      return _buildExpandable(context);
+    }
+
+    return _buildTile(
+      context,
+      icon: widget.item.icon,
+      label: widget.item.label,
+      isActive: _isActive,
+      onTap: () => context.router.push(widget.item.route),
+    );
+  }
+
+  Widget _buildExpandable(BuildContext context) {
+    return Column(
+      children: [
+        _buildTile(
+          context,
+          icon: widget.item.icon,
+          label: widget.item.label,
+          isActive: _isActive,
+          trailing: AnimatedRotation(
+            turns: _expanded ? 0.5 : 0,
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: _kSidebarTextMuted,
+              size: 18,
+            ),
+          ),
+          onTap: () => setState(() => _expanded = !_expanded),
+        ),
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: _buildChildren(context),
+          crossFadeState: _expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 200),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChildren(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 4),
+      child: Column(
+        children: [
+          for (final child in widget.item.children!)
+            _ChildEntry(item: child, currentName: widget.currentName),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+    Widget? trailing,
+  }) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.only(bottom: 2),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.collapsed ? 0 : 12,
+            vertical: 10,
+          ),
+          decoration: BoxDecoration(
+            color: isActive
+                ? _kSidebarAccentBg
+                : _hover
+                ? _kSidebarHover
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: widget.collapsed
+              ? _collapsedIcon(icon, isActive)
+              : _expandedRow(icon, label, isActive, trailing),
+        ),
+      ),
+    );
+  }
+
+  Widget _collapsedIcon(IconData icon, bool isActive) {
+    return Center(
+      child: Tooltip(
+        message: widget.item.label,
+        preferBelow: false,
+        child: Icon(
+          icon,
+          color: isActive ? _kSidebarAccent : _kSidebarTextMuted,
+          size: 22,
+        ),
+      ),
+    );
+  }
+
+  Widget _expandedRow(
+    IconData icon,
+    String label,
+    bool isActive,
+    Widget? trailing,
+  ) {
+    return Row(
+      children: [
+        if (isActive)
+          Container(
+            width: 3,
+            height: 18,
+            margin: const EdgeInsets.only(right: 10),
+            decoration: BoxDecoration(
+              color: _kSidebarAccent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          )
+        else
+          const SizedBox(width: 13),
+        Icon(
+          icon,
+          color: isActive ? _kSidebarAccent : _kSidebarTextMuted,
+          size: 20,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isActive ? Colors.white : _kSidebarText,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              fontSize: 13.5,
+            ),
+          ),
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Child entry (sub-menu item)
+// ---------------------------------------------------------------------------
+
+class _ChildEntry extends StatefulWidget {
+  final MenuItem item;
+  final String? currentName;
+
+  const _ChildEntry({required this.item, required this.currentName});
+
+  @override
+  State<_ChildEntry> createState() => _ChildEntryState();
+}
+
+class _ChildEntryState extends State<_ChildEntry> {
+  bool _hover = false;
+
+  bool get _isActive =>
+      widget.currentName == widget.item.route.runtimeType.toString();
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: () => context.router.push(widget.item.route),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.only(bottom: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: _isActive
+                ? _kSidebarAccentBg
+                : _hover
+                ? _kSidebarHover
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: 3,
+                margin: const EdgeInsets.only(left: 2, right: 14),
+                decoration: BoxDecoration(
+                  color: _isActive ? _kSidebarAccent : _kSidebarTextMuted,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Icon(
+                widget.item.icon,
+                color: _isActive ? _kSidebarAccent : _kSidebarTextMuted,
+                size: 17,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.item.label,
+                  style: TextStyle(
+                    color: _isActive ? Colors.white : _kSidebarText,
+                    fontWeight: _isActive ? FontWeight.w600 : FontWeight.w400,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mobile top bar
+// ---------------------------------------------------------------------------
+
+class _MobileTopBar extends StatelessWidget {
+  final VoidCallback onMenuTap;
+
+  const _MobileTopBar({required this.onMenuTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        color: _kSidebarBg,
+        boxShadow: [
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        children: [
+          _IconButton(icon: Icons.menu_rounded, onTap: onMenuTap),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _kSidebarAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.health_and_safety_rounded,
+              size: 18,
+              color: _kSidebarAccent,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'Helty',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const Spacer(),
+          const SlidingNotificationDropdown(),
+          const SizedBox(width: 8),
+          _MobileLogoutButton(),
+        ],
+      ),
+    );
+  }
+}
+
+class _IconButton extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _IconButton({required this.icon, required this.onTap});
+
+  @override
+  State<_IconButton> createState() => _IconButtonState();
+}
+
+class _IconButtonState extends State<_IconButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _hover ? _kSidebarHover : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(widget.icon, color: _kSidebarText, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Logout buttons
+// ---------------------------------------------------------------------------
+
+class _IconLogoutButton extends StatefulWidget {
+  @override
+  State<_IconLogoutButton> createState() => _IconLogoutButtonState();
+}
+
+class _IconLogoutButtonState extends State<_IconLogoutButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: () => context.router.replaceAll([LoginRoute()]),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _hover
+                ? const Color(0xFF7F1D1D).withValues(alpha: 0.3)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Tooltip(
+            message: 'Logout',
+            child: Icon(
+              Icons.logout_rounded,
+              color: _hover ? Colors.red.shade400 : _kSidebarTextMuted,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FullLogoutButton extends StatefulWidget {
+  @override
+  State<_FullLogoutButton> createState() => _FullLogoutButtonState();
+}
+
+class _FullLogoutButtonState extends State<_FullLogoutButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: () => context.router.replaceAll([LoginRoute()]),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: _hover
+                ? const Color(0xFF7F1D1D).withValues(alpha: 0.25)
+                : _kSidebarHover,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _hover
+                  ? Colors.red.shade800.withValues(alpha: 0.5)
+                  : _kSidebarDivider,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                color: _hover ? Colors.red.shade400 : _kSidebarTextMuted,
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Logout',
+                style: TextStyle(
+                  color: _hover ? Colors.red.shade400 : _kSidebarText,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13.5,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -335,21 +923,22 @@ class _TitleBarLogoutButton extends StatefulWidget {
 }
 
 class _TitleBarLogoutButtonState extends State<_TitleBarLogoutButton> {
-  bool _isHovering = false;
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
       child: InkWell(
         onTap: () => context.router.replaceAll([LoginRoute()]),
+        borderRadius: BorderRadius.circular(6),
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Icon(
-            Icons.logout_outlined,
-            color: _isHovering ? Colors.red.shade600 : Colors.white,
-            size: 20,
+            Icons.logout_rounded,
+            color: _hover ? Colors.red.shade400 : _kSidebarTextMuted,
+            size: 18,
           ),
         ),
       ),
@@ -357,53 +946,27 @@ class _TitleBarLogoutButtonState extends State<_TitleBarLogoutButton> {
   }
 }
 
-class _SidebarLogoutButton extends StatefulWidget {
-  const _SidebarLogoutButton();
-
+class _MobileLogoutButton extends StatefulWidget {
   @override
-  State<_SidebarLogoutButton> createState() => _SidebarLogoutButtonState();
+  State<_MobileLogoutButton> createState() => _MobileLogoutButtonState();
 }
 
-class _SidebarLogoutButtonState extends State<_SidebarLogoutButton> {
-  bool _isHovering = false;
+class _MobileLogoutButtonState extends State<_MobileLogoutButton> {
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _isHovering ? Colors.red.shade50 : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.red.shade200, width: 1),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => context.router.replaceAll([LoginRoute()]),
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.logout_outlined,
-                    color: Colors.red.shade600,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Logout',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Colors.red.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: () => context.router.replaceAll([LoginRoute()]),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(
+            Icons.logout_rounded,
+            color: _hover ? Colors.red.shade400 : _kSidebarTextMuted,
+            size: 20,
           ),
         ),
       ),

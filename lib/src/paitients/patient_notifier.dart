@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'patient.state.dart';
@@ -25,7 +23,6 @@ class PatientNotifier extends StateNotifier<PatientState> {
         sortBy: state.sortBy,
         isAscending: isAscending,
       );
-      log(data.toString());
       state = state.copyWith(isLoading: false, patients: data);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

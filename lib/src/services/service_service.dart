@@ -19,7 +19,7 @@ class ServiceService {
     );
     final data = resp.data is List
         ? resp.data as List
-        : (resp.data['data'] as List);
+        : (resp.data['services'] as List);
     return data
         .map((e) => ServiceModel.fromJson(e as Map<String, dynamic>))
         .toList();

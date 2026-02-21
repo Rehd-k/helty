@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:data_table_2/data_table_2.dart';
 
@@ -163,7 +161,6 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
   Future<AsyncRowsResponse> getRows(int start, int count) async {
     try {
       final PagedData<T> data = await fetchData(start, count);
-      log(data.items.length.toString());
       final rows = data.items.map((item) {
         final id = idGetter(item);
         _cachedItems[id] = item;

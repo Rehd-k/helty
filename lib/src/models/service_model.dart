@@ -29,7 +29,7 @@ class ServiceModel {
     id: json['id'] as String,
     name: json['name'] as String,
     description: json['description'] as String?,
-    cost: (json['cost'] as num).toDouble(),
+    cost: num.parse(json['cost']).toDouble(),
     categoryId: json['categoryId'] as String?,
     categoryName: json['category']?['name'] as String?,
     departmentId: json['departmentId'] as String?,
