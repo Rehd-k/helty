@@ -30,6 +30,9 @@ class PatientState {
     this.selectedPatient,
   });
 
+  /// Sentinel value used to distinguish "clear selected patient" from "keep existing".
+  static const _unset = Object();
+
   PatientState copyWith({
     bool? isLoading,
     List<Patient>? patients,
@@ -42,7 +45,8 @@ class PatientState {
     DateTime? toDate,
     String? sortBy,
     bool? isAscending,
-    Patient? selectedPatient,
+    // Use Object? so callers can pass null intentionally to clear the field.
+    Object? selectedPatient = _unset,
   }) {
     return PatientState(
       isLoading: isLoading ?? this.isLoading,
@@ -56,7 +60,9 @@ class PatientState {
       toDate: toDate ?? this.toDate,
       sortBy: sortBy ?? this.sortBy,
       isAscending: isAscending ?? this.isAscending,
-      selectedPatient: selectedPatient ?? this.selectedPatient,
+      selectedPatient: identical(selectedPatient, _unset)
+          ? this.selectedPatient
+          : selectedPatient as Patient?,
     );
   }
 }

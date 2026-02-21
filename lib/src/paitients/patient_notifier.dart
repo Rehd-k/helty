@@ -33,6 +33,10 @@ class PatientNotifier extends StateNotifier<PatientState> {
     state = state.copyWith(selectedPatient: patient);
   }
 
+  void clearPatient() {
+    state = state.copyWith(selectedPatient: null);
+  }
+
   // SEARCH
   void searchPatients(
     int? skip,

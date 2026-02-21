@@ -1,5 +1,12 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/paitients/patient_model.dart';
+import 'package:helty/src/paitients/patient_providers.dart';
+
+import '../../billings/pay.bill.dart';
+import '../../enlist_services/selected.user.dart';
 
 // --- MOCK DATA MODELS ---
 class ServiceItem {
@@ -25,15 +32,25 @@ class ServiceItem {
 }
 
 @RoutePage()
-class RenderServiceScreen extends StatefulWidget {
+class RenderServiceScreen extends ConsumerStatefulWidget {
   const RenderServiceScreen({super.key});
 
   @override
-  State<RenderServiceScreen> createState() => _BillingServicesViewState();
+  ConsumerState<RenderServiceScreen> createState() =>
+      _BillingServicesViewState();
 }
 
-class _BillingServicesViewState extends State<RenderServiceScreen> {
+class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // Mock Data from Backend for available services
+
+  void _openPaymentModal(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent, // We handle the dimming inside PayBill
+      builder: (context) => PayBill(patient: patient),
+    );
+  }
+
   final List<ServiceItem> _allServices = [
     ServiceItem(
       code: '99213',
@@ -165,34 +182,47 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The globally selected patient (set from EnlistPaitientScreen and
+    // accessible anywhere in the app via the provider).
+    final selectedPatient = ref.watch(patientProvider).selectedPatient;
+
     // NOTE: For this Row to work properly with Expanded children containing ListViews,
     // this Widget should be placed inside a container with bounded height (like an Expanded
     // in your main screen layout, or a SizedBox with a fixed height).
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ==========================================
-        // LEFT PANE: SEARCH & AVAILABLE SERVICES
-        // ==========================================
-        Expanded(
-          flex: 5,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildSearchAndFilterCard(),
-              const SizedBox(height: 16),
-              Expanded(child: _buildAvailableServicesList()),
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ==========================================
+            // LEFT PANE: SEARCH & AVAILABLE SERVICES
+            // ==========================================
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildSearchAndFilterCard(),
+                  const SizedBox(height: 16),
+                  Expanded(child: _buildAvailableServicesList()),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 16),
+
+            // ==========================================
+            // RIGHT PANE: SELECTED SERVICES TABLE
+            // ==========================================
+            Expanded(
+              flex: 4,
+              child: _buildSelectedServicesPanel(selectedPatient),
+            ),
+          ],
         ),
-
-        const SizedBox(width: 16),
-
-        // ==========================================
-        // RIGHT PANE: SELECTED SERVICES TABLE
-        // ==========================================
-        Expanded(flex: 4, child: _buildSelectedServicesPanel()),
-      ],
+      ),
     );
   }
 
@@ -208,7 +238,7 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -354,7 +384,7 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -414,7 +444,7 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              '\$${item.unitPrice.toStringAsFixed(2)}',
+                              item.unitPrice.toFinancial(isMoney: true),
                               style: TextStyle(
                                 color: Colors.grey.shade800,
                                 fontWeight: FontWeight.bold,
@@ -444,7 +474,7 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
   // =========================================================================
   // RIGHT PANE COMPONENTS
   // =========================================================================
-  Widget _buildSelectedServicesPanel() {
+  Widget _buildSelectedServicesPanel(Patient? selectedPatient) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -452,7 +482,7 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
         border: Border.all(color: Colors.blue.shade200), // Highlighted border
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.05),
+            color: Colors.blue.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -461,6 +491,7 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          SelectedPatientCard(),
           // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -474,13 +505,18 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Selected Services',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blueAccent,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Selected Services',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent,
+                      ),
+                    ),
+                  ],
                 ),
                 if (_selectedItems.isNotEmpty)
                   TextButton.icon(
@@ -610,7 +646,7 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
                             Expanded(
                               flex: 2,
                               child: Text(
-                                '\$${item.unitPrice.toStringAsFixed(2)}',
+                                item.unitPrice.toFinancial(isMoney: true),
                                 style: TextStyle(
                                   color: Colors.grey.shade600,
                                   fontSize: 13,
@@ -622,7 +658,7 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
                             Expanded(
                               flex: 2,
                               child: Text(
-                                '\$${item.amount.toStringAsFixed(2)}',
+                                item.amount.toFinancial(isMoney: true),
                                 style: TextStyle(
                                   color: Colors.grey.shade900,
                                   fontWeight: FontWeight.bold,
@@ -678,11 +714,26 @@ class _BillingServicesViewState extends State<RenderServiceScreen> {
                   ),
                 ),
                 Text(
-                  '\$${_totalDue.toStringAsFixed(2)}',
+                  _totalDue.toFinancial(isMoney: true),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     color: Theme.of(context).primaryColor,
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    _openPaymentModal(selectedPatient);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(40), // fully rounded
+                    ),
+                  ),
+                  child: const Text(
+                    "Make Payment",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],

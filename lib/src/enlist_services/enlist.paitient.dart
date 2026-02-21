@@ -1,58 +1,38 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/paitients/patient_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/paitients/patient_providers.dart';
 
 import '../paitients/patient_model.dart';
 import 'select.user.dart';
 import 'selected.user.dart';
 
 @RoutePage()
-class EnlistPaitientScreen extends StatefulWidget {
+class EnlistPaitientScreen extends ConsumerStatefulWidget {
   const EnlistPaitientScreen({super.key});
 
   @override
   EnlistPaitientState createState() => EnlistPaitientState();
 }
 
-class EnlistPaitientState extends State<EnlistPaitientScreen> {
-  PatientService patientService = PatientService();
+class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
   double spacing = 16.0;
   double runSpacing = 16.0;
-  List<Patient> patients = [];
-  Patient? patient;
-
-  void fetchPatients([String? query]) async {
-    List<Patient> res = await patientService.fetchPatients(
-      query: query,
-      isAscending: true,
-    );
-
-    setState(() {
-      patients = res;
-    });
-  }
-
-  void selectPatient(Patient selectedPatient) async {
-    print('object');
-    setState(() {
-      patient = selectedPatient;
-    });
-  }
-
-  void clearPatient() {
-    setState(() {
-      patient = null;
-    });
-  }
 
   @override
   void initState() {
     super.initState();
-    fetchPatients();
+    // Fetch patients on load
+    Future.microtask(() => ref.read(patientProvider.notifier).fetchPatients());
   }
 
   @override
   Widget build(BuildContext context) {
+    final patientState = ref.watch(patientProvider);
+    final patients = patientState.patients;
+    final selectedPatient = patientState.selectedPatient;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -63,9 +43,13 @@ class EnlistPaitientState extends State<EnlistPaitientScreen> {
             children: [
               SelectUser(
                 patients: patients,
-                onSearch: (String value) {},
+                onSearch: (String value) {
+                  ref
+                      .read(patientProvider.notifier)
+                      .fetchPatients(query: value);
+                },
                 onPatientSelected: (Patient value) {
-                  selectPatient(value);
+                  ref.read(patientProvider.notifier).selectPatient(value);
                 },
               ),
               const SizedBox(height: 20),
@@ -78,25 +62,53 @@ class EnlistPaitientState extends State<EnlistPaitientScreen> {
           child: Row(
             children: [
               Expanded(
-                flex: 2, // 2/3
+                flex: 2,
                 child: SelectUser(
                   patients: patients,
                   onSearch: (String value) {
-                    fetchPatients(value);
+                    ref
+                        .read(patientProvider.notifier)
+                        .fetchPatients(query: value);
                   },
                   onPatientSelected: (Patient value) {
-                    selectPatient(value);
+                    ref.read(patientProvider.notifier).selectPatient(value);
                   },
                 ),
               ),
               const SizedBox(width: 20),
               Expanded(
-                flex: 1, // 1/3
-                child: patient == null
-                    ? SizedBox()
-                    : SelectedPatientCard(
-                        patient: patient,
-                        onClear: clearPatient,
+                flex: 1,
+                child: selectedPatient == null
+                    ? const SizedBox()
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          SelectedPatientCard(),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                context.router.push(RenderServiceRoute());
+                              },
+                              style: ElevatedButton.styleFrom(
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    40,
+                                  ), // fully rounded
+                                ),
+                              ),
+                              child: const Text(
+                                "Continue",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
               ),
             ],
