@@ -26,8 +26,8 @@ class Patient {
   final String? nextOfKinRelationship;
   final String? hmo;
   final String? fingerprintData;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final String? createdAt;
+  final String? updatedAt;
   final String? createdBy;
 
   Patient({

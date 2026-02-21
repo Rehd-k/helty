@@ -34,6 +34,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AddCategoryRoute.page),
         AutoRoute(page: AddDepartmentRoute.page),
         AutoRoute(page: RegisterRoute.page),
+        AutoRoute(page: EnlistPaitientRoute.page),
       ],
     ),
 

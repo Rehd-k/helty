@@ -53,6 +53,7 @@ dependencies:
   google_fonts: ^8.0.2
   modal_bottom_sheet: ^3.0.0
   flutter_context_menu: ^0.4.1
+  flutter_slidable: ^4.0.3
 
 dev_dependencies:
   flutter_test:

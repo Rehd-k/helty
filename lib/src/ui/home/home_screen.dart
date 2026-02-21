@@ -102,7 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       const MenuItem(
         label: 'Enlist Service',
         icon: Icons.add_task_rounded,
-        route: EnlistServiceRoute(),
+        route: EnlistPaitientRoute(),
       ),
       const MenuItem(
         label: 'Render Investigation',
