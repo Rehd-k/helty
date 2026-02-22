@@ -137,7 +137,7 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
               // 5. Build the Rows
               rowBuilder: (patient) {
                 return [
-                  DataCell(Text(patient.patientId ?? '')), // Patient ID
+                  DataCell(Text(patient.patientId)), // Patient ID
                   DataCell(Text(patient.cardNo)),
                   DataCell(Text(patient.title)),
                   DataCell(Text(patient.surname)),

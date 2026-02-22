@@ -2,34 +2,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 
 import '../../billings/pay.bill.dart';
 import '../../enlist_services/selected.user.dart';
-
-// --- MOCK DATA MODELS ---
-class ServiceItem {
-  final String code;
-  final String title;
-  final String subtitle;
-  final String category;
-  final double unitPrice;
-  int qty;
-
-  ServiceItem({
-    required this.code,
-    required this.title,
-    required this.subtitle,
-    required this.category,
-    required this.unitPrice,
-    this.qty = 1,
-  });
-
-  // Since there is no quantity column, the total amount simply multiples the unit price
-  // internally based on how many times the user clicks the service.
-  double get amount => unitPrice * qty;
-}
 
 @RoutePage()
 class RenderServiceScreen extends ConsumerStatefulWidget {
@@ -43,63 +21,182 @@ class RenderServiceScreen extends ConsumerStatefulWidget {
 class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // Mock Data from Backend for available services
 
-  void _openPaymentModal(BuildContext context) {
+  void _openPaymentModal(
+    BuildContext context,
+    Patient patient,
+    List<ServiceModel> selectedItems,
+    double _totalDue,
+  ) {
     showDialog(
       context: context,
       barrierColor: Colors.transparent, // We handle the dimming inside PayBill
-      builder: (context) => PayBill(patient: patient),
+      builder: (context) => PayBill(
+        patient: patient,
+        selectedItems: selectedItems,
+        total: _totalDue,
+      ),
     );
   }
 
-  final List<ServiceItem> _allServices = [
-    ServiceItem(
-      code: '99213',
-      title: 'General Consultation',
-      subtitle: 'Outpatient Visit Level 3',
-      category: 'OPD',
-      unitPrice: 150.00,
+  final List<ServiceModel> _allServices = [
+    ServiceModel(
+      serviceId: '99213',
+      name: 'General Consultation',
+      description: 'Outpatient Visit Level 3',
+      categoryId: 'OPD',
+      cost: 150.00,
+      id: '232',
     ),
-    ServiceItem(
-      code: '85025',
-      title: 'CBC (Hemogram)',
-      subtitle: 'Complete Blood Count',
-      category: 'Lab',
-      unitPrice: 45.00,
+    ServiceModel(
+      serviceId: '85025',
+      name: 'CBC (Hemogram)',
+      description: 'Complete Blood Count',
+      categoryId: 'Lab',
+      cost: 45.00,
+      id: 'w232',
     ),
-    ServiceItem(
-      code: 'J0123',
-      title: 'Amoxicillin 500mg',
-      subtitle: 'Oral Capsule',
-      category: 'Pharmacy',
-      unitPrice: 12.50,
+    ServiceModel(
+      serviceId: 'J0123',
+      name: 'Amoxicillin 500mg',
+      description: 'Oral Capsule',
+      categoryId: 'Pharmacy',
+      cost: 12.50,
+      id: 'fh',
     ),
-    ServiceItem(
-      code: '71045',
-      title: 'Chest X-Ray',
-      subtitle: 'Single View',
-      category: 'Radiology',
-      unitPrice: 85.00,
+    ServiceModel(
+      serviceId: '85025',
+      name: 'CBC (Hemogram)',
+      description: 'Complete Blood Count',
+      categoryId: 'Lab',
+      cost: 45.00,
+      id: 'w232',
     ),
-    ServiceItem(
-      code: '90935',
-      title: 'Hemodialysis',
-      subtitle: 'Single Session',
-      category: 'Dialysis',
-      unitPrice: 300.00,
+
+    ServiceModel(
+      serviceId: '71045',
+      name: 'Chest X-Ray',
+      description: 'Single View',
+      categoryId: 'Radiology',
+      cost: 85.00,
+      id: 'w233',
     ),
-    ServiceItem(
-      code: '99214',
-      title: 'Specialist Consultation',
-      subtitle: 'Outpatient Visit Level 4',
-      category: 'OPD',
-      unitPrice: 250.00,
+
+    ServiceModel(
+      serviceId: '90935',
+      name: 'Hemodialysis',
+      description: 'Single Session',
+      categoryId: 'Dialysis',
+      cost: 300.00,
+      id: 'w234',
     ),
-    ServiceItem(
-      code: '80053',
-      title: 'Comprehensive Metabolic Panel',
-      subtitle: 'Blood Test',
-      category: 'Lab',
-      unitPrice: 60.00,
+
+    ServiceModel(
+      serviceId: '99214',
+      name: 'Specialist Consultation',
+      description: 'Outpatient Visit Level 4',
+      categoryId: 'OPD',
+      cost: 250.00,
+      id: 'w235',
+    ),
+
+    ServiceModel(
+      serviceId: '80053',
+      name: 'Comprehensive Metabolic Panel',
+      description: 'Blood Test',
+      categoryId: 'Lab',
+      cost: 60.00,
+      id: 'w236',
+    ),
+
+    // 🔥 10 More Entries
+    ServiceModel(
+      serviceId: '93000',
+      name: 'Electrocardiogram (ECG)',
+      description: 'Routine ECG with Interpretation',
+      categoryId: 'Cardiology',
+      cost: 120.00,
+      id: 'w237',
+    ),
+
+    ServiceModel(
+      serviceId: '70450',
+      name: 'CT Scan - Head',
+      description: 'Without Contrast',
+      categoryId: 'Radiology',
+      cost: 450.00,
+      id: 'w238',
+    ),
+
+    ServiceModel(
+      serviceId: '81002',
+      name: 'Urinalysis',
+      description: 'Non-automated, Without Microscopy',
+      categoryId: 'Lab',
+      cost: 35.00,
+      id: 'w239',
+    ),
+
+    ServiceModel(
+      serviceId: '90658',
+      name: 'Influenza Vaccine',
+      description: 'Seasonal Flu Shot',
+      categoryId: 'Immunization',
+      cost: 40.00,
+      id: 'w240',
+    ),
+
+    ServiceModel(
+      serviceId: '36415',
+      name: 'Venipuncture',
+      description: 'Collection of Blood Specimen',
+      categoryId: 'Lab',
+      cost: 20.00,
+      id: 'w241',
+    ),
+
+    ServiceModel(
+      serviceId: '76700',
+      name: 'Abdominal Ultrasound',
+      description: 'Complete Study',
+      categoryId: 'Radiology',
+      cost: 200.00,
+      id: 'w242',
+    ),
+
+    ServiceModel(
+      serviceId: '94010',
+      name: 'Spirometry',
+      description: 'Pulmonary Function Test',
+      categoryId: 'Respiratory',
+      cost: 110.00,
+      id: 'w243',
+    ),
+
+    ServiceModel(
+      serviceId: '85018',
+      name: 'Hemoglobin Test',
+      description: 'Blood Test',
+      categoryId: 'Lab',
+      cost: 25.00,
+      id: 'w244',
+    ),
+
+    ServiceModel(
+      serviceId: '12001',
+      name: 'Simple Wound Repair',
+      description: 'Small Laceration',
+      categoryId: 'Emergency',
+      cost: 150.00,
+      id: 'w245',
+    ),
+
+    ServiceModel(
+      serviceId: '96372',
+      name: 'Therapeutic Injection',
+      description: 'Intramuscular Injection',
+      categoryId: 'Treatment',
+      cost: 75.00,
+      id: 'w246',
     ),
   ];
 
@@ -125,43 +222,45 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   String _searchQuery = '';
 
   // Mock Selected Items (The Cart)
-  final List<ServiceItem> _selectedItems = [];
+  final List<ServiceModel> _selectedItems = [];
 
   // Filter Logic
-  List<ServiceItem> get _filteredServices {
+  List<ServiceModel> get _filteredServices {
     return _allServices.where((s) {
       final matchesSearch =
-          s.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          s.code.toLowerCase().contains(_searchQuery.toLowerCase());
+          s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          s.name.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesUnit =
           _selectedUnit == 'All Services' ||
-          s.category.toLowerCase() == _selectedUnit.toLowerCase();
+          s.categoryId?.toLowerCase() == _selectedUnit.toLowerCase();
       return matchesSearch && matchesUnit;
     }).toList();
   }
 
   // Calculate Total
   double get _totalDue =>
-      _selectedItems.fold(0.0, (sum, item) => sum + item.amount);
+      _selectedItems.fold(0.0, (sum, item) => sum + item.cost);
 
-  void _addToSelected(ServiceItem item) {
+  void _addToSelected(ServiceModel item) {
     setState(() {
       final existingIndex = _selectedItems.indexWhere(
-        (s) => s.code == item.code,
+        (s) => s.serviceId == item.serviceId,
       );
       if (existingIndex >= 0) {
         // If it already exists, silently increase the multiplier (qty)
-        _selectedItems[existingIndex].qty += 1;
+        _selectedItems[existingIndex].qty =
+            (_selectedItems[existingIndex].qty ?? 0) + 1;
       } else {
         // Add a fresh copy to the selected list
         _selectedItems.add(
-          ServiceItem(
-            code: item.code,
-            title: item.title,
-            subtitle: item.subtitle,
-            category: item.category,
-            unitPrice: item.unitPrice,
+          ServiceModel(
+            serviceId: item.serviceId,
+            name: item.name,
+            description: item.description,
+            categoryId: item.categoryId,
+            cost: item.cost,
             qty: 1,
+            id: 'uhi',
           ),
         );
       }
@@ -182,13 +281,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // The globally selected patient (set from EnlistPaitientScreen and
-    // accessible anywhere in the app via the provider).
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
-
-    // NOTE: For this Row to work properly with Expanded children containing ListViews,
-    // this Widget should be placed inside a container with bounded height (like an Expanded
-    // in your main screen layout, or a SizedBox with a fixed height).
     return Scaffold(
       appBar: AppBar(),
       body: Padding(
@@ -218,7 +311,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             // ==========================================
             Expanded(
               flex: 4,
-              child: _buildSelectedServicesPanel(selectedPatient),
+              child: _buildSelectedServicesPanel(selectedPatient!),
             ),
           ],
         ),
@@ -416,7 +509,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                item.title,
+                                item.name,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
@@ -426,14 +519,14 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                               Row(
                                 children: [
                                   Text(
-                                    item.code,
+                                    item.serviceId,
                                     style: TextStyle(
                                       color: Colors.grey.shade500,
                                       fontSize: 12,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  _buildCategoryBadge(item.category),
+                                  _buildCategoryBadge(item.categoryId ?? ''),
                                 ],
                               ),
                             ],
@@ -444,7 +537,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              item.unitPrice.toFinancial(isMoney: true),
+                              item.cost.toFinancial(isMoney: true),
                               style: TextStyle(
                                 color: Colors.grey.shade800,
                                 fontWeight: FontWeight.bold,
@@ -474,7 +567,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // =========================================================================
   // RIGHT PANE COMPONENTS
   // =========================================================================
-  Widget _buildSelectedServicesPanel(Patient? selectedPatient) {
+  Widget _buildSelectedServicesPanel(Patient selectedPatient) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -599,7 +692,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          item.title,
+                                          item.name,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w600,
                                             fontSize: 13,
@@ -609,7 +702,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                         ),
                                       ),
                                       // Indicator if amount is multiplied
-                                      if (item.qty > 1)
+                                      if (item.qty! > 1)
                                         Container(
                                           margin: const EdgeInsets.only(
                                             left: 6,
@@ -646,7 +739,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                             Expanded(
                               flex: 2,
                               child: Text(
-                                item.unitPrice.toFinancial(isMoney: true),
+                                item.cost.toFinancial(isMoney: true),
                                 style: TextStyle(
                                   color: Colors.grey.shade600,
                                   fontSize: 13,
@@ -658,7 +751,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                             Expanded(
                               flex: 2,
                               child: Text(
-                                item.amount.toFinancial(isMoney: true),
+                                item.cost.toFinancial(isMoney: true),
                                 style: TextStyle(
                                   color: Colors.grey.shade900,
                                   fontWeight: FontWeight.bold,
@@ -723,7 +816,12 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    _openPaymentModal(selectedPatient);
+                    _openPaymentModal(
+                      context,
+                      selectedPatient,
+                      _selectedItems,
+                      _totalDue,
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     elevation: 0,

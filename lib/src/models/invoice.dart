@@ -30,4 +30,36 @@ class Invoice with _$Invoice {
 
   factory Invoice.fromJson(Map<String, dynamic> json) =>
       _$InvoiceFromJson(json);
+
+  @override
+  DateTime get createdAt => throw UnimplementedError();
+
+  @override
+  String get createdById => throw UnimplementedError();
+
+  @override
+  String get id => throw UnimplementedError();
+
+  @override
+  List<InvoiceItem> get invoiceItems => throw UnimplementedError();
+
+  @override
+  String get patientId => throw UnimplementedError();
+
+  @override
+  String? get staffId => throw UnimplementedError();
+
+  @override
+  String get status => throw UnimplementedError();
+
+  @override
+  Map<String, dynamic> toJson() {
+    throw UnimplementedError();
+  }
+
+  @override
+  DateTime get updatedAt => throw UnimplementedError();
+
+  @override
+  String? get updatedById => throw UnimplementedError();
 }

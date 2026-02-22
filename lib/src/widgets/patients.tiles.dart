@@ -48,7 +48,7 @@ class PatientTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      _infoBadge(Icons.badge_outlined, patient.patientId ?? ''),
+                      _infoBadge(Icons.badge_outlined, patient.patientId),
                       const SizedBox(width: 12),
                       _infoBadge(
                         Icons.phone_outlined,

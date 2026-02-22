@@ -122,7 +122,7 @@ class SelectedPatientCard extends ConsumerWidget {
                               children: [
                                 _detailBadge(
                                   Icons.badge_outlined,
-                                  selectedPatient.patientId ?? 'NO ID',
+                                  selectedPatient.patientId,
                                 ),
                                 const SizedBox(width: 10),
                                 _detailBadge(

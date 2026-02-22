@@ -1,15 +1,15 @@
-/// Lightweight representation of a hospital service used by the UI.
-/// Mirrors the Prisma `Service` table with just the fields we care about.
 class ServiceModel {
-  const ServiceModel({
+  ServiceModel({
     required this.id,
     required this.name,
+    required this.serviceId,
     this.description,
     required this.cost,
     this.categoryId,
     this.categoryName,
     this.departmentId,
     this.departmentName,
+    this.qty,
   });
 
   final String id;
@@ -20,6 +20,8 @@ class ServiceModel {
   final String? categoryName;
   final String? departmentId;
   final String? departmentName;
+  final String serviceId;
+  int? qty;
 
   /// helper for debug output
   @override
@@ -30,6 +32,7 @@ class ServiceModel {
     name: json['name'] as String,
     description: json['description'] as String?,
     cost: num.parse(json['cost']).toDouble(),
+    serviceId: json['serviceId'] as String,
     categoryId: json['categoryId'] as String?,
     categoryName: json['category']?['name'] as String?,
     departmentId: json['departmentId'] as String?,

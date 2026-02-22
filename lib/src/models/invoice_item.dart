@@ -15,4 +15,24 @@ class InvoiceItem with _$InvoiceItem {
 
   factory InvoiceItem.fromJson(Map<String, dynamic> json) =>
       _$InvoiceItemFromJson(json);
+
+  @override
+  String get id => throw UnimplementedError();
+
+  @override
+  String get invoiceId => throw UnimplementedError();
+
+  @override
+  double get priceAtTime => throw UnimplementedError();
+
+  @override
+  int get quantity => throw UnimplementedError();
+
+  @override
+  String get serviceId => throw UnimplementedError();
+
+  @override
+  Map<String, dynamic> toJson() {
+    throw UnimplementedError();
+  }
 }

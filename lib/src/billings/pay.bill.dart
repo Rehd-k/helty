@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:helty/src/billings/pending.bills.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/service_model.dart';
 
-import 'summary.bills.dart';
+import '../paitients/patient_model.dart';
 
 class PayBill extends StatefulWidget {
-  const PayBill({super.key, required this.patient});
-  final PatientRecord patient;
+  const PayBill({
+    super.key,
+    required this.patient,
+    required this.selectedItems,
+    required this.total,
+  });
+  final Patient patient;
+  final List<ServiceModel> selectedItems;
+  final double total;
 
   @override
   PayBillState createState() => PayBillState();
@@ -20,7 +27,7 @@ class PayBillState extends State<PayBill> {
   double _amountToPay = 0;
   String? _insurance;
   List<String> charges = [];
-  List<ServiceItem> _items = [];
+  List<ServiceModel> _items = [];
   List<String> _discounts = [];
   String? _selectedDiscount;
 
@@ -44,11 +51,11 @@ class PayBillState extends State<PayBill> {
   @override
   void initState() {
     super.initState();
-    _patientName = widget.patient.name;
-    _patientId = widget.patient.id;
-    _originalAmount = widget.patient.amountDue;
+    _patientName = widget.patient.firstName;
+    _patientId = widget.patient.patientId;
+    _originalAmount = widget.total;
     _amountToPay = _originalAmount;
-    _items = widget.patient.details;
+    _items = widget.selectedItems;
     _fetchDetails();
   }
 
@@ -368,7 +375,7 @@ class PayBillState extends State<PayBill> {
             const Divider(),
           ],
           ..._items.map((c) {
-            return _invoiceRow(c.service, c.price.toFinancial(isMoney: true));
+            return _invoiceRow(c.name, c.cost.toFinancial(isMoney: true));
           }),
           const Divider(),
           Row(

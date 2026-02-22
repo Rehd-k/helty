@@ -63,6 +63,7 @@ class AddServiceScreenState extends State<AddServiceScreen> {
       cost: double.tryParse(_costCtrl.text.trim()) ?? 0.0,
       categoryId: _selectedCategoryId,
       departmentId: _selectedDepartmentId,
+      serviceId: '',
     );
 
     try {

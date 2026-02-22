@@ -1,33 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/extensions/number.extention.dart';
 
 // Assuming these exist based on your snippet
+import '../models/invoice.dart';
 import '../widgets/grid.widgets.dart';
-import 'pay.bill.dart';
-import 'pending.bills.dart';
-
-// Import the PayBill widget we created previously
-class ServiceItem {
-  final String service;
-  final int qty;
-  final double price;
-  ServiceItem({required this.service, required this.qty, required this.price});
-}
 
 class SummaryBills extends StatelessWidget {
-  final PatientRecord patient;
+  final Invoice invoice;
 
-  const SummaryBills({super.key, required this.patient});
+  const SummaryBills({super.key, required this.invoice});
 
-  double calculateTotalRevenue(List<PatientRecord> records) {
-    return records.fold(0.0, (sum, record) => sum + record.amountDue);
+  double calculateTotalRevenue(List<Invoice> records) {
+    return records.fold(0.0, (sum, record) => sum + record.total);
   }
 
   void _openPaymentModal(BuildContext context) {
     showDialog(
       context: context,
       barrierColor: Colors.transparent, // We handle the dimming inside PayBill
-      builder: (context) => PayBill(patient: patient),
+      builder: (context) {
+        // PayBill(patient: patient)
+        return Card();
+      },
     );
   }
 
@@ -64,7 +57,7 @@ class SummaryBills extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: SizedBox(
                 height: 255,
-                child: buildModernGrid(patient, (int _) {}, context),
+                child: buildModernGrid(invoice, (int _) {}, context),
               ),
             ),
 
@@ -87,7 +80,8 @@ class SummaryBills extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
-                  patient.amountDue.toFinancial(isMoney: true),
+                  '0',
+                  // invoice..toFinancial(isMoney: true),
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 20,

@@ -60,7 +60,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _sidebarOpen = true;
 
   List<MenuItem> _menuForRole(String role) {
-    print(role);
     final common = <MenuItem>[
       const MenuItem(
         label: 'Dashboard',

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/extensions/number.extention.dart';
-
-import '../billings/pending.bills.dart';
 
 Widget buildModernGrid(
-  PatientRecord? patient,
+  patient,
 
   /// function that will be called when the user taps the delete
   /// icon next to an item. The index of the item is supplied.

@@ -4,30 +4,12 @@ import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/invoice_item.dart';
 
+import '../models/invoice.dart';
+import '../models/service_model.dart';
 import '../widgets/filter.patients.dart';
-import 'pay.bill.dart';
 import 'summary.bills.dart';
-
-class PatientRecord {
-  final String id;
-  final String name;
-  final String serviceFrom;
-  final double amountDue;
-  final String initiator;
-  final String date;
-  final List<ServiceItem> details;
-
-  PatientRecord({
-    required this.id,
-    required this.name,
-    required this.serviceFrom,
-    required this.amountDue,
-    required this.initiator,
-    required this.date,
-    required this.details,
-  });
-}
 
 @RoutePage()
 class PendingBillsScreen extends StatefulWidget {
@@ -39,54 +21,53 @@ class PendingBillsScreen extends StatefulWidget {
 
 class PendingBillsState extends State<PendingBillsScreen> {
   // Mock Data List
-  List<PatientRecord> patients = [
-    PatientRecord(
+  List<Invoice> invoices = [
+    Invoice(
       id: '1',
-      name: 'Chidi Okoro',
-      serviceFrom: 'Radiology',
-      amountDue: 25000.00,
-      initiator: 'Dr. Benson',
-      date: '2026-02-20',
-      details: [
-        ServiceItem(service: "Consultation Fee", qty: 1, price: 5000),
-        ServiceItem(service: "Thyfoid (MP)", qty: 1, price: 2500),
-        ServiceItem(service: "Paracetamol 500mg", qty: 2, price: 500),
+      patientId: 'Chidi Okoro',
+      createdAt: DateTime.parse('2026-02-20'),
+      invoiceItems: [
+        InvoiceItem(
+          serviceId: "Consultation Fee",
+          quantity: 1,
+          priceAtTime: 5000,
+          id: '',
+          invoiceId: '',
+        ),
+        InvoiceItem(
+          serviceId: "Thyfoid (MP)",
+          quantity: 1,
+          priceAtTime: 2500,
+          id: '',
+          invoiceId: '',
+        ),
+        InvoiceItem(
+          serviceId: "Paracetamol 500mg",
+          quantity: 2,
+          priceAtTime: 500,
+          id: '',
+          invoiceId: '',
+        ),
       ],
-    ),
-    PatientRecord(
-      id: '2',
-      name: 'Amina Yusuf',
-      serviceFrom: 'Laboratory',
-      amountDue: 12500.50,
-      initiator: 'Nurse Chioma',
-      date: '2026-02-21',
-      details: [
-        ServiceItem(service: "Consultation Fee", qty: 1, price: 5000),
-        ServiceItem(service: "Malaria Test (MP)", qty: 1, price: 2500),
-        ServiceItem(service: "Paracetamol 500mg", qty: 2, price: 500),
-      ],
-    ),
-    PatientRecord(
-      id: '3',
-      name: 'Oluwaseun Ade',
-      serviceFrom: 'General Ward',
-      amountDue: 5000.00,
-      initiator: 'Dr. Smith',
-      date: '2026-02-19',
-      details: [ServiceItem(service: "Consultation Fee", qty: 1, price: 5000)],
+      status: '',
+      createdById: '',
+      updatedAt: DateTime.parse('2026-02-20'),
     ),
   ];
 
-  PatientRecord? selectedPatient;
+  Invoice? selectedInvoice;
 
-  void _handleSelect(PatientRecord patient) {
-    setState(() {
-      selectedPatient = patient;
-    });
-  }
+  // void _handleSelect(Invoice selectedInvoice) {
+  //   setState(() {
+  //     this.selectedInvoice = selectedInvoice;
+  //   });
+  // }
 
-  double calculateAmountDue(List<ServiceItem> items) {
-    return items.fold(0.0, (sum, item) => sum + (item.qty * item.price));
+  double calculateAmountDue(List<InvoiceItem> items) {
+    return items.fold(
+      0.0,
+      (sum, item) => sum + (item.quantity * item.priceAtTime),
+    );
   }
 
   @override
@@ -116,9 +97,9 @@ class PendingBillsState extends State<PendingBillsScreen> {
               children: [
                 Expanded(
                   child: ListView.builder(
-                    itemCount: patients.length,
+                    itemCount: invoices.length,
                     itemBuilder: (context, index) {
-                      final patient = patients[index];
+                      final patient = invoices[index];
 
                       return Slidable(
                         key: Key(patient.id),
@@ -150,12 +131,12 @@ class PendingBillsState extends State<PendingBillsScreen> {
                         child: GestureDetector(
                           onSecondaryTapDown: (details) {
                             // pass current patient and callback when showing the menu
-                            _showContextMenu(
-                              context,
-                              details.globalPosition,
-                              patient,
-                              _handleSelect,
-                            );
+                            // _showContextMenu(
+                            //   context,
+                            //   details.globalPosition,
+                            //   patient,
+                            //   _handleSelect,
+                            // );
                           },
                           child: Card(
                             elevation: 3,
@@ -169,7 +150,7 @@ class PendingBillsState extends State<PendingBillsScreen> {
                             child: ListTile(
                               contentPadding: const EdgeInsets.all(16),
                               title: Text(
-                                patient.name,
+                                patient.patientId,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
@@ -179,9 +160,9 @@ class PendingBillsState extends State<PendingBillsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const SizedBox(height: 4),
-                                  Text("Service: ${patient.serviceFrom}"),
+                                  Text("Status: ${patient.status}"),
                                   Text(
-                                    "Initiator: ${patient.initiator}",
+                                    "Initiator: ${patient.createdById}",
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey,
@@ -189,14 +170,14 @@ class PendingBillsState extends State<PendingBillsScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    patient.date,
+                                    patient.createdAt.toIso8601String(),
                                     style: const TextStyle(fontSize: 11),
                                   ),
                                 ],
                               ),
                               trailing: Text(
                                 calculateAmountDue(
-                                  patient.details,
+                                  patient.invoiceItems,
                                 ).toFinancial(isMoney: true),
                                 style: const TextStyle(
                                   color: Colors.green,
@@ -212,9 +193,9 @@ class PendingBillsState extends State<PendingBillsScreen> {
                   ),
                 ),
                 Expanded(
-                  child: selectedPatient == null
+                  child: selectedInvoice == null
                       ? Center(child: Text('Please Select Bill To See Details'))
-                      : SummaryBills(patient: selectedPatient!),
+                      : SummaryBills(invoice: selectedInvoice!),
                 ),
               ],
             ),
@@ -225,73 +206,70 @@ class PendingBillsState extends State<PendingBillsScreen> {
   }
 }
 
-void _showContextMenu(
-  BuildContext context,
-  Offset position,
-  PatientRecord patient,
-  void Function(PatientRecord) handleSelect,
-) async {
-  // Capture the selected value and act on it AFTER the menu has fully
-  // closed. Using onTap fires while the overlay is still animating away,
-  // which causes setState to be skipped by Flutter's rendering pipeline.
-  final selected = await showMenu<String>(
-    context: context,
-    position: RelativeRect.fromLTRB(
-      position.dx,
-      position.dy,
-      position.dx,
-      position.dy,
-    ),
-    items: [
-      PopupMenuItem(
-        value: 'Make Payment',
-        onTap: () => openCustomModal(context, patient),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Icon(Icons.payment_outlined), Text('Make Payment')],
-        ),
-      ),
-      const PopupMenuItem(
-        value: 'Transfer To In-Patient',
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Icon(Icons.move_to_inbox_outlined),
-            Text('Transfer To In-Patient'),
-          ],
-        ),
-      ),
-      const PopupMenuItem(
-        value: 'View Details',
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Icon(Icons.view_list_outlined), Text('View Details')],
-        ),
-      ),
-      const PopupMenuItem(
-        value: 'Bio Data',
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Icon(Icons.person_2_outlined), Text('View Bio')],
-        ),
-      ),
-      const PopupMenuItem(
-        value: 'HMO',
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Icon(Icons.local_post_office_outlined), Text('HMO')],
-        ),
-      ),
-    ],
-  );
+// void _showContextMenu(
+//   BuildContext context,
+//   Offset position,
+//   Invoice invoice,
+//   void Function(Invoice) handleSelect,
+// ) async {
+//   final selected = await showMenu<String>(
+//     context: context,
+//     position: RelativeRect.fromLTRB(
+//       position.dx,
+//       position.dy,
+//       position.dx,
+//       position.dy,
+//     ),
+//     items: [
+//       PopupMenuItem(
+//         value: 'Make Payment',
+//         onTap: () => openCustomModal(context, selectedItem),
+//         child: const Row(
+//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//           children: [Icon(Icons.payment_outlined), Text('Make Payment')],
+//         ),
+//       ),
+//       const PopupMenuItem(
+//         value: 'Transfer To In-Patient',
+//         child: Row(
+//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//           children: [
+//             Icon(Icons.move_to_inbox_outlined),
+//             Text('Transfer To In-Patient'),
+//           ],
+//         ),
+//       ),
+//       const PopupMenuItem(
+//         value: 'View Details',
+//         child: Row(
+//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//           children: [Icon(Icons.view_list_outlined), Text('View Details')],
+//         ),
+//       ),
+//       const PopupMenuItem(
+//         value: 'Bio Data',
+//         child: Row(
+//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//           children: [Icon(Icons.person_2_outlined), Text('View Bio')],
+//         ),
+//       ),
+//       const PopupMenuItem(
+//         value: 'HMO',
+//         child: Row(
+//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//           children: [Icon(Icons.local_post_office_outlined), Text('HMO')],
+//         ),
+//       ),
+//     ],
+//   );
 
-  // Menu is now fully dismissed — safe to update state.
-  if (selected == 'View Details') {
-    handleSelect(patient);
-  }
-}
+//   // Menu is now fully dismissed — safe to update state.
+//   if (selected == 'View Details') {
+//     handleSelect(patient);
+//   }
+// }
 
-void openCustomModal(BuildContext context, PatientRecord patient) {
+void openCustomModal(BuildContext context, List<ServiceModel> selectedItems) {
   showGeneralDialog(
     context: context,
     barrierDismissible: true,
@@ -317,7 +295,8 @@ void openCustomModal(BuildContext context, PatientRecord patient) {
               // (showGeneralDialog does not inject one automatically)
               Material(
                 color: Colors.transparent,
-                child: Center(child: PayBill(patient: patient)),
+                // child: PayBill(selectedItems: selectedItems, patient: null,, total: null,)
+                child: Center(),
               ),
             ],
           );

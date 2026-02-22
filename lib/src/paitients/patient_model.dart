@@ -1,6 +1,6 @@
 class Patient {
   final String? id;
-  final String? patientId;
+  final String patientId;
   final String cardNo;
   final String title;
   final String surname;
@@ -32,7 +32,7 @@ class Patient {
 
   Patient({
     this.id,
-    this.patientId,
+    required this.patientId,
     required this.cardNo,
     required this.title,
     required this.surname,
@@ -68,7 +68,7 @@ class Patient {
     final String? dobStr = json['dob'] as String?;
     return Patient(
       id: json['id'] as String?,
-      patientId: json['patientId'] as String?,
+      patientId: json['patientId'] as String,
       cardNo: json['cardNo'] as String? ?? '',
       title: json['title'] as String? ?? '',
       surname: json['surname'] as String? ?? '',

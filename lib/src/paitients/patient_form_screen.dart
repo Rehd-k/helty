@@ -180,6 +180,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         fingerprintData: _fingerprintController.text.trim().isEmpty
             ? null
             : _fingerprintController.text.trim(),
+        patientId: '',
       );
 
       final service = ref.read(patientServiceProvider);
