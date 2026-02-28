@@ -37,7 +37,6 @@ class AuthService {
     String? departmentId,
     AccountType? accountType,
   }) async {
-    print(accountType?.name);
     final resp = await _dio.post(
       '/staff',
       data: {

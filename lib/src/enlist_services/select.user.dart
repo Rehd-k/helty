@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
 
 import '../../app_router.gr.dart';
+import '../billings/patient_invoice.dart';
 import '../paitients/patient_model.dart';
 import '../widgets/patients.tiles.dart';
 
@@ -65,28 +66,6 @@ class _SelectUserState extends State<SelectUser> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header Section
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'New Invoice',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Search for a patient to begin billing.',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
-
         // Main Search Card
         Expanded(
           child: Container(
@@ -130,6 +109,34 @@ class _SelectUserState extends State<SelectUser> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          ElevatedButton.icon(
+                            onPressed: () => showNewPatientInvoiceForm(context),
+                            icon: const Icon(
+                              Icons.add,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              "New Patient",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).primaryColor, // Often Blue in these designs
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
                             ),
                           ),
                         ],

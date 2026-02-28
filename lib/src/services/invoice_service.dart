@@ -42,7 +42,6 @@ class InvoiceService {
     }
   }
 
-  // ── Create new invoice (with items) ──
   Future<Invoice> createInvoice({
     required String patientId,
     required String status,

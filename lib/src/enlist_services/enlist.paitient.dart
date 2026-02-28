@@ -45,7 +45,17 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                 onSearch: (String value) {
                   ref
                       .read(patientProvider.notifier)
-                      .fetchPatients(query: value);
+                      .searchPatients(
+                        0,
+                        10,
+                        value,
+                        'fullName',
+                        null,
+                        null,
+                        'fullName',
+                        true,
+                        null,
+                      );
                 },
                 onPatientSelected: (Patient value) {
                   ref.read(patientProvider.notifier).selectPatient(value);
@@ -67,7 +77,17 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                   onSearch: (String value) {
                     ref
                         .read(patientProvider.notifier)
-                        .fetchPatients(query: value);
+                        .searchPatients(
+                          0,
+                          10,
+                          value,
+                          'nameIdPhonenumber',
+                          null,
+                          null,
+                          'surname',
+                          true,
+                          null,
+                        );
                   },
                   onPatientSelected: (Patient value) {
                     ref.read(patientProvider.notifier).selectPatient(value);

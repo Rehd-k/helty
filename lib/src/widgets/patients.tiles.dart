@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 
 import '../paitients/patient_model.dart';
 
@@ -38,13 +39,26 @@ class PatientTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    patient.firstName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        patient.surname.capitalize(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        patient.firstName.capitalize(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
                   ),
+
                   const SizedBox(height: 4),
                   Row(
                     children: [

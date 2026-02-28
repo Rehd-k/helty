@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:developer';
-
 class Patient {
   final String? id;
   final String patientId;
@@ -69,7 +66,6 @@ class Patient {
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
-    log(json.toString());
     // use nullable casts to avoid runtime type errors when keys are missing
     final String? dobStr = json['dob'] as String?;
     return Patient(
@@ -99,12 +95,18 @@ class Patient {
       nextOfKinAddress: json['nextOfKinAddress'] as String?,
       nextOfKinRelationship: json['nextOfKinRelationship'] as String?,
       hmo: json['hmo'] as String? ?? 'No HMO',
-      createdAt: json['createdAt'],
-      createdBy:
-          '${json['createdBy']['lastName']} ${json['createdBy']['firstName']}',
-      updatedAt: json['updatedAt'],
-      updatedBy:
-          '${json['updatedBy']['lastName']} ${json['updatedBy']['firstName']}',
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
+          : null,
+      createdBy: json['createdBy'] != null
+          ? '${json['createdBy']['lastName']} ${json['createdBy']['firstName']}'
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'] as String)
+          : null,
+      updatedBy: json['updatedBy'] != null
+          ? '${json['updatedBy']['lastName']} ${json['updatedBy']['firstName']}'
+          : null,
       fingerprintData: json['fingerprintData'] as String? ?? 'No Fingerprint',
     );
   }

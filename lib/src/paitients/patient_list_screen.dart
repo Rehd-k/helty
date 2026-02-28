@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/services/api_service.dart';
 
+import '../helper/date.formatter.dart';
 import 'patient_model.dart';
 import 'patient_providers.dart';
 import '../widgets/filter.patients.dart';
@@ -166,33 +167,33 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
               ],
               // 5. Build the Rows
               rowBuilder: (patient) {
-                print(patient.email);
                 return [
                   DataCell(Text(patient.patientId)), // Patient ID
                   DataCell(Text(patient.cardNo)),
                   DataCell(Text(patient.title)),
-                  DataCell(Text('patient.surname')),
-                  DataCell(Text('patient.firstName')),
-                  DataCell(Text('patient.otherName')), // Other Name
-                  DataCell(
-                    Text("DateFormatter.medicalDate(patient.dob)"),
-                  ), // DOB
-                  DataCell(Text("patient.gender")), // Gender
-                  DataCell(Text("patient.maritalStatus")), // Marital
-                  DataCell(Text("patient.nationality")), // Nationality
-                  DataCell(Text("patient.stateOfOrigin")), // State
-                  DataCell(Text("patient.permanentAddress")), // Address
-                  DataCell(Text("patient.nextOfKinName")), // Next of Kin
-                  DataCell(Text("patient.createdBy")), // User
+                  DataCell(Text(patient.surname)),
+                  DataCell(Text(patient.firstName)),
+                  DataCell(Text(patient.otherName ?? '')), // Other Name
+                  DataCell(Text(DateFormatter.medicalDate(patient.dob))), // DOB
+                  DataCell(Text(patient.gender)), // Gender
+                  DataCell(Text(patient.maritalStatus)), // Marital
+                  DataCell(Text(patient.nationality)), // Nationality
+                  DataCell(Text(patient.stateOfOrigin)), // State
+                  DataCell(Text(patient.permanentAddress)), // Address
+                  DataCell(Text(patient.nextOfKinName ?? '')), // Next of Kin
+                  DataCell(Text(patient.createdBy ?? '')), // User
                   DataCell(
                     Text(
-                      "DateFormatter.medicalDate(patient.createdAt ?? DateTime(DateTime.now() as int)),",
+                      DateFormatter.medicalDate(
+                        patient.createdAt ?? DateTime(DateTime.now() as int),
+                      ),
                     ),
                   ), // Join
                   DataCell(
                     Text(
-                      "",
-                      // DateFormatter.medicalDate(patient.updatedAt ?? DateTime(DateTime.now() as int)),
+                      DateFormatter.medicalDate(
+                        patient.updatedAt ?? DateTime(DateTime.now() as int),
+                      ),
                     ),
                   ), // Update
                   // The Action Menu

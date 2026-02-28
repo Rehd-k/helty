@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 
 import '../paitients/patient_providers.dart';
 
@@ -110,7 +111,7 @@ class SelectedPatientCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              selectedPatient.firstName,
+                              selectedPatient.firstName.capitalize(),
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -124,11 +125,11 @@ class SelectedPatientCard extends ConsumerWidget {
                                   Icons.badge_outlined,
                                   selectedPatient.patientId,
                                 ),
-                                const SizedBox(width: 10),
-                                _detailBadge(
-                                  Icons.phone_outlined,
-                                  selectedPatient.phoneNumber ?? '--',
-                                ),
+                                const SizedBox(width: 8),
+                                // _detailBadge(
+                                //   Icons.phone_outlined,
+                                //   selectedPatient.phoneNumber ?? '--',
+                                // ),
                               ],
                             ),
                           ],
