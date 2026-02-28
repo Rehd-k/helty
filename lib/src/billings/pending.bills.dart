@@ -2,24 +2,26 @@ import 'dart:ui';
 
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
-import 'package:helty/src/models/invoice_item.dart';
 
 import '../models/invoice.dart';
 import '../models/service_model.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/filter.patients.dart';
+import 'pay.bill.dart';
 import 'summary.bills.dart';
 
 @RoutePage()
-class PendingBillsScreen extends StatefulWidget {
+class PendingBillsScreen extends ConsumerStatefulWidget {
   const PendingBillsScreen({super.key});
 
   @override
   PendingBillsState createState() => PendingBillsState();
 }
 
-class PendingBillsState extends State<PendingBillsScreen> {
+class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   // Mock Data List
   List<Invoice> invoices = [
     Invoice(
@@ -27,26 +29,26 @@ class PendingBillsState extends State<PendingBillsScreen> {
       patientId: 'Chidi Okoro',
       createdAt: DateTime.parse('2026-02-20'),
       invoiceItems: [
-        InvoiceItem(
-          serviceId: "Consultation Fee",
-          quantity: 1,
-          priceAtTime: 5000,
+        ServiceModel(
+          name: "Consultation Fee",
+          qty: 1,
           id: '',
-          invoiceId: '',
+          cost: 5000,
+          serviceId: '456d',
         ),
-        InvoiceItem(
-          serviceId: "Thyfoid (MP)",
-          quantity: 1,
-          priceAtTime: 2500,
+        ServiceModel(
+          name: "SOP Consultation",
+          qty: 1,
           id: '',
-          invoiceId: '',
+          serviceId: 'sd7dw',
+          cost: 2500,
         ),
-        InvoiceItem(
-          serviceId: "Paracetamol 500mg",
-          quantity: 2,
-          priceAtTime: 500,
+        ServiceModel(
+          name: "Paracetamol 500mg",
           id: '',
-          invoiceId: '',
+          qty: 5,
+          serviceId: '3487ue',
+          cost: 2500,
         ),
       ],
       status: '',
@@ -57,30 +59,32 @@ class PendingBillsState extends State<PendingBillsScreen> {
 
   Invoice? selectedInvoice;
 
-  // void _handleSelect(Invoice selectedInvoice) {
-  //   setState(() {
-  //     this.selectedInvoice = selectedInvoice;
-  //   });
-  // }
-
-  double calculateAmountDue(List<InvoiceItem> items) {
-    return items.fold(
-      0.0,
-      (sum, item) => sum + (item.quantity * item.priceAtTime),
-    );
+  void _handleSelect(Invoice selectedInvoice) {
+    setState(() {
+      this.selectedInvoice = selectedInvoice;
+    });
   }
+
+  double calculateAmountDue(List<ServiceModel> items) {
+    return items.fold(0.0, (sum, item) => sum + (item.qty! * item.cost));
+  }
+
+  late Invoice selectedItem;
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+
     return Scaffold(
       body: Column(
         children: [
           PatientsFilterWidget(
             searchCategories: const [
-              'Patient ID',
-              'Card No',
-              'Surname',
-              'First Name',
+              {'name': 'patientId', 'value': 'Patient ID'},
+              {'name': 'cardNo', 'value': 'Card No'},
+              {'name': 'services', 'value': 'Services'},
+              {'name': 'fullName', 'value': 'Patient Name'},
+              {'name': 'transactionId', 'value': 'Transaction ID'},
             ],
             onFilterChanged:
                 (
@@ -90,6 +94,7 @@ class PendingBillsState extends State<PendingBillsScreen> {
                   DateTime? to,
                 ) {},
             doRefresh: () {},
+            dateFilter: true,
           ),
 
           Expanded(
@@ -131,12 +136,13 @@ class PendingBillsState extends State<PendingBillsScreen> {
                         child: GestureDetector(
                           onSecondaryTapDown: (details) {
                             // pass current patient and callback when showing the menu
-                            // _showContextMenu(
-                            //   context,
-                            //   details.globalPosition,
-                            //   patient,
-                            //   _handleSelect,
-                            // );
+                            _showContextMenu(
+                              context,
+                              details.globalPosition,
+                              patient,
+                              auth,
+                              _handleSelect,
+                            );
                           },
                           child: Card(
                             elevation: 3,
@@ -206,70 +212,72 @@ class PendingBillsState extends State<PendingBillsScreen> {
   }
 }
 
-// void _showContextMenu(
-//   BuildContext context,
-//   Offset position,
-//   Invoice invoice,
-//   void Function(Invoice) handleSelect,
-// ) async {
-//   final selected = await showMenu<String>(
-//     context: context,
-//     position: RelativeRect.fromLTRB(
-//       position.dx,
-//       position.dy,
-//       position.dx,
-//       position.dy,
-//     ),
-//     items: [
-//       PopupMenuItem(
-//         value: 'Make Payment',
-//         onTap: () => openCustomModal(context, selectedItem),
-//         child: const Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//           children: [Icon(Icons.payment_outlined), Text('Make Payment')],
-//         ),
-//       ),
-//       const PopupMenuItem(
-//         value: 'Transfer To In-Patient',
-//         child: Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//           children: [
-//             Icon(Icons.move_to_inbox_outlined),
-//             Text('Transfer To In-Patient'),
-//           ],
-//         ),
-//       ),
-//       const PopupMenuItem(
-//         value: 'View Details',
-//         child: Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//           children: [Icon(Icons.view_list_outlined), Text('View Details')],
-//         ),
-//       ),
-//       const PopupMenuItem(
-//         value: 'Bio Data',
-//         child: Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//           children: [Icon(Icons.person_2_outlined), Text('View Bio')],
-//         ),
-//       ),
-//       const PopupMenuItem(
-//         value: 'HMO',
-//         child: Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//           children: [Icon(Icons.local_post_office_outlined), Text('HMO')],
-//         ),
-//       ),
-//     ],
-//   );
+void _showContextMenu(
+  BuildContext context,
+  Offset position,
+  Invoice invoice,
+  AuthState auth,
+  void Function(Invoice) handleSelect,
+) async {
+  final selected = await showMenu<String>(
+    context: context,
+    position: RelativeRect.fromLTRB(
+      position.dx,
+      position.dy,
+      position.dx,
+      position.dy,
+    ),
+    items: [
+      if (auth.staff?.role == 'bills')
+        PopupMenuItem(
+          value: 'Make Payment',
+          onTap: () => openCustomModal(context, invoice),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [Icon(Icons.payment_outlined), Text('Make Payment')],
+          ),
+        ),
+      const PopupMenuItem(
+        value: 'Transfer To In-Patient',
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(Icons.move_to_inbox_outlined),
+            Text('Transfer To In-Patient'),
+          ],
+        ),
+      ),
+      const PopupMenuItem(
+        value: 'View Details',
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [Icon(Icons.view_list_outlined), Text('View Details')],
+        ),
+      ),
+      const PopupMenuItem(
+        value: 'Bio Data',
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [Icon(Icons.person_2_outlined), Text('View Bio')],
+        ),
+      ),
+      const PopupMenuItem(
+        value: 'HMO',
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [Icon(Icons.local_post_office_outlined), Text('HMO')],
+        ),
+      ),
+    ],
+  );
 
-//   // Menu is now fully dismissed — safe to update state.
-//   if (selected == 'View Details') {
-//     handleSelect(patient);
-//   }
-// }
+  //   // Menu is now fully dismissed — safe to update state.
+  if (selected == 'View Details') {
+    handleSelect(invoice);
+  }
+}
 
-void openCustomModal(BuildContext context, List<ServiceModel> selectedItems) {
+void openCustomModal(BuildContext context, Invoice invoice) {
   showGeneralDialog(
     context: context,
     barrierDismissible: true,
@@ -295,8 +303,12 @@ void openCustomModal(BuildContext context, List<ServiceModel> selectedItems) {
               // (showGeneralDialog does not inject one automatically)
               Material(
                 color: Colors.transparent,
-                // child: PayBill(selectedItems: selectedItems, patient: null,, total: null,)
-                child: Center(),
+                child: PayBill(
+                  selectedItems: invoice.invoiceItems,
+                  patientId: invoice.patientId,
+                  firstName: 'Patient Name',
+                  total: invoice.total,
+                ),
               ),
             ],
           );

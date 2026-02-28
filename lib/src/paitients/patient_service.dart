@@ -38,6 +38,7 @@ class PatientService {
     // the API sometimes returns a wrapped object, sometimes a raw list
     final dynamic raw = resp.data['patients'] ?? resp.data['data'] ?? resp.data;
     // if we still don’t have a list, avoid crashing by treating it as empty
+
     final List<dynamic> list = raw is List
         ? raw
         : (raw is Map<String, dynamic> && raw['data'] is List

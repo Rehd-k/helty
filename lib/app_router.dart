@@ -20,7 +20,7 @@ class AppRouter extends RootStackRouter {
       page: HomeRoute.page,
       guards: [const AuthGuard()],
       children: [
-        AutoRoute(page: DashboardRoute.page, initial: true),
+        AutoRoute(page: FrontDeskDashboardRoute.page, initial: true),
         AutoRoute(page: PatientListRoute.page),
         AutoRoute(page: PatientFormRoute.page),
         AutoRoute(page: AppointmentListRoute.page),
@@ -35,6 +35,11 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AddDepartmentRoute.page),
         AutoRoute(page: RegisterRoute.page),
         AutoRoute(page: EnlistPaitientRoute.page),
+        AutoRoute(page: NewAppointmentRoute.page),
+        AutoRoute(page: NotAvailableRoute.page),
+
+        AutoRoute(page: WaitingPatientRoute.page),
+        AutoRoute(page: BillingDashboardRoute.page),
       ],
     ),
 

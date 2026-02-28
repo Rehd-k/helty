@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'invoice_item.dart'; // adjust import path if needed
+import 'package:helty/src/models/service_model.dart';
 
 part 'invoice.freezed.dart';
 part 'invoice.g.dart';
@@ -19,14 +19,12 @@ class Invoice with _$Invoice {
     String? staffId,
     required DateTime createdAt,
     required DateTime updatedAt,
-    required List<InvoiceItem> invoiceItems,
+    required List<ServiceModel> invoiceItems,
   }) = _Invoice;
 
   // Custom getter — now allowed
-  double get total => invoiceItems.fold(
-    0.0,
-    (sum, item) => sum + (item.quantity * item.priceAtTime),
-  );
+  double get total =>
+      invoiceItems.fold(0.0, (sum, item) => sum + (item.qty! * item.cost));
 
   factory Invoice.fromJson(Map<String, dynamic> json) =>
       _$InvoiceFromJson(json);
@@ -41,7 +39,7 @@ class Invoice with _$Invoice {
   String get id => throw UnimplementedError();
 
   @override
-  List<InvoiceItem> get invoiceItems => throw UnimplementedError();
+  List<ServiceModel> get invoiceItems => throw UnimplementedError();
 
   @override
   String get patientId => throw UnimplementedError();

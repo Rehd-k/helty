@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/service_model.dart';
 
-import '../paitients/patient_model.dart';
-
-class PayBill extends StatefulWidget {
+class PayBill extends ConsumerStatefulWidget {
   const PayBill({
     super.key,
-    required this.patient,
+    required this.firstName,
+    required this.patientId,
     required this.selectedItems,
     required this.total,
   });
-  final Patient patient;
+  final String firstName;
+  final String patientId;
   final List<ServiceModel> selectedItems;
   final double total;
 
@@ -19,7 +20,7 @@ class PayBill extends StatefulWidget {
   PayBillState createState() => PayBillState();
 }
 
-class PayBillState extends State<PayBill> {
+class PayBillState extends ConsumerState<PayBill> {
   // Data State
   late String _patientName;
   late String _patientId;
@@ -51,8 +52,8 @@ class PayBillState extends State<PayBill> {
   @override
   void initState() {
     super.initState();
-    _patientName = widget.patient.firstName;
-    _patientId = widget.patient.patientId;
+    _patientName = widget.firstName;
+    _patientId = widget.patientId;
     _originalAmount = widget.total;
     _amountToPay = _originalAmount;
     _items = widget.selectedItems;

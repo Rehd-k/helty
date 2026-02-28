@@ -2,8 +2,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/services/api_service.dart';
 
-import '../../app_router.gr.dart';
 import 'patient_model.dart';
 import 'patient_providers.dart';
 import '../widgets/filter.patients.dart';
@@ -20,6 +20,7 @@ class PatientListScreen extends ConsumerStatefulWidget {
 class _PatientListPageState extends ConsumerState<PatientListScreen> {
   int skip = 0;
   int take = 20;
+  ApiService apiService = ApiService();
 
   void _handleAction(String action, Patient patient, BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -29,9 +30,7 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
     );
   }
 
-  void makeCallAgain() {
-    ref.read(patientProvider.notifier).fetchPatients();
-  }
+  void handleSort(int columnIndex, bool ascending) {}
 
   @override
   void initState() {
@@ -51,7 +50,7 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
       floatingActionButton: FloatingActionButton.small(
         child: const Icon(Icons.add),
         onPressed: () {
-          context.router.push(PatientFormRoute());
+          ref.read(patientProvider.notifier).fetchPatients();
         },
       ),
 
@@ -59,10 +58,11 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
         children: [
           PatientsFilterWidget(
             searchCategories: const [
-              'Patient ID',
-              'Card No',
-              'Surname',
-              'First Name',
+              {'name': 'patientId', 'value': 'Patient ID'},
+              {'name': 'cardNo', 'value': 'Card No'},
+              {'name': 'services', 'value': 'Services'},
+              {'name': 'fullName', 'value': 'Patient Name'},
+              {'name': 'transactionId', 'value': 'Transaction ID'},
             ],
             onFilterChanged:
                 (String query, String category, DateTime? from, DateTime? to) {
@@ -80,16 +80,10 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
                         null,
                       );
                 },
-            doRefresh: makeCallAgain,
+            doRefresh: () => ref.read(patientProvider.notifier).fetchPatients(),
+            dateFilter: false,
           ),
 
-          IconButton(
-            // onPressed: () => ref.read(patientProvider.notifier).fetchPatients(),
-            onPressed: () {
-              context.router.push(PendingBillsRoute());
-            },
-            icon: Icon(Icons.refresh),
-          ),
           Expanded(
             child: ReusableAsyncTable<Patient>(
               fetchData: (start, count) async {
@@ -112,22 +106,58 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
                 }
               },
               // 4. Define Columns
-              columns: const [
+              columns: [
                 DataColumn2(label: Text('Patient ID'), size: ColumnSize.L),
                 DataColumn2(label: Text('Card No'), size: ColumnSize.L),
                 DataColumn2(label: Text('Title'), size: ColumnSize.L),
-                DataColumn2(label: Text('Surname'), size: ColumnSize.L),
-                DataColumn2(label: Text('First Name'), size: ColumnSize.L),
-                DataColumn2(label: Text('Other Name'), size: ColumnSize.L),
+                DataColumn2(
+                  label: Text('Surname'),
+                  size: ColumnSize.L,
+                  onSort: (columnIndex, ascending) {
+                    handleSort(columnIndex, ascending);
+                  },
+                ),
+                DataColumn2(
+                  label: Text('First Name'),
+                  size: ColumnSize.L,
+                  onSort: (columnIndex, ascending) {
+                    handleSort(columnIndex, ascending);
+                  },
+                ),
+                DataColumn2(
+                  label: Text('Other Name'),
+                  size: ColumnSize.L,
+                  onSort: (columnIndex, ascending) {
+                    handleSort(columnIndex, ascending);
+                  },
+                ),
                 DataColumn2(label: Text('DOB'), size: ColumnSize.L),
-                DataColumn2(label: Text('Gender'), size: ColumnSize.L),
+                DataColumn2(
+                  label: Text('Gender'),
+                  size: ColumnSize.L,
+                  onSort: (columnIndex, ascending) {
+                    handleSort(columnIndex, ascending);
+                  },
+                ),
                 DataColumn2(label: Text('Marital Status'), size: ColumnSize.L),
                 DataColumn2(label: Text('Nationality'), size: ColumnSize.L),
-                DataColumn2(label: Text('State'), size: ColumnSize.L),
+                DataColumn2(
+                  label: Text('State'),
+                  size: ColumnSize.L,
+                  onSort: (columnIndex, ascending) {
+                    handleSort(columnIndex, ascending);
+                  },
+                ),
                 DataColumn2(label: Text('Address'), size: ColumnSize.L),
                 DataColumn2(label: Text('Next of Kin'), size: ColumnSize.L),
                 DataColumn2(label: Text('User'), size: ColumnSize.L),
-                DataColumn2(label: Text('Joined At'), size: ColumnSize.L),
+                DataColumn2(
+                  label: Text('Joined At'),
+                  size: ColumnSize.L,
+                  onSort: (columnIndex, ascending) {
+                    handleSort(columnIndex, ascending);
+                  },
+                ),
                 DataColumn2(label: Text('Updated At'), size: ColumnSize.L),
                 DataColumn2(
                   label: Text('Action'),
@@ -136,23 +166,35 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
               ],
               // 5. Build the Rows
               rowBuilder: (patient) {
+                print(patient.email);
                 return [
                   DataCell(Text(patient.patientId)), // Patient ID
                   DataCell(Text(patient.cardNo)),
                   DataCell(Text(patient.title)),
-                  DataCell(Text(patient.surname)),
-                  DataCell(Text(patient.firstName)),
-                  const DataCell(Text("-")), // Other Name
-                  const DataCell(Text("01/01/1990")), // DOB
-                  const DataCell(Text("M")), // Gender
-                  const DataCell(Text("Single")), // Marital
-                  const DataCell(Text("Nigerian")), // Nationality
-                  const DataCell(Text("Lagos")), // State
-                  const DataCell(Text("123 Street")), // Address
-                  const DataCell(Text("Jane Doe")), // Next of Kin
-                  const DataCell(Text("Admin")), // User
-                  const DataCell(Text("2023-01-01")), // Join
-                  const DataCell(Text("2023-01-02")), // Update
+                  DataCell(Text('patient.surname')),
+                  DataCell(Text('patient.firstName')),
+                  DataCell(Text('patient.otherName')), // Other Name
+                  DataCell(
+                    Text("DateFormatter.medicalDate(patient.dob)"),
+                  ), // DOB
+                  DataCell(Text("patient.gender")), // Gender
+                  DataCell(Text("patient.maritalStatus")), // Marital
+                  DataCell(Text("patient.nationality")), // Nationality
+                  DataCell(Text("patient.stateOfOrigin")), // State
+                  DataCell(Text("patient.permanentAddress")), // Address
+                  DataCell(Text("patient.nextOfKinName")), // Next of Kin
+                  DataCell(Text("patient.createdBy")), // User
+                  DataCell(
+                    Text(
+                      "DateFormatter.medicalDate(patient.createdAt ?? DateTime(DateTime.now() as int)),",
+                    ),
+                  ), // Join
+                  DataCell(
+                    Text(
+                      "",
+                      // DateFormatter.medicalDate(patient.updatedAt ?? DateTime(DateTime.now() as int)),
+                    ),
+                  ), // Update
                   // The Action Menu
                   DataCell(
                     PopupMenuButton<String>(

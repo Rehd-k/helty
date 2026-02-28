@@ -8,6 +8,7 @@ import 'package:helty/src/paitients/patient_providers.dart';
 
 import '../../billings/pay.bill.dart';
 import '../../enlist_services/selected.user.dart';
+import '../../providers/auth_provider.dart';
 
 @RoutePage()
 class RenderServiceScreen extends ConsumerStatefulWidget {
@@ -25,15 +26,16 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     BuildContext context,
     Patient patient,
     List<ServiceModel> selectedItems,
-    double _totalDue,
+    double totalDue,
   ) {
     showDialog(
       context: context,
       barrierColor: Colors.transparent, // We handle the dimming inside PayBill
       builder: (context) => PayBill(
-        patient: patient,
+        patientId: patient.patientId,
+        firstName: patient.firstName,
         selectedItems: selectedItems,
-        total: _totalDue,
+        total: totalDue,
       ),
     );
   }
@@ -281,6 +283,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
     return Scaffold(
       appBar: AppBar(),
@@ -311,7 +314,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             // ==========================================
             Expanded(
               flex: 4,
-              child: _buildSelectedServicesPanel(selectedPatient!),
+              child: _buildSelectedServicesPanel(selectedPatient!, auth),
             ),
           ],
         ),
@@ -567,7 +570,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // =========================================================================
   // RIGHT PANE COMPONENTS
   // =========================================================================
-  Widget _buildSelectedServicesPanel(Patient selectedPatient) {
+  Widget _buildSelectedServicesPanel(Patient selectedPatient, AuthState auth) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -814,26 +817,55 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     color: Theme.of(context).primaryColor,
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    _openPaymentModal(
-                      context,
-                      selectedPatient,
-                      _selectedItems,
-                      _totalDue,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(40), // fully rounded
-                    ),
-                  ),
-                  child: const Text(
-                    "Make Payment",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
+                auth.staff!.accountType?.name == 'bills'
+                    ? ElevatedButton(
+                        onPressed: () {
+                          _openPaymentModal(
+                            context,
+                            selectedPatient,
+                            _selectedItems,
+                            _totalDue,
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              40,
+                            ), // fully rounded
+                          ),
+                        ),
+                        child: const Text(
+                          "Make Payment",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : ElevatedButton(
+                        onPressed: () {
+                          if (_selectedItems.isNotEmpty) {
+                            _handleSendToBill();
+                            _emptySelection();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              40,
+                            ), // fully rounded
+                          ),
+                        ),
+                        child: const Text(
+                          "Send To Bills",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
               ],
             ),
           ),
@@ -845,6 +877,25 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // =========================================================================
   // SHARED HELPERS
   // =========================================================================
+  void _handleSendToBill() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54, // optional, transparent is okay too
+      builder: (context) => Center(
+        child: SizedBox(
+          width: 300,
+          height: 300,
+          child: Card.outlined(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Center(child: Text('Sent to Bill')),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _headerCell(String title, {required int flex}) {
     return Expanded(
       flex: flex,

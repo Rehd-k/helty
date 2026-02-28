@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:helty/src/models/service_model.dart';
 import '../models/invoice.dart';
-import '../models/invoice_item.dart';
 import 'api_service.dart';
 
 class InvoiceService {
@@ -70,7 +70,7 @@ class InvoiceService {
   }
 
   // ── Add item to existing invoice ──
-  Future<InvoiceItem> addItemToInvoice({
+  Future<ServiceModel> addItemToInvoice({
     required String invoiceId,
     required String serviceId,
     required int quantity,
@@ -86,7 +86,7 @@ class InvoiceService {
         },
       );
 
-      return InvoiceItem.fromJson(response.data);
+      return ServiceModel.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception('Failed to add item: ${e.message}');
     }

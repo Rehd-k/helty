@@ -23,7 +23,6 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch patients on load
     Future.microtask(() => ref.read(patientProvider.notifier).fetchPatients());
   }
 

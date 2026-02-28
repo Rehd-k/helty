@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 mixin _$Invoice {
 
  String get id; String get patientId; String get status;// consider → @JsonKey(name: 'status') TransactionStatus status later
- String get createdById; String? get updatedById; String? get staffId; DateTime get createdAt; DateTime get updatedAt; List<InvoiceItem> get invoiceItems;
+ String get createdById; String? get updatedById; String? get staffId; DateTime get createdAt; DateTime get updatedAt; List<ServiceModel> get invoiceItems;
 /// Create a copy of Invoice
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -49,7 +49,7 @@ abstract mixin class $InvoiceCopyWith<$Res>  {
   factory $InvoiceCopyWith(Invoice value, $Res Function(Invoice) _then) = _$InvoiceCopyWithImpl;
 @useResult
 $Res call({
- String id, String patientId, String status, String createdById, String? updatedById, String? staffId, DateTime createdAt, DateTime updatedAt, List<InvoiceItem> invoiceItems
+ String id, String patientId, String status, String createdById, String? updatedById, String? staffId, DateTime createdAt, DateTime updatedAt, List<ServiceModel> invoiceItems
 });
 
 
@@ -77,7 +77,7 @@ as String?,staffId: freezed == staffId ? _self.staffId : staffId // ignore: cast
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,updatedAt: null == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as DateTime,invoiceItems: null == invoiceItems ? _self.invoiceItems : invoiceItems // ignore: cast_nullable_to_non_nullable
-as List<InvoiceItem>,
+as List<ServiceModel>,
   ));
 }
 
@@ -162,7 +162,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<InvoiceItem> invoiceItems)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Invoice() when $default != null:
 return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
@@ -183,7 +183,7 @@ return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.up
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<InvoiceItem> invoiceItems)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)  $default,) {final _that = this;
 switch (_that) {
 case _Invoice():
 return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
@@ -203,7 +203,7 @@ return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.up
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<InvoiceItem> invoiceItems)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)?  $default,) {final _that = this;
 switch (_that) {
 case _Invoice() when $default != null:
 return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
@@ -218,7 +218,7 @@ return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.up
 @JsonSerializable()
 
 class _Invoice extends Invoice {
-  const _Invoice({required this.id, required this.patientId, required this.status, required this.createdById, this.updatedById, this.staffId, required this.createdAt, required this.updatedAt, required final  List<InvoiceItem> invoiceItems}): _invoiceItems = invoiceItems,super._();
+  const _Invoice({required this.id, required this.patientId, required this.status, required this.createdById, this.updatedById, this.staffId, required this.createdAt, required this.updatedAt, required final  List<ServiceModel> invoiceItems}): _invoiceItems = invoiceItems,super._();
   factory _Invoice.fromJson(Map<String, dynamic> json) => _$InvoiceFromJson(json);
 
 @override final  String id;
@@ -230,8 +230,8 @@ class _Invoice extends Invoice {
 @override final  String? staffId;
 @override final  DateTime createdAt;
 @override final  DateTime updatedAt;
- final  List<InvoiceItem> _invoiceItems;
-@override List<InvoiceItem> get invoiceItems {
+ final  List<ServiceModel> _invoiceItems;
+@override List<ServiceModel> get invoiceItems {
   if (_invoiceItems is EqualUnmodifiableListView) return _invoiceItems;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_invoiceItems);
@@ -271,7 +271,7 @@ abstract mixin class _$InvoiceCopyWith<$Res> implements $InvoiceCopyWith<$Res> {
   factory _$InvoiceCopyWith(_Invoice value, $Res Function(_Invoice) _then) = __$InvoiceCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String patientId, String status, String createdById, String? updatedById, String? staffId, DateTime createdAt, DateTime updatedAt, List<InvoiceItem> invoiceItems
+ String id, String patientId, String status, String createdById, String? updatedById, String? staffId, DateTime createdAt, DateTime updatedAt, List<ServiceModel> invoiceItems
 });
 
 
@@ -299,7 +299,7 @@ as String?,staffId: freezed == staffId ? _self.staffId : staffId // ignore: cast
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,updatedAt: null == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as DateTime,invoiceItems: null == invoiceItems ? _self._invoiceItems : invoiceItems // ignore: cast_nullable_to_non_nullable
-as List<InvoiceItem>,
+as List<ServiceModel>,
   ));
 }
 

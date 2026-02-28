@@ -57,10 +57,11 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
       children: [
         PatientsFilterWidget(
           searchCategories: const [
-            'Patient ID',
-            'Card No',
-            'Surname',
-            'First Name',
+            {'name': 'patientId', 'value': 'Patient ID'},
+            {'name': 'cardNo', 'value': 'Card No'},
+            {'name': 'services', 'value': 'Services'},
+            {'name': 'fullName', 'value': 'Patient Name'},
+            {'name': 'transactionId', 'value': 'Transaction ID'},
           ],
           onFilterChanged:
               (String query, String category, DateTime? from, DateTime? to) {
@@ -79,6 +80,7 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                 //     );
               },
           doRefresh: () {},
+          dateFilter: true,
         ),
 
         Expanded(

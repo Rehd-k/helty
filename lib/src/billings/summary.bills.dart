@@ -1,28 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
 
 // Assuming these exist based on your snippet
 import '../models/invoice.dart';
 import '../widgets/grid.widgets.dart';
+import 'pending.bills.dart';
 
 class SummaryBills extends StatelessWidget {
   final Invoice invoice;
 
   const SummaryBills({super.key, required this.invoice});
-
-  double calculateTotalRevenue(List<Invoice> records) {
-    return records.fold(0.0, (sum, record) => sum + record.total);
-  }
-
-  void _openPaymentModal(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.transparent, // We handle the dimming inside PayBill
-      builder: (context) {
-        // PayBill(patient: patient)
-        return Card();
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,8 +67,7 @@ class SummaryBills extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
-                  '0',
-                  // invoice..toFinancial(isMoney: true),
+                  invoice.total.toFinancial(isMoney: true),
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 20,
@@ -97,7 +83,7 @@ class SummaryBills extends StatelessWidget {
             SizedBox(
               height: 50,
               child: ElevatedButton.icon(
-                onPressed: () => _openPaymentModal(context),
+                onPressed: () => openCustomModal(context, invoice),
                 style: ElevatedButton.styleFrom(
                   elevation: 2,
                   shape: RoundedRectangleBorder(

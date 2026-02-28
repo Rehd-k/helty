@@ -9,6 +9,7 @@ import 'package:helty/app_router.gr.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
+import 'account_types.dart';
 
 // ---------------------------------------------------------------------------
 // Data model
@@ -60,69 +61,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _sidebarOpen = true;
 
   List<MenuItem> _menuForRole(String role) {
-    final common = <MenuItem>[
-      const MenuItem(
-        label: 'Dashboard',
-        icon: Icons.dashboard_rounded,
-        route: DashboardRoute(),
-      ),
-      MenuItem(
-        label: 'Patients',
-        icon: Icons.people_alt_rounded,
-        route: const PatientListRoute(),
-        children: [
-          const MenuItem(
-            label: 'All Patients',
-            icon: Icons.list_alt_rounded,
-            route: PatientListRoute(),
-          ),
-          MenuItem(
-            label: 'Add Patient',
-            icon: Icons.person_add_rounded,
-            route: PatientFormRoute(),
-          ),
-        ],
-      ),
-      const MenuItem(
-        label: 'Appointments',
-        icon: Icons.event_rounded,
-        route: AppointmentListRoute(),
-      ),
-      const MenuItem(
-        label: "Today's Patients",
-        icon: Icons.today_rounded,
-        route: TodayPatientsRoute(),
-      ),
-      const MenuItem(
-        label: 'Pending Transactions',
-        icon: Icons.pending_actions_rounded,
-        route: PendingBillsRoute(),
-      ),
-      const MenuItem(
-        label: 'Enlist Service',
-        icon: Icons.add_task_rounded,
-        route: EnlistPaitientRoute(),
-      ),
-      const MenuItem(
-        label: 'Render Investigation',
-        icon: Icons.science_rounded,
-        route: RenderServiceRoute(),
-      ),
-      const MenuItem(
-        label: 'View OPD Service',
-        icon: Icons.view_agenda_rounded,
-        route: ViewServiceRoute(),
-      ),
-    ];
+    final common = <MenuItem>[];
+
+    if (role == 'frontdesk') {
+      common.addAll(frontDesk);
+    }
+
+    if (role == 'bills') {
+      common.addAll(bills);
+    }
 
     if (role == 'ADMIN') {
-      common.add(
+      common.addAll([
         const MenuItem(
           label: 'Register',
           icon: Icons.verified_user_rounded,
           route: RegisterRoute(),
         ),
-      );
+        ...frontDesk,
+      ]);
     }
 
     return common;
@@ -130,8 +87,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(authProvider);
     final auth = ref.watch(authProvider);
-    final menuItems = _menuForRole(auth.staff!.role);
+    final menuItems = _menuForRole(auth.staff!.accountType!.name);
     final isMobile = MediaQuery.of(context).size.width < 720;
 
     return Scaffold(
@@ -141,8 +99,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (Platform.isWindows) _buildTitleBar(context),
           Expanded(
             child: isMobile
-                ? _buildMobileLayout(context, menuItems)
-                : _buildDesktopLayout(context, menuItems),
+                ? _buildMobileLayout(context, menuItems, state)
+                : _buildDesktopLayout(context, menuItems, state),
           ),
         ],
       ),
@@ -151,7 +109,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // ── Desktop: persistent sidebar that collapses to icon rail ──────────────
 
-  Widget _buildDesktopLayout(BuildContext context, List<MenuItem> menuItems) {
+  Widget _buildDesktopLayout(
+    BuildContext context,
+    List<MenuItem> menuItems,
+    state,
+  ) {
     return Row(
       children: [
         AnimatedContainer(
@@ -160,6 +122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           width: _sidebarOpen ? _kSidebarWidth : _kSidebarCollapsedWidth,
           child: _SidebarNavigation(
             menuItems: menuItems,
+            state: state,
             collapsed: !_sidebarOpen,
             onToggle: () => setState(() => _sidebarOpen = !_sidebarOpen),
           ),
@@ -173,7 +136,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // ── Mobile: top bar with hamburger + drawer overlay ──────────────────────
 
-  Widget _buildMobileLayout(BuildContext context, List<MenuItem> menuItems) {
+  Widget _buildMobileLayout(
+    BuildContext context,
+    List<MenuItem> menuItems,
+    state,
+  ) {
     return Stack(
       children: [
         Column(
@@ -198,6 +165,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               height: double.infinity,
               child: _SidebarNavigation(
                 menuItems: menuItems,
+                state: state,
                 collapsed: false,
                 onToggle: () => setState(() => _sidebarOpen = false),
                 closeLabel: true,
@@ -286,6 +254,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 class _SidebarNavigation extends StatelessWidget {
   final List<MenuItem> menuItems;
+  final AuthState state;
   final bool collapsed;
   final VoidCallback onToggle;
   final bool closeLabel;
@@ -295,6 +264,7 @@ class _SidebarNavigation extends StatelessWidget {
     required this.collapsed,
     required this.onToggle,
     this.closeLabel = false,
+    required this.state,
   });
 
   @override
@@ -305,7 +275,7 @@ class _SidebarNavigation extends StatelessWidget {
       color: _kSidebarBg,
       child: Column(
         children: [
-          _buildHeader(context),
+          _buildHeader(context, state),
           const _SidebarDivider(),
           Expanded(
             child: ListView(
@@ -328,63 +298,68 @@ class _SidebarNavigation extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: _kSidebarAccent.withValues(alpha: 0.4),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+  Widget _buildHeader(BuildContext context, AuthState state) {
+    return SizedBox(
+      height: 200,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).primaryColor,
+                    Theme.of(context).primaryColor.withValues(alpha: .4),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              ],
-            ),
-            child: const Icon(
-              Icons.health_and_safety_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          if (!collapsed) ...[
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Helty',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  Text(
-                    'Hospital Management',
-                    style: TextStyle(color: _kSidebarTextMuted, fontSize: 11),
+                borderRadius: BorderRadius.circular(100),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
+              child: CircleAvatar(radius: 40),
             ),
+            if (!collapsed) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      state.staff!.firstName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    Text(
+                      state.staff!.accountType!.name,
+                      style: TextStyle(color: _kSidebarTextMuted, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            // _ToggleButton(
+            //   collapsed: collapsed,
+            //   onToggle: onToggle,
+            //   closeLabel: closeLabel,
+            // ),
           ],
-          _ToggleButton(
-            collapsed: collapsed,
-            onToggle: onToggle,
-            closeLabel: closeLabel,
-          ),
-        ],
+        ),
       ),
     );
   }

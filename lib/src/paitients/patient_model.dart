@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:developer';
+
 class Patient {
   final String? id;
   final String patientId;
@@ -26,9 +29,10 @@ class Patient {
   final String? nextOfKinRelationship;
   final String? hmo;
   final String? fingerprintData;
-  final String? createdAt;
-  final String? updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
   final String? createdBy;
+  final String? updatedBy;
 
   Patient({
     this.id,
@@ -46,7 +50,6 @@ class Patient {
     required this.lga,
     required this.town,
     required this.permanentAddress,
-    this.createdAt,
     this.religion,
     this.email,
     this.preferredLanguage,
@@ -59,11 +62,14 @@ class Patient {
     this.nextOfKinRelationship,
     this.hmo,
     this.fingerprintData,
-    this.createdBy,
+    this.createdAt,
     this.updatedAt,
+    this.createdBy,
+    this.updatedBy,
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
+    log(json.toString());
     // use nullable casts to avoid runtime type errors when keys are missing
     final String? dobStr = json['dob'] as String?;
     return Patient(
@@ -92,11 +98,14 @@ class Patient {
       nextOfKinPhone: json['nextOfKinPhone'] as String?,
       nextOfKinAddress: json['nextOfKinAddress'] as String?,
       nextOfKinRelationship: json['nextOfKinRelationship'] as String?,
-      hmo: json['hmo'] as String?,
+      hmo: json['hmo'] as String? ?? 'No HMO',
       createdAt: json['createdAt'],
-      createdBy: json['createdBy'],
+      createdBy:
+          '${json['createdBy']['lastName']} ${json['createdBy']['firstName']}',
       updatedAt: json['updatedAt'],
-      fingerprintData: json['fingerprintData'] as String?,
+      updatedBy:
+          '${json['updatedBy']['lastName']} ${json['updatedBy']['firstName']}',
+      fingerprintData: json['fingerprintData'] as String? ?? 'No Fingerprint',
     );
   }
 
@@ -109,7 +118,7 @@ class Patient {
       'surname': surname,
       'firstName': firstName,
       'otherName': otherName,
-      'dob': dob.toIso8601String(),
+      'dob': dob,
       'gender': gender,
       'maritalStatus': maritalStatus,
       'nationality': nationality,
@@ -128,10 +137,11 @@ class Patient {
       'nextOfKinAddress': nextOfKinAddress,
       'nextOfKinRelationship': nextOfKinRelationship,
       'hmo': hmo,
-      'fingerprintData': fingerprintData,
-      'createdAt': createdAt,
-      'createdBy': createdBy,
-      'updatedAt': updatedAt,
+      "createdAt": createdAt,
+      "createdBy": createdBy,
+      "updatedAt": updatedAt,
+      "updatedBy": updatedBy,
+      "fingerprintData": fingerprintData,
     };
   }
 }

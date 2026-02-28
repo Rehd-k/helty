@@ -7,7 +7,7 @@ class PatientState {
 
   final int skip;
   final int take;
-  final String? search;
+  final String? query;
   final String? filterCategory;
   final DateTime? fromDate;
   final DateTime? toDate;
@@ -21,7 +21,7 @@ class PatientState {
     this.error,
     this.skip = 0,
     this.take = 10,
-    this.search,
+    this.query,
     this.filterCategory,
     this.fromDate,
     this.toDate,
@@ -39,7 +39,7 @@ class PatientState {
     String? error,
     int? skip,
     int? take,
-    String? search,
+    String? query,
     String? filterCategory,
     DateTime? fromDate,
     DateTime? toDate,
@@ -54,7 +54,7 @@ class PatientState {
       error: error,
       skip: skip ?? this.skip,
       take: take ?? this.take,
-      search: search ?? this.search,
+      query: query ?? this.query,
       filterCategory: filterCategory ?? this.filterCategory,
       fromDate: fromDate ?? this.fromDate,
       toDate: toDate ?? this.toDate,

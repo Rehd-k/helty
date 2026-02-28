@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/invoice.dart';
 
 Widget buildModernGrid(
-  patient,
+  Invoice invocie,
 
   /// function that will be called when the user taps the delete
   /// icon next to an item. The index of the item is supplied.
@@ -57,10 +59,10 @@ Widget buildModernGrid(
       // --- BODY ---
       Expanded(
         child: ListView.separated(
-          itemCount: patient!.details.length,
+          itemCount: invocie.invoiceItems.length,
           separatorBuilder: (context, index) => const Divider(height: 1),
           itemBuilder: (context, index) {
-            final item = patient.details[index];
+            final item = invocie.invoiceItems[index];
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               color: index % 2 == 0
@@ -71,7 +73,7 @@ Widget buildModernGrid(
                   Expanded(
                     flex: 3,
                     child: Text(
-                      item.service,
+                      item.name,
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
@@ -82,14 +84,14 @@ Widget buildModernGrid(
                   Expanded(
                     flex: 2,
                     child: Text(
-                      item.price.toFinancial(isMoney: true),
+                      item.cost.toFinancial(isMoney: true),
                       textAlign: TextAlign.right,
                     ),
                   ),
                   Expanded(
                     flex: 2,
                     child: Text(
-                      (item.qty * item.price).toFinancial(isMoney: true),
+                      (item.qty! * item.cost).toFinancial(isMoney: true),
                       textAlign: TextAlign.right,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,

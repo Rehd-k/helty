@@ -1,10 +1,20 @@
 /// Staff account types (mirrors Prisma AccountType enum).
 enum AccountType {
-  admin,
-  staff,
-  doctor,
+  store,
+  dispensary,
+  other,
+  frontdesk,
+  consultant,
   nurse,
-  receptionist;
+  lab,
+  radiology,
+  accounts,
+  bills,
+  pharmacy,
+  theatere,
+  ong,
+  dialysis,
+  staff;
 
   static AccountType fromString(String? value) => AccountType.values.firstWhere(
     (e) => e.name.toLowerCase() == value?.toLowerCase(),

@@ -16,7 +16,7 @@ _Invoice _$InvoiceFromJson(Map<String, dynamic> json) => _Invoice(
   createdAt: DateTime.parse(json['createdAt'] as String),
   updatedAt: DateTime.parse(json['updatedAt'] as String),
   invoiceItems: (json['invoiceItems'] as List<dynamic>)
-      .map((e) => InvoiceItem.fromJson(e as Map<String, dynamic>))
+      .map((e) => ServiceModel.fromJson(e as Map<String, dynamic>))
       .toList(),
 );
 

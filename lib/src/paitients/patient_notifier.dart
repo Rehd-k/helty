@@ -14,15 +14,16 @@ class PatientNotifier extends StateNotifier<PatientState> {
 
     try {
       final data = await service.fetchPatients(
-        query: query,
+        query: state.query,
         skip: state.skip,
         take: state.take,
         filterCategory: state.filterCategory,
         fromDate: state.fromDate,
         toDate: state.toDate,
         sortBy: state.sortBy,
-        isAscending: isAscending,
+        isAscending: state.isAscending,
       );
+
       state = state.copyWith(isLoading: false, patients: data);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -41,7 +42,7 @@ class PatientNotifier extends StateNotifier<PatientState> {
   void searchPatients(
     int? skip,
     int? take,
-    String? search,
+    String? query,
     String? filterCategory,
     DateTime? fromDate,
     DateTime? toDate,
@@ -52,14 +53,15 @@ class PatientNotifier extends StateNotifier<PatientState> {
     state = state.copyWith(
       skip: skip ?? 0,
       take: take ?? 10,
-      search: search,
+      query: query,
       filterCategory: filterCategory,
       fromDate: fromDate,
       toDate: toDate,
-      sortBy: sortBy,
+      sortBy: sortBy ?? 'surname',
       isAscending: isAscending,
       selectedPatient: selectedPatient,
     );
+    fetchPatients();
   }
 
   // ➡ NEXT PAGE

@@ -37,6 +37,7 @@ class AuthService {
     String? departmentId,
     AccountType? accountType,
   }) async {
+    print(accountType?.name);
     final resp = await _dio.post(
       '/staff',
       data: {
@@ -48,10 +49,10 @@ class AuthService {
         if (email != null) 'email': email,
         if (phone != null) 'phone': phone,
         if (departmentId != null) 'departmentId': departmentId,
-        if (accountType != null) 'accountType': 'OTHER',
+        if (accountType != null) 'accountType': accountType.name.toUpperCase(),
       },
     );
-    return AuthResponse.fromJson(resp.data as Map<String, dynamic>);
+    return AuthResponse.fromJson(resp.data['staff'] as Map<String, dynamic>);
   }
 
   // ── Forgot / Reset Password ─────────────────────────────────────────────────

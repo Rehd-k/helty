@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../helper/date.formatter.dart';
 
 class PatientsFilterWidget extends StatefulWidget {
-  final List<String> searchCategories;
+  final List<Map<String, String>> searchCategories;
   final Function doRefresh;
+  final bool dateFilter;
   final Function(String query, String category, DateTime? from, DateTime? to)
   onFilterChanged;
 
@@ -13,6 +14,7 @@ class PatientsFilterWidget extends StatefulWidget {
     required this.searchCategories,
     required this.onFilterChanged,
     required this.doRefresh,
+    required this.dateFilter,
   });
 
   @override
@@ -30,14 +32,14 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
   void initState() {
     super.initState();
     doRefresh = widget.doRefresh;
-    _selectedCategory = widget.searchCategories.first;
+    _selectedCategory = widget.searchCategories.first['name'];
   }
 
   void _resetFilters() {
     doRefresh!();
     setState(() {
       _searchController.clear();
-      _selectedCategory = widget.searchCategories.first;
+      _selectedCategory = widget.searchCategories.first['name'];
       _fromDate = null;
       _toDate = null;
     });
@@ -140,7 +142,10 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
                     fillColor: Colors.grey[100],
                   ),
                   items: widget.searchCategories.map((cat) {
-                    return DropdownMenuItem(value: cat, child: Text(cat));
+                    return DropdownMenuItem(
+                      value: cat['name'],
+                      child: Text(cat['value']!),
+                    );
                   }).toList(),
                   onChanged: (val) {
                     setState(() => _selectedCategory = val);
@@ -153,20 +158,25 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
           const SizedBox(height: 16),
           Row(
             children: [
-              // From Date
-              _DateTile(
-                label: 'From', // French for "From"
-                date: _fromDate,
-                onTap: _pickFromDate,
-              ),
-              const SizedBox(width: 12),
-              // To Date
-              _DateTile(
-                label: 'To', // French for "To"
-                date: _toDate,
-                isEnabled: _fromDate != null,
-                onTap: _pickToDate,
-              ),
+              if (widget.dateFilter)
+                Row(
+                  children: [
+                    _DateTile(
+                      label: 'From', // French for "From"
+                      date: _fromDate,
+                      onTap: _pickFromDate,
+                    ),
+                    const SizedBox(width: 12),
+                    // To Date
+                    _DateTile(
+                      label: 'To', // French for "To"
+                      date: _toDate,
+                      isEnabled: _fromDate != null,
+                      onTap: _pickToDate,
+                    ),
+                  ],
+                ),
+
               const Spacer(),
               TextButton.icon(
                 onPressed: () {
