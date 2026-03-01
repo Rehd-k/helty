@@ -30,6 +30,30 @@ class PatientNotifier extends StateNotifier<PatientState> {
     }
   }
 
+  Future<void> fetchNoIdPatients({
+    String? query,
+    bool isAscending = true,
+  }) async {
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final data = await service.fetchPatients(
+        query: state.query,
+        skip: state.skip,
+        take: state.take,
+        filterCategory: state.filterCategory,
+        fromDate: state.fromDate,
+        toDate: state.toDate,
+        sortBy: state.sortBy,
+        isAscending: state.isAscending,
+      );
+
+      state = state.copyWith(isLoading: false, patients: data);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
   void selectPatient(Patient patient) {
     state = state.copyWith(selectedPatient: patient);
   }

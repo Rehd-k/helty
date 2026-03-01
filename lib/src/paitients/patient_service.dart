@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:helty/src/paitients/noid_patient.model.dart';
 
 import 'patient_model.dart';
 import '../services/api_service.dart';
@@ -75,6 +76,10 @@ class PatientService {
     await _dio.delete('/patients/$id');
   }
 
+  Future<NoIdPatient> createNoIdPatient(Map<String, dynamic> data) async {
+    final resp = await _dio.post('/no-id-patient', data: data);
+    return NoIdPatient.fromJson(resp.data as Map<String, dynamic>);
+  }
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   Future<List<Patient>> searchPatients(String query, bool isAscending) =>

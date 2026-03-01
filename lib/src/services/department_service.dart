@@ -4,22 +4,27 @@ import 'api_service.dart';
 
 /// A simple Department model (for dropdowns in forms).
 class Department {
-  const Department({required this.id, required this.name, this.description});
+  const Department({required this.id, required this.name, this.headId});
 
   final String id;
   final String name;
-  final String? description;
+
+  /// Holds the staff-id of the head of department (maps to `headId` in the API).
+  final String? headId;
+
+  /// Legacy alias so existing code that reads `.description` still works.
+  String? get description => headId;
 
   factory Department.fromJson(Map<String, dynamic> json) => Department(
     id: json['id'] as String,
     name: json['name'] as String,
-    description: json['description'] as String?,
+    headId: json['headId'] as String?,
   );
 
   Map<String, dynamic> toJson() => {
     if (id.isNotEmpty) 'id': id,
     'name': name,
-    if (description != null) 'description': description,
+    if (headId != null) 'headId': headId,
   };
 }
 
@@ -34,6 +39,7 @@ class DepartmentService {
       '/departments',
       queryParameters: {if (query != null && query.isNotEmpty) 'q': query},
     );
+
     final data = resp.data is List
         ? resp.data as List
         : (resp.data['departments'] as List);

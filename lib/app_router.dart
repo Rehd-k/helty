@@ -40,6 +40,8 @@ class AppRouter extends RootStackRouter {
 
         AutoRoute(page: WaitingPatientRoute.page),
         AutoRoute(page: BillingDashboardRoute.page),
+        AutoRoute(page: TransactionsRoute.page),
+        AutoRoute(page: SystemSetupRoute.page),
       ],
     ),
 

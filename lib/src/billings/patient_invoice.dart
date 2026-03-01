@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 
 import '../widgets/text_field.dart';
 
-void showNewPatientInvoiceForm(BuildContext context) {
+void showNewPatientInvoiceForm(
+  BuildContext context,
+  TextEditingController firstName,
+  TextEditingController surname,
+  TextEditingController age,
+  TextEditingController gender,
+  Function createNewPatient,
+) {
   final colorScheme = Theme.of(context).colorScheme;
 
   showDialog(
@@ -58,6 +65,7 @@ void showNewPatientInvoiceForm(BuildContext context) {
                         label: "First Name",
                         hint: "First Name",
                         isNumber: false,
+                        controller: firstName,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -67,6 +75,7 @@ void showNewPatientInvoiceForm(BuildContext context) {
                         label: "Surname",
                         hint: "Surname",
                         isNumber: false,
+                        controller: surname,
                       ),
                     ),
                   ],
@@ -83,6 +92,7 @@ void showNewPatientInvoiceForm(BuildContext context) {
                         label: "Age",
                         hint: "Age",
                         isNumber: true,
+                        controller: age,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -130,7 +140,9 @@ void showNewPatientInvoiceForm(BuildContext context) {
                               (s) => DropdownMenuItem(value: s, child: Text(s)),
                             )
                             .toList(),
-                        onChanged: (val) {},
+                        onChanged: (val) {
+                          gender.text = val!;
+                        },
                       ),
                     ),
                   ],
@@ -141,7 +153,13 @@ void showNewPatientInvoiceForm(BuildContext context) {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              firstName.clear();
+              surname.clear();
+              age.clear();
+              gender.clear();
+              Navigator.pop(context);
+            },
             child: Text(
               "Cancel",
               style: TextStyle(
@@ -151,7 +169,7 @@ void showNewPatientInvoiceForm(BuildContext context) {
           ),
           ElevatedButton.icon(
             onPressed: () {
-              // Handle form submission
+              createNewPatient();
               Navigator.pop(context);
             },
             icon: const Icon(Icons.check, size: 16, color: Colors.white),

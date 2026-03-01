@@ -62,7 +62,7 @@ class Staff {
     departmentName: json['department']?['name'] as String?,
     accountType: AccountType.fromString(json['accountType'] as String?),
     email: json['email'] as String?,
-    phone: json['phone'] as String?,
+    phone: json['phone']?.toString(), // API may return int or string
     isActive: (json['isActive'] as bool?) ?? true,
   );
 

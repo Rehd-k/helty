@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:helty/src/services/api_service.dart';
 import 'package:intl/intl.dart';
 
 import 'patient_invoice.dart';
@@ -17,6 +18,38 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
   String _selectedPeriod = 'This Month';
   final TextEditingController _transactionSearchController =
       TextEditingController();
+  final ApiService apiService = ApiService();
+  final TextEditingController firstName = TextEditingController();
+  final TextEditingController surname = TextEditingController();
+  final TextEditingController age = TextEditingController();
+  final TextEditingController gender = TextEditingController();
+
+  void createNewPatient() async {
+    try {
+      var res = await apiService.dio.post(
+        '/no-id-patient',
+        data: {
+          'firstName': firstName.text,
+          'surname': surname.text,
+          'age': age.text,
+          'gender': gender.text,
+        },
+      );
+      if (res.statusCode == 200) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Patient created successfully')));
+      }
+      firstName.clear();
+      surname.clear();
+      age.clear();
+      gender.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
 
   // Mock Data for Transactions
   final List<Map<String, dynamic>> _transactions = [
@@ -65,6 +98,10 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
   @override
   void dispose() {
     _transactionSearchController.dispose();
+    firstName.dispose();
+    surname.dispose();
+    age.dispose();
+    gender.dispose();
     super.dispose();
   }
 
@@ -210,7 +247,14 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
-                      onPressed: () => showNewPatientInvoiceForm(context),
+                      onPressed: () => showNewPatientInvoiceForm(
+                        context,
+                        firstName,
+                        surname,
+                        age,
+                        gender,
+                        createNewPatient,
+                      ),
                       icon: const Icon(
                         Icons.add,
                         size: 16,

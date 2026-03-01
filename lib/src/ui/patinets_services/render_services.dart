@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,10 +7,15 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../billings/pay.bill.dart';
 import '../../enlist_services/selected.user.dart';
+import '../../models/service_category_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/department_service.dart';
+import '../../services/service_category_service.dart';
+import '../../services/service_service.dart';
 
 @RoutePage()
 class RenderServiceScreen extends ConsumerStatefulWidget {
@@ -21,204 +28,72 @@ class RenderServiceScreen extends ConsumerStatefulWidget {
 
 class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // Mock Data from Backend for available services
+  Map<String, dynamic> noIdPatient = {};
+  final _deptSvc = DepartmentService();
+  final _catSvc = ServiceCategoryService();
+  final _srvSvc = ServiceService();
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // ── list data (loaded from API) ───────────────────────────────────────────
+  List<Department> _departments = [];
+  List<ServiceCategory> _categories = [];
+  List<ServiceModel> _services = [];
+  bool _loading = false;
+
+  // ── API calls ─────────────────────────────────────────────────────────────
+
+  Future<void> _loadAll() async {
+    setState(() => _loading = true);
+    try {
+      final results = await Future.wait([
+        _deptSvc.fetchDepartments(),
+        _catSvc.fetchCategories(),
+        _srvSvc.fetchServices(),
+      ]);
+      debugPrint('Loaded: ${results.map((r) => (r as List).length).toList()}');
+      if (!mounted) return;
+      setState(() {
+        _departments = results[0] as List<Department>;
+        _categories = results[1] as List<ServiceCategory>;
+        _services = results[2] as List<ServiceModel>;
+      });
+    } catch (e) {
+      _snack('Failed to load data: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // ── lifecycle ─────────────────────────────────────────────────────────────
 
   void _openPaymentModal(
     BuildContext context,
-    Patient patient,
+    Patient? patient,
+    Map<String, dynamic> noIdPatient,
     List<ServiceModel> selectedItems,
     double totalDue,
+    String staffId,
   ) {
     showDialog(
       context: context,
       barrierColor: Colors.transparent, // We handle the dimming inside PayBill
       builder: (context) => PayBill(
-        patientId: patient.patientId,
-        firstName: patient.firstName,
+        patientId: noIdPatient.isNotEmpty
+            ? noIdPatient['id']
+            : patient?.patientId,
+        firstName: noIdPatient.isNotEmpty
+            ? noIdPatient['firstName']
+            : patient?.firstName,
         selectedItems: selectedItems,
         total: totalDue,
+        staffId: staffId,
       ),
     );
   }
-
-  final List<ServiceModel> _allServices = [
-    ServiceModel(
-      serviceId: '99213',
-      name: 'General Consultation',
-      description: 'Outpatient Visit Level 3',
-      categoryId: 'OPD',
-      cost: 150.00,
-      id: '232',
-    ),
-    ServiceModel(
-      serviceId: '85025',
-      name: 'CBC (Hemogram)',
-      description: 'Complete Blood Count',
-      categoryId: 'Lab',
-      cost: 45.00,
-      id: 'w232',
-    ),
-    ServiceModel(
-      serviceId: 'J0123',
-      name: 'Amoxicillin 500mg',
-      description: 'Oral Capsule',
-      categoryId: 'Pharmacy',
-      cost: 12.50,
-      id: 'fh',
-    ),
-    ServiceModel(
-      serviceId: '85025',
-      name: 'CBC (Hemogram)',
-      description: 'Complete Blood Count',
-      categoryId: 'Lab',
-      cost: 45.00,
-      id: 'w232',
-    ),
-
-    ServiceModel(
-      serviceId: '71045',
-      name: 'Chest X-Ray',
-      description: 'Single View',
-      categoryId: 'Radiology',
-      cost: 85.00,
-      id: 'w233',
-    ),
-
-    ServiceModel(
-      serviceId: '90935',
-      name: 'Hemodialysis',
-      description: 'Single Session',
-      categoryId: 'Dialysis',
-      cost: 300.00,
-      id: 'w234',
-    ),
-
-    ServiceModel(
-      serviceId: '99214',
-      name: 'Specialist Consultation',
-      description: 'Outpatient Visit Level 4',
-      categoryId: 'OPD',
-      cost: 250.00,
-      id: 'w235',
-    ),
-
-    ServiceModel(
-      serviceId: '80053',
-      name: 'Comprehensive Metabolic Panel',
-      description: 'Blood Test',
-      categoryId: 'Lab',
-      cost: 60.00,
-      id: 'w236',
-    ),
-
-    // 🔥 10 More Entries
-    ServiceModel(
-      serviceId: '93000',
-      name: 'Electrocardiogram (ECG)',
-      description: 'Routine ECG with Interpretation',
-      categoryId: 'Cardiology',
-      cost: 120.00,
-      id: 'w237',
-    ),
-
-    ServiceModel(
-      serviceId: '70450',
-      name: 'CT Scan - Head',
-      description: 'Without Contrast',
-      categoryId: 'Radiology',
-      cost: 450.00,
-      id: 'w238',
-    ),
-
-    ServiceModel(
-      serviceId: '81002',
-      name: 'Urinalysis',
-      description: 'Non-automated, Without Microscopy',
-      categoryId: 'Lab',
-      cost: 35.00,
-      id: 'w239',
-    ),
-
-    ServiceModel(
-      serviceId: '90658',
-      name: 'Influenza Vaccine',
-      description: 'Seasonal Flu Shot',
-      categoryId: 'Immunization',
-      cost: 40.00,
-      id: 'w240',
-    ),
-
-    ServiceModel(
-      serviceId: '36415',
-      name: 'Venipuncture',
-      description: 'Collection of Blood Specimen',
-      categoryId: 'Lab',
-      cost: 20.00,
-      id: 'w241',
-    ),
-
-    ServiceModel(
-      serviceId: '76700',
-      name: 'Abdominal Ultrasound',
-      description: 'Complete Study',
-      categoryId: 'Radiology',
-      cost: 200.00,
-      id: 'w242',
-    ),
-
-    ServiceModel(
-      serviceId: '94010',
-      name: 'Spirometry',
-      description: 'Pulmonary Function Test',
-      categoryId: 'Respiratory',
-      cost: 110.00,
-      id: 'w243',
-    ),
-
-    ServiceModel(
-      serviceId: '85018',
-      name: 'Hemoglobin Test',
-      description: 'Blood Test',
-      categoryId: 'Lab',
-      cost: 25.00,
-      id: 'w244',
-    ),
-
-    ServiceModel(
-      serviceId: '12001',
-      name: 'Simple Wound Repair',
-      description: 'Small Laceration',
-      categoryId: 'Emergency',
-      cost: 150.00,
-      id: 'w245',
-    ),
-
-    ServiceModel(
-      serviceId: '96372',
-      name: 'Therapeutic Injection',
-      description: 'Intramuscular Injection',
-      categoryId: 'Treatment',
-      cost: 75.00,
-      id: 'w246',
-    ),
-  ];
-
-  final List<String> _hospitalUnits = [
-    'All Services',
-    'Pharmacy',
-    'Lab',
-    'Dialysis',
-    'Radiology',
-    'OPD',
-    'Procedures',
-  ];
-
-  final List<String> _filterCategories = [
-    'Consultation',
-    'Blood Test',
-    'Imaging',
-    'Medication',
-    'Consumables',
-  ];
 
   String _selectedUnit = 'All Services';
   String _searchQuery = '';
@@ -228,7 +103,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
   // Filter Logic
   List<ServiceModel> get _filteredServices {
-    return _allServices.where((s) {
+    return _services.where((s) {
       final matchesSearch =
           s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           s.name.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -239,9 +114,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     }).toList();
   }
 
-  // Calculate Total
-  double get _totalDue =>
-      _selectedItems.fold(0.0, (sum, item) => sum + item.cost);
+  // Calculate Total (unit cost × quantity)
+  double get _totalDue => _selectedItems.fold(
+    0.0,
+    (sum, item) => sum + item.cost * (item.qty ?? 1),
+  );
 
   void _addToSelected(ServiceModel item) {
     setState(() {
@@ -281,44 +158,91 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     });
   }
 
+  /// Resolves the patient to display.
+  /// Priority: (1) SharedPrefs noIdPatient → (2) selectedPatient from provider.
+  /// Returns an empty map when neither is available.
+  Future<void> getNoIdPateitn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('noIdPatient');
+    if (stored != null && stored.isNotEmpty) {
+      setState(() {
+        noIdPatient = jsonDecode(stored) as Map<String, dynamic>;
+      });
+      return;
+    }
+    // Fall back to the provider's selectedPatient
+    final selected = ref.read(patientProvider).selectedPatient;
+    if (selected != null) {
+      setState(() {
+        noIdPatient = {
+          'id': selected.patientId,
+          'firstName': selected.firstName,
+        };
+      });
+    }
+    // If still nothing, noIdPatient stays as {} → UI will prompt the user.
+  }
+
+  void unselect() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      noIdPatient = {};
+    });
+    await prefs.remove('noIdPatient');
+    ref.read(patientProvider.notifier).clearPatient();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAll();
+    getNoIdPateitn();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
     return Scaffold(
       appBar: AppBar(),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ==========================================
-            // LEFT PANE: SEARCH & AVAILABLE SERVICES
-            // ==========================================
-            Expanded(
-              flex: 5,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSearchAndFilterCard(),
-                  const SizedBox(height: 16),
-                  Expanded(child: _buildAvailableServicesList()),
+                  // ==========================================
+                  // LEFT PANE: SEARCH & AVAILABLE SERVICES
+                  // ==========================================
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildSearchAndFilterCard(),
+                        const SizedBox(height: 16),
+                        Expanded(child: _buildAvailableServicesList()),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 16),
+
+                  // ==========================================
+                  // RIGHT PANE: SELECTED SERVICES TABLE
+                  // ==========================================
+                  Expanded(
+                    flex: 4,
+                    child: _buildSelectedServicesPanel(
+                      noIdPatient,
+                      selectedPatient,
+                      auth,
+                    ),
+                  ),
                 ],
               ),
             ),
-
-            const SizedBox(width: 16),
-
-            // ==========================================
-            // RIGHT PANE: SELECTED SERVICES TABLE
-            // ==========================================
-            Expanded(
-              flex: 4,
-              child: _buildSelectedServicesPanel(selectedPatient!, auth),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -374,14 +298,14 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: _hospitalUnits.map((unit) {
-                      final isSelected = _selectedUnit == unit;
+                    children: _departments.map((unit) {
+                      final isSelected = _selectedUnit == unit.name;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: InkWell(
                           onTap: () {
                             setState(() {
-                              _selectedUnit = unit;
+                              _selectedUnit = unit.name;
                             });
                           },
                           borderRadius: BorderRadius.circular(8),
@@ -404,7 +328,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                             ),
                             child: Row(
                               children: [
-                                if (unit == 'All Services') ...[
+                                if (unit.name == 'All Services') ...[
                                   Icon(
                                     Icons.grid_view,
                                     size: 16,
@@ -415,7 +339,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                   const SizedBox(width: 6),
                                 ],
                                 Text(
-                                  unit,
+                                  unit.name,
                                   style: TextStyle(
                                     color: isSelected
                                         ? Colors.white
@@ -451,10 +375,10 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   itemBuilder: (context) {
-                    return _filterCategories.map((category) {
+                    return _categories.map((category) {
                       return PopupMenuItem<String>(
-                        value: category,
-                        child: Text(category),
+                        value: category.name,
+                        child: Text(category.name),
                       );
                     }).toList();
                   },
@@ -570,12 +494,17 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // =========================================================================
   // RIGHT PANE COMPONENTS
   // =========================================================================
-  Widget _buildSelectedServicesPanel(Patient selectedPatient, AuthState auth) {
+  Widget _buildSelectedServicesPanel(
+    Map<String, dynamic> noIdPatient,
+    Patient? selectedPatient,
+    AuthState auth,
+  ) {
+    final hasPatient = noIdPatient.isNotEmpty || selectedPatient != null;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.shade200), // Highlighted border
+        border: Border.all(color: Colors.blue.shade200),
         boxShadow: [
           BoxShadow(
             color: Colors.blue.withValues(alpha: 0.05),
@@ -587,7 +516,32 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SelectedPatientCard(),
+          if (hasPatient)
+            SelectedPatientCard(noIdPatient: noIdPatient, unselect: unselect)
+          else
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_search_outlined,
+                    color: Colors.orange.shade400,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Please select a patient to continue.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -750,11 +704,13 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                               ),
                             ),
 
-                            // Total Amount (UnitPrice * Hidden Qty)
+                            // Total Amount (UnitPrice * Qty)
                             Expanded(
                               flex: 2,
                               child: Text(
-                                item.cost.toFinancial(isMoney: true),
+                                (item.cost * (item.qty ?? 1)).toFinancial(
+                                  isMoney: true,
+                                ),
                                 style: TextStyle(
                                   color: Colors.grey.shade900,
                                   fontWeight: FontWeight.bold,
@@ -823,8 +779,10 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                           _openPaymentModal(
                             context,
                             selectedPatient,
+                            noIdPatient,
                             _selectedItems,
                             _totalDue,
+                            auth.staff!.id,
                           );
                         },
                         style: ElevatedButton.styleFrom(

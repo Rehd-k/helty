@@ -10,11 +10,13 @@ class PayBill extends ConsumerStatefulWidget {
     required this.patientId,
     required this.selectedItems,
     required this.total,
+    required this.staffId,
   });
   final String firstName;
   final String patientId;
   final List<ServiceModel> selectedItems;
   final double total;
+  final String staffId;
 
   @override
   PayBillState createState() => PayBillState();
@@ -24,6 +26,7 @@ class PayBillState extends ConsumerState<PayBill> {
   // Data State
   late String _patientName;
   late String _patientId;
+  late String _staffId;
   late double _originalAmount;
   double _amountToPay = 0;
   String? _insurance;
@@ -34,6 +37,7 @@ class PayBillState extends ConsumerState<PayBill> {
 
   // Payment State
   String? _paymentMethod;
+  bool _isSubmitting = false;
   final List<String> _methods = ['transfer', 'pos', 'cash', 'cheque', 'mixed'];
   final Map<String, IconData> _methodIcons = {
     'transfer': Icons.account_balance,
@@ -54,6 +58,7 @@ class PayBillState extends ConsumerState<PayBill> {
     super.initState();
     _patientName = widget.firstName;
     _patientId = widget.patientId;
+    _staffId = widget.staffId;
     _originalAmount = widget.total;
     _amountToPay = _originalAmount;
     _items = widget.selectedItems;
@@ -220,19 +225,85 @@ class PayBillState extends ConsumerState<PayBill> {
     });
   }
 
-  void _makePayment() {
-    setState(() => _confirmed = true);
-    // In a real app, you would await the API call here
-    Future.delayed(const Duration(seconds: 1), () {
+  Future<void> _makePayment() async {
+    // Build the payload to send to the backend
+    final payload = {
+      'patientId': _patientId,
+      'staffId': _staffId,
+      'amountPaid': _amountToPay,
+      'paymentMethod': _paymentMethod,
+      'discount': _selectedDiscount,
+      'items': _items
+          .map(
+            (s) => {
+              'serviceId': s.serviceId,
+              'name': s.name,
+              'cost': s.cost,
+              'qty': s.qty ?? 1,
+              'total': s.cost * (s.qty ?? 1),
+            },
+          )
+          .toList(),
+      if (_paymentMethod == 'mixed') 'mixedBreakdown': _mixedAmounts,
+    };
+
+    debugPrint('Payment payload: $payload');
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      // TODO: replace with actual API call, e.g:
+      // await ref.read(billingRepositoryProvider).createPayment(payload);
+      await Future.delayed(const Duration(seconds: 1)); // simulate API
+
+      // Only confirm AFTER a successful API response
       if (mounted) {
+        setState(() {
+          _confirmed = true;
+          _isSubmitting = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment Processed Successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            elevation: 8,
+            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Payment Processed Successfully!',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade600,
+            content: Text('Payment failed: $e'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -376,7 +447,10 @@ class PayBillState extends ConsumerState<PayBill> {
             const Divider(),
           ],
           ..._items.map((c) {
-            return _invoiceRow(c.name, c.cost.toFinancial(isMoney: true));
+            final qty = c.qty ?? 1;
+            final lineTotal = c.cost * qty;
+            final label = qty > 1 ? '${c.name}  ×$qty' : c.name;
+            return _invoiceRow(label, lineTotal.toFinancial(isMoney: true));
           }),
           const Divider(),
           Row(
@@ -532,7 +606,9 @@ class PayBillState extends ConsumerState<PayBill> {
           ),
           elevation: 2,
         ),
-        onPressed: _canPay && !_confirmed ? _makePayment : null,
+        onPressed: _canPay && !_confirmed && !_isSubmitting
+            ? _makePayment
+            : null,
         child: Text(
           'Pay ${_amountToPay.toFinancial(isMoney: true)}',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

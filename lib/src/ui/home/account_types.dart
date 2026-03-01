@@ -107,6 +107,11 @@ final bills = <MenuItem>[
     route: NotAvailableRoute(),
   ),
   MenuItem(
+    label: 'Add Service',
+    icon: Icons.add_box_outlined,
+    route: SystemSetupRoute(),
+  ),
+  MenuItem(
     label: 'Debt/Insurance Payment',
     icon: Icons.personal_injury_outlined,
     route: NotAvailableRoute(),
@@ -114,7 +119,7 @@ final bills = <MenuItem>[
   MenuItem(
     label: 'Transaction',
     icon: Icons.list_outlined,
-    route: NotAvailableRoute(),
+    route: TransactionsRoute(),
   ),
   MenuItem(
     label: 'View Ward Services',

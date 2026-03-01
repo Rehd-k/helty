@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 
 // Assuming these exist based on your snippet
 import '../models/invoice.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/grid.widgets.dart';
 import 'pending.bills.dart';
 
-class SummaryBills extends StatelessWidget {
+class SummaryBills extends ConsumerWidget {
   final Invoice invoice;
 
   const SummaryBills({super.key, required this.invoice});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
     return Card(
       elevation: 0, // Flat design with border is trendy
       shape: RoundedRectangleBorder(
@@ -83,7 +86,8 @@ class SummaryBills extends StatelessWidget {
             SizedBox(
               height: 50,
               child: ElevatedButton.icon(
-                onPressed: () => openCustomModal(context, invoice),
+                onPressed: () =>
+                    openCustomModal(context, invoice, auth.staff?.id ?? ''),
                 style: ElevatedButton.styleFrom(
                   elevation: 2,
                   shape: RoundedRectangleBorder(

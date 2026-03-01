@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/services/api_service.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
 
 import '../../app_router.gr.dart';
@@ -11,12 +12,14 @@ class SelectUser extends StatefulWidget {
   final List<Patient> patients;
   final ValueChanged<String> onSearch;
   final ValueChanged<Patient> onPatientSelected;
+  final ValueChanged<Map<String, dynamic>>? selectNoIdUser;
 
   const SelectUser({
     super.key,
     required this.patients,
     required this.onSearch,
     required this.onPatientSelected,
+    this.selectNoIdUser,
   });
 
   @override
@@ -25,7 +28,34 @@ class SelectUser extends StatefulWidget {
 
 class _SelectUserState extends State<SelectUser> {
   final TextEditingController _searchCtrl = TextEditingController();
+  final ApiService apiService = ApiService();
+
+  final TextEditingController firstName = TextEditingController();
+  final TextEditingController surname = TextEditingController();
+  final TextEditingController age = TextEditingController();
+  final TextEditingController gender = TextEditingController();
+
   bool _isSearching = false;
+
+  void createNewPatient() async {
+    try {
+      var newUser = await apiService.dio.post(
+        '/no-id-patient',
+        data: {
+          'firstName': firstName.text,
+          'surname': surname.text,
+          'age': age.text,
+          'gender': gender.text,
+        },
+      );
+
+      widget.selectNoIdUser!(newUser.data);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +143,14 @@ class _SelectUserState extends State<SelectUser> {
                           ),
                           const Spacer(),
                           ElevatedButton.icon(
-                            onPressed: () => showNewPatientInvoiceForm(context),
+                            onPressed: () => showNewPatientInvoiceForm(
+                              context,
+                              firstName,
+                              surname,
+                              age,
+                              gender,
+                              createNewPatient,
+                            ),
                             icon: const Icon(
                               Icons.add,
                               size: 16,

@@ -231,7 +231,7 @@ void _showContextMenu(
       if (auth.staff?.role == 'bills')
         PopupMenuItem(
           value: 'Make Payment',
-          onTap: () => openCustomModal(context, invoice),
+          onTap: () => openCustomModal(context, invoice, auth.staff?.id ?? ''),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [Icon(Icons.payment_outlined), Text('Make Payment')],
@@ -277,7 +277,7 @@ void _showContextMenu(
   }
 }
 
-void openCustomModal(BuildContext context, Invoice invoice) {
+void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
   showGeneralDialog(
     context: context,
     barrierDismissible: true,
@@ -308,6 +308,7 @@ void openCustomModal(BuildContext context, Invoice invoice) {
                   patientId: invoice.patientId,
                   firstName: 'Patient Name',
                   total: invoice.total,
+                  staffId: staffId,
                 ),
               ),
             ],
