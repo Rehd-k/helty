@@ -66,6 +66,8 @@ class ErrorInterceptor extends Interceptor {
         return ForbiddenException(message);
       case 404:
         return NotFoundException(message);
+      case 409:
+        return ConflictException(message);
       case 422:
         return ValidationException(message, statusCode: statusCode);
       default:

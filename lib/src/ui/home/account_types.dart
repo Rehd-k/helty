@@ -10,6 +10,11 @@ final frontDesk = <MenuItem>[
     route: FrontDeskDashboardRoute(),
   ),
   MenuItem(
+    label: 'View Waiting Patients',
+    icon: Icons.add_alarm_outlined,
+    route: NewPatientRoute(),
+  ),
+  MenuItem(
     label: 'Patients',
     icon: Icons.view_agenda_outlined,
     route: PatientListRoute(),
@@ -23,11 +28,6 @@ final frontDesk = <MenuItem>[
         label: 'View Patients',
         icon: Icons.add_alarm_outlined,
         route: PatientListRoute(),
-      ),
-      MenuItem(
-        label: 'View Waiting Patients',
-        icon: Icons.add_alarm_outlined,
-        route: WaitingPatientRoute(),
       ),
     ],
   ),
@@ -49,19 +49,31 @@ final frontDesk = <MenuItem>[
     ],
   ),
   MenuItem(
-    label: 'View OPD Services',
+    label: 'Services',
     icon: Icons.view_array_outlined,
     route: ViewServiceRoute(),
-  ),
-  MenuItem(
-    label: 'Enlist For OPD Service',
-    icon: Icons.add_card_outlined,
-    route: EnlistPaitientRoute(),
-  ),
-  MenuItem(
-    label: 'Enlist For Investigation Service',
-    icon: Icons.biotech_outlined,
-    route: EnlistPaitientRoute(),
+    children: [
+      MenuItem(
+        label: 'View OPD Services',
+        icon: Icons.view_array_outlined,
+        route: ViewServiceRoute(),
+      ),
+      MenuItem(
+        label: 'Add New Service',
+        icon: Icons.view_array_outlined,
+        route: AddServiceRoute(),
+      ),
+      MenuItem(
+        label: 'Add New Category',
+        icon: Icons.view_array_outlined,
+        route: AddCategoryRoute(),
+      ),
+      MenuItem(
+        label: 'Add New Department',
+        icon: Icons.view_array_outlined,
+        route: AddDepartmentRoute(),
+      ),
+    ],
   ),
   MenuItem(
     label: 'Enlist For Dialysis Service',
@@ -135,5 +147,113 @@ final bills = <MenuItem>[
     label: 'Transaction',
     icon: Icons.verified_user_rounded,
     route: NotAvailableRoute(),
+  ),
+];
+
+final nurses = <MenuItem>[
+  MenuItem(
+    label: 'Dashboard',
+    icon: Icons.dashboard_outlined,
+    route: NursesDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Waiting Patients',
+    icon: Icons.add_alarm_outlined,
+    route: WaitingPatientsRoute(),
+  ),
+  MenuItem(
+    label: 'Inpatients (Ward Census)',
+    icon: Icons.bed,
+    route: InpatientsListRoute(),
+  ),
+  MenuItem(
+    label: 'Appointments',
+    icon: Icons.calendar_month,
+    route: AppointmentListRoute(),
+    children: [
+      MenuItem(
+        label: 'Add New Appointment',
+        icon: Icons.view_agenda_outlined,
+        route: NewAppointmentRoute(),
+      ),
+      MenuItem(
+        label: 'View Appointments',
+        icon: Icons.add_alarm_outlined,
+        route: AppointmentListRoute(),
+      ),
+    ],
+  ),
+];
+
+final doctors = <MenuItem>[
+  MenuItem(
+    label: 'My Appointments',
+    icon: Icons.calendar_today_outlined,
+    route: DoctorOutpatientListRoute(),
+  ),
+  MenuItem(
+    label: 'Walk-in Queue',
+    icon: Icons.people_outline,
+    route: DoctorWalkInQueueRoute(),
+  ),
+  MenuItem(label: 'Inpatients', icon: Icons.bed, route: InpatientsListRoute()),
+  MenuItem(
+    label: 'Pending Lab Results',
+    icon: Icons.biotech_outlined,
+    route: DoctorPendingLabsRoute(),
+  ),
+  MenuItem(
+    label: 'Pending Imaging Reports',
+    icon: Icons.radar_outlined,
+    route: DoctorPendingImagingRoute(),
+  ),
+  MenuItem(
+    label: 'Pending Prescriptions',
+    icon: Icons.medication_outlined,
+    route: DoctorPendingPrescriptionsRoute(),
+  ),
+  MenuItem(
+    label: 'Completed Encounters',
+    icon: Icons.check_circle_outline,
+    route: DoctorCompletedEncountersRoute(),
+  ),
+  MenuItem(
+    label: 'Templates',
+    icon: Icons.description_outlined,
+    route: DoctorTemplatesRoute(),
+  ),
+  MenuItem(
+    label: 'Profile',
+    icon: Icons.person_outline,
+    route: DoctorProfileRoute(),
+  ),
+];
+
+final pharmacy = <MenuItem>[
+  MenuItem(
+    label: 'Medicine Inventory',
+    icon: Icons.inventory_2_outlined,
+    route: MedicineInventoryRoute(),
+  ),
+
+  MenuItem(
+    label: 'Add Supplier',
+    icon: Icons.person_add_alt_1_outlined,
+    route: AddSupplierRoute(),
+  ),
+  MenuItem(
+    label: 'Add Supply',
+    icon: Icons.add_box_outlined,
+    route: AddBatchRoute(),
+  ),
+  MenuItem(
+    label: 'Stock Transfer',
+    icon: Icons.move_to_inbox_outlined,
+    route: StockTransferRoute(),
+  ),
+  MenuItem(
+    label: 'Create Requisition',
+    icon: Icons.receipt_long_outlined,
+    route: CreateRequisitionRoute(),
   ),
 ];

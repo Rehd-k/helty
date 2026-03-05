@@ -3,7 +3,10 @@ import 'package:dio/dio.dart';
 import '../storage/token_storage.dart';
 
 /// Attaches the Bearer token to every outgoing request.
-/// On 401, clears stored tokens so the auth guard can redirect to login.
+///
+/// This interceptor is deliberately **write-only** – it does not handle
+/// 401s so that token refresh and logout can be centralized in a dedicated
+/// refresh / auth error interceptor.
 class AuthInterceptor extends Interceptor {
   @override
   Future<void> onRequest(
@@ -15,17 +18,5 @@ class AuthInterceptor extends Interceptor {
       options.headers['Authorization'] = 'Bearer $token';
     }
     handler.next(options);
-  }
-
-  @override
-  Future<void> onError(
-    DioException err,
-    ErrorInterceptorHandler handler,
-  ) async {
-    if (err.response?.statusCode == 401) {
-      // Token is invalid/expired — wipe it so the guard redirects to login.
-      await TokenStorage.clearAll();
-    }
-    handler.next(err);
   }
 }

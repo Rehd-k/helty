@@ -1,8 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/services/api_service.dart';
-import 'package:intl/intl.dart';
 
 import 'patient_invoice.dart';
 
@@ -59,7 +59,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
       'name': 'Sarah Connor',
       'initials': 'SC',
       'date': 'Oct 24, 2023',
-      'amount': 1250.00,
+      'amount': 1250,
       'color': Colors.green,
       'selected': false,
     },
@@ -69,7 +69,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
       'name': 'John Doe',
       'initials': 'JD',
       'date': 'Oct 24, 2023',
-      'amount': 3400.00,
+      'amount': 3400,
       'color': Colors.orange,
       'selected': false,
     },
@@ -79,7 +79,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
       'name': 'Emma Watson',
       'initials': 'EW',
       'date': 'Sep 15, 2023',
-      'amount': 850.50,
+      'amount': 850,
       'color': Colors.red,
       'selected': false,
     },
@@ -89,7 +89,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
       'name': 'Michael Chen',
       'initials': 'MC',
       'date': 'Oct 23, 2023',
-      'amount': 450.00,
+      'amount': 450,
       'color': Colors.green,
       'selected': false,
     },
@@ -288,7 +288,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                 _buildKpiCard(
                   context,
                   "Total Revenue Today",
-                  "\$124,500",
+                  124500.toFinancial(isMoney: true),
                   "+ 12.5%",
                   "vs yesterday",
                   Icons.payments,
@@ -298,7 +298,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                 _buildKpiCard(
                   context,
                   "Unpaid Invoices",
-                  "42",
+                  42.toFinancial(isMoney: false),
                   "+ 5.2%",
                   "increase",
                   Icons.receipt_long,
@@ -309,7 +309,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                 _buildKpiCard(
                   context,
                   "Pending Insurance",
-                  "18",
+                  18.toFinancial(isMoney: false),
                   "- 2.4%",
                   "decrease",
                   Icons.shield,
@@ -321,7 +321,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                 _buildKpiCard(
                   context,
                   "Overdue Accounts (>30d)",
-                  "\$18,400",
+                  18400.toFinancial(isMoney: true),
                   "+ 1.2%",
                   "vs last month",
                   Icons.warning_amber_rounded,
@@ -614,7 +614,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                                     ),
                                   ),
                                   Text(
-                                    "\$850k",
+                                    "850k",
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,
@@ -923,7 +923,9 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                             Expanded(
                               flex: 3,
                               child: Text(
-                                "\$${NumberFormat('#,##0.00').format(txn['amount'])}",
+                                (txn['amount'] as num).toFinancial(
+                                  isMoney: true,
+                                ),
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,

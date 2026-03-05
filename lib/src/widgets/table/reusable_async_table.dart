@@ -19,6 +19,9 @@ class ReusableAsyncTable<T> extends StatefulWidget {
   final List<DataCell> Function(T item) rowBuilder;
   final String Function(T item) idGetter;
   final Function(List<T> selectedItems)? onSelectionChanged;
+  final ValueChanged<T>? onRowTap;
+  final List<PopupMenuEntry<dynamic>> Function(T item)? contextMenuBuilder;
+  final void Function(T item, dynamic value)? onContextMenuSelected;
   final int rowsPerPage;
   final bool showFooter;
 
@@ -29,6 +32,9 @@ class ReusableAsyncTable<T> extends StatefulWidget {
     required this.rowBuilder,
     required this.idGetter,
     this.onSelectionChanged,
+    this.onRowTap,
+    this.contextMenuBuilder,
+    this.onContextMenuSelected,
     this.rowsPerPage = 10,
     this.showFooter = true,
   });
@@ -53,6 +59,9 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
         initialRowBuilder: widget.rowBuilder,
         initialIdGetter: widget.idGetter,
         onSelectionChanged: widget.onSelectionChanged,
+        onRowTap: widget.onRowTap,
+        contextMenuBuilder: widget.contextMenuBuilder,
+        onContextMenuSelected: widget.onContextMenuSelected,
       );
       _initialized = true;
     }
@@ -67,6 +76,9 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
       rowBuilder: widget.rowBuilder,
       idGetter: widget.idGetter,
       onSelectionChanged: widget.onSelectionChanged,
+      onRowTap: widget.onRowTap,
+      contextMenuBuilder: widget.contextMenuBuilder,
+      onContextMenuSelected: widget.onContextMenuSelected,
     );
     _source.refreshDatasource();
   }
@@ -105,6 +117,9 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
   late List<DataCell> Function(T item) rowBuilder;
   late String Function(T item) idGetter;
   Function(List<T> selectedItems)? onSelectionChanged;
+  ValueChanged<T>? onRowTap;
+  List<PopupMenuEntry<dynamic>> Function(T item)? contextMenuBuilder;
+  void Function(T item, dynamic value)? onContextMenuSelected;
 
   final Set<String> _selectedIds = {};
   final Map<String, T> _cachedItems = {};
@@ -115,6 +130,9 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
     required List<DataCell> Function(T item) initialRowBuilder,
     required String Function(T item) initialIdGetter,
     this.onSelectionChanged,
+    this.onRowTap,
+    this.contextMenuBuilder,
+    this.onContextMenuSelected,
   }) {
     fetchData = initialFetchData;
     rowBuilder = initialRowBuilder;
@@ -126,11 +144,17 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
     required List<DataCell> Function(T item) rowBuilder,
     required String Function(T item) idGetter,
     required Function(List<T> selectedItems)? onSelectionChanged,
+    ValueChanged<T>? onRowTap,
+    List<PopupMenuEntry<dynamic>> Function(T item)? contextMenuBuilder,
+    void Function(T item, dynamic value)? onContextMenuSelected,
   }) {
     this.fetchData = fetchData;
     this.rowBuilder = rowBuilder;
     this.idGetter = idGetter;
     this.onSelectionChanged = onSelectionChanged;
+    this.onRowTap = onRowTap;
+    this.contextMenuBuilder = contextMenuBuilder;
+    this.onContextMenuSelected = onContextMenuSelected;
   }
 
   // FIXED: Renamed from 'selectAll' to 'updateSelection'
@@ -168,6 +192,26 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
         return DataRow2(
           key: ValueKey(id),
           selected: _selectedIds.contains(id),
+          onTap: onRowTap != null ? () => onRowTap!(item) : null,
+          onSecondaryTapDown: contextMenuBuilder != null
+              ? (details) async {
+                  final items = contextMenuBuilder!(item);
+                  if (items.isEmpty) return;
+                  final selected = await showMenu<dynamic>(
+                    context: context,
+                    position: RelativeRect.fromLTRB(
+                      details.globalPosition.dx,
+                      details.globalPosition.dy,
+                      details.globalPosition.dx,
+                      details.globalPosition.dy,
+                    ),
+                    items: items,
+                  );
+                  if (selected != null && onContextMenuSelected != null) {
+                    onContextMenuSelected!(item, selected);
+                  }
+                }
+              : null,
           onSelectChanged: (value) {
             if (value == true) {
               _selectedIds.add(id);

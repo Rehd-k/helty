@@ -98,9 +98,7 @@ class TodayPatientsScreenState extends State<TodayPatientsScreen> {
       body: ReusableAsyncTable<TodaysPatient>(
         fetchData: fetchTodaysPatients,
         idGetter: (patient) => patient.id, // Used for selection logic
-        onSelectionChanged: (selected) {
-          // print("Selected Appointments: ${selected.length}");
-        },
+        onSelectionChanged: (selected) {},
 
         columns: const [
           DataColumn2(label: Text('ID'), size: ColumnSize.S),

@@ -304,6 +304,7 @@ void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
               Material(
                 color: Colors.transparent,
                 child: PayBill(
+                  hasId: invoice.patientId.isNotEmpty,
                   selectedItems: invoice.invoiceItems,
                   patientId: invoice.patientId,
                   firstName: 'Patient Name',

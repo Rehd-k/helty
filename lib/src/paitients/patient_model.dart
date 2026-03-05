@@ -31,6 +31,16 @@ class Patient {
   final String? createdBy;
   final String? updatedBy;
 
+  /// Client-side flags/metadata (not necessarily persisted).
+  /// When `true`, the UI should treat surname/firstName as read‑only.
+  final bool lockNames;
+
+  /// Indicates this patient came from the "unregistered patient" transaction flow.
+  final bool fromUnregisteredFlow;
+
+  /// Optional transaction id that originated this registration flow.
+  final String? unregisteredTransactionId;
+
   Patient({
     this.id,
     required this.patientId,
@@ -63,6 +73,9 @@ class Patient {
     this.updatedAt,
     this.createdBy,
     this.updatedBy,
+    this.lockNames = false,
+    this.fromUnregisteredFlow = false,
+    this.unregisteredTransactionId,
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
@@ -108,6 +121,10 @@ class Patient {
           ? '${json['updatedBy']['lastName']} ${json['updatedBy']['firstName']}'
           : null,
       fingerprintData: json['fingerprintData'] as String? ?? 'No Fingerprint',
+      // Client-only flags default to false/null when coming from backend.
+      lockNames: false,
+      fromUnregisteredFlow: false,
+      unregisteredTransactionId: null,
     );
   }
 
@@ -120,7 +137,7 @@ class Patient {
       'surname': surname,
       'firstName': firstName,
       'otherName': otherName,
-      'dob': dob,
+      'dob': dob.toIso8601String(), // ✅ serialize
       'gender': gender,
       'maritalStatus': maritalStatus,
       'nationality': nationality,
@@ -139,11 +156,12 @@ class Patient {
       'nextOfKinAddress': nextOfKinAddress,
       'nextOfKinRelationship': nextOfKinRelationship,
       'hmo': hmo,
-      "createdAt": createdAt,
-      "createdBy": createdBy,
-      "updatedAt": updatedAt,
-      "updatedBy": updatedBy,
-      "fingerprintData": fingerprintData,
+      'createdAt': createdAt
+          ?.toIso8601String(), // or remove if server sets this
+      'createdBy': createdBy, // consider removing if server owns this
+      'updatedAt': updatedAt?.toIso8601String(),
+      'updatedBy': updatedBy,
+      'fingerprintData': fingerprintData,
     };
   }
 }

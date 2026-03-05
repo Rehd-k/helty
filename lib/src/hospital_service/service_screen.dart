@@ -1,3 +1,4 @@
+import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -32,7 +33,7 @@ enum SetupTab { departments, categories, services }
 // ─────────────────────────────────────────────────────────────────────────────
 //  SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
-
+@RoutePage()
 class SystemSetupScreen extends StatefulWidget {
   const SystemSetupScreen({super.key});
 

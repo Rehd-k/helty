@@ -1,12 +1,14 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:data_table_2/data_table_2.dart';
+
 import 'transaction_details_pane.dart';
 import 'transaction_filter_bar.dart';
 import 'transaction_models.dart';
 import 'transaction_payment_dialog.dart';
 import 'transaction_summary_section.dart';
-import 'transaction_table.dart';
+import '../widgets/table/reusable_async_table.dart';
 
 @RoutePage()
 class TransactionsScreen extends StatefulWidget {
@@ -65,17 +67,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   List<TransactionMap> get _displayedTransactions =>
       applyTransactionFilter(kMockTransactions, _filter);
 
-  // ─── Sort ────────────────────────────────────────────────────────────────────
+  Future<PagedData<TransactionMap>> _fetchTransactions(
+    int start,
+    int count,
+  ) async {
+    final displayed = _displayedTransactions;
+    final total = displayed.length;
+    if (total == 0) {
+      return PagedData(items: const [], totalCount: 0);
+    }
 
-  void _handleSort(TransactionSortField field) {
-    setState(() {
-      if (_filter.sortField == field) {
-        // Flip direction
-        _filter = _filter.copyWith(sortAscending: !_filter.sortAscending);
-      } else {
-        _filter = _filter.copyWith(sortField: field, sortAscending: true);
-      }
-    });
+    final safeStart = start.clamp(0, total);
+    final safeEnd = (start + count).clamp(0, total);
+    final pageItems = displayed.sublist(safeStart, safeEnd);
+    return PagedData(items: pageItems, totalCount: total);
   }
 
   // ─── Actions ────────────────────────────────────────────────────────────────
@@ -163,46 +168,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  void _showContextMenu(
-    BuildContext context,
-    Offset position,
-    Map<String, dynamic> transaction,
-  ) {
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx,
-        position.dy,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      items: const [
-        PopupMenuItem(
-          value: 'details',
-          child: Text('Show Details', style: TextStyle(fontSize: 13)),
-        ),
-        PopupMenuItem(
-          value: 'reprint',
-          child: Text('Reprint Receipt', style: TextStyle(fontSize: 13)),
-        ),
-        PopupMenuItem(
-          value: 'change_method',
-          child: Text('Change Payment Method', style: TextStyle(fontSize: 13)),
-        ),
-        PopupMenuItem(
-          value: 'refund',
-          child: Text(
-            'Make a Refund',
-            style: TextStyle(fontSize: 13, color: Colors.red),
-          ),
-        ),
-      ],
-    ).then((value) {
-      if (value != null) _handleContextMenuAction(value, transaction);
-    });
-  }
-
   // ─── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -246,20 +211,116 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Left: Transaction table (2/3 width)
+                // Left: Transaction table (2/3 width)
                   Expanded(
                     flex: 2,
-                    child: TransactionTable(
-                      transactions: displayed,
-                      selectedTransactionId:
-                          _selectedTransaction?['tranId'] as String?,
-                      sortField: _filter.sortField,
-                      sortAscending: _filter.sortAscending,
-                      onSort: _handleSort,
-                      onRowTap: (txn) =>
-                          setState(() => _selectedTransaction = txn),
-                      onContextMenu: _showContextMenu,
+                  child: ReusableAsyncTable<TransactionMap>(
+                    columns: const [
+                      DataColumn2(label: Text('Transaction ID')),
+                      DataColumn2(label: Text('Patient Name / ID')),
+                      DataColumn2(label: Text('Services')),
+                      DataColumn2(label: Text('Amount Due')),
+                      DataColumn2(label: Text('Amount Paid')),
+                      DataColumn2(label: Text('Payment Method')),
+                      DataColumn2(label: Text('Discount')),
+                      DataColumn2(label: Text('Date & Time')),
+                      DataColumn2(label: Text('Outstanding Debt')),
+                      DataColumn2(label: Text('Initiated By')),
+                      DataColumn2(label: Text('Status')),
+                    ],
+                    fetchData: _fetchTransactions,
+                    idGetter: (txn) => txn['tranId'] as String,
+                    rowBuilder: (txn) => [
+                      DataCell(Text(txn['tranId'] as String)),
+                      DataCell(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(txn['patientName'] as String),
+                            Text(
+                              txn['patientId'] as String,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: colorScheme.onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      DataCell(Text('${txn['serviceCount']} services')),
+                      DataCell(Text(
+                        '\$${(txn['amountDue'] as num).toStringAsFixed(2)}',
+                      )),
+                      DataCell(Text(
+                        '\$${(txn['amountPaid'] as num).toStringAsFixed(2)}',
+                      )),
+                      DataCell(Text(txn['paymentMethod'] as String)),
+                      DataCell(Text(
+                        '\$${(txn['discount'] as num).toStringAsFixed(2)}',
+                      )),
+                      DataCell(Text(txn['date'] as String)),
+                      DataCell(Text(
+                        '\$${(txn['debt'] as num).toStringAsFixed(2)}',
+                      )),
+                      DataCell(Text(txn['initiator'] as String)),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            (txn['status'] as String).replaceAll('_', ' '),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onSelectionChanged: null,
+                    onRowTap: (txn) =>
+                        setState(() => _selectedTransaction = txn),
+                    contextMenuBuilder: (txn) => const [
+                      PopupMenuItem(
+                        value: 'details',
+                        child: Text('Show Details', style: TextStyle(fontSize: 13)),
+                      ),
+                      PopupMenuItem(
+                        value: 'reprint',
+                        child:
+                            Text('Reprint Receipt', style: TextStyle(fontSize: 13)),
+                      ),
+                      PopupMenuItem(
+                        value: 'change_method',
+                        child: Text(
+                          'Change Payment Method',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'refund',
+                        child: Text(
+                          'Make a Refund',
+                          style: TextStyle(fontSize: 13, color: Colors.red),
+                        ),
+                      ),
+                    ],
+                    onContextMenuSelected: (txn, action) =>
+                        _handleContextMenuAction(
+                      action as String,
+                      txn,
                     ),
+                  ),
                   ),
                   const SizedBox(width: 24),
 

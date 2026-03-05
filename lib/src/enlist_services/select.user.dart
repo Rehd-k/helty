@@ -40,7 +40,7 @@ class _SelectUserState extends State<SelectUser> {
   void createNewPatient() async {
     try {
       var newUser = await apiService.dio.post(
-        '/no-id-patient',
+        '/patients',
         data: {
           'firstName': firstName.text,
           'surname': surname.text,
@@ -152,7 +152,7 @@ class _SelectUserState extends State<SelectUser> {
                               createNewPatient,
                             ),
                             icon: const Icon(
-                              Icons.add,
+                              Icons.person_add_alt_1_rounded,
                               size: 16,
                               color: Colors.white,
                             ),

@@ -37,6 +37,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  PageRouteInfo _initialRouteForRole(String role) {
+    switch (role) {
+      case 'frontdesk':
+        return const FrontDeskDashboardRoute();
+      case 'bills':
+        return const BillingDashboardRoute();
+      case 'nurse':
+        return const NursesDashboardRoute();
+      case 'doctor':
+      case 'consultant':
+        return const DoctorDashboardRoute();
+      case 'admin':
+        return const CMDDashboardRoute();
+      default:
+        return const DashboardRoute();
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final ok = await ref
@@ -44,7 +62,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         .login(email: _emailCtrl.text.trim(), password: _passwordCtrl.text);
     if (ok && mounted) {
       // Replace entire stack so the user can't go back to login.
-      context.router.replaceAll([const HomeRoute()]);
+      final auth = ref.read(authProvider);
+      final role = auth.staff?.role ?? '';
+      final initialChild = _initialRouteForRole(role);
+      context.router.replaceAll([
+        HomeRoute(children: [initialChild]),
+      ]);
     }
   }
 

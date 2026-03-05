@@ -62,23 +62,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   List<MenuItem> _menuForRole(String role) {
     final common = <MenuItem>[];
-
-    if (role == 'frontdesk') {
+    print('role: $role');
+    if (role == 'medical_records') {
       common.addAll(frontDesk);
     }
 
-    if (role == 'bills') {
+    if (role == 'billing') {
       common.addAll(bills);
     }
 
-    if (role == 'ADMIN') {
+    if (role == 'nurse') {
+      common.addAll(nurses);
+    }
+
+    if (role == 'pharmacist') {
+      common.addAll(pharmacy);
+    }
+    if (role == 'doctor' || role == 'consultant') {
+      common.addAll(doctors);
+    }
+
+    if (role.toLowerCase() == 'admin') {
       common.addAll([
+        const MenuItem(
+          label: 'CMD Dashboard',
+          icon: Icons.dashboard_outlined,
+          route: CMDDashboardRoute(),
+        ),
         const MenuItem(
           label: 'Register',
           icon: Icons.verified_user_rounded,
           route: RegisterRoute(),
         ),
-        ...frontDesk,
+        MenuItem(
+          label: 'System Setup',
+          icon: Icons.dashboard_outlined,
+          route: CMDDashboardRoute(),
+          children: [
+            MenuItem(
+              label: 'Add Service',
+              icon: Icons.add_box_outlined,
+              route: SystemSetupRoute(),
+            ),
+            MenuItem(
+              label: 'Add Consulting Room',
+              icon: Icons.add_box_outlined,
+              route: ConsultingRoomsRoute(),
+            ),
+          ],
+        ),
       ]);
     }
 
@@ -89,7 +121,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(authProvider);
     final auth = ref.watch(authProvider);
-    final menuItems = _menuForRole(auth.staff!.accountType!.name);
+    final role = auth.staff?.role.toLowerCase() ?? '';
+    final menuItems = _menuForRole(role);
     final isMobile = MediaQuery.of(context).size.width < 720;
 
     return Scaffold(
@@ -457,9 +490,35 @@ class _SidebarEntry extends StatefulWidget {
   State<_SidebarEntry> createState() => _SidebarEntryState();
 }
 
+/// Route names that are children of DoctorDashboardRoute; navigate via inner router when on dashboard.
+const _doctorDashboardChildNames = {
+  'DoctorOutpatientListRoute',
+  'DoctorWalkInQueueRoute',
+  'InpatientsListRoute',
+  'DoctorPendingLabsRoute',
+  'DoctorPendingImagingRoute',
+  'DoctorPendingPrescriptionsRoute',
+  'DoctorCompletedEncountersRoute',
+  'DoctorTemplatesRoute',
+  'DoctorProfileRoute',
+};
+
 class _SidebarEntryState extends State<_SidebarEntry> {
   bool _hover = false;
   bool _expanded = false;
+
+  void _navigateTo(BuildContext context, PageRouteInfo route) {
+    final inner = context.router.innerRouterOf<StackRouter>(
+      'DoctorDashboardRoute',
+    );
+    final routeTypeName = route.runtimeType.toString();
+    final isDoctorChild = _doctorDashboardChildNames.contains(routeTypeName);
+    if (inner != null && isDoctorChild) {
+      inner.push(route);
+    } else {
+      context.router.push(route);
+    }
+  }
 
   bool get _isActive {
     final name = widget.currentName;
@@ -491,7 +550,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
       icon: widget.item.icon,
       label: widget.item.label,
       isActive: _isActive,
-      onTap: () => context.router.push(widget.item.route),
+      onTap: () => _navigateTo(context, widget.item.route),
     );
   }
 

@@ -30,6 +30,8 @@ class Staff {
     required this.firstName,
     required this.lastName,
     required this.role,
+    this.pharmacyRole,
+    this.permissions = const [],
     this.departmentId,
     this.departmentName,
     this.accountType,
@@ -43,6 +45,8 @@ class Staff {
   final String firstName;
   final String lastName;
   final String role;
+  final String? pharmacyRole;
+  final List<String> permissions;
   final String? departmentId;
   final String? departmentName;
   final AccountType? accountType;
@@ -58,6 +62,11 @@ class Staff {
     firstName: json['firstName'] as String,
     lastName: json['lastName'] as String,
     role: json['role'] as String,
+    pharmacyRole: json['pharmacyRole'] as String? ?? json['role'] as String,
+    permissions: (json['permissions'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const [],
     departmentId: json['departmentId'] as String?,
     departmentName: json['department']?['name'] as String?,
     accountType: AccountType.fromString(json['accountType'] as String?),
@@ -72,6 +81,8 @@ class Staff {
     'firstName': firstName,
     'lastName': lastName,
     'role': role,
+    'pharmacyRole': pharmacyRole,
+    'permissions': permissions,
     'departmentId': departmentId,
     'accountType': accountType?.name,
     'email': email,
@@ -85,6 +96,8 @@ class Staff {
     String? firstName,
     String? lastName,
     String? role,
+    String? pharmacyRole,
+    List<String>? permissions,
     String? departmentId,
     String? departmentName,
     AccountType? accountType,
@@ -97,6 +110,8 @@ class Staff {
     firstName: firstName ?? this.firstName,
     lastName: lastName ?? this.lastName,
     role: role ?? this.role,
+    pharmacyRole: pharmacyRole ?? this.pharmacyRole,
+    permissions: permissions ?? this.permissions,
     departmentId: departmentId ?? this.departmentId,
     departmentName: departmentName ?? this.departmentName,
     accountType: accountType ?? this.accountType,

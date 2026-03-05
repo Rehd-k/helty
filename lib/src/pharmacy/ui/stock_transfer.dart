@@ -1,0 +1,932 @@
+import 'package:auto_route/auto_route.dart';
+import 'package:flutter/material.dart';
+
+import '../inputs/morden.form.inpts.dart';
+import '../models/pharmacy_model.dart';
+import '../services/pharmacy_service.dart';
+
+@RoutePage()
+class StockTransferScreen extends StatefulWidget {
+  const StockTransferScreen({super.key});
+
+  @override
+  State<StockTransferScreen> createState() => _StockTransferScreenState();
+}
+
+class _StockTransferScreenState extends State<StockTransferScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _apiService = PharmacyApiService();
+
+  // Controllers
+  final _quantityCtrl = TextEditingController();
+  final _referenceIdCtrl = TextEditingController();
+  final _drugSearchCtrl = TextEditingController();
+
+  // Locations
+  List<PharmacyLocation> _locations = [];
+  bool _isLoadingLocations = false;
+  String? _locationsError;
+
+  String? _fromLocationId;
+  String? _toLocationId;
+
+  // Drugs (paginated, filterable)
+  PaginatedResponse<Drug>? _drugPage;
+  bool _isLoadingDrugs = false;
+  String? _drugsError;
+  int _drugPageIndex = 1;
+  static const int _pageSize = 20;
+
+  Drug? _selectedDrug;
+
+  // Batches for selected drug (paginated, latest first)
+  PaginatedResponse<DrugBatch>? _batchPage;
+  bool _isLoadingBatches = false;
+  String? _batchesError;
+  int _batchPageIndex = 1;
+
+  DrugBatch? _selectedBatch;
+
+  // Staged transfer lines to be moved together
+  final List<_TransferLine> _lines = [];
+
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocations();
+    _loadDrugs();
+  }
+
+  @override
+  void dispose() {
+    _quantityCtrl.dispose();
+    _referenceIdCtrl.dispose();
+    _drugSearchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _loadLocations() async {
+    setState(() {
+      _isLoadingLocations = true;
+      _locationsError = null;
+    });
+    try {
+      final resp = await _apiService.getPharmacyLocations();
+      if (!mounted) return;
+      setState(() {
+        _locations = resp.items;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _locationsError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingLocations = false);
+      }
+    }
+  }
+
+  Future<void> _loadDrugs() async {
+    setState(() {
+      _isLoadingDrugs = true;
+      _drugsError = null;
+    });
+    try {
+      final q = PharmacyQueryParams(
+        page: _drugPageIndex,
+        pageSize: _pageSize,
+        search: _drugSearchCtrl.text.trim().isEmpty
+            ? null
+            : _drugSearchCtrl.text.trim(),
+        sortBy: 'genericName',
+        sortOrder: SortOrder.asc,
+      );
+      final resp = await _apiService.getDrugs(q);
+      if (!mounted) return;
+      setState(() {
+        _drugPage = resp;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _drugsError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingDrugs = false);
+      }
+    }
+  }
+
+  Future<void> _loadBatches() async {
+    if (_selectedDrug?.id == null) return;
+    setState(() {
+      _isLoadingBatches = true;
+      _batchesError = null;
+    });
+    try {
+      final q = PharmacyQueryParams(
+        page: _batchPageIndex,
+        pageSize: _pageSize,
+        sortBy: 'createdAt',
+        sortOrder: SortOrder.desc,
+        filters: {'drugId': _selectedDrug!.id},
+      );
+      final resp = await _apiService.getDrugBatches(q);
+      if (!mounted) return;
+      setState(() {
+        _batchPage = resp;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _batchesError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingBatches = false);
+      }
+    }
+  }
+
+  int _availableForBatch(DrugBatch batch) {
+    final used = _lines
+        .where((l) => l.batch.id == batch.id)
+        .fold<int>(0, (sum, l) => sum + l.quantity);
+    return (batch.quantityReceived - used).clamp(0, batch.quantityReceived);
+  }
+
+  Future<void> _addLine() async {
+    if (_fromLocationId == null ||
+        _toLocationId == null ||
+        _selectedDrug == null ||
+        _selectedBatch == null) {
+      _showError('Please select from, to, drug and batch.');
+      return;
+    }
+    if (_fromLocationId == _toLocationId) {
+      _showError('Source and destination locations cannot be the same.');
+      return;
+    }
+    final qty = int.tryParse(_quantityCtrl.text.trim());
+    if (qty == null || qty <= 0) {
+      _showError('Enter a valid quantity.');
+      return;
+    }
+    final available = _availableForBatch(_selectedBatch!);
+    if (qty > available) {
+      _showError(
+        'Cannot transfer more than available quantity ($available) for this batch.',
+      );
+      return;
+    }
+
+    setState(() {
+      _lines.add(
+        _TransferLine(
+          drug: _selectedDrug!,
+          batch: _selectedBatch!,
+          quantity: qty,
+        ),
+      );
+      _quantityCtrl.clear();
+    });
+  }
+
+  Future<void> _submitAll() async {
+    if (_lines.isEmpty) {
+      _showError('Add at least one item to transfer.');
+      return;
+    }
+    if (_fromLocationId == null || _toLocationId == null) {
+      _showError('Select both source and destination locations.');
+      return;
+    }
+    if (_fromLocationId == _toLocationId) {
+      _showError('Source and destination locations cannot be the same.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      for (final line in _lines) {
+        final transfer = StockTransfer(
+          fromLocationId: _fromLocationId!,
+          toLocationId: _toLocationId!,
+          drugId: line.drug.id!,
+          quantity: line.quantity,
+        );
+        await _apiService.createStockTransfer(transfer);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Stock transferred successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        _showError(e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: Colors.grey.shade200, height: 1),
+        ),
+      ),
+      body: Column(
+        children: [
+          _buildLocationsCard(theme),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left: locations + item selector
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // _buildSectionHeader(
+                          //   'Movement Locations',
+                          //   Icons.route_outlined,
+                          // ),
+                          // _buildLocationsCard(theme),
+                          // const SizedBox(height: 24),
+                          // _buildSectionHeader(
+                          //   'Select Items to Transfer',
+                          //   Icons.medication_outlined,
+                          // ),
+                          Expanded(child: _buildItemsSelector(theme)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    // Right: summary
+                    Expanded(flex: 2, child: _buildSummaryPanel(theme)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- UI Helpers ---
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.blue.shade700, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue.shade900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernDropdown({
+    required String label,
+    required String hint,
+    required dynamic value,
+    required List<DropdownMenuItem<dynamic>> items,
+    required void Function(dynamic)? onChanged,
+    IconData? icon,
+  }) {
+    final theme = Theme.of(context);
+    final isDisabled = onChanged == null;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: isDisabled ? Colors.grey : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<dynamic>(
+            value: value,
+            items: items,
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              prefixIcon: icon != null
+                  ? Icon(
+                      icon,
+                      color: isDisabled
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                      size: 20,
+                    )
+                  : null,
+              filled: true,
+              fillColor: isDisabled ? Colors.grey.shade100 : Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey.shade200),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: theme.colorScheme.primary,
+                  width: 2,
+                ),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey.shade200),
+              ),
+            ),
+            icon: Icon(
+              Icons.keyboard_arrow_down,
+              color: isDisabled ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+            dropdownColor: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationsCard(ThemeData theme) {
+    if (_isLoadingLocations) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_locationsError != null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            _locationsError!,
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildModernDropdown(
+              label: 'From (Source)',
+              hint: _locations.isEmpty ? 'No locations' : 'Select Origin',
+              value: _fromLocationId,
+              icon: Icons.store_outlined,
+              items: _locations
+                  .map(
+                    (loc) =>
+                        DropdownMenuItem(value: loc.id, child: Text(loc.name)),
+                  )
+                  .toList(),
+              onChanged: _locations.isEmpty
+                  ? null
+                  : (v) => setState(() => _fromLocationId = v as String?),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+            ).copyWith(top: 16),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_forward_rounded,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: _buildModernDropdown(
+              label: 'To (Destination)',
+              hint: _locations.isEmpty ? 'No locations' : 'Select Destination',
+              value: _toLocationId,
+              icon: Icons.local_pharmacy_outlined,
+              items: _locations
+                  .map(
+                    (loc) =>
+                        DropdownMenuItem(value: loc.id, child: Text(loc.name)),
+                  )
+                  .toList(),
+              onChanged: _locations.isEmpty
+                  ? null
+                  : (v) => setState(() => _toLocationId = v as String?),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemsSelector(ThemeData theme) {
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _drugSearchCtrl,
+              decoration: InputDecoration(
+                labelText: 'Search drug',
+                hintText: 'Type to filter medicines',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onSubmitted: (_) {
+                setState(() => _drugPageIndex = 1);
+                _loadDrugs();
+              },
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Available drugs',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(child: _buildDrugsList(theme)),
+                        _buildDrugsPager(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Batches for selected drug',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(child: _buildBatchList(theme)),
+                        _buildBatchesPager(),
+                        const SizedBox(height: 12),
+                        _buildQuantityRow(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrugsList(ThemeData theme) {
+    if (_isLoadingDrugs) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_drugsError != null) {
+      return Center(
+        child: Text(_drugsError!, style: const TextStyle(color: Colors.red)),
+      );
+    }
+    final drugs = _drugPage?.items ?? [];
+    if (drugs.isEmpty) {
+      return const Center(child: Text('No drugs found.'));
+    }
+
+    return ListView.separated(
+      itemCount: drugs.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final d = drugs[index];
+        final selected = _selectedDrug?.id == d.id;
+        return ListTile(
+          dense: true,
+          selected: selected,
+          selectedTileColor: theme.colorScheme.primary.withValues(alpha: 0.06),
+          title: Text(
+            d.brandName.isNotEmpty ? d.brandName : d.genericName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            [
+              d.genericName,
+              if (d.strength != null && d.strength!.isNotEmpty) d.strength!,
+              if (d.dosageForm != null && d.dosageForm!.isNotEmpty)
+                d.dosageForm!,
+            ].where((s) => s.isNotEmpty).join(' • '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          onTap: () {
+            setState(() {
+              _selectedDrug = d;
+              _batchPageIndex = 1;
+              _selectedBatch = null;
+            });
+            _loadBatches();
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDrugsPager() {
+    final page = _drugPage;
+    if (page == null || page.totalPages <= 1) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Page ${page.page} of ${page.totalPages}',
+          style: const TextStyle(fontSize: 12),
+        ),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: page.hasPrevious && !_isLoadingDrugs
+                  ? () {
+                      setState(() => _drugPageIndex = page.page - 1);
+                      _loadDrugs();
+                    }
+                  : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: page.hasNext && !_isLoadingDrugs
+                  ? () {
+                      setState(() => _drugPageIndex = page.page + 1);
+                      _loadDrugs();
+                    }
+                  : null,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBatchList(ThemeData theme) {
+    if (_selectedDrug == null) {
+      return const Center(child: Text('Select a drug to see its batches.'));
+    }
+    if (_isLoadingBatches) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_batchesError != null) {
+      return Center(
+        child: Text(_batchesError!, style: const TextStyle(color: Colors.red)),
+      );
+    }
+    final batches = _batchPage?.items ?? [];
+    if (batches.isEmpty) {
+      return const Center(child: Text('No batches found for this drug.'));
+    }
+
+    return ListView.separated(
+      itemCount: batches.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final b = batches[index];
+        final selected = _selectedBatch?.id == b.id;
+        final available = _availableForBatch(b);
+        return ListTile(
+          dense: true,
+          selected: selected,
+          selectedTileColor: theme.colorScheme.secondary.withValues(
+            alpha: 0.06,
+          ),
+          title: Text(
+            b.batchNumber ?? 'Batch',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            'Qty: ${b.quantityReceived} • Available: $available'
+            '${b.expiryDate != null ? ' • Exp: ${b.expiryDate!.toIso8601String().split('T').first}' : ''}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          onTap: () {
+            setState(() {
+              _selectedBatch = b;
+            });
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBatchesPager() {
+    final page = _batchPage;
+    if (page == null || page.totalPages <= 1) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Page ${page.page} of ${page.totalPages}',
+          style: const TextStyle(fontSize: 12),
+        ),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              onPressed: page.hasPrevious && !_isLoadingBatches
+                  ? () {
+                      setState(() => _batchPageIndex = page.page - 1);
+                      _loadBatches();
+                    }
+                  : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              onPressed: page.hasNext && !_isLoadingBatches
+                  ? () {
+                      setState(() => _batchPageIndex = page.page + 1);
+                      _loadBatches();
+                    }
+                  : null,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuantityRow() {
+    final selectedBatch = _selectedBatch;
+    final available = selectedBatch != null
+        ? _availableForBatch(selectedBatch)
+        : 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: ModernTextField(
+                label: 'Quantity to transfer',
+                hint: 'e.g., 100',
+                controller: _quantityCtrl,
+                keyboardType: TextInputType.number,
+                icon: Icons.numbers,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(
+          width: double.infinity,
+
+          child: FilledButton.icon(
+            onPressed: _isSubmitting ? null : _addLine,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add'),
+          ),
+        ),
+        if (selectedBatch != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+            child: Text(
+              'Available from this batch: $available units',
+              style: TextStyle(
+                fontSize: 12,
+                color: available > 0 ? Colors.green.shade700 : Colors.red,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryPanel(ThemeData theme) {
+    final totalQty = _lines.fold<int>(0, (sum, l) => sum + l.quantity);
+    final distinctDrugs = _lines.map((l) => l.drug.id).toSet().length;
+
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Transfer Summary',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Review and confirm before moving stock.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 12),
+            ModernTextField(
+              label: 'Reference / Document ID (optional)',
+              hint: 'e.g., REQ-2026-001',
+              controller: _referenceIdCtrl,
+              icon: Icons.receipt_long_outlined,
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _lines.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No items added yet.\nSelect a drug & batch, then add to transfer.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _lines.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final line = _lines[index];
+                        return ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                          ),
+                          title: Text(
+                            line.drug.brandName.isNotEmpty
+                                ? line.drug.brandName
+                                : line.drug.genericName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            'Batch: ${line.batch.batchNumber ?? '-'} • Qty: ${line.quantity}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Remove',
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _lines.removeAt(index);
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 8),
+            if (_lines.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Items: ${_lines.length} • Distinct drugs: $distinctDrugs • Total qty: $totalQty',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _isSubmitting ? null : _submitAll,
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded, color: Colors.white),
+                label: Text(
+                  _isSubmitting ? 'Moving stock...' : 'Move all items',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TransferLine {
+  const _TransferLine({
+    required this.drug,
+    required this.batch,
+    required this.quantity,
+  });
+
+  final Drug drug;
+  final DrugBatch batch;
+  final int quantity;
+}

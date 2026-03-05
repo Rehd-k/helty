@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:dio/dio.dart';
 import 'package:helty/src/paitients/noid_patient.model.dart';
 
@@ -67,8 +69,9 @@ class PatientService {
     return Patient.fromJson(resp.data as Map<String, dynamic>);
   }
 
-  Future<Patient> updatePatient(Patient p) async {
-    final resp = await _dio.patch('/patients/${p.id}', data: p.toJson());
+  Future<Patient> updatePatient(Patient p, String? patientId) async {
+    log('patientId: ${patientId?.toString()}');
+    final resp = await _dio.patch('/patients/$patientId', data: p.toJson());
     return Patient.fromJson(resp.data as Map<String, dynamic>);
   }
 

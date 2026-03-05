@@ -86,9 +86,7 @@ class PendingTransactionsScreenState extends State<PendingTransactionsScreen> {
         fetchData: fetchPendingTransactions,
         idGetter: (patient) =>
             patient.transactionId, // Used for selection logic
-        onSelectionChanged: (selected) {
-          // print("Selected Appointments: ${selected.length}");
-        },
+        onSelectionChanged: (selected) {},
 
         columns: const [
           DataColumn2(label: Text('TRX ID'), size: ColumnSize.S),

@@ -12,10 +12,24 @@ class ServiceService {
 
   // ── Read ─────────────────────────────────────────────────────────────────
 
-  Future<List<ServiceModel>> fetchServices({String? query}) async {
+  Future<List<ServiceModel>> fetchServices({
+    String? query,
+    String? categoryId,
+    String? departmentId,
+    int skip = 0,
+    int take = 10,
+  }) async {
     final resp = await _dio.get(
       '/services',
-      queryParameters: {if (query != null && query.isNotEmpty) 'q': query},
+      queryParameters: {
+        if (query != null && query.isNotEmpty) 'q': query,
+        if (categoryId != null && categoryId.isNotEmpty)
+          'categoryId': categoryId,
+        if (departmentId != null && departmentId.isNotEmpty)
+          'departmentId': departmentId,
+        'skip': skip,
+        'take': take,
+      },
     );
     final data = resp.data is List
         ? resp.data as List

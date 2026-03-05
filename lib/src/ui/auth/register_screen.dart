@@ -66,7 +66,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           accountType: _selectedAccountType,
         );
     if (ok && mounted) {
-      context.router.replaceAll([const HomeRoute()]);
+      final auth = ref.read(authProvider);
+      final accountType = auth.staff?.accountType?.name ?? '';
+
+      PageRouteInfo initialChild;
+      switch (accountType.toLowerCase()) {
+        case 'frontdesk':
+          initialChild = const FrontDeskDashboardRoute();
+          break;
+        case 'bills':
+          initialChild = const BillingDashboardRoute();
+          break;
+        case 'nurse':
+          initialChild = const NursesDashboardRoute();
+          break;
+        case 'admin':
+          initialChild = const CMDDashboardRoute();
+          break;
+        default:
+          initialChild = const DashboardRoute();
+      }
+
+      context.router.replaceAll([HomeRoute(children: [initialChild])]);
     }
   }
 

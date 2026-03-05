@@ -26,6 +26,13 @@ final class ServerException extends AppException {
   const ServerException(super.message, {super.statusCode});
 }
 
+/// 409 – concurrency / conflict.
+final class ConflictException extends AppException {
+  const ConflictException([
+    super.message = 'The resource was modified by another process.',
+  ]) : super(statusCode: 409);
+}
+
 /// 401 – token missing or expired.
 final class UnauthorizedException extends AppException {
   const UnauthorizedException([

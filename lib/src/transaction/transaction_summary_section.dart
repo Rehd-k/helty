@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:intl/intl.dart';
 
 /// A scrollable row of summary cards showing transaction financial totals.
@@ -28,19 +29,19 @@ class TransactionSummarySection extends StatelessWidget {
         children: [
           TransactionSummaryCard(
             title: "Total Sales (Due)",
-            amount: format.format(totals['totalSales'] ?? 0),
+            amount: totals['totalSales']!.toFinancial(isMoney: true),
             isPrimary: true,
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Total Paid",
-            amount: format.format(totals['totalPaid'] ?? 0),
+            amount: totals['totalPaid']!.toFinancial(isMoney: true),
             isSuccess: true,
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Transfers",
-            amount: format.format(totals['transfer'] ?? 0),
+            amount: totals['transfer']!.toFinancial(isMoney: true),
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
@@ -50,17 +51,23 @@ class TransactionSummarySection extends StatelessWidget {
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Cheque",
-            amount: format.format(totals['cheque'] ?? 0),
+            amount: totals['cheque']!.toFinancial(isMoney: true),
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
-            title: "Cash (Espèces)",
-            amount: format.format(totals['cash'] ?? 0),
+            title: "Cash",
+            amount: totals['cash']!.toFinancial(isMoney: true),
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Grand Total",
-            amount: format.format(totals['grandTotal'] ?? 0),
+            amount: totals['grandTotal']!.toFinancial(isMoney: true),
+            isPrimary: true,
+          ),
+          const SizedBox(width: 12),
+          TransactionSummaryCard(
+            title: "No. of Transactions",
+            amount: 0.toFinancial(isMoney: false),
             isPrimary: true,
           ),
         ],

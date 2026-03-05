@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
@@ -27,7 +28,6 @@ class RenderServiceScreen extends ConsumerStatefulWidget {
 }
 
 class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
-  // Mock Data from Backend for available services
   Map<String, dynamic> noIdPatient = {};
   final _deptSvc = DepartmentService();
   final _catSvc = ServiceCategoryService();
@@ -38,31 +38,64 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  // ── list data (loaded from API) ───────────────────────────────────────────
+  // ── list data ─────────────────────────────────────────────────────────────
   List<Department> _departments = [];
   List<ServiceCategory> _categories = [];
   List<ServiceModel> _services = [];
   bool _loading = false;
 
+  // ── filter & pagination state ─────────────────────────────────────────────
+  String _searchQuery = '';
+  String? _selectedCategoryId; // null = all categories
+  String? _selectedDepartmentId; // null = all departments
+  int _skip = 0;
+  static const int _take = 10;
+  bool _hasMore = true; // becomes false when API returns fewer than _take
+
+  // Debounce timer for the search bar
+  Timer? _debounce;
+
   // ── API calls ─────────────────────────────────────────────────────────────
 
-  Future<void> _loadAll() async {
-    setState(() => _loading = true);
+  /// Loads departments and categories once on init.
+  Future<void> _loadMeta() async {
     try {
       final results = await Future.wait([
         _deptSvc.fetchDepartments(),
         _catSvc.fetchCategories(),
-        _srvSvc.fetchServices(),
       ]);
-      debugPrint('Loaded: ${results.map((r) => (r as List).length).toList()}');
       if (!mounted) return;
       setState(() {
         _departments = results[0] as List<Department>;
         _categories = results[1] as List<ServiceCategory>;
-        _services = results[2] as List<ServiceModel>;
       });
     } catch (e) {
-      _snack('Failed to load data: $e');
+      _snack('Failed to load filters: $e');
+    }
+  }
+
+  /// Fetches services using the current filter + pagination state.
+  Future<void> _loadServices({bool resetPage = false}) async {
+    if (resetPage) {
+      _skip = 0;
+      _hasMore = true;
+    }
+    setState(() => _loading = true);
+    try {
+      final results = await _srvSvc.fetchServices(
+        query: _searchQuery.isNotEmpty ? _searchQuery : null,
+        categoryId: _selectedCategoryId,
+        departmentId: _selectedDepartmentId,
+        skip: _skip,
+        take: _take,
+      );
+      if (!mounted) return;
+      setState(() {
+        _services = results;
+        _hasMore = results.length >= _take;
+      });
+    } catch (e) {
+      _snack('Failed to load services: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -78,10 +111,23 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     double totalDue,
     String staffId,
   ) {
+    // Guard: must have a patient
+    final hasPatient = noIdPatient.isNotEmpty || patient != null;
+    if (!hasPatient) {
+      _snack('Please select a patient before making a payment.');
+      return;
+    }
+    // Guard: total must be > 0
+    if (totalDue <= 0) {
+      _snack('No items selected or total amount is zero.');
+      return;
+    }
+
     showDialog(
       context: context,
-      barrierColor: Colors.transparent, // We handle the dimming inside PayBill
+      barrierColor: Colors.transparent,
       builder: (context) => PayBill(
+        hasId: noIdPatient.isEmpty,
         patientId: noIdPatient.isNotEmpty
             ? noIdPatient['id']
             : patient?.patientId,
@@ -91,28 +137,13 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         selectedItems: selectedItems,
         total: totalDue,
         staffId: staffId,
+        onPaymentComplete: _emptySelection,
       ),
     );
   }
 
-  String _selectedUnit = 'All Services';
-  String _searchQuery = '';
-
   // Mock Selected Items (The Cart)
   final List<ServiceModel> _selectedItems = [];
-
-  // Filter Logic
-  List<ServiceModel> get _filteredServices {
-    return _services.where((s) {
-      final matchesSearch =
-          s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          s.name.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesUnit =
-          _selectedUnit == 'All Services' ||
-          s.categoryId?.toLowerCase() == _selectedUnit.toLowerCase();
-      return matchesSearch && matchesUnit;
-    }).toList();
-  }
 
   // Calculate Total (unit cost × quantity)
   double get _totalDue => _selectedItems.fold(
@@ -126,11 +157,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         (s) => s.serviceId == item.serviceId,
       );
       if (existingIndex >= 0) {
-        // If it already exists, silently increase the multiplier (qty)
         _selectedItems[existingIndex].qty =
             (_selectedItems[existingIndex].qty ?? 0) + 1;
       } else {
-        // Add a fresh copy to the selected list
         _selectedItems.add(
           ServiceModel(
             serviceId: item.serviceId,
@@ -158,9 +187,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     });
   }
 
-  /// Resolves the patient to display.
-  /// Priority: (1) SharedPrefs noIdPatient → (2) selectedPatient from provider.
-  /// Returns an empty map when neither is available.
   Future<void> getNoIdPateitn() async {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString('noIdPatient');
@@ -170,7 +196,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       });
       return;
     }
-    // Fall back to the provider's selectedPatient
     final selected = ref.read(patientProvider).selectedPatient;
     if (selected != null) {
       setState(() {
@@ -180,7 +205,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         };
       });
     }
-    // If still nothing, noIdPatient stays as {} → UI will prompt the user.
   }
 
   void unselect() async {
@@ -195,9 +219,32 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    _loadMeta();
+    _loadServices();
     getNoIdPateitn();
   }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  // ── pagination helpers ────────────────────────────────────────────────────
+
+  void _nextPage() {
+    if (!_hasMore) return;
+    _skip += _take;
+    _loadServices();
+  }
+
+  void _prevPage() {
+    if (_skip == 0) return;
+    _skip = (_skip - _take).clamp(0, double.maxFinite.toInt());
+    _loadServices();
+  }
+
+  int get _currentPage => (_skip ~/ _take) + 1;
 
   @override
   Widget build(BuildContext context) {
@@ -205,44 +252,44 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
     return Scaffold(
       appBar: AppBar(),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ==========================================
+            // LEFT PANE: SEARCH & AVAILABLE SERVICES
+            // ==========================================
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ==========================================
-                  // LEFT PANE: SEARCH & AVAILABLE SERVICES
-                  // ==========================================
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildSearchAndFilterCard(),
-                        const SizedBox(height: 16),
-                        Expanded(child: _buildAvailableServicesList()),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // ==========================================
-                  // RIGHT PANE: SELECTED SERVICES TABLE
-                  // ==========================================
-                  Expanded(
-                    flex: 4,
-                    child: _buildSelectedServicesPanel(
-                      noIdPatient,
-                      selectedPatient,
-                      auth,
-                    ),
-                  ),
+                  _buildSearchAndFilterCard(),
+                  const SizedBox(height: 16),
+                  Expanded(child: _buildAvailableServicesList()),
+                  const SizedBox(height: 8),
+                  _buildPagination(),
                 ],
               ),
             ),
+
+            const SizedBox(width: 16),
+
+            // ==========================================
+            // RIGHT PANE: SELECTED SERVICES TABLE
+            // ==========================================
+            Expanded(
+              flex: 4,
+              child: _buildSelectedServicesPanel(
+                noIdPatient,
+                selectedPatient,
+                auth,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -275,14 +322,29 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             ),
             child: TextField(
               onChanged: (val) {
-                setState(() {
-                  _searchQuery = val;
+                _debounce?.cancel();
+                _debounce = Timer(const Duration(milliseconds: 400), () {
+                  setState(() => _searchQuery = val);
+                  _loadServices(resetPage: true);
                 });
               },
               decoration: InputDecoration(
                 hintText: "Search services, meds, or CPT...",
                 hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+                suffixIcon: _loading
+                    ? Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.blue.shade400,
+                          ),
+                        ),
+                      )
+                    : null,
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 16),
               ),
@@ -293,97 +355,108 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           // Filters Row
           Row(
             children: [
-              // Horizontal Scrollable Chips
+              // Horizontal Scrollable Department Chips
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: _departments.map((unit) {
-                      final isSelected = _selectedUnit == unit.name;
-                      return Padding(
+                    children: [
+                      // "All" chip
+                      Padding(
                         padding: const EdgeInsets.only(right: 8.0),
-                        child: InkWell(
+                        child: _buildDeptChip(
+                          label: 'All Services',
+                          isSelected: _selectedDepartmentId == '',
                           onTap: () {
-                            setState(() {
-                              _selectedUnit = unit.name;
-                            });
+                            setState(() => _selectedDepartmentId = '');
+                            _loadServices(resetPage: true);
                           },
-                          borderRadius: BorderRadius.circular(8),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Colors.blue.shade600
-                                  : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isSelected
-                                    ? Colors.blue.shade600
-                                    : Colors.transparent,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                if (unit.name == 'All Services') ...[
-                                  Icon(
-                                    Icons.grid_view,
-                                    size: 16,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.grey.shade700,
-                                  ),
-                                  const SizedBox(width: 6),
-                                ],
-                                Text(
-                                  unit.name,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.grey.shade800,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          showGridIcon: true,
                         ),
-                      );
-                    }).toList(),
+                      ),
+                      ..._departments.map((unit) {
+                        final isSelected = _selectedDepartmentId == unit.id;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: _buildDeptChip(
+                            label: unit.name,
+                            isSelected: isSelected,
+                            onTap: () {
+                              setState(() {
+                                _selectedDepartmentId = isSelected
+                                    ? null
+                                    : unit.id;
+                              });
+                              _loadServices(resetPage: true);
+                            },
+                          ),
+                        );
+                      }),
+                    ],
                   ),
                 ),
               ),
 
-              // Funnel Dropdown (Categories)
+              // Category Dropdown
               Container(
                 margin: const EdgeInsets.only(left: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: _selectedCategoryId == ''
+                      ? Colors.blue.shade50
+                      : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
+                  border: _selectedCategoryId == ''
+                      ? Border.all(color: Colors.blue.shade300)
+                      : null,
                 ),
-                child: PopupMenuButton<String>(
-                  icon: Icon(Icons.filter_list, color: Colors.grey.shade700),
+                child: PopupMenuButton<String?>(
+                  icon: Icon(
+                    Icons.filter_list,
+                    color: _selectedCategoryId == ""
+                        ? Colors.blue.shade700
+                        : Colors.grey.shade700,
+                  ),
                   tooltip: 'Filter by Category',
                   offset: const Offset(0, 40),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  itemBuilder: (context) {
-                    return _categories.map((category) {
-                      return PopupMenuItem<String>(
-                        value: category.name,
-                        child: Text(category.name),
+                  itemBuilder: (context) => [
+                    // "All Categories" clear option
+                    const PopupMenuItem<String?>(
+                      value: "",
+                      child: Row(
+                        children: [
+                          Icon(Icons.clear, size: 16),
+                          SizedBox(width: 8),
+                          Text('All Categories'),
+                        ],
+                      ),
+                    ),
+                    ..._categories.map((category) {
+                      final isCurrent = _selectedCategoryId == category.id;
+                      return PopupMenuItem<String?>(
+                        value: category.id,
+                        child: Row(
+                          children: [
+                            if (isCurrent)
+                              Icon(
+                                Icons.check,
+                                size: 16,
+                                color: Colors.blue.shade600,
+                              )
+                            else
+                              const SizedBox(width: 16),
+                            const SizedBox(width: 8),
+                            Text(category.name),
+                          ],
+                        ),
                       );
-                    }).toList();
-                  },
+                    }),
+                  ],
                   onSelected: (value) {
-                    debugPrint("Selected category filter: $value");
+                    setState(() => _selectedCategoryId = value);
+                    _loadServices(resetPage: true);
                   },
                 ),
               ),
@@ -394,9 +467,50 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     );
   }
 
-  Widget _buildAvailableServicesList() {
-    final items = _filteredServices;
+  Widget _buildDeptChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool showGridIcon = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade600 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade600 : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          children: [
+            if (showGridIcon) ...[
+              Icon(
+                Icons.grid_view,
+                size: 16,
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade800,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _buildAvailableServicesList() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -410,7 +524,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           ),
         ],
       ),
-      child: items.isEmpty
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _services.isEmpty
           ? Center(
               child: Text(
                 "No services found.",
@@ -418,11 +534,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
               ),
             )
           : ListView.separated(
-              itemCount: items.length,
+              itemCount: _services.length,
               separatorBuilder: (context, index) =>
                   Divider(height: 1, color: Colors.grey.shade100),
               itemBuilder: (context, index) {
-                final item = items[index];
+                final item = _services[index];
                 return InkWell(
                   onTap: () => _addToSelected(item),
                   hoverColor: Colors.blue.shade50,
@@ -430,7 +546,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
-                        // Details
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,13 +568,14 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  _buildCategoryBadge(item.categoryId ?? ''),
+                                  _buildCategoryBadge(
+                                    item.departmentName ?? '',
+                                  ),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                        // Price & Action
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -488,6 +604,87 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 );
               },
             ),
+    );
+  }
+
+  // ── Pagination bar ────────────────────────────────────────────────────────
+  Widget _buildPagination() {
+    final canGoBack = _skip > 0;
+    final canGoNext = _hasMore;
+    // Show how many items are on the current page and a "more" indicator
+    final showing = _services.length;
+    final from = _skip + 1;
+    final to = _skip + showing;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          // Item range label (left)
+          if (showing > 0)
+            Text(
+              showing == 0 ? '' : '$from–$to${_hasMore ? '+' : ''}',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: canGoBack ? _prevPage : null,
+            color: canGoBack ? Colors.blue.shade600 : Colors.grey.shade300,
+            tooltip: 'Previous page',
+          ),
+          const SizedBox(width: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Page $_currentPage',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: canGoNext ? _nextPage : null,
+            color: canGoNext ? Colors.blue.shade600 : Colors.grey.shade300,
+            tooltip: 'Next page',
+          ),
+          const Spacer(),
+          // "more" badge on the right
+          AnimatedOpacity(
+            opacity: _hasMore ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Text(
+                'More pages ›',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -555,18 +752,13 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Selected Services',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueAccent,
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'Selected Services',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueAccent,
+                  ),
                 ),
                 if (_selectedItems.isNotEmpty)
                   TextButton.icon(
@@ -599,12 +791,12 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 _headerCell('DESCRIPTION', flex: 4),
                 _headerCell('UNIT PRICE', flex: 2),
                 _headerCell('AMOUNT', flex: 2),
-                _headerCell('', flex: 1), // Delete Icon
+                _headerCell('', flex: 1),
               ],
             ),
           ),
 
-          // Table Body (The Selected Items List)
+          // Table Body
           Expanded(
             child: _selectedItems.isEmpty
                 ? Center(
@@ -639,7 +831,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Description
                             Expanded(
                               flex: 4,
                               child: Column(
@@ -658,7 +849,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      // Indicator if amount is multiplied
                                       if (item.qty! > 1)
                                         Container(
                                           margin: const EdgeInsets.only(
@@ -691,8 +881,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                 ],
                               ),
                             ),
-
-                            // Unit Price
                             Expanded(
                               flex: 2,
                               child: Text(
@@ -703,8 +891,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                 ),
                               ),
                             ),
-
-                            // Total Amount (UnitPrice * Qty)
                             Expanded(
                               flex: 2,
                               child: Text(
@@ -718,8 +904,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                 ),
                               ),
                             ),
-
-                            // Remove Icon
                             Expanded(
                               flex: 1,
                               child: Align(
@@ -768,7 +952,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 Text(
                   _totalDue.toFinancial(isMoney: true),
                   style: TextStyle(
-                    fontSize: 24,
                     fontWeight: FontWeight.w900,
                     color: Theme.of(context).primaryColor,
                   ),
@@ -788,13 +971,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                         style: ElevatedButton.styleFrom(
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              40,
-                            ), // fully rounded
+                            borderRadius: BorderRadius.circular(40),
                           ),
                         ),
                         child: const Text(
-                          "Make Payment",
+                          "Pay",
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -811,9 +992,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                         style: ElevatedButton.styleFrom(
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              40,
-                            ), // fully rounded
+                            borderRadius: BorderRadius.circular(40),
                           ),
                         ),
                         child: const Text(
@@ -838,14 +1017,14 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   void _handleSendToBill() {
     showDialog(
       context: context,
-      barrierColor: Colors.black54, // optional, transparent is okay too
+      barrierColor: Colors.black54,
       builder: (context) => Center(
         child: SizedBox(
           width: 300,
           height: 300,
           child: Card.outlined(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
+            child: const Padding(
+              padding: EdgeInsets.all(20),
               child: Center(child: Text('Sent to Bill')),
             ),
           ),

@@ -1,7 +1,18 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
-void showSnackBar(BuildContext context) {
+/// App-wide snackbar with glassmorphism and color-coded glow.
+///
+/// - [message]: text to display.
+/// - [isError]: if true → reddish hue; if false → greenish hue.
+void showSnackBar(
+  BuildContext context, {
+  required String message,
+  bool isError = false,
+}) {
+  final theme = Theme.of(context);
+  final accent = isError ? Colors.redAccent : Colors.greenAccent;
+
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       behavior: SnackBarBehavior.floating,
@@ -16,24 +27,30 @@ void showSnackBar(BuildContext context) {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              color: Colors.white.withValues(alpha: 0.08), // glass tint
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              color: accent.withValues(alpha: 0.10),
+              border: Border.all(color: accent.withValues(alpha: 0.6)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 20,
+                  color: accent.withValues(alpha: 0.4),
+                  blurRadius: 24,
+                  spreadRadius: 1,
                   offset: const Offset(0, 10),
                 ),
               ],
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white),
+                Icon(
+                  isError
+                      ? Icons.error_outline_rounded
+                      : Icons.check_circle_rounded,
+                  color: Colors.white,
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    'Payment Processed Successfully!',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    message,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),

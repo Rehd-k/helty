@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,7 +127,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     super.dispose();
   }
 
-  Future<void> _save() async {
+  Future<void> _save(String? patientId) async {
     if (_formKey.currentState?.validate() ?? false) {
       final newPatient = Patient(
         cardNo: _cardNoController.text.trim(),
@@ -189,7 +191,11 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           Patient savedPatient = await service.createPatient(newPatient);
           _showSuccessModal(savedPatient.patientId);
         } else {
-          await service.updatePatient(newPatient);
+          Patient updatedPatient = await service.updatePatient(
+            newPatient,
+            patientId,
+          );
+          _showSuccessModal(updatedPatient.patientId);
         }
         Navigator.of(context).pop();
       } catch (e) {
@@ -282,9 +288,15 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.patient != null;
+    final isFromUnregistered = widget.patient?.fromUnregisteredFlow ?? false;
+    log(widget.patient?.toJson().toString() ?? 'No patient');
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Patient' : 'Register Patient'),
+        title: Text(
+          isEditing
+              ? (isFromUnregistered ? 'Register Patient' : 'Edit Patient')
+              : 'Register Patient',
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -308,11 +320,13 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                     _surnameController,
                     'Surname *',
                     required: true,
+                    readOnly: widget.patient?.lockNames ?? false,
                   ),
                   _buildTextField(
                     _firstNameController,
                     'First Name *',
                     required: true,
+                    readOnly: widget.patient?.lockNames ?? false,
                   ),
                   _buildTextField(_otherNameController, 'Other Name'),
                 ],
@@ -410,7 +424,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
               SizedBox(
                 width: double.infinity / 2,
                 child: ElevatedButton(
-                  onPressed: _save,
+                  onPressed: () => _save(widget.patient?.id),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
@@ -439,10 +453,12 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     String label, {
     bool required = false,
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      readOnly: readOnly,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),

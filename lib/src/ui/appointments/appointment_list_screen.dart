@@ -88,9 +88,7 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
             fetchData: fetchAppointments,
             idGetter: (appointment) =>
                 appointment.id, // Used for selection logic
-            onSelectionChanged: (selected) {
-              // print("Selected Appointments: ${selected.length}");
-            },
+            onSelectionChanged: (selected) {},
             // 4. Define Columns
             columns: const [
               DataColumn2(label: Text('ID'), size: ColumnSize.S),

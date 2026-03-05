@@ -3,13 +3,14 @@ import 'package:flutter/foundation.dart';
 
 import '../core/interceptors/auth_interceptor.dart';
 import '../core/interceptors/error_interceptor.dart';
+import '../core/interceptors/refresh_token_interceptor.dart';
 
 /// Base URL for every API call. Change to your server address.
 // const _kBaseUrl = 'http://72.62.185.238:5000';
 
 const _kBaseUrl = 'http://localhost:3000';
 
-/// Singleton Dio client, pre-configured with auth + error interceptors.
+/// Singleton Dio client, pre-configured with auth + refresh + error interceptors.
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -32,6 +33,7 @@ class ApiService {
 
     dio.interceptors.addAll([
       AuthInterceptor(), // attaches Bearer token
+      RefreshTokenInterceptor(dio), // handles 401 + refresh
       ErrorInterceptor(), // maps DioException → AppException
       if (kDebugMode)
         LogInterceptor(

@@ -1,22 +1,105 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/service_model.dart';
 
+import '../../app_router.gr.dart';
+import '../paitients/patient_providers.dart';
+import '../services/transaction_service.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// These payment methods require a bank to be selected before paying.
+// ─────────────────────────────────────────────────────────────────────────────
+const _bankRequiredMethods = {'pos', 'transfer', 'cheque'};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable Bank Dropdown Widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+class BankDropdown extends StatelessWidget {
+  const BankDropdown({
+    super.key,
+    required this.banks,
+    required this.value,
+    required this.onChanged,
+    this.isLoading = false,
+  });
+
+  final List<String> banks;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0),
+        child: Center(
+          child: SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Select Bank',
+        prefixIcon: const Icon(Icons.account_balance_outlined, size: 18),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        isDense: true,
+      ),
+      hint: const Text('Select Bank', style: TextStyle(fontSize: 13)),
+      items: banks
+          .map(
+            (b) => DropdownMenuItem(
+              value: b,
+              child: Text(b, style: const TextStyle(fontSize: 13)),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+      style: theme.textTheme.bodyMedium,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PayBill
+// ─────────────────────────────────────────────────────────────────────────────
+
 class PayBill extends ConsumerStatefulWidget {
   const PayBill({
     super.key,
+    required this.hasId,
     required this.firstName,
     required this.patientId,
     required this.selectedItems,
     required this.total,
     required this.staffId,
+    this.onPaymentComplete,
   });
+  final bool hasId;
   final String firstName;
   final String patientId;
   final List<ServiceModel> selectedItems;
   final double total;
   final String staffId;
+
+  /// Called after the payment API call succeeds so the caller can clear its cart.
+  final VoidCallback? onPaymentComplete;
 
   @override
   PayBillState createState() => PayBillState();
@@ -28,12 +111,14 @@ class PayBillState extends ConsumerState<PayBill> {
   late String _patientId;
   late String _staffId;
   late double _originalAmount;
+  late bool hasId;
   double _amountToPay = 0;
   String? _insurance;
   List<String> charges = [];
   List<ServiceModel> _items = [];
   List<String> _discounts = [];
   String? _selectedDiscount;
+  final transactionService = TransactionService();
 
   // Payment State
   String? _paymentMethod;
@@ -43,9 +128,19 @@ class PayBillState extends ConsumerState<PayBill> {
     'transfer': Icons.account_balance,
     'pos': Icons.credit_card,
     'cash': Icons.payments,
-    'cheque': Icons.history_edu, // closest to check
+    'cheque': Icons.history_edu,
     'mixed': Icons.pie_chart,
   };
+
+  // Bank State
+  List<String> _banks = [];
+  bool _banksLoading = true;
+
+  /// Bank selected for POS / Transfer / Cheque (single-method flow).
+  String? _selectedBank;
+
+  /// Per-method bank selections used inside the Mixed sheet.
+  final Map<String, String?> _mixedBanks = {};
 
   // Mixed Payment State
   final Map<String, double> _mixedAmounts = {};
@@ -62,7 +157,23 @@ class PayBillState extends ConsumerState<PayBill> {
     _originalAmount = widget.total;
     _amountToPay = _originalAmount;
     _items = widget.selectedItems;
+    hasId = widget.hasId;
     _fetchDetails();
+    _loadBanks();
+  }
+
+  Future<void> _loadBanks() async {
+    try {
+      final banks = await transactionService.fetchBanks();
+      if (mounted) {
+        setState(() {
+          _banks = banks;
+          _banksLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _banksLoading = false);
+    }
   }
 
   Future<void> _fetchDetails() async {
@@ -71,7 +182,6 @@ class PayBillState extends ConsumerState<PayBill> {
     if (mounted) {
       setState(() {
         _insurance = 'Acme Health Plan';
-
         _discounts = ['None', 'Senior 10%', 'Member 5%', 'Promo 100'];
         _isLoading = false;
       });
@@ -96,12 +206,28 @@ class PayBillState extends ConsumerState<PayBill> {
     setState(() {});
   }
 
+  /// Whether the current selection is valid to trigger payment.
   bool get _canPay {
     if (_paymentMethod == null) return false;
+
     if (_paymentMethod == 'mixed') {
       final total = _mixedAmounts.values.fold(0.0, (a, b) => a + b);
-      return (total - _amountToPay).abs() < 0.001;
+      if ((total - _amountToPay).abs() >= 0.001) return false;
+      // All bank-required methods used in mixed must have a bank selected.
+      for (final m in _bankRequiredMethods) {
+        final amount = _mixedAmounts[m] ?? 0;
+        if (amount > 0 && (_mixedBanks[m] == null || _mixedBanks[m]!.isEmpty)) {
+          return false;
+        }
+      }
+      return true;
     }
+
+    // For bank-required single methods, a bank must be chosen.
+    if (_bankRequiredMethods.contains(_paymentMethod)) {
+      return _selectedBank != null && _selectedBank!.isNotEmpty;
+    }
+
     return true;
   }
 
@@ -120,13 +246,19 @@ class PayBillState extends ConsumerState<PayBill> {
               setModalState(() {
                 _mixedAmounts[method] = value;
               });
-              // Update parent state as well so the main UI knows
+              setState(() {});
+            }
+
+            void updateMixedBank(String method, String? bank) {
+              setModalState(() {
+                _mixedBanks[method] = bank;
+              });
               setState(() {});
             }
 
             final total = _mixedAmounts.values.fold(0.0, (a, b) => a + b);
             final remaining = _amountToPay - total;
-            final isComplete = (total - _amountToPay).abs() < 0.001;
+            final isComplete = (total - _amountToPay).abs() < 0.001 && _canPay;
 
             return Container(
               decoration: const BoxDecoration(
@@ -139,82 +271,120 @@ class PayBillState extends ConsumerState<PayBill> {
                 top: 20,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Split Payment',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 10),
-                  ..._methods.where((m) => m != 'mixed').map((m) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: TextField(
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Split Payment',
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        decoration: InputDecoration(
-                          labelText: m.toUpperCase(),
-                          prefixIcon: Icon(_methodIcons[m], size: 18),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 14,
-                          ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
                         ),
-                        onChanged: (t) => updateAmount(m, t),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total entered: ${total.toFinancial(isMoney: true)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Remaining: ${remaining > 0 ? remaining.toFinancial(isMoney: true) : "0.00"}',
-                        style: TextStyle(
-                          color: remaining > 0.001 ? Colors.red : Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: isComplete
-                            ? Colors.green
-                            : Colors.grey,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: isComplete
-                          ? () => Navigator.pop(context)
-                          : null,
-                      child: const Text('Confirm Split'),
+                      ],
                     ),
-                  ),
-                ],
+                    const Divider(),
+                    const SizedBox(height: 10),
+
+                    // Per-method rows
+                    ..._methods.where((m) => m != 'mixed').map((m) {
+                      final needsBank = _bankRequiredMethods.contains(m);
+                      final bankChosen =
+                          !needsBank ||
+                          (_mixedBanks[m] != null &&
+                              _mixedBanks[m]!.isNotEmpty);
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Amount input
+                            TextField(
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              enabled: bankChosen || !needsBank,
+                              decoration: InputDecoration(
+                                labelText: m.toUpperCase(),
+                                prefixIcon: Icon(_methodIcons[m], size: 18),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 14,
+                                ),
+                                disabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade200,
+                                  ),
+                                ),
+                              ),
+                              onChanged: (t) => updateAmount(m, t),
+                            ),
+
+                            // Bank dropdown for bank-required methods
+                            if (needsBank) ...[
+                              const SizedBox(height: 8),
+                              BankDropdown(
+                                banks: _banks,
+                                value: _mixedBanks[m],
+                                isLoading: _banksLoading,
+                                onChanged: (bank) => updateMixedBank(m, bank),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total entered: ${total.toFinancial(isMoney: true)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Remaining: ${remaining > 0 ? remaining.toFinancial(isMoney: true) : "0.00"}',
+                          style: TextStyle(
+                            color: remaining > 0.001
+                                ? Colors.red
+                                : Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: isComplete
+                              ? Colors.green
+                              : Colors.grey,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: isComplete
+                            ? () => Navigator.pop(context)
+                            : null,
+                        child: const Text('Confirm Split'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -226,42 +396,75 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Future<void> _makePayment() async {
-    // Build the payload to send to the backend
-    final payload = {
-      'patientId': _patientId,
-      'staffId': _staffId,
-      'amountPaid': _amountToPay,
-      'paymentMethod': _paymentMethod,
-      'discount': _selectedDiscount,
-      'items': _items
+    // Determine bankName for the DTO
+    String? bankName;
+    if (_paymentMethod == 'mixed') {
+      // For mixed, include first non-null bank (backend handles per-method breakdown)
+      bankName = _mixedBanks.entries
+          .firstWhere(
+            (e) => e.value != null && e.value!.isNotEmpty,
+            orElse: () => const MapEntry('', null),
+          )
+          .value;
+    } else if (_bankRequiredMethods.contains(_paymentMethod)) {
+      bankName = _selectedBank;
+    }
+
+    // Build mixedBreakdown with bank info embedded if needed
+    Map<String, dynamic>? mixedBreakdownWithBanks;
+    if (_paymentMethod == 'mixed') {
+      mixedBreakdownWithBanks = {};
+      for (final m in _methods.where((m) => m != 'mixed')) {
+        final amount = _mixedAmounts[m] ?? 0;
+        if (amount > 0) {
+          mixedBreakdownWithBanks[m] = {
+            'amount': amount,
+            if (_mixedBanks[m] != null) 'bankName': _mixedBanks[m],
+          };
+        }
+      }
+    }
+
+    final dto = QuickTransactionDto(
+      patientId: _patientId,
+      staffId: _staffId,
+      amountPaid: _amountToPay,
+      paymentMethod: _paymentMethod ?? 'cash',
+      discount: _amountToPay < _originalAmount
+          ? _originalAmount - _amountToPay
+          : 0,
+      notes: _selectedDiscount,
+      bankName: bankName,
+      mixedBreakdown: _paymentMethod == 'mixed'
+          ? Map<String, double>.from(
+              _mixedAmounts.map((k, v) => MapEntry(k, v)),
+            )
+          : null,
+      items: _items
           .map(
-            (s) => {
-              'serviceId': s.serviceId,
-              'name': s.name,
-              'cost': s.cost,
-              'qty': s.qty ?? 1,
-              'total': s.cost * (s.qty ?? 1),
-            },
+            (s) => CreateTransactionItemDto(
+              serviceId: s.serviceId,
+              name: s.name,
+              unitPrice: s.cost,
+              quantity: s.qty ?? 1,
+              source: s.categoryName ?? 'OTHER',
+            ),
           )
           .toList(),
-      if (_paymentMethod == 'mixed') 'mixedBreakdown': _mixedAmounts,
-    };
+    );
 
-    debugPrint('Payment payload: $payload');
+    debugPrint('Payment payload: ${dto.toJson()}');
 
     setState(() => _isSubmitting = true);
 
     try {
-      // TODO: replace with actual API call, e.g:
-      // await ref.read(billingRepositoryProvider).createPayment(payload);
-      await Future.delayed(const Duration(seconds: 1)); // simulate API
-
-      // Only confirm AFTER a successful API response
+      await transactionService.createQuickTransaction(dto);
       if (mounted) {
         setState(() {
           _confirmed = true;
           _isSubmitting = false;
         });
+        widget.onPaymentComplete?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             behavior: SnackBarBehavior.floating,
@@ -308,24 +511,17 @@ class PayBillState extends ConsumerState<PayBill> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
-
     if (_confirmed) {
       return _buildSuccessView();
     }
 
-    // 1. Wrap the entire view in a GestureDetector to handle background clicks
     return GestureDetector(
-      onTap: () =>
-          Navigator.of(context).pop(), // Close when clicking the background
+      onTap: () => Navigator.of(context).pop(),
       child: Scaffold(
-        backgroundColor:
-            Colors.black45, // Gives a dimmed modal background effect
+        backgroundColor: Colors.black45,
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
-            // 2. Wrap the Card in a GestureDetector to STOP the click from bubbling up
-            // Otherwise, clicking the card itself would close the modal!
             child: GestureDetector(
               onTap: () {}, // Swallow the click
               child: Card(
@@ -334,22 +530,15 @@ class PayBillState extends ConsumerState<PayBill> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
-                // 3. Use a Stack to overlay the "X" button on top of the content
                 child: Stack(
                   children: [
-                    // The Content
                     _isLoading
                         ? const SizedBox(
                             height: 300,
                             child: Center(child: CircularProgressIndicator()),
                           )
                         : SingleChildScrollView(
-                            padding: const EdgeInsets.fromLTRB(
-                              24,
-                              40,
-                              24,
-                              24,
-                            ), // Added top padding for the X
+                            padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               mainAxisSize: MainAxisSize.min,
@@ -358,13 +547,14 @@ class PayBillState extends ConsumerState<PayBill> {
                                 const SizedBox(height: 20),
                                 _buildInvoiceSection(),
                                 const SizedBox(height: 20),
-                                _buildPaymentSection(primaryColor),
+                                _buildPaymentSection(
+                                  Theme.of(context).primaryColor,
+                                ),
                                 const SizedBox(height: 24),
-                                _buildPayButton(primaryColor),
+                                _buildPayButton(Theme.of(context).primaryColor),
                               ],
                             ),
                           ),
-                    // 4. The Close Button (The "X")
                     Positioned(
                       right: 8,
                       top: 8,
@@ -406,10 +596,16 @@ class PayBillState extends ConsumerState<PayBill> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Text(
-                'ID: $_patientId',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
-              ),
+              if (hasId)
+                Text(
+                  'ID: $_patientId',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+              if (!hasId)
+                Text(
+                  "ID: No ID",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
             ],
           ),
         ),
@@ -456,7 +652,7 @@ class PayBillState extends ConsumerState<PayBill> {
           Row(
             children: [
               const Icon(
-                Icons.local_offer_outlined,
+                Icons.discount_outlined,
                 size: 18,
                 color: Colors.orange,
               ),
@@ -510,13 +706,22 @@ class PayBillState extends ConsumerState<PayBill> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+          Expanded(
+            child: Tooltip(
+              message: label,
+              waitDuration: const Duration(milliseconds: 500),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
             ),
           ),
+          const SizedBox(width: 12),
           Text(
             value,
             style: TextStyle(
@@ -529,6 +734,9 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Widget _buildPaymentSection(Color primaryColor) {
+    final needsBank =
+        _paymentMethod != null && _bankRequiredMethods.contains(_paymentMethod);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -546,6 +754,7 @@ class PayBillState extends ConsumerState<PayBill> {
               onTap: () {
                 setState(() {
                   _paymentMethod = m;
+                  _selectedBank = null; // reset bank when method changes
                   if (m == 'mixed') _openMixedSheet();
                 });
               },
@@ -589,6 +798,25 @@ class PayBillState extends ConsumerState<PayBill> {
             );
           }).toList(),
         ),
+
+        // ── Bank dropdown (shown for POS / Transfer / Cheque) ──────────────
+        if (needsBank) ...[
+          const SizedBox(height: 16),
+          BankDropdown(
+            banks: _banks,
+            value: _selectedBank,
+            isLoading: _banksLoading,
+            onChanged: (bank) => setState(() => _selectedBank = bank),
+          ),
+          if (_selectedBank == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Please select a bank to continue',
+                style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+              ),
+            ),
+        ],
       ],
     );
   }
@@ -641,11 +869,14 @@ class PayBillState extends ConsumerState<PayBill> {
               const SizedBox(height: 30),
               OutlinedButton.icon(
                 onPressed: () {
-                  // Reset for demo purposes
+                  ref.read(patientProvider.notifier).clearPatient();
+                  context.router.replaceAll([const EnlistPaitientRoute()]);
                   setState(() {
                     _confirmed = false;
                     _paymentMethod = null;
+                    _selectedBank = null;
                     _mixedAmounts.clear();
+                    _mixedBanks.clear();
                   });
                 },
                 icon: const Icon(Icons.print),
