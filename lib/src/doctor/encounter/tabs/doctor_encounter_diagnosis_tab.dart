@@ -16,7 +16,8 @@ class DoctorEncounterDiagnosisTab extends StatefulWidget {
       _DoctorEncounterDiagnosisTabState();
 }
 
-class _DoctorEncounterDiagnosisTabState extends State<DoctorEncounterDiagnosisTab> {
+class _DoctorEncounterDiagnosisTabState
+    extends State<DoctorEncounterDiagnosisTab> {
   final _encounterService = EncounterService();
   final _icd10Service = Icd10Service();
   final _primarySearchCtrl = TextEditingController();
@@ -28,12 +29,23 @@ class _DoctorEncounterDiagnosisTabState extends State<DoctorEncounterDiagnosisTa
   bool _loading = false;
   bool _loaded = false;
   bool _saving = false;
+  bool _draftLoadScheduled = false;
 
   @override
   void initState() {
     super.initState();
-    _loadDraft();
     _runSearch('');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_draftLoadScheduled) {
+      _draftLoadScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadDraft();
+      });
+    }
   }
 
   @override
@@ -63,10 +75,12 @@ class _DoctorEncounterDiagnosisTabState extends State<DoctorEncounterDiagnosisTa
             _secondaries.clear();
             for (final e in list) {
               final m = e as Map<String, dynamic>;
-              _secondaries.add(Icd10Model(
-                code: m['code'] as String,
-                description: m['description'] as String? ?? '',
-              ));
+              _secondaries.add(
+                Icd10Model(
+                  code: m['code'] as String,
+                  description: m['description'] as String? ?? '',
+                ),
+              );
             }
           } catch (_) {}
         }
@@ -102,23 +116,26 @@ class _DoctorEncounterDiagnosisTabState extends State<DoctorEncounterDiagnosisTa
     setState(() => _saving = true);
     try {
       final secondaryJson = jsonEncode(
-        _secondaries.map((e) => {'code': e.code, 'description': e.description}).toList(),
+        _secondaries
+            .map((e) => {'code': e.code, 'description': e.description})
+            .toList(),
       );
-      await _encounterService.update(scope.encounterId, {
+
+      await _encounterService.saveDiagnosis(scope.encounterId, {
         'primaryIcdCode': _primary!.code,
         'primaryIcdDescription': _primary!.description,
         'secondaryDiagnosesJson': secondaryJson,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Diagnosis saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Diagnosis saved')));
       setState(() => _saving = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
       setState(() => _saving = false);
     }
   }
@@ -175,7 +192,9 @@ class _DoctorEncounterDiagnosisTabState extends State<DoctorEncounterDiagnosisTa
           if (_primary != null) ...[
             const SizedBox(height: 8),
             ListTile(
-              tileColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+              tileColor: theme.colorScheme.primaryContainer.withValues(
+                alpha: 0.3,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -195,10 +214,19 @@ class _DoctorEncounterDiagnosisTabState extends State<DoctorEncounterDiagnosisTa
           ],
           if (_searchResults.isNotEmpty && _primary == null) ...[
             const SizedBox(height: 8),
-            ..._searchResults.take(8).map(
+            ..._searchResults
+                .take(8)
+                .map(
                   (e) => ListTile(
-                    title: Text(e.code, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(e.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    title: Text(
+                      e.code,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      e.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     onTap: () => setState(() {
                       _primary = e;
                       _primarySearchCtrl.clear();
@@ -218,8 +246,11 @@ class _DoctorEncounterDiagnosisTabState extends State<DoctorEncounterDiagnosisTa
           const SizedBox(height: 8),
           ..._secondaries.map(
             (e) => ListTile(
-              title: Text('${e.code} — ${e.description}',
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              title: Text(
+                '${e.code} — ${e.description}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               trailing: IconButton(
                 icon: const Icon(Icons.remove_circle_outline),
                 onPressed: () => setState(() => _secondaries.remove(e)),
@@ -284,7 +315,11 @@ class _DoctorEncounterDiagnosisTabState extends State<DoctorEncounterDiagnosisTa
                           final e = results[i];
                           return ListTile(
                             title: Text(e.code),
-                            subtitle: Text(e.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+                            subtitle: Text(
+                              e.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             onTap: () {
                               selected = e;
                               Navigator.of(ctx).pop();

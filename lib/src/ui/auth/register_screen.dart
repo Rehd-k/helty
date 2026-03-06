@@ -87,7 +87,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           initialChild = const DashboardRoute();
       }
 
-      context.router.replaceAll([HomeRoute(children: [initialChild])]);
+      context.router.replaceAll([
+        HomeRoute(children: [initialChild]),
+      ]);
     }
   }
 

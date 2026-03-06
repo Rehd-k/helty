@@ -30,24 +30,36 @@ class PatientVitalsModel {
   final DateTime updatedAt;
 
   factory PatientVitalsModel.fromJson(Map<String, dynamic> json) {
+    String str(dynamic v) => (v != null) ? v.toString() : '';
+
     DateTime parseDate(dynamic value) {
       if (value is String) {
         return DateTime.tryParse(value) ?? DateTime.now();
       }
+      if (value is DateTime) return value;
       return DateTime.now();
     }
 
+    num? numOrNull(dynamic v) {
+      if (v == null) return null;
+      if (v is num) return v;
+      if (v is String) return num.tryParse(v);
+      return null;
+    }
+
     return PatientVitalsModel(
-      id: json['id'] as String,
-      patientId: json['patientId'] as String,
-      systolic: (json['systolic'] as num?)?.toInt(),
-      diastolic: (json['diastolic'] as num?)?.toInt(),
-      temperature: (json['temperature'] as num?)?.toDouble(),
-      height: (json['height'] as num?)?.toDouble(),
-      weight: (json['weight'] as num?)?.toDouble(),
-      bmi: (json['bmi'] as num?)?.toDouble(),
-      pulseRate: (json['pulseRate'] as num?)?.toInt(),
-      spo2: (json['spo2'] as num?)?.toDouble(),
+      id: str(json['id']),
+      patientId: str(json['patientId']).isEmpty
+          ? str(json['waitingPatientId'])
+          : str(json['patientId']),
+      systolic: numOrNull(json['systolic'])?.toInt(),
+      diastolic: numOrNull(json['diastolic'])?.toInt(),
+      temperature: numOrNull(json['temperature'])?.toDouble(),
+      height: numOrNull(json['height'])?.toDouble(),
+      weight: numOrNull(json['weight'])?.toDouble(),
+      bmi: numOrNull(json['bmi'])?.toDouble(),
+      pulseRate: numOrNull(json['pulseRate'])?.toInt(),
+      spo2: numOrNull(json['spo2'])?.toDouble(),
       createdAt: parseDate(json['createdAt']),
       updatedAt: parseDate(json['updatedAt']),
     );
@@ -72,7 +84,7 @@ class PatientVitalsModel {
 /// DTO used when creating a new [PatientVitalsModel].
 class CreatePatientVitalsDto {
   const CreatePatientVitalsDto({
-    required this.patientId,
+    required this.waitingPatientId,
     this.systolic,
     this.diastolic,
     this.temperature,
@@ -83,7 +95,7 @@ class CreatePatientVitalsDto {
     this.spo2,
   });
 
-  final String patientId;
+  final String waitingPatientId;
   final int? systolic;
   final int? diastolic;
   final double? temperature;
@@ -94,7 +106,7 @@ class CreatePatientVitalsDto {
   final double? spo2;
 
   Map<String, dynamic> toJson() => {
-    'patientId': patientId,
+    'waitingPatientId': waitingPatientId,
     if (systolic != null) 'systolic': systolic,
     if (diastolic != null) 'diastolic': diastolic,
     if (temperature != null) 'temperature': temperature,

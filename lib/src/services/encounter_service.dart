@@ -1,121 +1,130 @@
-import 'package:helty/src/models/encounter_model.dart';
+import 'package:dio/dio.dart';
 
-/// Service for encounter (OPD visit) CRUD. Uses mock data until API exists.
+import 'api_service.dart';
+import '../models/encounter_model.dart';
+
+/// Encounter (OPD visit) CRUD. All methods use the real API.
 class EncounterService {
+  EncounterService() : _dio = ApiService().dio;
+
+  final Dio _dio;
+
+  /// GET /encounters/:id — get one encounter (used by all encounter tabs).
   Future<EncounterModel?> getById(String encounterId) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    return EncounterModel(
-      id: encounterId,
-      patientId: 'P-0001',
-      doctorId: 'DOC-1',
-      status: 'open',
-      startedAt: DateTime.now().subtract(const Duration(minutes: 30)),
-      visitType: 'OPD',
-      insurance: 'Self-pay',
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/encounters/$encounterId',
     );
+    final data = response.data;
+    if (data == null) return null;
+    return EncounterModel.fromJson(data);
   }
 
-  /// List outpatient encounters for the logged-in doctor (e.g. today).
+  /// GET /encounters — list encounters. Query: doctorId, date (ISO date), status, skip, take.
+  /// Response: { data: Encounter[], total: number } or array.
   Future<List<EncounterModel>> fetchOutpatientEncounters({
     String? doctorId,
     DateTime? date,
     String? status,
+    int skip = 0,
+    int take = 50,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    final now = date ?? DateTime.now();
-    return [
-      EncounterModel(
-        id: 'ENC-001',
-        patientId: 'P-0001',
-        appointmentId: 'APPT-001',
-        doctorId: doctorId ?? 'DOC-1',
-        status: 'waiting',
-        startedAt: now,
-        visitType: 'OPD',
-        insurance: 'Self-pay',
-      ),
-      EncounterModel(
-        id: 'ENC-002',
-        patientId: 'P-0002',
-        appointmentId: 'APPT-002',
-        doctorId: doctorId ?? 'DOC-1',
-        status: 'in_consultation',
-        startedAt: now.subtract(const Duration(minutes: 15)),
-        visitType: 'Follow-up',
-        insurance: 'HMO',
-      ),
-      EncounterModel(
-        id: 'ENC-003',
-        patientId: 'P-0003',
-        appointmentId: null,
-        doctorId: doctorId ?? 'DOC-1',
-        status: 'done',
-        startedAt: now.subtract(const Duration(hours: 1)),
-        closedAt: now.subtract(const Duration(minutes: 30)),
-        visitType: 'Walk-in',
-        insurance: 'Self-pay',
-      ),
-    ];
+    final query = <String, dynamic>{'skip': skip, 'take': take};
+    if (doctorId != null && doctorId.isNotEmpty) query['doctorId'] = doctorId;
+    if (date != null) query['date'] = date.toIso8601String().split('T').first;
+    if (status != null && status.isNotEmpty) query['status'] = status;
+
+    final response = await _dio.get<dynamic>(
+      '/encounters',
+      queryParameters: query,
+    );
+    final raw = response.data;
+    if (raw is List) {
+      return raw
+          .map((e) => EncounterModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    if (raw is Map<String, dynamic>) {
+      final list = raw['data'] as List? ?? [];
+      return list
+          .map((e) => EncounterModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
   }
 
+  /// POST /encounters — create encounter. Returns the created encounter with real id from API.
   Future<EncounterModel> create({
     required String patientId,
     required String doctorId,
+    String? encounterType,
     String? appointmentId,
     String? visitType,
     String? insurance,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    return EncounterModel(
-      id: 'ENC-${DateTime.now().millisecondsSinceEpoch}',
-      patientId: patientId,
-      appointmentId: appointmentId,
-      doctorId: doctorId,
-      status: 'open',
-      startedAt: DateTime.now(),
-      visitType: visitType ?? 'OPD',
-      insurance: insurance,
+    final body = <String, dynamic>{
+      'patientId': patientId,
+      'doctorId': doctorId,
+      if (encounterType != null && encounterType.isNotEmpty)
+        'encounterType': encounterType,
+      if (appointmentId != null && appointmentId.isNotEmpty)
+        'appointmentId': appointmentId,
+      if (visitType != null && visitType.isNotEmpty) 'visitType': visitType,
+      if (insurance != null && insurance.isNotEmpty) 'insurance': insurance,
+    };
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/encounters',
+      data: body,
     );
+    final data = response.data;
+    if (data == null) throw StateError('Create encounter returned no data');
+    return EncounterModel.fromJson(data);
   }
 
+  /// PATCH /encounters/:id — partial update (any subset of encounter fields).
   Future<EncounterModel> update(String id, Map<String, dynamic> patch) async {
-    final existing = await getById(id);
-    if (existing == null) throw StateError('Encounter not found: $id');
-    return EncounterModel(
-      id: existing.id,
-      patientId: patch['patientId'] as String? ?? existing.patientId,
-      appointmentId: patch['appointmentId'] as String? ?? existing.appointmentId,
-      doctorId: patch['doctorId'] as String? ?? existing.doctorId,
-      status: patch['status'] as String? ?? existing.status,
-      startedAt: existing.startedAt,
-      closedAt: patch['closedAt'] != null
-          ? DateTime.tryParse(patch['closedAt'] as String)
-          : existing.closedAt,
-      visitType: patch['visitType'] as String? ?? existing.visitType,
-      insurance: patch['insurance'] as String? ?? existing.insurance,
-      chiefComplaint: patch['chiefComplaint'] as String? ?? existing.chiefComplaint,
-      hpi: patch['hpi'] as String? ?? existing.hpi,
-      pmh: patch['pmh'] as String? ?? existing.pmh,
-      surgicalHistory: patch['surgicalHistory'] as String? ?? existing.surgicalHistory,
-      drugHistory: patch['drugHistory'] as String? ?? existing.drugHistory,
-      allergyHistory: patch['allergyHistory'] as String? ?? existing.allergyHistory,
-      familyHistory: patch['familyHistory'] as String? ?? existing.familyHistory,
-      socialHistory: patch['socialHistory'] as String? ?? existing.socialHistory,
-      examinationNotes: patch['examinationNotes'] as String? ?? existing.examinationNotes,
-      soapSubjective: patch['soapSubjective'] as String? ?? existing.soapSubjective,
-      soapObjective: patch['soapObjective'] as String? ?? existing.soapObjective,
-      soapAssessment: patch['soapAssessment'] as String? ?? existing.soapAssessment,
-      soapPlan: patch['soapPlan'] as String? ?? existing.soapPlan,
-      soapLockedAt: patch['soapLockedAt'] != null
-          ? DateTime.tryParse(patch['soapLockedAt'] as String)
-          : existing.soapLockedAt,
-      primaryIcdCode: patch['primaryIcdCode'] as String? ?? existing.primaryIcdCode,
-      primaryIcdDescription: patch['primaryIcdDescription'] as String? ?? existing.primaryIcdDescription,
-      secondaryDiagnosesJson: patch['secondaryDiagnosesJson'] as String? ?? existing.secondaryDiagnosesJson,
-      proceduresJson: patch['proceduresJson'] as String? ?? existing.proceduresJson,
-      followUpDate: patch['followUpDate'] as String? ?? existing.followUpDate,
-      followUpInstructions: patch['followUpInstructions'] as String? ?? existing.followUpInstructions,
-      referral: patch['referral'] as String? ?? existing.referral,
+    // Serialize DateTime fields to ISO strings for API
+    final body = Map<String, dynamic>.from(patch);
+    if (body['closedAt'] is DateTime) {
+      body['closedAt'] = (body['closedAt'] as DateTime).toIso8601String();
+    }
+    if (body['soapLockedAt'] is DateTime) {
+      body['soapLockedAt'] = (body['soapLockedAt'] as DateTime)
+          .toIso8601String();
+    }
+
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/encounters/$id',
+      data: body,
     );
+    final data = response.data;
+    if (data == null) throw StateError('Update encounter returned no data');
+    return EncounterModel.fromJson(data);
+  }
+
+  /// PATCH /encounters/:id — partial update (any subset of encounter fields).
+  Future<EncounterModel> saveDiagnosis(
+    String id,
+    Map<String, dynamic> patch,
+  ) async {
+    // Serialize DateTime fields to ISO strings for API
+    final body = Map<String, dynamic>.from(patch);
+
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/encounters/$id/diagnoses',
+      data: body,
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Update encounter returned no data');
+    return EncounterModel.fromJson(data);
+  }
+
+  /// Marks encounter as done and sets closedAt. Use when the doctor finishes with the patient.
+  /// PATCH /encounters/:id with status: 'done', closedAt: now.
+  Future<EncounterModel> complete(String encounterId) async {
+    final now = DateTime.now();
+    return update(encounterId, {
+      'status': 'COMPLETED',
+      'closedAt': now.toIso8601String(),
+    });
   }
 }

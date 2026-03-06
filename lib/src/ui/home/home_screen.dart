@@ -60,10 +60,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _sidebarOpen = true;
 
-  List<MenuItem> _menuForRole(String role) {
+  List<MenuItem> _menuForRole(String role, String accountType) {
     final common = <MenuItem>[];
-    print('role: $role');
-    if (role == 'medical_records') {
+    print('role: $role, accountType: $accountType');
+    if (role == 'receptionist') {
       common.addAll(frontDesk);
     }
 
@@ -75,8 +75,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       common.addAll(nurses);
     }
 
-    if (role == 'pharmacist') {
+    if (accountType.toLowerCase() == 'pharmacy_store') {
       common.addAll(pharmacy);
+    }
+    if (accountType.toLowerCase() == 'pharmacy_dispensary') {
+      common.addAll(phamDispense);
     }
     if (role == 'doctor' || role == 'consultant') {
       common.addAll(doctors);
@@ -122,7 +125,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final state = ref.watch(authProvider);
     final auth = ref.watch(authProvider);
     final role = auth.staff?.role.toLowerCase() ?? '';
-    final menuItems = _menuForRole(role);
+    final accountType = auth.staff?.accountType?.name.toLowerCase() ?? '';
+    final menuItems = _menuForRole(role, accountType);
     final isMobile = MediaQuery.of(context).size.width < 720;
 
     return Scaffold(

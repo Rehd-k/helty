@@ -1,7 +1,14 @@
+// ignore_for_file: constant_identifier_names
 /// Staff account types (mirrors Prisma AccountType enum).
+///
 enum AccountType {
-  store,
-  dispensary,
+  pharmacy_store,
+  pharmacy_dispensary,
+  pharmacy_head,
+  inpatient_nurse,
+  outpatient_nurse,
+  inpatient_doctor,
+  medical_records,
   other,
   frontdesk,
   consultant,
@@ -14,6 +21,8 @@ enum AccountType {
   theatere,
   ong,
   dialysis,
+  store,
+  dispensary,
   staff;
 
   static AccountType fromString(String? value) => AccountType.values.firstWhere(
@@ -63,7 +72,8 @@ class Staff {
     lastName: json['lastName'] as String,
     role: json['role'] as String,
     pharmacyRole: json['pharmacyRole'] as String? ?? json['role'] as String,
-    permissions: (json['permissions'] as List<dynamic>?)
+    permissions:
+        (json['permissions'] as List<dynamic>?)
             ?.map((e) => e.toString())
             .toList() ??
         const [],

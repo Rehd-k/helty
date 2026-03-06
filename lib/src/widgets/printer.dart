@@ -18,7 +18,7 @@ class TransactionReceiptPrinter extends StatefulWidget {
   final String hospitalEmail;
 
   const TransactionReceiptPrinter({
-    Key? key,
+    super.key,
     required this.data,
     required this.printerIp,
     this.printerPort = 9100,
@@ -26,7 +26,7 @@ class TransactionReceiptPrinter extends StatefulWidget {
     required this.hospitalAddress,
     required this.hospitalPhone,
     required this.hospitalEmail,
-  }) : super(key: key);
+  });
 
   @override
   State<TransactionReceiptPrinter> createState() =>

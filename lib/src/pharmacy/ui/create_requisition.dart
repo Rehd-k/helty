@@ -197,7 +197,7 @@ class _CreateRequisitionScreenState extends State<CreateRequisitionScreen> {
                         border: Border.all(color: Colors.grey.shade200),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
+                            color: Colors.black.withValues(alpha: 0.02),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -234,11 +234,13 @@ class _CreateRequisitionScreenState extends State<CreateRequisitionScreen> {
                                   icon: Icons.numbers,
                                   keyboardType: TextInputType.number,
                                   validator: (v) {
-                                    if (v == null || v.isEmpty)
+                                    if (v == null || v.isEmpty) {
                                       return 'Required';
+                                    }
                                     if (int.tryParse(v) == null ||
-                                        int.parse(v) <= 0)
+                                        int.parse(v) <= 0) {
                                       return 'Invalid';
+                                    }
                                     return null;
                                   },
                                 ),
@@ -297,8 +299,8 @@ class _CreateRequisitionScreenState extends State<CreateRequisitionScreen> {
                                   vertical: 16,
                                 ),
                                 side: BorderSide(
-                                  color: theme.colorScheme.primary.withOpacity(
-                                    0.5,
+                                  color: theme.colorScheme.primary.withValues(
+                                    alpha: 0.5,
                                   ),
                                 ),
                                 shape: RoundedRectangleBorder(
@@ -417,7 +419,7 @@ class _CreateRequisitionScreenState extends State<CreateRequisitionScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, -4),
                         ),
@@ -676,7 +678,7 @@ class _CreateRequisitionScreenState extends State<CreateRequisitionScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<dynamic>(
-            value: value,
+            initialValue: value,
             items: items,
             onChanged: onChanged,
             decoration: InputDecoration(

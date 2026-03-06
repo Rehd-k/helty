@@ -21,16 +21,18 @@ class ImagingOrderModel {
   final String? notesToRadiologist;
   final String status; // Ordered, InProgress, Completed, Reported
 
-  factory ImagingOrderModel.fromJson(Map<String, dynamic> json) =>
-      ImagingOrderModel(
-        id: json['id'] as String,
-        encounterId: json['encounterId'] as String,
-        catalogId: json['catalogId'] as String,
-        studyName: json['studyName'] as String,
-        area: json['area'] as String?,
-        contrast: json['contrast'] as bool? ?? false,
-        urgency: json['urgency'] as String?,
-        notesToRadiologist: json['notesToRadiologist'] as String?,
-        status: json['status'] as String? ?? 'Ordered',
-      );
+  factory ImagingOrderModel.fromJson(Map<String, dynamic> json) {
+    String str(dynamic v) => (v != null) ? v.toString() : '';
+    return ImagingOrderModel(
+      id: str(json['id']),
+      encounterId: str(json['encounterId']),
+      catalogId: str(json['catalogId']),
+      studyName: str(json['studyName']),
+      area: json['area']?.toString(),
+      contrast: json['contrast'] == true,
+      urgency: json['urgency']?.toString(),
+      notesToRadiologist: json['notesToRadiologist']?.toString(),
+      status: (json['status']?.toString()) ?? 'Ordered',
+    );
+  }
 }

@@ -19,16 +19,23 @@ class LabOrderModel {
   final String status;
   final Map<String, String>? resultValues;
 
-  factory LabOrderModel.fromJson(Map<String, dynamic> json) => LabOrderModel(
-        id: json['id'] as String,
-        encounterId: json['encounterId'] as String,
-        catalogTestId: json['catalogTestId'] as String,
-        testName: json['testName'] as String,
-        priority: json['priority'] as String?,
-        clinicalNotes: json['clinicalNotes'] as String?,
-        status: json['status'] as String? ?? 'Ordered',
-        resultValues: json['resultValues'] != null
-            ? Map<String, String>.from(json['resultValues'] as Map)
-            : null,
-      );
+  factory LabOrderModel.fromJson(Map<String, dynamic> json) {
+    String str(dynamic v) => (v != null) ? v.toString() : '';
+    return LabOrderModel(
+      id: str(json['id']),
+      encounterId: str(json['encounterId']),
+      catalogTestId: str(json['catalogTestId']),
+      testName: str(json['testName']),
+      priority: json['priority']?.toString(),
+      clinicalNotes: json['clinicalNotes']?.toString(),
+      status: (json['status']?.toString()) ?? 'Ordered',
+      resultValues: json['resultValues'] != null && json['resultValues'] is Map
+          ? Map<String, String>.from(
+              (json['resultValues'] as Map).map(
+                (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
+              ),
+            )
+          : null,
+    );
+  }
 }

@@ -38,12 +38,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   PageRouteInfo _initialRouteForRole(String role) {
+    print('role: $role, accountType: kaibsfn');
     switch (role) {
-      case 'frontdesk':
+      case 'RECEPTIONIST':
         return const FrontDeskDashboardRoute();
-      case 'bills':
+      case 'billing':
         return const BillingDashboardRoute();
-      case 'nurse':
+      case 'NURSE':
+      case 'outpatient_nurse':
         return const NursesDashboardRoute();
       case 'doctor':
       case 'consultant':

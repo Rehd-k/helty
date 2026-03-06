@@ -58,9 +58,9 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
             children: [
               Text(
                 'Vitals',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               FilledButton.icon(
                 onPressed: _openRecordVitalsDialog,
@@ -83,10 +83,9 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
             child: SizedBox(
               width: double.infinity,
               child: DataTable(
-                headingTextStyle:
-                    Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                headingTextStyle: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
                 columns: const [
                   DataColumn(label: Text('Time')),
                   DataColumn(label: Text('Temp')),
@@ -106,8 +105,8 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
           Text(
             'Use the “Record Vitals” button to add new observations. Historical records are read-only.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.7),
-                ),
+              color: scheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -131,8 +130,9 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Record Vitals'),
           content: SizedBox(
             width: 520,
@@ -267,7 +267,7 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
             ),
             FilledButton(
               onPressed: _submitting ? null : _handleSubmitVitals,
-          child: _submitting
+              child: _submitting
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -308,7 +308,7 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
     try {
       await _waitingService.createPatientVitals(
         CreatePatientVitalsDto(
-          patientId: '', // will be provided from shell via integration
+          waitingPatientId: '',
           systolic: int.tryParse(_sysCtrl.text),
           diastolic: int.tryParse(_diaCtrl.text),
           temperature: double.tryParse(_tempCtrl.text),
@@ -324,9 +324,9 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to record vitals: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to record vitals: $e')));
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -340,8 +340,9 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
       builder: (context) {
         final scheme = Theme.of(context).colorScheme;
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Vitals Trend'),
           content: SizedBox(
             width: 520,
@@ -391,4 +392,3 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
     );
   }
 }
-

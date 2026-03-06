@@ -28,6 +28,7 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
   bool _saving = false;
 
   bool get _isLocked => _lockedAt != null;
+  bool _draftLoadScheduled = false;
 
   @override
   void initState() {
@@ -37,7 +38,17 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
     _assessmentCtrl = TextEditingController();
     _planCtrl = TextEditingController();
     _addendumCtrl = TextEditingController();
-    _loadDraft();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_draftLoadScheduled) {
+      _draftLoadScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadDraft();
+      });
+    }
   }
 
   @override

@@ -25,17 +25,20 @@ class AdmissionModel {
   final String? specialInstructions;
   final String status;
 
-  factory AdmissionModel.fromJson(Map<String, dynamic> json) => AdmissionModel(
-        id: json['id'] as String,
-        patientId: json['patientId'] as String,
-        encounterId: json['encounterId'] as String,
-        reason: json['reason'] as String?,
-        ward: json['ward'] as String?,
-        bedPreference: json['bedPreference'] as String?,
-        provisionalDiagnosis: json['provisionalDiagnosis'] as String?,
-        expectedLOS: json['expectedLOS'] as String?,
-        isolationRequired: json['isolationRequired'] as bool? ?? false,
-        specialInstructions: json['specialInstructions'] as String?,
-        status: json['status'] as String? ?? 'Pending',
-      );
+  factory AdmissionModel.fromJson(Map<String, dynamic> json) {
+    String str(dynamic v) => (v != null) ? v.toString() : '';
+    return AdmissionModel(
+      id: str(json['id']),
+      patientId: str(json['patientId']),
+      encounterId: str(json['encounterId']),
+      reason: json['reason']?.toString(),
+      ward: json['ward']?.toString(),
+      bedPreference: json['bedPreference']?.toString(),
+      provisionalDiagnosis: json['provisionalDiagnosis']?.toString(),
+      expectedLOS: json['expectedLOS']?.toString(),
+      isolationRequired: json['isolationRequired'] == true,
+      specialInstructions: json['specialInstructions']?.toString(),
+      status: (json['status']?.toString()) ?? 'Pending',
+    );
+  }
 }

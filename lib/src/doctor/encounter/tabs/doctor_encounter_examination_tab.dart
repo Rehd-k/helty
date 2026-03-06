@@ -28,6 +28,7 @@ class _DoctorEncounterExaminationTabState
   bool _loading = false;
   bool _loaded = false;
   Map<String, String?> _vitals = {};
+  bool _initialLoadScheduled = false;
 
   @override
   void initState() {
@@ -41,8 +42,38 @@ class _DoctorEncounterExaminationTabState
     _entCtrl = TextEditingController();
     _skinCtrl = TextEditingController();
     _notesCtrl = TextEditingController();
-    _loadDraft();
-    _loadVitals();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialLoadScheduled) {
+      _initialLoadScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadDraft();
+          _applyVitalsFromScope();
+        }
+      });
+    }
+  }
+
+  void _applyVitalsFromScope() {
+    final scope = EncounterScope.of(context);
+    final v = scope?.patientVitals;
+    if (v == null) return;
+    setState(() {
+      _vitals = {
+        if (v.systolic != null || v.diastolic != null)
+          'BP': '${v.systolic ?? '—'}/${v.diastolic ?? '—'}',
+        if (v.pulseRate != null) 'HR': '${v.pulseRate}',
+        if (v.temperature != null) 'Temp': '${v.temperature}°C',
+        if (v.spo2 != null) 'SpO2': '${v.spo2}%',
+        if (v.height != null) 'Height': '${v.height} cm',
+        if (v.weight != null) 'Weight': '${v.weight} kg',
+        if (v.bmi != null) 'BMI': v.bmi!.toStringAsFixed(1),
+      };
+    });
   }
 
   @override
@@ -57,21 +88,6 @@ class _DoctorEncounterExaminationTabState
     _skinCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadVitals() async {
-    // Stub: in real app load from vitals API by patientId/encounterId
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (!mounted) return;
-    setState(() {
-      _vitals = {
-        'BP': '120/80',
-        'HR': '72',
-        'Temp': '36.6°C',
-        'RR': '16',
-        'SpO2': '98%',
-      };
-    });
   }
 
   Future<void> _loadDraft() async {

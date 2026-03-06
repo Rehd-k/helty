@@ -1,8 +1,14 @@
-import 'package:helty/src/models/admission_model.dart';
+import 'package:dio/dio.dart';
+
+import 'api_service.dart';
+import '../models/admission_model.dart';
 
 class AdmissionService {
-  static final List<AdmissionModel> _list = [];
+  AdmissionService() : _dio = ApiService().dio;
 
+  final Dio _dio;
+
+  /// POST /admissions — create admission from encounter. Returns created admission with id from API.
   Future<AdmissionModel> create({
     required String patientId,
     required String encounterId,
@@ -14,22 +20,25 @@ class AdmissionService {
     bool isolationRequired = false,
     String? specialInstructions,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 150));
-    final id = 'ADM-${DateTime.now().millisecondsSinceEpoch}';
-    final admission = AdmissionModel(
-      id: id,
-      patientId: patientId,
-      encounterId: encounterId,
-      reason: reason,
-      ward: ward,
-      bedPreference: bedPreference,
-      provisionalDiagnosis: provisionalDiagnosis,
-      expectedLOS: expectedLOS,
-      isolationRequired: isolationRequired,
-      specialInstructions: specialInstructions,
-      status: 'Pending',
+    final body = <String, dynamic>{
+      'patientId': patientId,
+      'encounterId': encounterId,
+      'isolationRequired': isolationRequired,
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+      if (ward != null && ward.isNotEmpty) 'ward': ward,
+      if (bedPreference != null && bedPreference.isNotEmpty) 'bedPreference': bedPreference,
+      if (provisionalDiagnosis != null && provisionalDiagnosis.isNotEmpty)
+        'provisionalDiagnosis': provisionalDiagnosis,
+      if (expectedLOS != null && expectedLOS.isNotEmpty) 'expectedLOS': expectedLOS,
+      if (specialInstructions != null && specialInstructions.isNotEmpty)
+        'specialInstructions': specialInstructions,
+    };
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/admissions',
+      data: body,
     );
-    _list.add(admission);
-    return admission;
+    final data = response.data;
+    if (data == null) throw StateError('Create admission returned no data');
+    return AdmissionModel.fromJson(data);
   }
 }

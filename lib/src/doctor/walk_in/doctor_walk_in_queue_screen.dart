@@ -1,45 +1,704 @@
+import 'dart:convert';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/models/consulting_room_model.dart';
+import 'package:helty/src/models/patient_vitals_model.dart';
+import 'package:helty/src/models/waiting_patient_model.dart';
+import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/services/encounter_service.dart';
+import 'package:helty/src/services/waiting_patient_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const String _kSavedConsultingRoomId = 'doctor_walkin_consulting_room_id';
 
 @RoutePage()
-class DoctorWalkInQueueScreen extends StatelessWidget {
+class DoctorWalkInQueueScreen extends ConsumerStatefulWidget {
   const DoctorWalkInQueueScreen({super.key});
+
+  @override
+  ConsumerState<DoctorWalkInQueueScreen> createState() =>
+      _DoctorWalkInQueueScreenState();
+}
+
+class _DoctorWalkInQueueScreenState
+    extends ConsumerState<DoctorWalkInQueueScreen> {
+  final _waitingService = WaitingPatientService();
+  final _encounterService = EncounterService();
+
+  List<WaitingPatientModel> _patients = [];
+  List<ConsultingRoomModel> _consultingRooms = [];
+  ConsultingRoomModel? _selectedRoom;
+  bool _loading = false;
+  bool _loadingRooms = false;
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+  static const int _rowsPerPage = 50;
+  int _skip = 0;
+  int _total = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(() {
+      final q = _searchCtrl.text.trim();
+      if (q != _searchQuery) {
+        _searchQuery = q;
+        _loadPatients(reset: true);
+      }
+    });
+    _loadSavedRoomAndData();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSavedRoomAndData() async {
+    setState(() => _loadingRooms = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedId = prefs.getString(_kSavedConsultingRoomId) ?? '';
+      final rooms = await _waitingService.fetchConsultingRooms();
+      if (!mounted) return;
+      ConsultingRoomModel? room;
+      if (savedId.isNotEmpty) {
+        try {
+          room = rooms.firstWhere((r) => r.id == savedId);
+        } catch (_) {
+          room = null;
+        }
+      }
+      setState(() {
+        _consultingRooms = rooms;
+        _selectedRoom = room;
+        _loadingRooms = false;
+      });
+      await _loadPatients(reset: true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingRooms = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load consulting rooms: $e')),
+      );
+    }
+  }
+
+  Future<void> _onConsultingRoomChanged(ConsultingRoomModel? room) async {
+    setState(() => _selectedRoom = room);
+    final prefs = await SharedPreferences.getInstance();
+    if (room != null) {
+      await prefs.setString(_kSavedConsultingRoomId, room.id);
+    } else {
+      await prefs.remove(_kSavedConsultingRoomId);
+    }
+    await _loadPatients(reset: true);
+  }
+
+  Future<void> _loadPatients({bool reset = false}) async {
+    if (_loading) return;
+    if (reset) _skip = 0;
+
+    setState(() => _loading = true);
+    try {
+      final resp = await _waitingService.fetchWaitingPatients(
+        WaitingPatientQuery(
+          q: _searchQuery.isEmpty ? null : _searchQuery,
+          consultingRoomId: _selectedRoom?.id,
+          skip: _skip,
+          take: _rowsPerPage,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _patients = resp.data;
+        _total = resp.total;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load patients: $e')));
+    }
+  }
+
+  void _onPatientDoubleTap(WaitingPatientModel waiting) {
+    final staff = ref.read(authProvider).staff;
+    final doctorId = staff?.id ?? staff?.staffId ?? '';
+    if (doctorId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to start an encounter.')),
+      );
+      return;
+    }
+    _showStartEncounterDialog(waiting, doctorId);
+  }
+
+  Future<void> _showStartEncounterDialog(
+    WaitingPatientModel waiting,
+    String doctorId,
+  ) async {
+    final patient = waiting.patient;
+    final displayName = patient != null
+        ? '${patient.firstName} ${patient.surname}'
+        : 'Unknown';
+    final patientId = waiting.patientId;
+
+    final result = await showDialog<_StartEncounterResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _OpenPatientFileDialog(
+        patientName: displayName,
+        onOpen: () async {
+          try {
+            final encounter = await _encounterService.create(
+              patientId: patientId,
+              doctorId: doctorId,
+              visitType: 'Walk-in',
+              encounterType: 'OUTPATIENT',
+            );
+            if (!ctx.mounted) return;
+            Navigator.of(ctx).pop(
+              _StartEncounterResult(
+                encounterId: encounter.id,
+                patientId: patientId,
+                patientVitals: waiting.patientVitals,
+              ),
+            );
+          } catch (e) {
+            if (!ctx.mounted) return;
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              SnackBar(content: Text('Failed to start encounter: $e')),
+            );
+          }
+        },
+      ),
+    );
+
+    if (result != null && mounted) {
+      final vitalsJson = result.patientVitals != null
+          ? jsonEncode(result.patientVitals!.toJson())
+          : null;
+      context.router.push(
+        DoctorEncounterViewRoute(
+          encounterId: result.encounterId,
+          patientId: result.patientId,
+          patientVitalsJson: vitalsJson,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Center(
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(
-              Icons.people_outline,
-              size: 64,
-              color: colorScheme.onSurface.withValues(alpha: 0.3),
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Walk-in Queue',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Select your consulting room. Double-tap a patient to open their file.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.people_outline,
+                        color: colorScheme.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$_total in queue',
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Walk-in Queue',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
+            const SizedBox(height: 24),
+
+            // Filters and search
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, ID, consultation...',
+                      prefixIcon: Icon(
+                        Icons.search,
+                        size: 20,
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: colorScheme.outline.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: colorScheme.outline.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: colorScheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                SizedBox(
+                  width: 260,
+                  child: DropdownButtonFormField<ConsultingRoomModel?>(
+                    value: _selectedRoom,
+                    decoration: InputDecoration(
+                      labelText: 'Consulting room',
+                      labelStyle: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.3,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    hint: const Text('Select room'),
+                    items: [
+                      const DropdownMenuItem<ConsultingRoomModel?>(
+                        value: null,
+                        child: Text('All rooms'),
+                      ),
+                      ..._consultingRooms.map(
+                        (room) => DropdownMenuItem<ConsultingRoomModel?>(
+                          value: room,
+                          child: Text(room.name),
+                        ),
+                      ),
+                    ],
+                    onChanged: _loadingRooms
+                        ? null
+                        : (room) => _onConsultingRoomChanged(room),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: _loading ? null : () => _loadPatients(reset: true),
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh list',
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Walk-in patients will appear here when integrated with queue management.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
+            const SizedBox(height: 20),
+
+            // Patient list
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.onSurface.withValues(alpha: 0.04),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 4,
+                            child: Text(
+                              'PATIENT',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              'CONSULTATION',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              'TIME',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 1,
+                            child: Text(
+                              'STATUS',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(
+                      height: 1,
+                      color: colorScheme.outline.withValues(alpha: 0.1),
+                    ),
+                    Expanded(
+                      child: _loading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _patients.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.people_outline,
+                                    size: 64,
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.25,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _selectedRoom == null
+                                        ? 'Select a consulting room to see waiting patients.'
+                                        : 'No patients in this room.',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: _patients.length,
+                              separatorBuilder: (_, __) => Divider(
+                                height: 1,
+                                color: colorScheme.outline.withValues(
+                                  alpha: 0.08,
+                                ),
+                              ),
+                              itemBuilder: (context, index) {
+                                final w = _patients[index];
+                                final patient = w.patient;
+                                final name = patient != null
+                                    ? '${patient.firstName} ${patient.surname}'
+                                    : 'Unknown';
+                                final consultation = w.consultationName ?? '—';
+                                final time = DateFormatter.dateTime(
+                                  w.createdAt.toLocal(),
+                                );
+                                final isWaiting = w.status == 'Waiting';
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onDoubleTap: () => _onPatientDoubleTap(w),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 14,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            flex: 4,
+                                            child: Row(
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: 18,
+                                                  backgroundColor: colorScheme
+                                                      .primary
+                                                      .withValues(alpha: 0.12),
+                                                  child: Text(
+                                                    name.trim().isEmpty
+                                                        ? '?'
+                                                        : name.trim().substring(
+                                                            0,
+                                                            1,
+                                                          ),
+                                                    style: TextStyle(
+                                                      color:
+                                                          colorScheme.primary,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Text(
+                                                  name,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                    color:
+                                                        colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 2,
+                                            child: Text(
+                                              consultation,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: colorScheme.onSurface
+                                                    .withValues(alpha: 0.7),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 2,
+                                            child: Text(
+                                              time,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: colorScheme.onSurface
+                                                    .withValues(alpha: 0.6),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 1,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: isWaiting
+                                                    ? Colors.orange.withValues(
+                                                        alpha: 0.12,
+                                                      )
+                                                    : Colors.green.withValues(
+                                                        alpha: 0.12,
+                                                      ),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                w.status,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isWaiting
+                                                      ? Colors.orange[800]
+                                                      : Colors.green[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    if (_patients.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        child: Text(
+                          'Showing ${_patients.length} of $_total • Double-tap a row to open patient file',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _StartEncounterResult {
+  const _StartEncounterResult({
+    required this.encounterId,
+    required this.patientId,
+    this.patientVitals,
+  });
+  final String encounterId;
+  final String patientId;
+  final PatientVitalsModel? patientVitals;
+}
+
+class _OpenPatientFileDialog extends StatefulWidget {
+  const _OpenPatientFileDialog({
+    required this.patientName,
+    required this.onOpen,
+  });
+
+  final String patientName;
+  final Future<void> Function() onOpen;
+
+  @override
+  State<_OpenPatientFileDialog> createState() => _OpenPatientFileDialogState();
+}
+
+class _OpenPatientFileDialogState extends State<_OpenPatientFileDialog> {
+  bool _saving = false;
+
+  Future<void> _open() async {
+    setState(() => _saving = true);
+    await widget.onOpen();
+    if (mounted) setState(() => _saving = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return AlertDialog(
+      title: const Text('Open Patient File'),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.patientName,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Open this patient\'s file to start the encounter?',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _open,
+          child: Text(_saving ? 'Opening…' : 'Open'),
+        ),
+      ],
     );
   }
 }

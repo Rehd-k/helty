@@ -23,17 +23,19 @@ class MedicationOrderModel {
   final String? specialInstructions;
   final String status;
 
-  factory MedicationOrderModel.fromJson(Map<String, dynamic> json) =>
-      MedicationOrderModel(
-        id: json['id'] as String,
-        encounterId: json['encounterId'] as String,
-        drugId: json['drugId'] as String,
-        drugName: json['drugName'] as String,
-        dose: json['dose'] as String?,
-        frequency: json['frequency'] as String?,
-        duration: json['duration'] as String?,
-        route: json['route'] as String?,
-        specialInstructions: json['specialInstructions'] as String?,
-        status: json['status'] as String? ?? 'Pending Dispense',
-      );
+  factory MedicationOrderModel.fromJson(Map<String, dynamic> json) {
+    String str(dynamic v) => (v != null) ? v.toString() : '';
+    return MedicationOrderModel(
+      id: str(json['id']),
+      encounterId: str(json['encounterId']),
+      drugId: str(json['drugId']),
+      drugName: str(json['drugName']),
+      dose: json['dose']?.toString(),
+      frequency: json['frequency']?.toString(),
+      duration: json['duration']?.toString(),
+      route: json['route']?.toString(),
+      specialInstructions: json['specialInstructions']?.toString(),
+      status: (json['status']?.toString()) ?? 'Pending Dispense',
+    );
+  }
 }

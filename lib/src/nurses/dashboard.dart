@@ -60,7 +60,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Hospital Overview (L'aperçu)",
+                      "Hospital Overview",
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -330,16 +330,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                                 ),
                               ],
                             ),
-                            Text(
-                              "Le personnel",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.5,
-                                ),
-                              ),
-                            ),
+
                             const SizedBox(height: 20),
                             ..._activeStaff.map(
                               (staff) => Padding(

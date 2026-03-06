@@ -18,6 +18,8 @@ class ConsultingRoomModel {
   final DateTime? updatedAt;
 
   factory ConsultingRoomModel.fromJson(Map<String, dynamic> json) {
+    String str(dynamic v) => (v != null) ? v.toString() : '';
+
     DateTime? parseDate(dynamic value) {
       if (value is String) {
         return DateTime.tryParse(value);
@@ -26,11 +28,13 @@ class ConsultingRoomModel {
     }
 
     return ConsultingRoomModel(
-      id: json['id'] as String,
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String?,
-      location: json['location'] as String?,
-      capacity: (json['capacity'] as num?)?.toInt() ?? 0,
+      id: str(json['id']),
+      name: str(json['name']),
+      description: json['description']?.toString(),
+      location: json['location']?.toString(),
+      capacity: (json['capacity'] is num)
+          ? (json['capacity'] as num).toInt()
+          : (int.tryParse(json['capacity']?.toString() ?? '') ?? 0),
       createdAt: parseDate(json['createdAt']),
       updatedAt: parseDate(json['updatedAt']),
     );

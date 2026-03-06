@@ -310,32 +310,32 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
 
   // --- UI Helpers ---
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: Colors.blue.shade700, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue.shade900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildSectionHeader(String title, IconData icon) {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
+  //     child: Row(
+  //       children: [
+  //         Container(
+  //           padding: const EdgeInsets.all(8),
+  //           decoration: BoxDecoration(
+  //             color: Colors.blue.shade50,
+  //             borderRadius: BorderRadius.circular(8),
+  //           ),
+  //           child: Icon(icon, color: Colors.blue.shade700, size: 20),
+  //         ),
+  //         const SizedBox(width: 12),
+  //         Text(
+  //           title,
+  //           style: TextStyle(
+  //             fontSize: 16,
+  //             fontWeight: FontWeight.bold,
+  //             color: Colors.blue.shade900,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildModernDropdown({
     required String label,
@@ -363,7 +363,7 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<dynamic>(
-            value: value,
+            initialValue: value,
             items: items,
             onChanged: onChanged,
             decoration: InputDecoration(

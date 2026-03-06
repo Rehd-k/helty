@@ -70,17 +70,19 @@ class EncounterModel {
   final String? referral;
 
   factory EncounterModel.fromJson(Map<String, dynamic> json) {
+    String str(dynamic v) => (v != null) ? v.toString() : '';
+
     return EncounterModel(
-      id: json['id'] as String,
-      patientId: json['patientId'] as String,
-      appointmentId: json['appointmentId'] as String?,
-      doctorId: json['doctorId'] as String,
-      status: json['status'] as String? ?? 'open',
+      id: str(json['id']),
+      patientId: str(json['patientId']),
+      appointmentId: json['appointmentId']?.toString(),
+      doctorId: str(json['doctorId']),
+      status: (json['status']?.toString()) ?? 'open',
       startedAt: json['startedAt'] != null
-          ? DateTime.tryParse(json['startedAt'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(json['startedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
       closedAt: json['closedAt'] != null
-          ? DateTime.tryParse(json['closedAt'] as String)
+          ? DateTime.tryParse(json['closedAt'].toString())
           : null,
       visitType: json['visitType'] as String?,
       insurance: json['insurance'] as String?,
@@ -111,37 +113,40 @@ class EncounterModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'patientId': patientId,
-        if (appointmentId != null) 'appointmentId': appointmentId,
-        'doctorId': doctorId,
-        'status': status,
-        'startedAt': startedAt.toIso8601String(),
-        if (closedAt != null) 'closedAt': closedAt!.toIso8601String(),
-        if (visitType != null) 'visitType': visitType,
-        if (insurance != null) 'insurance': insurance,
-        if (chiefComplaint != null) 'chiefComplaint': chiefComplaint,
-        if (hpi != null) 'hpi': hpi,
-        if (pmh != null) 'pmh': pmh,
-        if (surgicalHistory != null) 'surgicalHistory': surgicalHistory,
-        if (drugHistory != null) 'drugHistory': drugHistory,
-        if (allergyHistory != null) 'allergyHistory': allergyHistory,
-        if (familyHistory != null) 'familyHistory': familyHistory,
-        if (socialHistory != null) 'socialHistory': socialHistory,
-        if (examinationNotes != null) 'examinationNotes': examinationNotes,
-        if (soapSubjective != null) 'soapSubjective': soapSubjective,
-        if (soapObjective != null) 'soapObjective': soapObjective,
-        if (soapAssessment != null) 'soapAssessment': soapAssessment,
-        if (soapPlan != null) 'soapPlan': soapPlan,
-        if (soapLockedAt != null) 'soapLockedAt': soapLockedAt!.toIso8601String(),
-        if (primaryIcdCode != null) 'primaryIcdCode': primaryIcdCode,
-        if (primaryIcdDescription != null) 'primaryIcdDescription': primaryIcdDescription,
-        if (secondaryDiagnosesJson != null) 'secondaryDiagnosesJson': secondaryDiagnosesJson,
-        if (proceduresJson != null) 'proceduresJson': proceduresJson,
-        if (followUpDate != null) 'followUpDate': followUpDate,
-        if (followUpInstructions != null) 'followUpInstructions': followUpInstructions,
-        if (referral != null) 'referral': referral,
-      };
+    'id': id,
+    'patientId': patientId,
+    if (appointmentId != null) 'appointmentId': appointmentId,
+    'doctorId': doctorId,
+    'status': status,
+    'startedAt': startedAt.toIso8601String(),
+    if (closedAt != null) 'closedAt': closedAt!.toIso8601String(),
+    if (visitType != null) 'visitType': visitType,
+    if (insurance != null) 'insurance': insurance,
+    if (chiefComplaint != null) 'chiefComplaint': chiefComplaint,
+    if (hpi != null) 'hpi': hpi,
+    if (pmh != null) 'pmh': pmh,
+    if (surgicalHistory != null) 'surgicalHistory': surgicalHistory,
+    if (drugHistory != null) 'drugHistory': drugHistory,
+    if (allergyHistory != null) 'allergyHistory': allergyHistory,
+    if (familyHistory != null) 'familyHistory': familyHistory,
+    if (socialHistory != null) 'socialHistory': socialHistory,
+    if (examinationNotes != null) 'examinationNotes': examinationNotes,
+    if (soapSubjective != null) 'soapSubjective': soapSubjective,
+    if (soapObjective != null) 'soapObjective': soapObjective,
+    if (soapAssessment != null) 'soapAssessment': soapAssessment,
+    if (soapPlan != null) 'soapPlan': soapPlan,
+    if (soapLockedAt != null) 'soapLockedAt': soapLockedAt!.toIso8601String(),
+    if (primaryIcdCode != null) 'primaryIcdCode': primaryIcdCode,
+    if (primaryIcdDescription != null)
+      'primaryIcdDescription': primaryIcdDescription,
+    if (secondaryDiagnosesJson != null)
+      'secondaryDiagnosesJson': secondaryDiagnosesJson,
+    if (proceduresJson != null) 'proceduresJson': proceduresJson,
+    if (followUpDate != null) 'followUpDate': followUpDate,
+    if (followUpInstructions != null)
+      'followUpInstructions': followUpInstructions,
+    if (referral != null) 'referral': referral,
+  };
 
   EncounterModel copyWith({
     String? chiefComplaint,
@@ -191,8 +196,10 @@ class EncounterModel {
       soapPlan: soapPlan ?? this.soapPlan,
       soapLockedAt: soapLockedAt ?? this.soapLockedAt,
       primaryIcdCode: primaryIcdCode ?? this.primaryIcdCode,
-      primaryIcdDescription: primaryIcdDescription ?? this.primaryIcdDescription,
-      secondaryDiagnosesJson: secondaryDiagnosesJson ?? this.secondaryDiagnosesJson,
+      primaryIcdDescription:
+          primaryIcdDescription ?? this.primaryIcdDescription,
+      secondaryDiagnosesJson:
+          secondaryDiagnosesJson ?? this.secondaryDiagnosesJson,
       proceduresJson: proceduresJson ?? this.proceduresJson,
       followUpDate: followUpDate ?? this.followUpDate,
       followUpInstructions: followUpInstructions ?? this.followUpInstructions,

@@ -1,41 +1,52 @@
+import 'dart:convert';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
+import 'package:helty/src/models/encounter_model.dart';
+import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
+import 'package:helty/src/services/encounter_service.dart';
 
 const double _contentMaxWidth = 1440;
 
-/// Provides encounterId and patientId to tab content.
+/// Provides encounterId, patientId, and optional pre-loaded vitals to tab content.
 class EncounterScope extends InheritedWidget {
   const EncounterScope({
     super.key,
     required this.encounterId,
     required this.patientId,
+    this.patientVitals,
     required super.child,
   });
 
   final String encounterId;
   final String patientId;
+  final PatientVitalsModel? patientVitals;
 
   static EncounterScope? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<EncounterScope>();
 
   @override
   bool updateShouldNotify(EncounterScope old) =>
-      encounterId != old.encounterId || patientId != old.patientId;
+      encounterId != old.encounterId ||
+      patientId != old.patientId ||
+      patientVitals != old.patientVitals;
 }
 
 @RoutePage()
 class DoctorEncounterViewScreen extends StatefulWidget {
   final String encounterId;
   final String patientId;
+  final String? patientVitalsJson;
 
   const DoctorEncounterViewScreen({
     super.key,
     required this.encounterId,
     required this.patientId,
+    this.patientVitalsJson,
   });
 
   @override
@@ -45,15 +56,42 @@ class DoctorEncounterViewScreen extends StatefulWidget {
 
 class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   final _patientService = PatientService();
+  final _encounterService = EncounterService();
 
   Patient? _patient;
+  EncounterModel? _encounter;
   bool _loadingPatient = false;
   String? _patientError;
+  PatientVitalsModel? _patientVitals;
+  bool _completing = false;
 
   @override
   void initState() {
     super.initState();
+    _parseVitals();
     _loadPatient();
+    _loadEncounter();
+  }
+
+  Future<void> _loadEncounter() async {
+    try {
+      final enc = await _encounterService.getById(widget.encounterId);
+      if (!mounted) return;
+      setState(() => _encounter = enc);
+    } catch (_) {
+      if (mounted) setState(() => _encounter = null);
+    }
+  }
+
+  void _parseVitals() {
+    final json = widget.patientVitalsJson;
+    if (json == null || json.isEmpty) return;
+    try {
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      _patientVitals = PatientVitalsModel.fromJson(map);
+    } catch (_) {
+      // ignore invalid JSON
+    }
   }
 
   Future<void> _loadPatient() async {
@@ -106,6 +144,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         return EncounterScope(
           encounterId: widget.encounterId,
           patientId: widget.patientId,
+          patientVitals: _patientVitals,
           child: Scaffold(
             backgroundColor: colorScheme.surface,
             body: SafeArea(
@@ -161,9 +200,31 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
     );
   }
 
+  Future<void> _completeEncounter() async {
+    setState(() => _completing = true);
+    try {
+      await _encounterService.complete(widget.encounterId);
+      if (!mounted) return;
+      await _loadEncounter();
+      if (!mounted) return;
+      setState(() => _completing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Encounter completed. Patient file closed.')),
+      );
+      context.router.maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _completing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to complete encounter: $e')),
+      );
+    }
+  }
+
   Widget _buildHeaderRow(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final isDone = _encounter?.status == 'done';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -187,26 +248,66 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
             ),
           ],
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: scheme.primary.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.medical_services_outlined, size: 18, color: scheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'Doctor module • OPD',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w600,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isDone)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: scheme.tertiary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(999),
                 ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 18, color: scheme.tertiary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Completed',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: scheme.tertiary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              FilledButton.icon(
+                onPressed: _completing ? null : _completeEncounter,
+                icon: _completing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.done_all, size: 18),
+                label: Text(_completing ? 'Completing…' : 'Finish with patient'),
               ),
-            ],
-          ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.medical_services_outlined, size: 18, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Doctor module • OPD',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );

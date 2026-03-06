@@ -1,4 +1,3 @@
-/// Enums inferred from Prisma schema
 // ignore_for_file: constant_identifier_names
 
 enum PharmacyLocationType { MAIN_STORE, DISPENSARY, WARD }
@@ -387,6 +386,7 @@ class DrugBatch {
   final double? unitCost;
   final DateTime? createdAt;
   final Drug? drug;
+  final String? supplierName;
 
   DrugBatch({
     this.id,
@@ -398,6 +398,7 @@ class DrugBatch {
     this.unitCost,
     this.createdAt,
     this.drug,
+    this.supplierName,
   });
 
   factory DrugBatch.fromJson(Map<String, dynamic> json) => DrugBatch(
@@ -420,6 +421,14 @@ class DrugBatch {
     drug: json['drug'] != null && json['drug'] is Map
         ? Drug.fromJson(Map<String, dynamic>.from(json['drug'] as Map))
         : null,
+    supplierName: () {
+      final supplier = json['supplier'];
+      if (supplier is Map) {
+        final map = Map<String, dynamic>.from(supplier);
+        return map['name']?.toString();
+      }
+      return json['supplierName']?.toString();
+    }(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -430,6 +439,7 @@ class DrugBatch {
     if (expiryDate != null) 'expiryDate': expiryDate!.toIso8601String(),
     'quantityReceived': quantityReceived,
     if (unitCost != null) 'unitCost': unitCost,
+    if (supplierName != null) 'supplierName': supplierName,
   };
 }
 

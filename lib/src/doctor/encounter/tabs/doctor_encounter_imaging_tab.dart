@@ -21,11 +21,22 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
 
   List<ImagingOrderModel> _orders = [];
   bool _loading = true;
+  bool _loadScheduled = false;
 
   @override
   void initState() {
     super.initState();
-    _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_loadScheduled) {
+      _loadScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
   }
 
   Future<void> _load() async {

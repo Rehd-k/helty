@@ -256,4 +256,38 @@ final pharmacy = <MenuItem>[
     icon: Icons.receipt_long_outlined,
     route: CreateRequisitionRoute(),
   ),
+  MenuItem(
+    label: 'Supply History',
+    icon: Icons.list_alt_outlined,
+    route: SupplyHistoryRoute(),
+  ),
+  MenuItem(
+    label: 'Pharmacy Locations',
+    icon: Icons.location_on_outlined,
+    route: PharmacyLocationRoute(),
+  ),
+];
+
+final phamDispense = <MenuItem>[
+  MenuItem(
+    label: 'Medicine Inventory',
+    icon: Icons.inventory_2_outlined,
+    route: MedicineInventoryRoute(),
+  ),
+
+  MenuItem(
+    label: 'Pharmacy Waiting Patient',
+    icon: Icons.add_alarm_outlined,
+    route: PharmacyWaitingPatientRoute(),
+  ),
+  MenuItem(
+    label: 'Stock Transfer',
+    icon: Icons.move_to_inbox_outlined,
+    route: StockTransferRoute(),
+  ),
+  MenuItem(
+    label: 'Render Medicine',
+    icon: Icons.medication_outlined,
+    route: RenderServiceRoute(),
+  ),
 ];

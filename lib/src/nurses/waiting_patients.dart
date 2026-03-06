@@ -18,8 +18,8 @@ class WaitingPatientsScreen extends StatefulWidget {
 
 class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   final _waitingService = WaitingPatientService();
-  DateTime? _fromDate;
-  DateTime? _toDate;
+  // DateTime? _fromDate;
+  // DateTime? _toDate;
   Function? doRefresh;
 
   // Server-backed waiting patients (current page)
@@ -172,10 +172,8 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
       return double.tryParse(v);
     }
 
-    final patientId = _selectedPatient!.patientId;
-
     final vitalsDto = CreatePatientVitalsDto(
-      patientId: patientId,
+      waitingPatientId: waitingPatientId,
       systolic: parseInt(_sysCtrl.text),
       diastolic: parseInt(_diaCtrl.text),
       temperature: parseDouble(_tempCtrl.text),
@@ -233,7 +231,6 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: Padding(

@@ -19,11 +19,22 @@ class _DoctorEncounterFollowUpTabState extends State<DoctorEncounterFollowUpTab>
   final _referralCtrl = TextEditingController();
   bool _loading = false;
   bool _loaded = false;
+  bool _loadScheduled = false;
 
   @override
   void initState() {
     super.initState();
-    _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_loadScheduled) {
+      _loadScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
   }
 
   @override

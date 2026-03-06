@@ -1,13 +1,35 @@
-import 'package:helty/src/models/medication_order_model.dart';
+import 'package:dio/dio.dart';
+
+import 'api_service.dart';
+import '../models/medication_order_model.dart';
 
 class MedicationOrderService {
-  static final Map<String, List<MedicationOrderModel>> _byEncounter = {};
+  MedicationOrderService() : _dio = ApiService().dio;
 
+  final Dio _dio;
+
+  /// GET /medication-orders?encounterId= — list orders for an encounter.
   Future<List<MedicationOrderModel>> getByEncounter(String encounterId) async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    return List.from(_byEncounter[encounterId] ?? []);
+    final response = await _dio.get<dynamic>(
+      '/medication-orders',
+      queryParameters: {'encounterId': encounterId},
+    );
+    final raw = response.data;
+    if (raw is List) {
+      return raw
+          .map((e) => MedicationOrderModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    if (raw is Map<String, dynamic>) {
+      final list = raw['data'] as List? ?? [];
+      return list
+          .map((e) => MedicationOrderModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
   }
 
+  /// POST /medication-orders — create prescription. Returns created order with id from API.
   Future<MedicationOrderModel> create({
     required String encounterId,
     required String drugId,
@@ -18,21 +40,23 @@ class MedicationOrderService {
     String? route,
     String? specialInstructions,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    final id = 'RX-${DateTime.now().millisecondsSinceEpoch}';
-    final order = MedicationOrderModel(
-      id: id,
-      encounterId: encounterId,
-      drugId: drugId,
-      drugName: drugName,
-      dose: dose,
-      frequency: frequency,
-      duration: duration,
-      route: route,
-      specialInstructions: specialInstructions,
-      status: 'Pending Dispense',
+    final body = <String, dynamic>{
+      'encounterId': encounterId,
+      'drugId': drugId,
+      'drugName': drugName,
+      if (dose != null && dose.isNotEmpty) 'dose': dose,
+      if (frequency != null && frequency.isNotEmpty) 'frequency': frequency,
+      if (duration != null && duration.isNotEmpty) 'duration': duration,
+      if (route != null && route.isNotEmpty) 'route': route,
+      if (specialInstructions != null && specialInstructions.isNotEmpty)
+        'specialInstructions': specialInstructions,
+    };
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/medication-orders',
+      data: body,
     );
-    _byEncounter.putIfAbsent(encounterId, () => []).add(order);
-    return order;
+    final data = response.data;
+    if (data == null) throw StateError('Create medication order returned no data');
+    return MedicationOrderModel.fromJson(data);
   }
 }

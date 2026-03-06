@@ -99,6 +99,10 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AddBatchRoute.page),
         AutoRoute(page: StockTransferRoute.page),
         AutoRoute(page: CreateRequisitionRoute.page),
+        AutoRoute(page: SupplyHistoryRoute.page),
+        AutoRoute(page: PharmacyLocationRoute.page),
+        AutoRoute(page: PharmacyPOSRoute.page),
+        AutoRoute(page: PharmacyWaitingPatientRoute.page),
       ],
     ),
 

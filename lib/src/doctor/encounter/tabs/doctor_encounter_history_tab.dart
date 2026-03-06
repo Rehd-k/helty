@@ -27,6 +27,7 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
 
   bool _loading = false;
   bool _loaded = false;
+  bool _draftLoadScheduled = false;
 
   @override
   void initState() {
@@ -39,7 +40,17 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
     _allergyCtrl = TextEditingController();
     _familyCtrl = TextEditingController();
     _socialCtrl = TextEditingController();
-    _loadDraft();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_draftLoadScheduled) {
+      _draftLoadScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadDraft();
+      });
+    }
   }
 
   @override
