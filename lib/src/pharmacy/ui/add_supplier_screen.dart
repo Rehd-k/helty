@@ -157,8 +157,8 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
                             DataCell(Text(b.quantityReceived.toString())),
                             DataCell(
                               Text(
-                                b.unitCost != null
-                                    ? b.unitCost!.toStringAsFixed(2)
+                                b.costPrice != null
+                                    ? b.costPrice!.toStringAsFixed(2)
                                     : '-',
                               ),
                             ),
@@ -292,8 +292,9 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         const cardMinWidth = 260.0;
-        final crossAxisCount =
-            (constraints.maxWidth / (cardMinWidth + 16)).floor().clamp(1, 4);
+        final crossAxisCount = (constraints.maxWidth / (cardMinWidth + 16))
+            .floor()
+            .clamp(1, 4);
 
         final gridWidth =
             (cardMinWidth + 16) * crossAxisCount.toDouble() + 16.0;
@@ -441,8 +442,10 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
                                 onPressed: s.id == null || s.id!.isEmpty
                                     ? null
                                     : () => _showSupplierSuppliesDialog(s),
-                                icon: const Icon(Icons.list_alt_outlined,
-                                    size: 16),
+                                icon: const Icon(
+                                  Icons.list_alt_outlined,
+                                  size: 16,
+                                ),
                                 label: const Text('View supplies'),
                               ),
                             ),

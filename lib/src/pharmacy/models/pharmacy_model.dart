@@ -1,6 +1,6 @@
 // ignore_for_file: constant_identifier_names
 
-enum PharmacyLocationType { MAIN_STORE, DISPENSARY, WARD }
+enum PharmacyLocationType { STORE, DISPENSARY, WARD, COLD_ROOM }
 
 enum InventoryMovementType {
   PURCHASE,
@@ -19,6 +19,175 @@ enum PurchaseOrderStatus { DRAFT, PENDING, APPROVED, COMPLETED, CANCELLED }
 enum StockTransferStatus { PENDING, APPROVED, IN_TRANSIT, COMPLETED, REJECTED }
 
 enum DispensationStatus { DRAFT, PENDING, DISPENSED, CANCELLED }
+
+/// Query parameters for GET /pharmacy/drugs search (SearchDrugDto).
+class SearchDrugParams {
+  const SearchDrugParams({
+    this.genericName,
+    this.brandName,
+    this.manufacturerId,
+    this.supplierId,
+    this.manufacturingDateFrom,
+    this.manufacturingDateTo,
+    this.expiryDateFrom,
+    this.expiryDateTo,
+    this.minCostPrice,
+    this.maxCostPrice,
+    this.minSellingPrice,
+    this.maxSellingPrice,
+    this.locationType,
+    this.inStock,
+    this.isControlled,
+    this.search,
+    this.therapeuticClass,
+    this.lowStock,
+    this.expiringSoon,
+    this.limit = 20,
+    this.cursorId,
+    this.cursorCreatedAt,
+    this.sortBy,
+    this.sortOrder = 'desc',
+    this.page,
+    this.pageSize,
+  });
+
+  final String? genericName;
+  final String? brandName;
+  final String? manufacturerId;
+  final String? supplierId;
+  final DateTime? manufacturingDateFrom;
+  final DateTime? manufacturingDateTo;
+  final DateTime? expiryDateFrom;
+  final DateTime? expiryDateTo;
+  final double? minCostPrice;
+  final double? maxCostPrice;
+  final double? minSellingPrice;
+  final double? maxSellingPrice;
+  final String? locationType; // e.g. MAIN_STORE, DISPENSARY, WARD
+  final bool? inStock;
+  final bool? isControlled;
+  final String? search;
+  final String? therapeuticClass; // e.g. Antibiotic, Analgesic
+  final bool? lowStock;
+  final bool? expiringSoon;
+  final int limit;
+  final String? cursorId;
+  final DateTime? cursorCreatedAt;
+  final String? sortBy;
+  final String sortOrder; // 'asc' | 'desc'
+  /// Optional page-based pagination (if API supports page/pageSize).
+  final int? page;
+  final int? pageSize;
+
+  SearchDrugParams copyWith({
+    String? genericName,
+    String? brandName,
+    String? manufacturerId,
+    String? supplierId,
+    DateTime? manufacturingDateFrom,
+    DateTime? manufacturingDateTo,
+    DateTime? expiryDateFrom,
+    DateTime? expiryDateTo,
+    double? minCostPrice,
+    double? maxCostPrice,
+    double? minSellingPrice,
+    double? maxSellingPrice,
+    String? locationType,
+    bool? inStock,
+    bool? isControlled,
+    String? search,
+    String? therapeuticClass,
+    bool? lowStock,
+    bool? expiringSoon,
+    int? limit,
+    String? cursorId,
+    DateTime? cursorCreatedAt,
+    String? sortBy,
+    String? sortOrder,
+    int? page,
+    int? pageSize,
+  }) => SearchDrugParams(
+    genericName: genericName ?? this.genericName,
+    brandName: brandName ?? this.brandName,
+    manufacturerId: manufacturerId ?? this.manufacturerId,
+    supplierId: supplierId ?? this.supplierId,
+    manufacturingDateFrom: manufacturingDateFrom ?? this.manufacturingDateFrom,
+    manufacturingDateTo: manufacturingDateTo ?? this.manufacturingDateTo,
+    expiryDateFrom: expiryDateFrom ?? this.expiryDateFrom,
+    expiryDateTo: expiryDateTo ?? this.expiryDateTo,
+    minCostPrice: minCostPrice ?? this.minCostPrice,
+    maxCostPrice: maxCostPrice ?? this.maxCostPrice,
+    minSellingPrice: minSellingPrice ?? this.minSellingPrice,
+    maxSellingPrice: maxSellingPrice ?? this.maxSellingPrice,
+    locationType: locationType ?? this.locationType,
+    inStock: inStock ?? this.inStock,
+    isControlled: isControlled ?? this.isControlled,
+    search: search ?? this.search,
+    therapeuticClass: therapeuticClass ?? this.therapeuticClass,
+    lowStock: lowStock ?? this.lowStock,
+    expiringSoon: expiringSoon ?? this.expiringSoon,
+    limit: limit ?? this.limit,
+    cursorId: cursorId ?? this.cursorId,
+    cursorCreatedAt: cursorCreatedAt ?? this.cursorCreatedAt,
+    sortBy: sortBy ?? this.sortBy,
+    sortOrder: sortOrder ?? this.sortOrder,
+    page: page ?? this.page,
+    pageSize: pageSize ?? this.pageSize,
+  );
+
+  Map<String, dynamic> toQuery() {
+    final q = <String, dynamic>{};
+    if (genericName != null && genericName!.isNotEmpty) {
+      q['genericName'] = genericName;
+    }
+    if (brandName != null && brandName!.isNotEmpty) q['brandName'] = brandName;
+    if (manufacturerId != null && manufacturerId!.isNotEmpty) {
+      q['manufacturerId'] = manufacturerId;
+    }
+    if (supplierId != null && supplierId!.isNotEmpty) {
+      q['supplierId'] = supplierId;
+    }
+    if (manufacturingDateFrom != null) {
+      q['manufacturingDateFrom'] = manufacturingDateFrom!.toIso8601String();
+    }
+    if (manufacturingDateTo != null) {
+      q['manufacturingDateTo'] = manufacturingDateTo!.toIso8601String();
+    }
+    if (expiryDateFrom != null) {
+      q['expiryDateFrom'] = expiryDateFrom!.toIso8601String();
+    }
+    if (expiryDateTo != null) {
+      q['expiryDateTo'] = expiryDateTo!.toIso8601String();
+    }
+    if (minCostPrice != null) q['minCostPrice'] = minCostPrice;
+    if (maxCostPrice != null) q['maxCostPrice'] = maxCostPrice;
+    if (minSellingPrice != null) q['minSellingPrice'] = minSellingPrice;
+    if (maxSellingPrice != null) q['maxSellingPrice'] = maxSellingPrice;
+    if (locationType != null && locationType!.isNotEmpty) {
+      q['locationType'] = locationType;
+    }
+    if (inStock != null) q['inStock'] = inStock;
+    if (isControlled != null) q['isControlled'] = isControlled;
+    if (search != null && search!.trim().isNotEmpty) {
+      q['search'] = search!.trim();
+    }
+    if (therapeuticClass != null && therapeuticClass!.isNotEmpty) {
+      q['therapeuticClass'] = therapeuticClass;
+    }
+    if (lowStock != null) q['lowStock'] = lowStock;
+    if (expiringSoon != null) q['expiringSoon'] = expiringSoon;
+    q['limit'] = limit.toString();
+    if (cursorId != null && cursorId!.isNotEmpty) q['cursorId'] = cursorId;
+    if (cursorCreatedAt != null) {
+      q['cursorCreatedAt'] = cursorCreatedAt!.toIso8601String();
+    }
+    if (sortBy != null && sortBy!.isNotEmpty) q['sortBy'] = sortBy;
+    q['sortOrder'] = sortOrder;
+    if (page != null) q['page'] = page;
+    if (pageSize != null) q['pageSize'] = pageSize;
+    return q;
+  }
+}
 
 class InventoryMovement {
   final String? id;
@@ -118,7 +287,7 @@ class Supplier {
   });
 
   factory Supplier.fromJson(Map<String, dynamic> json) => Supplier(
-    id: json['id']?.toString(),
+    id: (json['id'] ?? json['_id'])?.toString(),
     name: json['name']?.toString() ?? '',
     licenseNumber: json['licenseNumber'],
     contactInfo: json['contactInfo'],
@@ -380,10 +549,12 @@ class DrugBatch {
   final String? id;
   final String drugId;
   final String? purchaseOrderId;
+  final String? supplierId;
   final String? batchNumber;
   final DateTime? expiryDate;
+  final DateTime? manufacturingDate;
   final int quantityReceived;
-  final double? unitCost;
+  final double? costPrice;
   final DateTime? createdAt;
   final Drug? drug;
   final String? supplierName;
@@ -391,11 +562,13 @@ class DrugBatch {
   DrugBatch({
     this.id,
     required this.drugId,
+    this.manufacturingDate,
     this.purchaseOrderId,
+    this.supplierId,
     this.batchNumber,
     this.expiryDate,
     this.quantityReceived = 0,
-    this.unitCost,
+    this.costPrice,
     this.createdAt,
     this.drug,
     this.supplierName,
@@ -405,15 +578,29 @@ class DrugBatch {
     id: json['id']?.toString(),
     drugId: json['drugId']?.toString() ?? '',
     purchaseOrderId: json['purchaseOrderId']?.toString(),
+    supplierId: () {
+      final id = json['supplierId']?.toString();
+      if (id != null && id.isNotEmpty) return id;
+      final supplier = json['supplier'];
+      if (supplier is Map) {
+        final map = Map<String, dynamic>.from(supplier);
+        final nestedId = map['id']?.toString();
+        if (nestedId != null && nestedId.isNotEmpty) return nestedId;
+      }
+      return null;
+    }(),
     batchNumber: json['batchNumber']?.toString(),
+    manufacturingDate: json['manufacturingDate'] != null
+        ? DateTime.tryParse(json['manufacturingDate'].toString())
+        : null,
     expiryDate: json['expiryDate'] != null
         ? DateTime.tryParse(json['expiryDate'].toString())
         : null,
     quantityReceived: (json['quantityReceived'] is int)
         ? json['quantityReceived'] as int
         : int.tryParse(json['quantityReceived'].toString()) ?? 0,
-    unitCost: json['unitCost'] != null
-        ? (json['unitCost'] as num).toDouble()
+    costPrice: json['costPrice'] != null
+        ? (json['costPrice'] as num).toDouble()
         : null,
     createdAt: json['createdAt'] != null
         ? DateTime.tryParse(json['createdAt'].toString())
@@ -435,10 +622,13 @@ class DrugBatch {
     if (id != null) 'id': id,
     'drugId': drugId,
     if (purchaseOrderId != null) 'purchaseOrderId': purchaseOrderId,
+    if (supplierId != null) 'supplierId': supplierId,
     if (batchNumber != null) 'batchNumber': batchNumber,
     if (expiryDate != null) 'expiryDate': expiryDate!.toIso8601String(),
+    if (manufacturingDate != null)
+      'manufacturingDate': manufacturingDate!.toIso8601String(),
     'quantityReceived': quantityReceived,
-    if (unitCost != null) 'unitCost': unitCost,
+    if (costPrice != null) 'costPrice': costPrice,
     if (supplierName != null) 'supplierName': supplierName,
   };
 }
@@ -612,27 +802,43 @@ class Dispensation {
   };
 }
 
-/// Pharmacy location (main store, dispensary, ward).
+/// Pharmacy location (main store, dispensary, ward, cold room).
 class PharmacyLocation {
   final String? id;
   final String name;
   final PharmacyLocationType type;
+  final String? description;
+  final String? staffId;
+  final String? staffName; // Optional display name when API returns staff
   final bool isActive;
   final DateTime? createdAt;
 
   PharmacyLocation({
     this.id,
     required this.name,
-    this.type = PharmacyLocationType.MAIN_STORE,
+    this.type = PharmacyLocationType.STORE,
+    this.description,
+    this.staffId,
+    this.staffName,
     this.isActive = true,
     this.createdAt,
   });
 
   factory PharmacyLocation.fromJson(Map<String, dynamic> json) =>
       PharmacyLocation(
-        id: json['id']?.toString(),
+        id: (json['id'] ?? json['_id'])?.toString(),
         name: json['name']?.toString() ?? '',
-        type: _parseLocationType(json['type']),
+        type: _parseLocationType(json['type'] ?? json['locationType']),
+        description: json['description']?.toString(),
+        staffId: json['staffId']?.toString(),
+        staffName: () {
+          final staff = json['staff'];
+          if (staff is Map) {
+            final m = Map<String, dynamic>.from(staff);
+            return m['name']?.toString();
+          }
+          return json['staffName']?.toString();
+        }(),
         isActive: json['isActive'] ?? true,
         createdAt: json['createdAt'] != null
             ? DateTime.tryParse(json['createdAt'].toString())
@@ -640,18 +846,22 @@ class PharmacyLocation {
       );
 
   static PharmacyLocationType _parseLocationType(dynamic value) {
-    if (value == null) return PharmacyLocationType.MAIN_STORE;
-    final s = value.toString().toUpperCase();
+    if (value == null) return PharmacyLocationType.STORE;
+    final s = value.toString().toUpperCase().replaceAll(' ', '_');
     return PharmacyLocationType.values.firstWhere(
       (e) => e.name == s,
-      orElse: () => PharmacyLocationType.MAIN_STORE,
+      orElse: () => PharmacyLocationType.STORE,
     );
   }
 
+  /// Payload for create/update: name, locationType, description?, staffId?
   Map<String, dynamic> toJson() => {
-    if (id != null) 'id': id,
-    'name': name,
-    'type': type.name,
+    if (id != null && id!.isNotEmpty) 'id': id,
+    'name': name.trim(),
+    'locationType': type.name,
+    if (description != null && description!.trim().isNotEmpty)
+      'description': description!.trim(),
+    if (staffId != null && staffId!.trim().isNotEmpty) 'staffId': staffId,
     'isActive': isActive,
   };
 }

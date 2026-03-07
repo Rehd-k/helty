@@ -12,18 +12,20 @@ import 'package:helty/src/services/encounter_service.dart';
 
 const double _contentMaxWidth = 1440;
 
-/// Provides encounterId, patientId, and optional pre-loaded vitals to tab content.
+/// Provides encounterId, patientId, optional doctorId, and optional pre-loaded vitals to tab content.
 class EncounterScope extends InheritedWidget {
   const EncounterScope({
     super.key,
     required this.encounterId,
     required this.patientId,
+    this.doctorId,
     this.patientVitals,
     required super.child,
   });
 
   final String encounterId;
   final String patientId;
+  final String? doctorId;
   final PatientVitalsModel? patientVitals;
 
   static EncounterScope? of(BuildContext context) =>
@@ -33,6 +35,7 @@ class EncounterScope extends InheritedWidget {
   bool updateShouldNotify(EncounterScope old) =>
       encounterId != old.encounterId ||
       patientId != old.patientId ||
+      doctorId != old.doctorId ||
       patientVitals != old.patientVitals;
 }
 
@@ -144,6 +147,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         return EncounterScope(
           encounterId: widget.encounterId,
           patientId: widget.patientId,
+          doctorId: _encounter?.doctorId,
           patientVitals: _patientVitals,
           child: Scaffold(
             backgroundColor: colorScheme.surface,

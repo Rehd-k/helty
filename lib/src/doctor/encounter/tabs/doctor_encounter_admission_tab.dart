@@ -57,6 +57,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
         expectedLOS: _losCtrl.text.trim().isEmpty ? null : _losCtrl.text.trim(),
         isolationRequired: _isolationRequired,
         specialInstructions: _instructionsCtrl.text.trim().isEmpty ? null : _instructionsCtrl.text.trim(),
+        attendingDoctorId: scope.doctorId,
       );
       await _encounterService.update(scope.encounterId, {'status': 'admitted'});
       if (!mounted) return;

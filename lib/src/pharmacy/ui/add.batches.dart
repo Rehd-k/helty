@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -20,7 +21,7 @@ class PendingBatchEntry {
   final DateTime? mfgDate;
   final DateTime expiryDate;
   final int quantity;
-  final double unitCost;
+  final double costPrice;
 
   PendingBatchEntry({
     required this.drug,
@@ -32,10 +33,10 @@ class PendingBatchEntry {
     this.mfgDate,
     required this.expiryDate,
     required this.quantity,
-    required this.unitCost,
+    required this.costPrice,
   });
 
-  double get lineTotal => quantity * unitCost;
+  double get lineTotal => quantity * costPrice;
 }
 
 @RoutePage()
@@ -104,15 +105,17 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
       final locResp = await _apiService.getPharmacyLocations(
         const PharmacyQueryParams(pageSize: 100),
       );
-      final supResp = await _apiService.getSuppliers(
-        const PharmacyQueryParams(pageSize: 500),
-      );
+      final suppliers = await _fetchAllSuppliers();
       if (mounted) {
         setState(() {
           _locations = locResp.items;
-          _suppliers = supResp.items;
+          _suppliers = suppliers;
           if (_selectedLocation == null && _locations.isNotEmpty) {
             _selectedLocation = _locations.first;
+          }
+          if (_selectedSupplierId != null &&
+              !_suppliers.any((s) => s.id == _selectedSupplierId)) {
+            _selectedSupplierId = null;
           }
         });
       }
@@ -121,12 +124,50 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     }
   }
 
+  Future<List<Supplier>> _fetchAllSuppliers() async {
+    const pageSize = 100;
+    var page = 1;
+    final all = <Supplier>[];
+
+    while (true) {
+      final response = await _apiService.getSuppliers(
+        PharmacyQueryParams(page: page, pageSize: pageSize),
+      );
+      if (response.items.isEmpty) break;
+      all.addAll(response.items);
+      if (!response.hasNext || all.length >= response.total) break;
+      page += 1;
+    }
+
+    final suppliersById = <String, Supplier>{};
+    for (final supplier in all) {
+      final id = supplier.id?.trim();
+      if (id == null || id.isEmpty) continue;
+      suppliersById[id] = supplier;
+    }
+
+    final suppliers = suppliersById.values.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return suppliers;
+  }
+
   void _onDrugSearchFocusChanged() {
+    // On desktop/web, clicking a dropdown item first blurs the text field.
+    // If we hide immediately on blur, the tap callback may never fire.
+    if (!_drugSearchFocus.hasFocus) {
+      Future.delayed(const Duration(milliseconds: 120), () {
+        if (!mounted) return;
+        if (_drugSearchFocus.hasFocus) return;
+        setState(() {
+          _showDrugDropdown = false;
+        });
+      });
+      return;
+    }
+
     setState(() {
       _showDrugDropdown =
-          _drugSearchFocus.hasFocus &&
-          _drugSearchCtrl.text.trim().isNotEmpty &&
-          _selectedDrug == null;
+          _drugSearchCtrl.text.trim().isNotEmpty && _selectedDrug == null;
     });
   }
 
@@ -204,7 +245,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     _selectedDrug = entry.drug;
     _selectedSupplierId = entry.supplierId;
     _batchNumberCtrl.text = entry.batchNumber ?? '';
-    _costPriceCtrl.text = entry.unitCost.toString();
+    _costPriceCtrl.text = entry.costPrice.toString();
     _quantityCtrl.text = entry.quantity.toString();
     _mfgDate = entry.mfgDate;
     _expiryDate = entry.expiryDate;
@@ -256,7 +297,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
       mfgDate: _mfgDate,
       expiryDate: _expiryDate!,
       quantity: qty,
-      unitCost: costPrice,
+      costPrice: costPrice,
     );
 
     setState(() {
@@ -302,8 +343,11 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
           batchNumber: entry.batchNumber,
           expiryDate: entry.expiryDate,
           quantityReceived: entry.quantity,
-          unitCost: entry.unitCost,
+          manufacturingDate: entry.mfgDate,
+          costPrice: entry.costPrice,
+          supplierId: entry.supplierId,
         );
+        print(batch.toJson());
         await _apiService.createDrugBatch(batch);
       }
       if (mounted) {
@@ -353,6 +397,9 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final selectableSuppliers = _suppliers
+        .where((s) => (s.id?.trim().isNotEmpty ?? false))
+        .toList();
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -457,36 +504,40 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: _suppliers.isEmpty
-                                  ? const SizedBox.shrink()
-                                  : _buildModernDropdown<String?>(
-                                      label: 'Supplier (Optional)',
-                                      hint: 'Select origin supplier',
-                                      value: _selectedSupplierId,
-                                      items: [
-                                        const DropdownMenuItem<String?>(
-                                          value: null,
-                                          child: Text('— None —'),
-                                        ),
-                                        ..._suppliers.map(
-                                          (s) => DropdownMenuItem<String?>(
-                                            value: s.id,
-                                            child: Text(
-                                              s.name,
-                                              style: TextStyle(fontSize: 13),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (v) => setState(
-                                        () => _selectedSupplierId = v,
+                              child: _buildModernDropdown<String?>(
+                                label: 'Supplier (Optional)',
+                                hint: selectableSuppliers.isEmpty
+                                    ? 'No suppliers available'
+                                    : 'Select origin supplier',
+                                value: selectableSuppliers.any(
+                                  (s) => s.id == _selectedSupplierId,
+                                )
+                                    ? _selectedSupplierId
+                                    : null,
+                                items: [
+                                  const DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text('— None —'),
+                                  ),
+                                  ...selectableSuppliers.map(
+                                    (s) => DropdownMenuItem<String?>(
+                                      value: s.id!,
+                                      child: Text(
+                                        s.name,
+                                        style: TextStyle(fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                  ),
+                                ],
+                                onChanged: (v) {
+                                  if (selectableSuppliers.isEmpty) return;
+                                  setState(() => _selectedSupplierId = v);
+                                },
+                              ),
                             ),
                           ],
                         ),
-                        if (_suppliers.isEmpty) const SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
@@ -695,10 +746,10 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
           const SizedBox(height: 16),
           _summaryRow('Line items', '${_pendingEntries.length}'),
           _summaryRow('Unique drugs', '$uniqueDrugs'),
-          _summaryRow('Total quantity', '$totalQty'),
+          _summaryRow('Total quantity', totalQty.toFinancial(isMoney: false)),
           _summaryRow(
             'Total value',
-            totalValue.toStringAsFixed(2),
+            totalValue.toFinancial(isMoney: true),
             isHighlight: true,
           ),
         ],
@@ -859,7 +910,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                             entry.batchNumber!.isNotEmpty)
                           _chip('Batch: ${entry.batchNumber}'),
                         _chip('Qty: ${entry.quantity}'),
-                        _chip('Unit: ${entry.unitCost.toStringAsFixed(2)}'),
+                        _chip('Unit: ${entry.costPrice.toStringAsFixed(2)}'),
                       ],
                     ),
                   ],
@@ -900,7 +951,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Line total: ${entry.lineTotal.toStringAsFixed(2)}',
+            'Line total: ${entry.lineTotal.toFinancial(isMoney: true)}',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -1083,7 +1134,9 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   )
                 : null,
-            onTap: () => _selectDrug(drug),
+            onTap: () {
+              _selectDrug(drug);
+            },
           );
         },
       ),

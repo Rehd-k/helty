@@ -82,19 +82,31 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
   Future<void> _loadSuppliers() async {
     setState(() => _isLoadingSuppliers = true);
     try {
-      final page = await _api.getSuppliers(
-        const PharmacyQueryParams(
-          pageSize: 500,
-          sortBy: 'name',
-          sortOrder: SortOrder.asc,
-        ),
-      );
+      final List<Supplier> all = [];
+      const pageSize = 100;
+      int page = 1;
+      while (true) {
+        final resp = await _api.getSuppliers(
+          PharmacyQueryParams(
+            page: page,
+            pageSize: pageSize,
+            sortBy: 'name',
+            sortOrder: SortOrder.asc,
+          ),
+        );
+        if (resp.items.isEmpty) break;
+        all.addAll(resp.items);
+        if (!resp.hasNext || all.length >= resp.total) break;
+        page++;
+      }
       if (!mounted) return;
       setState(() {
-        _suppliers = page.items;
+        _suppliers = all
+            .where((s) => s.id != null && s.id!.trim().isNotEmpty)
+            .toList();
       });
     } catch (_) {
-      // ignore, dropdown will just show "All"
+      if (mounted) setState(() => _suppliers = []);
     } finally {
       if (mounted) {
         setState(() => _isLoadingSuppliers = false);
@@ -105,15 +117,17 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
   Map<String, dynamic> _buildFilters() {
     final filters = <String, dynamic>{};
 
-    if (_selectedSupplierId != null && _selectedSupplierId!.isNotEmpty) {
-      filters['supplierId'] = _selectedSupplierId;
+    // Supplier filter (backend: supplierId)
+    if (_selectedSupplierId != null && _selectedSupplierId!.trim().isNotEmpty) {
+      filters['supplierId'] = _selectedSupplierId!.trim();
     }
 
-    if (_selectedCategory != 'All') {
-      // Backend already uses `therapeuticClass` filter for medicines.
-      filters['therapeuticClass'] = _selectedCategory;
+    // Category: backend may not support therapeuticClass on batch search; send anyway for future use
+    if (_selectedCategory != 'All' && _selectedCategory.trim().isNotEmpty) {
+      filters['therapeuticClass'] = _selectedCategory.trim();
     }
 
+    // Date filter: backend uses manufacturingDateFrom / manufacturingDateTo (and expiryDateFrom/To)
     final now = DateTime.now();
     DateTime? from;
     switch (_dateFilter) {
@@ -130,9 +144,9 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
         from = null;
         break;
     }
-
     if (from != null) {
-      filters['createdAtFrom'] = from.toIso8601String();
+      filters['manufacturingDateFrom'] = from.toIso8601String();
+      filters['manufacturingDateTo'] = now.toIso8601String();
     }
 
     return filters;
@@ -159,8 +173,8 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
       final rows = response.items.map((batch) {
         final receivedAt = batch.createdAt;
         final quantity = batch.quantityReceived;
-        final unitCost = batch.unitCost ?? 0;
-        final totalCost = quantity * unitCost;
+        final costPrice = batch.costPrice ?? 0;
+        final totalCost = quantity * costPrice;
 
         String status = 'Verified';
         if (batch.expiryDate != null && batch.expiryDate!.isBefore(now)) {
@@ -238,13 +252,13 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text(
           'Supply History',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
-        backgroundColor: Colors.white,
+
         elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
@@ -614,7 +628,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                 DataColumn(
                   label: const Text('TOTAL\nCOST'),
                   numeric: true,
-                  onSort: (idx, asc) => _onSort(idx, asc, 'unitCost'),
+                  onSort: (idx, asc) => _onSort(idx, asc, 'costPrice'),
                 ),
                 const DataColumn(label: Text('STATUS')),
               ],

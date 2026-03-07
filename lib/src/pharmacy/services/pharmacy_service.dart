@@ -29,15 +29,14 @@ class PharmacyQueryParams {
     SortOrder? sortOrder,
     String? search,
     Map<String, dynamic>? filters,
-  }) =>
-      PharmacyQueryParams(
-        page: page ?? this.page,
-        pageSize: pageSize ?? this.pageSize,
-        sortBy: sortBy ?? this.sortBy,
-        sortOrder: sortOrder ?? this.sortOrder,
-        search: search ?? this.search,
-        filters: filters ?? this.filters,
-      );
+  }) => PharmacyQueryParams(
+    page: page ?? this.page,
+    pageSize: pageSize ?? this.pageSize,
+    sortBy: sortBy ?? this.sortBy,
+    sortOrder: sortOrder ?? this.sortOrder,
+    search: search ?? this.search,
+    filters: filters ?? this.filters,
+  );
 }
 
 enum SortOrder { asc, desc }
@@ -58,7 +57,9 @@ class PharmacyApiService {
         ? (e.response!.data['message'] ?? e.message)?.toString()
         : e.message;
     throw UnknownException(
-      message?.toString().isNotEmpty == true ? message! : 'Pharmacy request failed.',
+      message?.toString().isNotEmpty == true
+          ? message!
+          : 'Pharmacy request failed.',
     );
   }
 
@@ -69,8 +70,10 @@ class PharmacyApiService {
       'pageSize': q.pageSize,
       if (q.sortBy != null && q.sortBy!.isNotEmpty) 'sortBy': q.sortBy,
       'sortOrder': q.sortOrder.name,
-      if (q.search != null && q.search!.trim().isNotEmpty) 'search': q.search!.trim(),
-      if (q.search != null && q.search!.trim().isNotEmpty) 'q': q.search!.trim(),
+      if (q.search != null && q.search!.trim().isNotEmpty)
+        'search': q.search!.trim(),
+      if (q.search != null && q.search!.trim().isNotEmpty)
+        'q': q.search!.trim(),
       ...q.filters,
     };
     return map;
@@ -85,43 +88,88 @@ class PharmacyApiService {
 
   /// Parses paginated response. Supports:
   /// - { data: [], total, page, pageSize }
+  /// - { data: [], total, skip, take } (backend uses skip/take)
   /// - { items: [], totalCount } with optional page/pageSize
+  /// - Nested: { data: { data: [], total, skip, take } }
+  /// - Null or non-Map/List: returns empty result instead of throwing
   PaginatedResponse<T> _parsePaginated<T>(
     Response<dynamic> resp,
     T Function(Map<String, dynamic>) fromJson,
   ) {
-    final data = resp.data;
+    dynamic data = resp.data;
 
-    // Some endpoints may return a bare list instead of a paginated envelope.
-    // In that case, treat the whole list as a single page.
+    // Null or unexpected type: return empty to avoid "Invalid paginated response"
+    if (data == null) {
+      return PaginatedResponse<T>(
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+      );
+    }
+
+    // Some endpoints return a bare list.
     if (data is List) {
       final items = data
-          .map((e) =>
-              fromJson(e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => fromJson(
+              e is Map<String, dynamic>
+                  ? e
+                  : Map<String, dynamic>.from(e as Map),
+            ),
+          )
           .toList();
-      final total = items.length;
       return PaginatedResponse<T>(
         items: items,
-        total: total,
+        total: items.length,
         page: 1,
-        pageSize: total,
+        pageSize: items.length,
       );
     }
 
     if (data is! Map) {
-      throw const UnknownException('Invalid paginated response.');
+      return PaginatedResponse<T>(
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+      );
     }
 
-    final map = Map<String, dynamic>.from(data);
+    Map<String, dynamic> map = Map<String, dynamic>.from(data);
+
+    // Nested payload: e.g. { data: { data: [], total, skip, take } }
+    final inner = map['data'];
+    if (inner is Map && inner is! List) {
+      final innerMap = Map<String, dynamic>.from(inner);
+      if (innerMap.containsKey('data') || innerMap.containsKey('items')) {
+        map = innerMap;
+      }
+    }
+
     final list = map['data'] ?? map['items'] ?? map['results'] ?? map['list'];
     final rawList = list is List ? list : <dynamic>[];
     final items = rawList
-        .map((e) => fromJson(e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => fromJson(
+            e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map),
+          ),
+        )
         .toList();
-    final total = _toInt(map['total'] ?? map['totalCount'] ?? map['totalRecords'], items.length);
-    final page = _toInt(map['page'], 1);
-    final pageSize = _toInt(map['pageSize'] ?? map['limit'], 20);
-    return PaginatedResponse<T>(items: items, total: total, page: page, pageSize: pageSize);
+    final total = _toInt(
+      map['total'] ?? map['totalCount'] ?? map['totalRecords'],
+      items.length,
+    );
+    final skip = _toInt(map['skip'], 0);
+    final take = _toInt(map['take'] ?? map['limit'], 20);
+    final page = _toInt(map['page'], take > 0 ? (skip ~/ take) + 1 : 1);
+    final pageSize = _toInt(map['pageSize'] ?? map['limit'], take);
+    return PaginatedResponse<T>(
+      items: items,
+      total: total,
+      page: page,
+      pageSize: pageSize > 0 ? pageSize : 20,
+    );
   }
 
   int _toInt(dynamic value, int fallback) {
@@ -134,10 +182,28 @@ class PharmacyApiService {
   // DRUGS
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /// Search drugs with full SearchDrugDto filters (GET /pharmacy/drugs).
+  Future<PaginatedResponse<Drug>> searchDrugs(SearchDrugParams dto) async {
+    try {
+      final resp = await _dio.get(
+        '$_basePath/drugs',
+        queryParameters: dto.toQuery(),
+      );
+      return _parsePaginated(resp, (m) => Drug.fromJson(m));
+    } on DioException catch (e) {
+      _handleError(e);
+    } on TypeError catch (e) {
+      throw UnknownException('Failed to parse drugs: ${e.toString()}');
+    }
+  }
+
   Future<PaginatedResponse<Drug>> getDrugs([PharmacyQueryParams? q]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/drugs', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/drugs',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => Drug.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
@@ -167,9 +233,14 @@ class PharmacyApiService {
   }
 
   Future<Drug> updateDrug(Drug drug) async {
-    if (drug.id == null || drug.id!.isEmpty) throw const ValidationException('Drug id required for update.');
+    if (drug.id == null || drug.id!.isEmpty) {
+      throw const ValidationException('Drug id required for update.');
+    }
     try {
-      final resp = await _dio.patch('$_basePath/drugs/${drug.id}', data: drug.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/drugs/${drug.id}',
+        data: drug.toJson(),
+      );
       return Drug.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -188,10 +259,15 @@ class PharmacyApiService {
   // MANUFACTURERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<Manufacturer>> getManufacturers([PharmacyQueryParams? q]) async {
+  Future<PaginatedResponse<Manufacturer>> getManufacturers([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/manufacturers', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/manufacturers',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => Manufacturer.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
@@ -213,7 +289,10 @@ class PharmacyApiService {
 
   Future<Manufacturer> createManufacturer(Manufacturer manufacturer) async {
     try {
-      final resp = await _dio.post('$_basePath/manufacturers', data: manufacturer.toJson());
+      final resp = await _dio.post(
+        '$_basePath/manufacturers',
+        data: manufacturer.toJson(),
+      );
       return Manufacturer.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -225,7 +304,10 @@ class PharmacyApiService {
       throw const ValidationException('Manufacturer id required for update.');
     }
     try {
-      final resp = await _dio.patch('$_basePath/manufacturers/${manufacturer.id}', data: manufacturer.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/manufacturers/${manufacturer.id}',
+        data: manufacturer.toJson(),
+      );
       return Manufacturer.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -244,10 +326,15 @@ class PharmacyApiService {
   // SUPPLIERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<Supplier>> getSuppliers([PharmacyQueryParams? q]) async {
+  Future<PaginatedResponse<Supplier>> getSuppliers([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/suppliers', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/suppliers',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => Supplier.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
@@ -269,7 +356,10 @@ class PharmacyApiService {
 
   Future<Supplier> createSupplier(Supplier supplier) async {
     try {
-      final resp = await _dio.post('$_basePath/suppliers', data: supplier.toJson());
+      final resp = await _dio.post(
+        '$_basePath/suppliers',
+        data: supplier.toJson(),
+      );
       return Supplier.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -281,7 +371,10 @@ class PharmacyApiService {
       throw const ValidationException('Supplier id required for update.');
     }
     try {
-      final resp = await _dio.patch('$_basePath/suppliers/${supplier.id}', data: supplier.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/suppliers/${supplier.id}',
+        data: supplier.toJson(),
+      );
       return Supplier.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -300,10 +393,15 @@ class PharmacyApiService {
   // CONSUMABLES
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<Consumable>> getConsumables([PharmacyQueryParams? q]) async {
+  Future<PaginatedResponse<Consumable>> getConsumables([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/consumables', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/consumables',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => Consumable.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
@@ -325,7 +423,10 @@ class PharmacyApiService {
 
   Future<Consumable> createConsumable(Consumable consumable) async {
     try {
-      final resp = await _dio.post('$_basePath/consumables', data: consumable.toJson());
+      final resp = await _dio.post(
+        '$_basePath/consumables',
+        data: consumable.toJson(),
+      );
       return Consumable.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -337,7 +438,10 @@ class PharmacyApiService {
       throw const ValidationException('Consumable id required for update.');
     }
     try {
-      final resp = await _dio.patch('$_basePath/consumables/${consumable.id}', data: consumable.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/consumables/${consumable.id}',
+        data: consumable.toJson(),
+      );
       return Consumable.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -356,15 +460,22 @@ class PharmacyApiService {
   // PURCHASE ORDERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<PurchaseOrder>> getPurchaseOrders([PharmacyQueryParams? q]) async {
+  Future<PaginatedResponse<PurchaseOrder>> getPurchaseOrders([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/purchase-orders', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/purchase-orders',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => PurchaseOrder.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
     } on TypeError catch (e) {
-      throw UnknownException('Failed to parse purchase orders: ${e.toString()}');
+      throw UnknownException(
+        'Failed to parse purchase orders: ${e.toString()}',
+      );
     }
   }
 
@@ -381,7 +492,10 @@ class PharmacyApiService {
 
   Future<PurchaseOrder> createPurchaseOrder(PurchaseOrder order) async {
     try {
-      final resp = await _dio.post('$_basePath/purchase-orders', data: order.toJson());
+      final resp = await _dio.post(
+        '$_basePath/purchase-orders',
+        data: order.toJson(),
+      );
       final data = _mapFromResponse(resp);
       if (data.isEmpty || data['id'] == null) return order;
       return PurchaseOrder.fromJson(data);
@@ -395,7 +509,10 @@ class PharmacyApiService {
       throw const ValidationException('Purchase order id required for update.');
     }
     try {
-      final resp = await _dio.patch('$_basePath/purchase-orders/${order.id}', data: order.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/purchase-orders/${order.id}',
+        data: order.toJson(),
+      );
       return PurchaseOrder.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -414,10 +531,29 @@ class PharmacyApiService {
   // DRUG BATCHES
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<DrugBatch>> getDrugBatches([PharmacyQueryParams? q]) async {
+  /// Builds query for batch search: backend expects limit, skip, sortBy, sortOrder + filters.
+  Map<String, dynamic> _buildBatchSearchQuery(PharmacyQueryParams q) {
+    final skip = ((q.page - 1) * q.pageSize).clamp(0, 0x7fffffff);
+    final limit = q.pageSize.clamp(1, 100);
+    final map = <String, dynamic>{
+      'limit': limit,
+      'skip': skip,
+      'sortBy': q.sortBy ?? 'expiryDate',
+      'sortOrder': q.sortOrder.name,
+      ...q.filters,
+    };
+    return map;
+  }
+
+  Future<PaginatedResponse<DrugBatch>> getDrugBatches([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/drug-batches', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/drug-batches',
+        queryParameters: _buildBatchSearchQuery(params),
+      );
       return _parsePaginated(resp, (m) => DrugBatch.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
@@ -439,7 +575,7 @@ class PharmacyApiService {
 
   Future<DrugBatch> createDrugBatch(DrugBatch batch) async {
     try {
-      final resp = await _dio.post('$_basePath/drug-batches', data: batch.toJson());
+      final resp = await _dio.post('$_basePath/batches', data: batch.toJson());
       return DrugBatch.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -451,7 +587,10 @@ class PharmacyApiService {
       throw const ValidationException('Drug batch id required for update.');
     }
     try {
-      final resp = await _dio.patch('$_basePath/drug-batches/${batch.id}', data: batch.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/drug-batches/${batch.id}',
+        data: batch.toJson(),
+      );
       return DrugBatch.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -470,10 +609,15 @@ class PharmacyApiService {
   // GOODS RECEIPTS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<GoodsReceipt>> getGoodsReceipts([PharmacyQueryParams? q]) async {
+  Future<PaginatedResponse<GoodsReceipt>> getGoodsReceipts([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/goods-receipts', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/goods-receipts',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => GoodsReceipt.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
@@ -495,7 +639,10 @@ class PharmacyApiService {
 
   Future<GoodsReceipt> createGoodsReceipt(GoodsReceipt receipt) async {
     try {
-      final resp = await _dio.post('$_basePath/goods-receipts', data: receipt.toJson());
+      final resp = await _dio.post(
+        '$_basePath/goods-receipts',
+        data: receipt.toJson(),
+      );
       return GoodsReceipt.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -514,15 +661,22 @@ class PharmacyApiService {
   // STOCK TRANSFERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<StockTransfer>> getStockTransfers([PharmacyQueryParams? q]) async {
+  Future<PaginatedResponse<StockTransfer>> getStockTransfers([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/stock-transfers', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/stock-transfers',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => StockTransfer.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
     } on TypeError catch (e) {
-      throw UnknownException('Failed to parse stock transfers: ${e.toString()}');
+      throw UnknownException(
+        'Failed to parse stock transfers: ${e.toString()}',
+      );
     }
   }
 
@@ -539,7 +693,10 @@ class PharmacyApiService {
 
   Future<StockTransfer> createStockTransfer(StockTransfer transfer) async {
     try {
-      final resp = await _dio.post('$_basePath/stock-transfers', data: transfer.toJson());
+      final resp = await _dio.post(
+        '$_basePath/stock-transfers',
+        data: transfer.toJson(),
+      );
       return StockTransfer.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -551,7 +708,10 @@ class PharmacyApiService {
       throw const ValidationException('Stock transfer id required for update.');
     }
     try {
-      final resp = await _dio.patch('$_basePath/stock-transfers/${transfer.id}', data: transfer.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/stock-transfers/${transfer.id}',
+        data: transfer.toJson(),
+      );
       return StockTransfer.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -570,10 +730,15 @@ class PharmacyApiService {
   // DISPENSATIONS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<Dispensation>> getDispensations([PharmacyQueryParams? q]) async {
+  Future<PaginatedResponse<Dispensation>> getDispensations([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/dispensations', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/dispensations',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => Dispensation.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
@@ -595,7 +760,10 @@ class PharmacyApiService {
 
   Future<Dispensation> createDispensation(Dispensation dispensation) async {
     try {
-      final resp = await _dio.post('$_basePath/dispensations', data: dispensation.toJson());
+      final resp = await _dio.post(
+        '$_basePath/dispensations',
+        data: dispensation.toJson(),
+      );
       return Dispensation.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -607,7 +775,10 @@ class PharmacyApiService {
       throw const ValidationException('Dispensation id required for update.');
     }
     try {
-      final resp = await _dio.patch('$_basePath/dispensations/${dispensation.id}', data: dispensation.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/dispensations/${dispensation.id}',
+        data: dispensation.toJson(),
+      );
       return Dispensation.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -626,15 +797,22 @@ class PharmacyApiService {
   // PHARMACY LOCATIONS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<PaginatedResponse<PharmacyLocation>> getPharmacyLocations([PharmacyQueryParams? q]) async {
+  Future<PaginatedResponse<PharmacyLocation>> getPharmacyLocations([
+    PharmacyQueryParams? q,
+  ]) async {
     final params = q ?? const PharmacyQueryParams();
     try {
-      final resp = await _dio.get('$_basePath/locations', queryParameters: _buildQuery(params));
+      final resp = await _dio.get(
+        '$_basePath/locations',
+        queryParameters: _buildQuery(params),
+      );
       return _parsePaginated(resp, (m) => PharmacyLocation.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
     } on TypeError catch (e) {
-      throw UnknownException('Failed to parse pharmacy locations: ${e.toString()}');
+      throw UnknownException(
+        'Failed to parse pharmacy locations: ${e.toString()}',
+      );
     }
   }
 
@@ -645,25 +823,39 @@ class PharmacyApiService {
     } on DioException catch (e) {
       _handleError(e);
     } on TypeError catch (e) {
-      throw UnknownException('Failed to parse pharmacy location: ${e.toString()}');
+      throw UnknownException(
+        'Failed to parse pharmacy location: ${e.toString()}',
+      );
     }
   }
 
-  Future<PharmacyLocation> createPharmacyLocation(PharmacyLocation location) async {
+  Future<PharmacyLocation> createPharmacyLocation(
+    PharmacyLocation location,
+  ) async {
     try {
-      final resp = await _dio.post('$_basePath/locations', data: location.toJson());
+      final resp = await _dio.post(
+        '$_basePath/locations',
+        data: location.toJson(),
+      );
       return PharmacyLocation.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
     }
   }
 
-  Future<PharmacyLocation> updatePharmacyLocation(PharmacyLocation location) async {
+  Future<PharmacyLocation> updatePharmacyLocation(
+    PharmacyLocation location,
+  ) async {
     if (location.id == null || location.id!.isEmpty) {
-      throw const ValidationException('Pharmacy location id required for update.');
+      throw const ValidationException(
+        'Pharmacy location id required for update.',
+      );
     }
     try {
-      final resp = await _dio.patch('$_basePath/locations/${location.id}', data: location.toJson());
+      final resp = await _dio.patch(
+        '$_basePath/locations/${location.id}',
+        data: location.toJson(),
+      );
       return PharmacyLocation.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);

@@ -19,6 +19,7 @@ class AdmissionService {
     String? expectedLOS,
     bool isolationRequired = false,
     String? specialInstructions,
+    String? attendingDoctorId,
   }) async {
     final body = <String, dynamic>{
       'patientId': patientId,
@@ -32,6 +33,8 @@ class AdmissionService {
       if (expectedLOS != null && expectedLOS.isNotEmpty) 'expectedLOS': expectedLOS,
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,
+      if (attendingDoctorId != null && attendingDoctorId.isNotEmpty)
+        'attendingDoctorId': attendingDoctorId,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/admissions',
@@ -40,5 +43,27 @@ class AdmissionService {
     final data = response.data;
     if (data == null) throw StateError('Create admission returned no data');
     return AdmissionModel.fromJson(data);
+  }
+
+  /// GET /admissions — list admissions. Query: status, ward, attendingDoctorId.
+  Future<List<AdmissionModel>> list({
+    String? status,
+    String? ward,
+    String? attendingDoctorId,
+  }) async {
+    final query = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) query['status'] = status;
+    if (ward != null && ward.isNotEmpty) query['ward'] = ward;
+    if (attendingDoctorId != null && attendingDoctorId.isNotEmpty) query['attendingDoctorId'] = attendingDoctorId;
+    final response = await _dio.get<dynamic>(
+      '/admissions',
+      queryParameters: query.isEmpty ? null : query,
+    );
+    final data = response.data;
+    if (data == null || data is! List) return [];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdmissionModel.fromJson)
+        .toList();
   }
 }

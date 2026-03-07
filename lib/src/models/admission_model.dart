@@ -11,6 +11,9 @@ class AdmissionModel {
     this.isolationRequired = false,
     this.specialInstructions,
     required this.status,
+    this.attendingDoctorId,
+    this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -24,6 +27,9 @@ class AdmissionModel {
   final bool isolationRequired;
   final String? specialInstructions;
   final String status;
+  final String? attendingDoctorId;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   factory AdmissionModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
@@ -39,6 +45,13 @@ class AdmissionModel {
       isolationRequired: json['isolationRequired'] == true,
       specialInstructions: json['specialInstructions']?.toString(),
       status: (json['status']?.toString()) ?? 'Pending',
+      attendingDoctorId: json['attendingDoctorId']?.toString(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString())
+          : null,
     );
   }
 }

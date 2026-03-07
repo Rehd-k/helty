@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/patient_header_card.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/paitients/patient_model.dart';
@@ -86,25 +87,29 @@ class _InpatientPatientViewScreenState
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return AutoTabsRouter(
-      routes: [
-        InpatientOverviewRoute(),
-        InpatientVitalsRoute(),
-        InpatientMedicationsRoute(),
-        InpatientIVRoute(),
-        InpatientIORoute(),
-        InpatientNotesRoute(),
-        InpatientProceduresRoute(),
-        InpatientCarePlanRoute(),
-        InpatientMonitoringRoute(),
-        InpatientLabResultsRoute(),
-        InpatientAlertsRoute(),
-        InpatientHandoverRoute(),
-      ],
-      builder: (context, child) {
-        final tabsRouter = AutoTabsRouter.of(context);
+    return InpatientViewScope(
+      patientId: widget.patientId,
+      admissionId: widget.admissionId,
+      child: AutoTabsRouter(
+        routes: [
+          InpatientOverviewRoute(),
+          InpatientVitalsRoute(),
+          InpatientMedicationsRoute(),
+          InpatientIVRoute(),
+          InpatientIORoute(),
+          InpatientNotesRoute(),
+          InpatientWardRoundTab(),
+          InpatientProceduresRoute(),
+          InpatientCarePlanRoute(),
+          InpatientMonitoringRoute(),
+          InpatientLabResultsRoute(),
+          InpatientAlertsRoute(),
+          InpatientHandoverRoute(),
+        ],
+        builder: (context, child) {
+          final tabsRouter = AutoTabsRouter.of(context);
 
-        return Scaffold(
+          return Scaffold(
           backgroundColor: colorScheme.surface,
           body: SafeArea(
             child: LayoutBuilder(
@@ -157,7 +162,8 @@ class _InpatientPatientViewScreenState
             ),
           ),
         );
-      },
+        },
+      ),
     );
   }
 
@@ -323,6 +329,7 @@ class _InpatientPatientViewScreenState
       'IV',
       'I&O',
       'Notes',
+      'Ward round',
       'Procedures',
       'Care Plan',
       'Monitoring',

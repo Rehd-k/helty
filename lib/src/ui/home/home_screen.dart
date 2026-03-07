@@ -62,6 +62,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   List<MenuItem> _menuForRole(String role, String accountType) {
     final common = <MenuItem>[];
+    if (_isObstetricsAllowed(accountType)) {
+      common.addAll(obstetrics);
+    }
+
     print('role: $role, accountType: $accountType');
     if (role == 'receptionist') {
       common.addAll(frontDesk);
@@ -118,6 +122,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return common;
+  }
+
+  bool _isObstetricsAllowed(String accountType) {
+    final t = accountType.toLowerCase();
+    return t == 'ong' ||
+        t == 'consultant' ||
+        t == 'inpatient_doctor' ||
+        t == 'theatere';
   }
 
   @override
@@ -498,6 +510,7 @@ class _SidebarEntry extends StatefulWidget {
 const _doctorDashboardChildNames = {
   'DoctorOutpatientListRoute',
   'DoctorWalkInQueueRoute',
+  'WardRoundsRoute',
   'InpatientsListRoute',
   'DoctorPendingLabsRoute',
   'DoctorPendingImagingRoute',

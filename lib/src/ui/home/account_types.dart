@@ -196,6 +196,11 @@ final doctors = <MenuItem>[
     icon: Icons.people_outline,
     route: DoctorWalkInQueueRoute(),
   ),
+  MenuItem(
+    label: 'Ward Rounds',
+    icon: Icons.medical_services_outlined,
+    route: WardRoundsRoute(),
+  ),
   MenuItem(label: 'Inpatients', icon: Icons.bed, route: InpatientsListRoute()),
   MenuItem(
     label: 'Pending Lab Results',
@@ -289,5 +294,23 @@ final phamDispense = <MenuItem>[
     label: 'Render Medicine',
     icon: Icons.medication_outlined,
     route: RenderServiceRoute(),
+  ),
+];
+
+final obstetrics = <MenuItem>[
+  MenuItem(
+    label: 'O&G Dashboard',
+    icon: Icons.pregnant_woman_rounded,
+    route: ObstetricsDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Pregnancies (by patient)',
+    icon: Icons.family_restroom_rounded,
+    route: ObstetricsPatientSelectRoute(),
+  ),
+  MenuItem(
+    label: 'Gynaecology procedures',
+    icon: Icons.medical_services_rounded,
+    route: ObstetricsGynaeProceduresRoute(),
   ),
 ];

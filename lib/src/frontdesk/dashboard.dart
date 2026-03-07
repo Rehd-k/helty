@@ -116,7 +116,7 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
         ),
         const PopupMenuItem(
           value: 'ward_rounds',
-          child: Text("Word Rounds", style: TextStyle(fontSize: 12)),
+          child: Text("Ward Rounds", style: TextStyle(fontSize: 12)),
         ),
         const PopupMenuItem(
           value: 'consults',
@@ -128,10 +128,13 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
         ),
       ],
     ).then((value) {
+      if (!mounted) return;
       if (value == 'enlist_consult') {
         setState(() {
           _patients[index]['enlisted'] = !isEnlisted;
         });
+      } else if (value == 'ward_rounds') {
+        context.router.push(const InpatientsListRoute());
       }
       // Handle other actions here...
     });

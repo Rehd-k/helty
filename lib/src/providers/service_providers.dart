@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/service_model.dart';
+import '../obstetrics/services/obstetrics_service.dart';
 import '../services/service_service.dart';
 
 final serviceServiceProvider = Provider<ServiceService>((ref) {
@@ -21,4 +22,8 @@ final serviceDetailProvider = FutureProvider.family<ServiceModel, String>((
 ) async {
   final service = ref.read(serviceServiceProvider);
   return service.getServiceById(id);
+});
+
+final obstetricsServiceProvider = Provider<ObstetricsService>((ref) {
+  return ObstetricsService();
 });

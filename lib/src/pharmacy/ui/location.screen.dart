@@ -1,28 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-// Mock model for a Pharmacy Location
-class PharmacyLocation {
-  final String id;
-  final String name;
-  final String type; // 'MAIN STORE', 'COLD ROOM', 'DISPENSARY'
-  final String managerName;
-  final String? managerAvatarUrl; // null means use initials
-  final int currentItems;
-  final int maxCapacity;
-
-  PharmacyLocation({
-    required this.id,
-    required this.name,
-    required this.type,
-    required this.managerName,
-    this.managerAvatarUrl,
-    required this.currentItems,
-    required this.maxCapacity,
-  });
-
-  double get capacityPercentage => currentItems / maxCapacity;
-}
+import '../../core/errors/app_exception.dart';
+import '../models/pharmacy_model.dart';
+import '../services/pharmacy_service.dart';
 
 @RoutePage()
 class PharmacyLocationScreen extends StatefulWidget {
@@ -34,75 +15,90 @@ class PharmacyLocationScreen extends StatefulWidget {
 
 class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _apiService = PharmacyApiService();
 
-  // Form Controllers
   final _nameCtrl = TextEditingController();
-  final _capacityCtrl = TextEditingController();
-  String? _selectedType;
-  String? _selectedManager;
+  final _descriptionCtrl = TextEditingController();
 
-  // Filter State
+  String? _selectedType; // display label: Store, Dispensary, Cold Room, Ward
+  String? _selectedStaffId; // optional manager/staff id
+
   String _activeFilter = 'All';
+  List<PharmacyLocation> _locations = [];
+  bool _loading = false;
+  String? _editingId; // when non-null, form is in edit mode
 
-  // Mock Data matching the screenshot
-  final List<PharmacyLocation> _locations = [
-    PharmacyLocation(
-      id: 'loc-1',
-      name: 'Central Hospital Pharmacy',
-      type: 'MAIN STORE',
-      managerName: 'Dr. Sarah Jenkins',
-      managerAvatarUrl: 'avatar', // Simulated avatar presence
-      currentItems: 8500,
-      maxCapacity: 10000,
-    ),
-    PharmacyLocation(
-      id: 'loc-2',
-      name: 'Vaccine Storage Alpha',
-      type: 'COLD ROOM',
-      managerName: 'Mark Thompson',
-      managerAvatarUrl:
-          null, // Will show initials 'MR' (Using MT for Mark Thompson)
-      currentItems: 840,
-      maxCapacity: 2000,
-    ),
-    PharmacyLocation(
-      id: 'loc-3',
-      name: 'Downtown Dispensary',
-      type: 'DISPENSARY',
-      managerName: 'Alice Cooper',
-      managerAvatarUrl: null,
-      currentItems: 1200,
-      maxCapacity: 5000,
-    ),
-  ];
-
-  final List<String> _locationTypes = [
+  static const List<String> _locationTypeLabels = [
     'Store',
     'Dispensary',
     'Cold Room',
     'Ward',
   ];
-  final List<String> _managers = [
-    'Dr. Sarah Jenkins',
-    'Mark Thompson',
-    'Alice Cooper',
-    'Unassigned',
+  static const List<PharmacyLocationType> _locationTypeValues = [
+    PharmacyLocationType.STORE,
+    PharmacyLocationType.DISPENSARY,
+    PharmacyLocationType.COLD_ROOM,
+    PharmacyLocationType.WARD,
   ];
 
-  // Theme Red Color from the screenshot
-  final Color _primaryRed = const Color(
-    0xFFE50914,
-  ); // Adjust to match exact hex if needed
+  // Optional: list of staff for manager dropdown (id -> display name). Populate from your staff API if available.
+  final Map<String, String> _staffOptions = {};
+
+  final Color _primaryRed = const Color(0xFFE50914);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocations();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _descriptionCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadLocations() async {
+    setState(() => _loading = true);
+    try {
+      final resp = await _apiService.getPharmacyLocations(
+        const PharmacyQueryParams(pageSize: 200),
+      );
+      if (mounted) {
+        setState(() {
+          _locations = resp.items;
+          _loading = false;
+        });
+      }
+    } on AppException catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showSnack(e.message, isError: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showSnack(e.toString(), isError: true);
+      }
+    }
+  }
 
   List<PharmacyLocation> get _filteredLocations {
     if (_activeFilter == 'All') return _locations;
     if (_activeFilter == 'Main Stores') {
       return _locations
-          .where((l) => l.type == 'MAIN STORE' || l.type == 'COLD ROOM')
+          .where(
+            (l) =>
+                l.type == PharmacyLocationType.STORE ||
+                l.type == PharmacyLocationType.COLD_ROOM,
+          )
           .toList();
     }
     if (_activeFilter == 'Dispensaries') {
-      return _locations.where((l) => l.type == 'DISPENSARY').toList();
+      return _locations
+          .where((l) => l.type == PharmacyLocationType.DISPENSARY)
+          .toList();
     }
     return _locations;
   }
@@ -111,35 +107,197 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     if (filterType == 'All') return _locations.length;
     if (filterType == 'Main Stores') {
       return _locations
-          .where((l) => l.type == 'MAIN STORE' || l.type == 'COLD ROOM')
+          .where(
+            (l) =>
+                l.type == PharmacyLocationType.STORE ||
+                l.type == PharmacyLocationType.COLD_ROOM,
+          )
           .length;
     }
     if (filterType == 'Dispensaries') {
-      return _locations.where((l) => l.type == 'DISPENSARY').length;
+      return _locations
+          .where((l) => l.type == PharmacyLocationType.DISPENSARY)
+          .length;
     }
     return 0;
   }
 
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _capacityCtrl.dispose();
-    super.dispose();
+  PharmacyLocationType _typeFromLabel(String? label) {
+    if (label == null) return PharmacyLocationType.STORE;
+    final i = _locationTypeLabels.indexOf(label);
+    if (i >= 0 && i < _locationTypeValues.length) return _locationTypeValues[i];
+    return PharmacyLocationType.STORE;
+  }
+
+  String _labelFromType(PharmacyLocationType type) {
+    final i = _locationTypeValues.indexOf(type);
+    if (i >= 0 && i < _locationTypeLabels.length) return _locationTypeLabels[i];
+    return type.name;
+  }
+
+  void _clearForm() {
+    setState(() {
+      _editingId = null;
+      _nameCtrl.clear();
+      _descriptionCtrl.clear();
+      _selectedType = null;
+      _selectedStaffId = null;
+    });
+  }
+
+  void _fillForm(PharmacyLocation loc) {
+    _nameCtrl.text = loc.name;
+    _descriptionCtrl.text = loc.description ?? '';
+    _selectedType = _labelFromType(loc.type);
+    _selectedStaffId = loc.staffId;
+    _editingId = loc.id;
+  }
+
+  Future<void> _saveLocation() async {
+    if (!_formKey.currentState!.validate()) return;
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      _showSnack('Location name is required', isError: true);
+      return;
+    }
+    final type = _typeFromLabel(_selectedType?.toUpperCase());
+    final description = _descriptionCtrl.text.trim();
+    final staffId = _selectedStaffId?.trim().isEmpty == true
+        ? null
+        : _selectedStaffId;
+
+    setState(() => _loading = true);
+    try {
+      if (_editingId != null) {
+        final updated = PharmacyLocation(
+          id: _editingId,
+          name: name,
+          type: type,
+          description: description.isEmpty ? null : description,
+          staffId: staffId,
+          staffName: staffId != null ? _staffOptions[staffId] : null,
+          isActive: true,
+        );
+        await _apiService.updatePharmacyLocation(updated);
+        if (mounted) {
+          _showSnack('Location updated.');
+          _clearForm();
+          _loadLocations();
+        }
+      } else {
+        final created = PharmacyLocation(
+          name: name,
+          type: type,
+          description: description.isEmpty ? null : description,
+          staffId: staffId,
+          isActive: true,
+        );
+        await _apiService.createPharmacyLocation(created);
+        if (mounted) {
+          _showSnack('Location saved.');
+          _clearForm();
+          _loadLocations();
+        }
+      }
+    } on AppException catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showSnack(e.message, isError: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showSnack(e.toString(), isError: true);
+      }
+    }
+  }
+
+  Future<void> _editLocation(PharmacyLocation location) async {
+    if (location.id == null || location.id!.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final loc = await _apiService.getPharmacyLocationById(location.id!);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _fillForm(loc);
+        });
+      }
+    } on AppException catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showSnack(e.message, isError: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showSnack(e.toString(), isError: true);
+      }
+    }
+  }
+
+  Future<void> _deleteLocation(PharmacyLocation location) async {
+    if (location.id == null || location.id!.isEmpty) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete location?'),
+        content: Text('Delete "${location.name}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    setState(() => _loading = true);
+    try {
+      await _apiService.deletePharmacyLocation(location.id!);
+      if (mounted) {
+        _showSnack('Location deleted.');
+        if (_editingId == location.id) _clearForm();
+        _loadLocations();
+      }
+    } on AppException catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showSnack(e.message, isError: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showSnack(e.toString(), isError: true);
+      }
+    }
+  }
+
+  void _showSnack(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : null,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F8), // Light grey background
+      backgroundColor: const Color(0xFFF4F6F8),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left Side: Form Panel
             SizedBox(width: 320, child: _buildFormPanel()),
             const SizedBox(width: 24),
-            // Right Side: Locations Grid and Filters
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,8 +313,6 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
       ),
     );
   }
-
-  // --- Left Panel: Form ---
 
   Widget _buildFormPanel() {
     return Container(
@@ -179,9 +335,9 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Add New Location',
-              style: TextStyle(
+            Text(
+              _editingId != null ? 'Edit Location' : 'Add New Location',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -190,52 +346,36 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
-
             _buildFormLabel('Location Name', isRequired: true),
             _buildTextField(
               controller: _nameCtrl,
               hint: 'e.g. Downtown Dispensary',
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Required' : null,
             ),
-
             _buildFormLabel('Location Type', isRequired: true),
             _buildDropdown(
               value: _selectedType,
               hint: 'Select location type',
-              items: _locationTypes,
+              items: _locationTypeLabels,
               onChanged: (v) => setState(() => _selectedType = v),
             ),
-
-            _buildFormLabel('Assign Manager'),
-            _buildDropdown(
-              value: _selectedManager,
-              hint: 'Select a manager',
-              items: _managers,
-              onChanged: (v) => setState(() => _selectedManager = v),
-            ),
-
-            _buildFormLabel('Storage Capacity (Items)'),
+            _buildFormLabel('Assign Manager (staff ID)'),
+            _buildStaffDropdown(),
+            _buildFormLabel('Description'),
             _buildTextField(
-              controller: _capacityCtrl,
-              hint: 'e.g. 5000',
-              keyboardType: TextInputType.number,
+              controller: _descriptionCtrl,
+              hint: 'Optional description',
+              maxLines: 2,
             ),
-
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {
-                      _nameCtrl.clear();
-                      _capacityCtrl.clear();
-                      setState(() {
-                        _selectedType = null;
-                        _selectedManager = null;
-                      });
-                    },
+                    onPressed: _loading ? null : _clearForm,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.grey.shade300),
@@ -253,14 +393,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // Submit logic here
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Location Saved!')),
-                        );
-                      }
-                    },
+                    onPressed: _loading ? null : _saveLocation,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: _primaryRed,
@@ -270,15 +403,70 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text(
-                      'Save Location',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                    child: _loading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _editingId != null ? 'Update' : 'Save Location',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
                   ),
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStaffDropdown() {
+    return DropdownButtonFormField<String>(
+      initialValue:
+          _selectedStaffId == null ||
+              _selectedStaffId!.isEmpty ||
+              !_staffOptions.containsKey(_selectedStaffId)
+          ? null
+          : _selectedStaffId,
+      items: [
+        const DropdownMenuItem<String>(
+          value: null,
+          child: Text('— None —', style: TextStyle(fontSize: 13)),
+        ),
+        ..._staffOptions.entries.map(
+          (e) => DropdownMenuItem<String>(
+            value: e.key,
+            child: Text(e.value, style: const TextStyle(fontSize: 13)),
+          ),
+        ),
+      ],
+      onChanged: (v) => setState(() => _selectedStaffId = v),
+      decoration: InputDecoration(
+        hintText: 'Select manager',
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade400),
         ),
       ),
     );
@@ -311,10 +499,14 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     required TextEditingController controller,
     required String hint,
     TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+    String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      maxLines: maxLines,
+      validator: validator,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
@@ -357,11 +549,6 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
           )
           .toList(),
       onChanged: onChanged,
-      icon: Icon(
-        Icons.keyboard_arrow_down,
-        color: Colors.grey.shade600,
-        size: 20,
-      ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
@@ -384,10 +571,13 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
           borderSide: BorderSide(color: Colors.grey.shade400),
         ),
       ),
+      icon: Icon(
+        Icons.keyboard_arrow_down,
+        color: Colors.grey.shade600,
+        size: 20,
+      ),
     );
   }
-
-  // --- Right Panel: Top Bar & Filters ---
 
   Widget _buildTopBar() {
     return Container(
@@ -399,7 +589,6 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
       ),
       child: Row(
         children: [
-          // Search Input
           Expanded(
             flex: 2,
             child: TextField(
@@ -422,7 +611,6 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
             ),
           ),
           const Spacer(),
-          // Filter Tabs
           Row(
             children: [
               _buildFilterTab('All'),
@@ -440,7 +628,6 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   Widget _buildFilterTab(String label) {
     final isActive = _activeFilter == label;
     final count = _countType(label);
-
     return InkWell(
       onTap: () => setState(() => _activeFilter = label),
       borderRadius: BorderRadius.circular(20),
@@ -464,13 +651,22 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     );
   }
 
-  // --- Right Panel: Locations Grid ---
-
   Widget _buildLocationsGrid() {
+    if (_loading && _locations.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_filteredLocations.isEmpty) {
+      return Center(
+        child: Text(
+          'No locations yet. Add one using the form.',
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+        ),
+      );
+    }
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 400, // Max width of a card before it wraps
-        childAspectRatio: 1.5, // Aspect ratio to match screenshot proportions
+        maxCrossAxisExtent: 400,
+        childAspectRatio: 1.5,
         crossAxisSpacing: 24,
         mainAxisSpacing: 24,
       ),
@@ -482,23 +678,15 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   }
 
   Widget _buildLocationCard(PharmacyLocation location) {
-    final pct = location.capacityPercentage;
-
-    // Determine progress bar color based on capacity
-    Color progressColor = Colors.green;
-    if (pct > 0.8) {
-      progressColor = _primaryRed;
-    } else if (pct > 0.4) {
-      progressColor = Colors.orange;
-    }
-
-    // Determine Icon based on type
+    final typeLabel = _labelFromType(location.type);
     IconData typeIcon = Icons.store;
     Color iconColor = _primaryRed;
-    if (location.type == 'COLD ROOM') {
+    if (location.type == PharmacyLocationType.COLD_ROOM) {
       typeIcon = Icons.ac_unit;
-    } else if (location.type == 'DISPENSARY') {
+    } else if (location.type == PharmacyLocationType.DISPENSARY) {
       typeIcon = Icons.local_pharmacy;
+    } else if (location.type == PharmacyLocationType.WARD) {
+      typeIcon = Icons.medical_services_outlined;
     }
 
     return Container(
@@ -517,7 +705,6 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          // Subtle background blob/shape at top right
           Positioned(
             top: -30,
             right: -20,
@@ -530,13 +717,11 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
               ),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Row (Type + Menu)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -545,7 +730,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                         Icon(typeIcon, color: iconColor, size: 16),
                         const SizedBox(width: 8),
                         Text(
-                          location.type,
+                          typeLabel.toUpperCase(),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -558,9 +743,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                     _buildPopupMenu(location),
                   ],
                 ),
-
                 const SizedBox(height: 12),
-                // Title
                 Text(
                   location.name,
                   style: const TextStyle(
@@ -571,36 +754,37 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-
+                if (location.description != null &&
+                    location.description!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    location.description!,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 const SizedBox(height: 16),
-                // Manager Row
                 Row(
                   children: [
                     CircleAvatar(
                       radius: 16,
                       backgroundColor: Colors.grey.shade200,
-                      backgroundImage: location.managerAvatarUrl == 'avatar'
-                          ? const NetworkImage(
-                              'https://i.pravatar.cc/150?img=1',
-                            )
-                          : null,
-                      child: location.managerAvatarUrl == null
-                          ? Text(
-                              _getInitials(location.managerName),
-                              style: TextStyle(
-                                color: Colors.grey.shade700,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
+                      child: Text(
+                        _getInitials(location.staffName ?? 'Unassigned'),
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          location.managerName,
+                          location.staffName ?? 'Unassigned',
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -618,49 +802,6 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                     ),
                   ],
                 ),
-
-                const Spacer(),
-                // Capacity Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Capacity Status',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      '${(pct * 100).toInt()}% Full',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Progress Bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    minHeight: 6,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '${_formatNumber(location.currentItems)} / ${_formatNumber(location.maxCapacity)} items',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
-                  ),
-                ),
               ],
             ),
           ),
@@ -669,22 +810,15 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     );
   }
 
-  // Helper for the three-dot menu
   Widget _buildPopupMenu(PharmacyLocation location) {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, color: Colors.black54, size: 20),
       tooltip: 'Options',
       onSelected: (String value) {
         if (value == 'edit') {
-          // Handle Edit
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Editing ${location.name}...')),
-          );
+          _editLocation(location);
         } else if (value == 'delete') {
-          // Handle Delete
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Deleting ${location.name}...')),
-          );
+          _deleteLocation(location);
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -712,19 +846,10 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     );
   }
 
-  // Helper to get initials from a name (e.g. "Mark Thompson" -> "MT")
   String _getInitials(String name) {
-    List<String> parts = name.split(' ').where((s) => s.isNotEmpty).toList();
-    if (parts.isEmpty) return '??';
+    final parts = name.split(' ').where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
     return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
-  }
-
-  // Helper to format numbers with commas (e.g. 8500 -> 8,500)
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
   }
 }

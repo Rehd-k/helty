@@ -96,49 +96,47 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     }
   }
 
-  Map<String, dynamic> _buildFiltersMap() {
-    final f = <String, dynamic>{};
-    if (_manufacturerId != null && _manufacturerId!.isNotEmpty) {
-      f['manufacturerId'] = _manufacturerId;
-    }
-    if (_supplierId != null && _supplierId!.isNotEmpty) {
-      f['supplierId'] = _supplierId;
-    }
-    if (_isControlledFilter != null) {
-      f['isControlled'] = _isControlledFilter;
-    }
-    if (_expiryDateFrom != null) {
-      f['expiryDateFrom'] = _expiryDateFrom!.toIso8601String();
-    }
-    if (_expiryDateTo != null) {
-      f['expiryDateTo'] = _expiryDateTo!.toIso8601String();
-    }
-    if (_manufacturingDateFrom != null) {
-      f['manufacturingDateFrom'] = _manufacturingDateFrom!.toIso8601String();
-    }
-    if (_manufacturingDateTo != null) {
-      f['manufacturingDateTo'] = _manufacturingDateTo!.toIso8601String();
-    }
-    f['searchField'] = _searchFieldType == SearchFieldType.genericName
-        ? 'genericName'
-        : 'brandName';
+  SearchDrugParams _buildSearchParams() {
+    final query = _searchController.text.trim();
+    String? therapeuticClass;
+    bool? lowStock;
+    bool? expiringSoon;
     switch (_filterPill) {
       case FilterPillType.lowStock:
-        f['lowStock'] = true;
+        lowStock = true;
         break;
       case FilterPillType.expiringSoon:
-        f['expiringSoon'] = true;
+        expiringSoon = true;
         break;
       case FilterPillType.antibiotics:
-        f['therapeuticClass'] = 'Antibiotic';
+        therapeuticClass = 'Antibiotic';
         break;
       case FilterPillType.painkillers:
-        f['therapeuticClass'] = 'Analgesic';
+        therapeuticClass = 'Analgesic';
         break;
       case FilterPillType.all:
         break;
     }
-    return f;
+    return SearchDrugParams(
+      search: query.isEmpty ? null : query,
+      genericName: _searchFieldType == SearchFieldType.genericName && query.isNotEmpty ? query : null,
+      brandName: _searchFieldType == SearchFieldType.brandName && query.isNotEmpty ? query : null,
+      manufacturerId: _manufacturerId,
+      supplierId: _supplierId,
+      isControlled: _isControlledFilter,
+      manufacturingDateFrom: _manufacturingDateFrom,
+      manufacturingDateTo: _manufacturingDateTo,
+      expiryDateFrom: _expiryDateFrom,
+      expiryDateTo: _expiryDateTo,
+      therapeuticClass: therapeuticClass,
+      lowStock: lowStock,
+      expiringSoon: expiringSoon,
+      limit: _pageSize,
+      page: _currentPage,
+      pageSize: _pageSize,
+      sortBy: _sortBy,
+      sortOrder: _isAscending ? 'asc' : 'desc',
+    );
   }
 
   Future<void> _fetchData() async {
@@ -147,20 +145,8 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       _errorMessage = '';
     });
 
-    final query = _searchController.text.trim();
-    final search = query.isEmpty ? null : query;
-
     try {
-      final response = await _drugService.getDrugs(
-        PharmacyQueryParams(
-          page: _currentPage,
-          pageSize: _pageSize,
-          sortBy: _sortBy,
-          sortOrder: _isAscending ? SortOrder.asc : SortOrder.desc,
-          search: search,
-          filters: _buildFiltersMap(),
-        ),
-      );
+      final response = await _drugService.searchDrugs(_buildSearchParams());
 
       setState(() {
         _drugs = response.items;

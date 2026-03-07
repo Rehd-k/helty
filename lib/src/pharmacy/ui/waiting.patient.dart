@@ -830,7 +830,7 @@ class _PharmacyWaitingPatientState extends State<PharmacyWaitingPatientScreen> {
             child: cart.isEmpty
                 ? Center(
                     child: Text(
-                      'Le panier est vide\n(Cart is empty)',
+                      'Cart is empty',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: colorScheme.onSurfaceVariant),
                     ),
