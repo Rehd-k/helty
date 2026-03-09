@@ -78,7 +78,7 @@ final frontDesk = <MenuItem>[
   MenuItem(
     label: 'Enlist For Dialysis Service',
     icon: Icons.verified_user_rounded,
-    route: EnlistPaitientRoute(),
+    route: EnlistPaitientRoute(serviceName: 'Dialysis'),
   ),
 ];
 
@@ -96,27 +96,22 @@ final bills = <MenuItem>[
   MenuItem(
     label: 'Render OPD',
     icon: Icons.dataset_outlined,
-    route: EnlistPaitientRoute(),
+    route: EnlistPaitientRoute(serviceName: 'OPD'),
   ),
   MenuItem(
     label: 'Render Investigation',
     icon: Icons.science_outlined,
-    route: EnlistPaitientRoute(),
+    route: EnlistPaitientRoute(serviceName: 'Investigation'),
   ),
   MenuItem(
     label: 'Render Dialysis',
     icon: Icons.local_hospital_outlined,
-    route: NotAvailableRoute(),
-  ),
-  MenuItem(
-    label: 'Render Morturay Servies',
-    icon: Icons.time_to_leave_outlined,
-    route: NotAvailableRoute(),
+    route: EnlistPaitientRoute(serviceName: 'Dialysis'),
   ),
   MenuItem(
     label: 'Process Ward Payment',
     icon: Icons.access_time_filled_outlined,
-    route: NotAvailableRoute(),
+    route: EnlistPaitientRoute(serviceName: 'inpatient'),
   ),
   MenuItem(
     label: 'Add Service',
@@ -133,18 +128,9 @@ final bills = <MenuItem>[
     icon: Icons.list_outlined,
     route: TransactionsRoute(),
   ),
-  MenuItem(
-    label: 'View Ward Services',
-    icon: Icons.dry_cleaning_sharp,
-    route: NotAvailableRoute(),
-  ),
+
   MenuItem(
     label: 'View Investigation Service',
-    icon: Icons.verified_user_rounded,
-    route: NotAvailableRoute(),
-  ),
-  MenuItem(
-    label: 'Transaction',
     icon: Icons.verified_user_rounded,
     route: NotAvailableRoute(),
   ),
@@ -166,6 +152,22 @@ final nurses = <MenuItem>[
     icon: Icons.bed,
     route: InpatientsListRoute(),
   ),
+  MenuItem(
+    label: 'O&G Dashboard',
+    icon: Icons.pregnant_woman_rounded,
+    route: ObstetricsDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Pregnancies (by patient)',
+    icon: Icons.family_restroom_rounded,
+    route: ObstetricsPatientSelectRoute(),
+  ),
+  MenuItem(
+    label: 'Gynaecology procedures',
+    icon: Icons.medical_services_rounded,
+    route: ObstetricsGynaeProceduresRoute(),
+  ),
+
   MenuItem(
     label: 'Appointments',
     icon: Icons.calendar_month,
@@ -203,20 +205,21 @@ final doctors = <MenuItem>[
   ),
   MenuItem(label: 'Inpatients', icon: Icons.bed, route: InpatientsListRoute()),
   MenuItem(
-    label: 'Pending Lab Results',
-    icon: Icons.biotech_outlined,
-    route: DoctorPendingLabsRoute(),
+    label: 'O&G Dashboard',
+    icon: Icons.pregnant_woman_rounded,
+    route: ObstetricsDashboardRoute(),
   ),
   MenuItem(
-    label: 'Pending Imaging Reports',
-    icon: Icons.radar_outlined,
-    route: DoctorPendingImagingRoute(),
+    label: 'Pregnancies (by patient)',
+    icon: Icons.family_restroom_rounded,
+    route: ObstetricsPatientSelectRoute(),
   ),
   MenuItem(
-    label: 'Pending Prescriptions',
-    icon: Icons.medication_outlined,
-    route: DoctorPendingPrescriptionsRoute(),
+    label: 'Gynaecology procedures',
+    icon: Icons.medical_services_rounded,
+    route: ObstetricsGynaeProceduresRoute(),
   ),
+
   MenuItem(
     label: 'Completed Encounters',
     icon: Icons.check_circle_outline,
@@ -275,6 +278,11 @@ final pharmacy = <MenuItem>[
 
 final phamDispense = <MenuItem>[
   MenuItem(
+    label: 'Medicine Sales',
+    icon: Icons.add_alarm_outlined,
+    route: EnlistPaitientRoute(serviceName: 'Pharmacy'),
+  ),
+  MenuItem(
     label: 'Medicine Inventory',
     icon: Icons.inventory_2_outlined,
     route: MedicineInventoryRoute(),
@@ -283,34 +291,27 @@ final phamDispense = <MenuItem>[
   MenuItem(
     label: 'Pharmacy Waiting Patient',
     icon: Icons.add_alarm_outlined,
-    route: PharmacyWaitingPatientRoute(),
+    route: WaitingPatientRoute(),
   ),
+
   MenuItem(
     label: 'Stock Transfer',
     icon: Icons.move_to_inbox_outlined,
     route: StockTransferRoute(),
   ),
-  MenuItem(
-    label: 'Render Medicine',
-    icon: Icons.medication_outlined,
-    route: RenderServiceRoute(),
-  ),
 ];
 
-final obstetrics = <MenuItem>[
+final obstetrics = <MenuItem>[];
+
+final labMenu = <MenuItem>[
   MenuItem(
-    label: 'O&G Dashboard',
-    icon: Icons.pregnant_woman_rounded,
-    route: ObstetricsDashboardRoute(),
+    label: 'Laboratory',
+    icon: Icons.biotech_rounded,
+    route: LabDashboardRoute(),
   ),
   MenuItem(
-    label: 'Pregnancies (by patient)',
-    icon: Icons.family_restroom_rounded,
-    route: ObstetricsPatientSelectRoute(),
-  ),
-  MenuItem(
-    label: 'Gynaecology procedures',
-    icon: Icons.medical_services_rounded,
-    route: ObstetricsGynaeProceduresRoute(),
+    label: 'New order',
+    icon: Icons.add_circle_outline_rounded,
+    route: LabCreateOrderRoute(),
   ),
 ];

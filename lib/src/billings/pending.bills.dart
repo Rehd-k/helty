@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/providers/invoices_providers.dart';
 
 import '../models/invoice.dart';
-import '../models/service_model.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/filter.patients.dart';
 import 'pay.bill.dart';
@@ -22,58 +22,19 @@ class PendingBillsScreen extends ConsumerStatefulWidget {
 }
 
 class PendingBillsState extends ConsumerState<PendingBillsScreen> {
-  // Mock Data List
-  List<Invoice> invoices = [
-    Invoice(
-      id: '1',
-      patientId: 'Chidi Okoro',
-      createdAt: DateTime.parse('2026-02-20'),
-      invoiceItems: [
-        ServiceModel(
-          name: "Consultation Fee",
-          qty: 1,
-          id: '',
-          cost: 5000,
-          serviceId: '456d',
-        ),
-        ServiceModel(
-          name: "SOP Consultation",
-          qty: 1,
-          id: '',
-          serviceId: 'sd7dw',
-          cost: 2500,
-        ),
-        ServiceModel(
-          name: "Paracetamol 500mg",
-          id: '',
-          qty: 5,
-          serviceId: '3487ue',
-          cost: 2500,
-        ),
-      ],
-      status: '',
-      createdById: '',
-      updatedAt: DateTime.parse('2026-02-20'),
-    ),
-  ];
-
   Invoice? selectedInvoice;
 
-  void _handleSelect(Invoice selectedInvoice) {
-    setState(() {
-      this.selectedInvoice = selectedInvoice;
-    });
-  }
+  /// Current filter from the search bar and date range.
+  InvoiceFilter _filter = const InvoiceFilter(limit: 500);
 
-  double calculateAmountDue(List<ServiceModel> items) {
-    return items.fold(0.0, (sum, item) => sum + (item.qty! * item.cost));
+  void _handleSelect(Invoice invoice) {
+    setState(() => selectedInvoice = invoice);
   }
-
-  late Invoice selectedItem;
 
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+    final invoicesAsync = ref.watch(invoicesProvider(_filter));
 
     return Scaffold(
       body: Column(
@@ -86,28 +47,45 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
               {'name': 'fullName', 'value': 'Patient Name'},
               {'name': 'transactionId', 'value': 'Transaction ID'},
             ],
-            onFilterChanged:
-                (
-                  String query,
-                  String category,
-                  DateTime? from,
-                  DateTime? to,
-                ) {},
-            doRefresh: () {},
+            onFilterChanged: (
+              String query,
+              String category,
+              DateTime? from,
+              DateTime? to,
+            ) {
+              setState(() {
+                _filter = InvoiceFilter(
+                  query: query.isEmpty ? null : query,
+                  category: category,
+                  from: from,
+                  to: to,
+                  limit: 500,
+                );
+              });
+            },
+            doRefresh: () {
+              ref.invalidate(invoicesProvider(_filter));
+            },
             dateFilter: true,
           ),
-
           Expanded(
             child: Row(
               children: [
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: invoices.length,
-                    itemBuilder: (context, index) {
-                      final patient = invoices[index];
+                  child: invoicesAsync.when(
+                    data: (invoices) {
+                      if (invoices.isEmpty) {
+                        return const Center(
+                          child: Text('No pending invoices'),
+                        );
+                      }
+                      return ListView.builder(
+                        itemCount: invoices.length,
+                        itemBuilder: (context, index) {
+                          final invoice = invoices[index];
 
                       return Slidable(
-                        key: Key(patient.id),
+                        key: Key(invoice.id),
                         startActionPane: ActionPane(
                           motion: const ScrollMotion(),
                           children: [
@@ -117,14 +95,12 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                               icon: Icons.edit,
                               label: 'Edit',
                             ),
-
                             SlidableAction(
                               onPressed: (_) {},
                               backgroundColor: Colors.orange,
                               icon: Icons.archive,
                               label: 'Archive',
                             ),
-
                             SlidableAction(
                               onPressed: (_) {},
                               backgroundColor: Colors.red,
@@ -134,12 +110,12 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                           ],
                         ),
                         child: GestureDetector(
+                          onTap: () => _handleSelect(invoice),
                           onSecondaryTapDown: (details) {
-                            // pass current patient and callback when showing the menu
                             _showContextMenu(
                               context,
                               details.globalPosition,
-                              patient,
+                              invoice,
                               auth,
                               _handleSelect,
                             );
@@ -156,7 +132,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                             child: ListTile(
                               contentPadding: const EdgeInsets.all(16),
                               title: Text(
-                                patient.patientId,
+                                invoice.patientId,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
@@ -166,9 +142,9 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const SizedBox(height: 4),
-                                  Text("Status: ${patient.status}"),
+                                  Text("Status: ${invoice.status}"),
                                   Text(
-                                    "Initiator: ${patient.createdById}",
+                                    "Initiator: ${invoice.createdById}",
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey,
@@ -176,15 +152,13 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    patient.createdAt.toIso8601String(),
+                                    invoice.createdAt.toIso8601String(),
                                     style: const TextStyle(fontSize: 11),
                                   ),
                                 ],
                               ),
                               trailing: Text(
-                                calculateAmountDue(
-                                  patient.invoiceItems,
-                                ).toFinancial(isMoney: true),
+                                invoice.total.toFinancial(isMoney: true),
                                 style: const TextStyle(
                                   color: Colors.green,
                                   fontWeight: FontWeight.bold,
@@ -196,6 +170,23 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                         ),
                       );
                     },
+                  );
+                    },
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    error: (err, _) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          'Failed to load invoices: $err',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
@@ -219,13 +210,14 @@ void _showContextMenu(
   AuthState auth,
   void Function(Invoice) handleSelect,
 ) async {
+  // Position menu with its top-left at the cursor so it appears right next to the mouse.
   final selected = await showMenu<String>(
     context: context,
     position: RelativeRect.fromLTRB(
       position.dx,
       position.dy,
-      position.dx,
-      position.dy,
+      position.dx + 1,
+      position.dy + 1,
     ),
     items: [
       if (auth.staff?.role == 'bills')

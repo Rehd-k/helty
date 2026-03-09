@@ -61,12 +61,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _sidebarOpen = true;
 
   List<MenuItem> _menuForRole(String role, String accountType) {
+    print(role);
     final common = <MenuItem>[];
-    if (_isObstetricsAllowed(accountType)) {
-      common.addAll(obstetrics);
-    }
+    // if (_isObstetricsAllowed(accountType)) {
+    //   common.addAll(obstetrics);
+    // }
 
-    print('role: $role, accountType: $accountType');
     if (role == 'receptionist') {
       common.addAll(frontDesk);
     }
@@ -89,6 +89,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       common.addAll(doctors);
     }
 
+    if (role == 'lab_technician') {
+      common.addAll(labMenu);
+    }
+
     if (role.toLowerCase() == 'admin') {
       common.addAll([
         const MenuItem(
@@ -100,6 +104,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           label: 'Register',
           icon: Icons.verified_user_rounded,
           route: RegisterRoute(),
+        ),
+        const MenuItem(
+          label: 'Laboratory',
+          icon: Icons.biotech_rounded,
+          route: LabDashboardRoute(),
         ),
         MenuItem(
           label: 'System Setup',
@@ -116,20 +125,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: Icons.add_box_outlined,
               route: ConsultingRoomsRoute(),
             ),
+            MenuItem(
+              label: 'Ward Management',
+              icon: Icons.add_box_outlined,
+              route: WardManagementRoute(),
+            ),
           ],
         ),
       ]);
     }
 
     return common;
-  }
-
-  bool _isObstetricsAllowed(String accountType) {
-    final t = accountType.toLowerCase();
-    return t == 'ong' ||
-        t == 'consultant' ||
-        t == 'inpatient_doctor' ||
-        t == 'theatere';
   }
 
   @override
@@ -376,7 +382,20 @@ class _SidebarNavigation extends StatelessWidget {
                   ),
                 ],
               ),
-              child: CircleAvatar(radius: 40),
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: Theme.of(context).primaryColor,
+                child: Center(
+                  child: Text(
+                    "${state.staff!.firstName.isNotEmpty ? state.staff!.firstName[0].toUpperCase() : ''}${state.staff!.lastName.isNotEmpty ? state.staff!.lastName[0].toUpperCase() : ''}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
             ),
             if (!collapsed) ...[
               const SizedBox(width: 12),
@@ -386,7 +405,7 @@ class _SidebarNavigation extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      state.staff!.firstName,
+                      '${state.staff!.firstName.toUpperCase()} ${state.staff!.lastName.toUpperCase()}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -395,7 +414,7 @@ class _SidebarNavigation extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      state.staff!.accountType!.name,
+                      state.staff!.role.toUpperCase(),
                       style: TextStyle(color: _kSidebarTextMuted, fontSize: 11),
                     ),
                   ],
@@ -433,7 +452,7 @@ class _ToggleButton extends StatefulWidget {
   const _ToggleButton({
     required this.collapsed,
     required this.onToggle,
-    this.closeLabel = false,
+    required this.closeLabel,
   });
 
   @override
@@ -525,16 +544,17 @@ class _SidebarEntryState extends State<_SidebarEntry> {
   bool _expanded = false;
 
   void _navigateTo(BuildContext context, PageRouteInfo route) {
-    final inner = context.router.innerRouterOf<StackRouter>(
-      'DoctorDashboardRoute',
-    );
-    final routeTypeName = route.runtimeType.toString();
-    final isDoctorChild = _doctorDashboardChildNames.contains(routeTypeName);
-    if (inner != null && isDoctorChild) {
-      inner.push(route);
-    } else {
-      context.router.push(route);
-    }
+    // final inner = context.router.innerRouterOf<StackRouter>(
+    //   'DoctorWalkInQueueRoute',
+    // );
+    // final routeTypeName = route.runtimeType.toString();
+    // final isDoctorChild = _doctorDashboardChildNames.contains(routeTypeName);
+    // if (inner != null && isDoctorChild) {
+    //   inner.push(route);
+    // } else {
+
+    // }
+    context.router.push(route);
   }
 
   bool get _isActive {

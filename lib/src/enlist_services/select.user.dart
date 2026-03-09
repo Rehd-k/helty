@@ -13,6 +13,7 @@ class SelectUser extends StatefulWidget {
   final ValueChanged<String> onSearch;
   final ValueChanged<Patient> onPatientSelected;
   final ValueChanged<Map<String, dynamic>>? selectNoIdUser;
+  final String serviceName;
 
   const SelectUser({
     super.key,
@@ -20,6 +21,7 @@ class SelectUser extends StatefulWidget {
     required this.onSearch,
     required this.onPatientSelected,
     this.selectNoIdUser,
+    required this.serviceName,
   });
 
   @override
@@ -75,8 +77,12 @@ class _SelectUserState extends State<SelectUser> {
         icon: Icons.person_off_outlined,
         title: "Oops, such empty",
         message: "We couldn't find any patient matching '${_searchCtrl.text}'.",
-        buttonText: "Register New Patient",
-        onPressed: () => context.router.push(PatientFormRoute()),
+        buttonText: widget.serviceName == 'OPD'
+            ? "Register New Patient"
+            : "Go Back",
+        onPressed: () => widget.serviceName == 'OPD'
+            ? context.router.push(PatientFormRoute())
+            : context.router.pop(),
       );
     } else {
       // 3. Results List
@@ -142,40 +148,41 @@ class _SelectUserState extends State<SelectUser> {
                             ),
                           ),
                           const Spacer(),
-                          ElevatedButton.icon(
-                            onPressed: () => showNewPatientInvoiceForm(
-                              context,
-                              firstName,
-                              surname,
-                              age,
-                              gender,
-                              createNewPatient,
-                            ),
-                            icon: const Icon(
-                              Icons.person_add_alt_1_rounded,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                            label: const Text(
-                              "New Patient",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(
+                          if (widget.serviceName == 'OPD')
+                            ElevatedButton.icon(
+                              onPressed: () => showNewPatientInvoiceForm(
                                 context,
-                              ).primaryColor, // Often Blue in these designs
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
+                                firstName,
+                                surname,
+                                age,
+                                gender,
+                                createNewPatient,
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
+                              icon: const Icon(
+                                Icons.person_add_alt_1_rounded,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              label: const Text(
+                                "New Patient",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).primaryColor, // Often Blue in these designs
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 16),

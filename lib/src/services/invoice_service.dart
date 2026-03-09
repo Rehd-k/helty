@@ -11,8 +11,12 @@ class InvoiceService {
   Future<List<Invoice>> getInvoices({
     String? patientId,
     String? status,
+    String? query,
+    String? category,
+    DateTime? from,
+    DateTime? to,
     int page = 1,
-    int limit = 20,
+    int limit = 100,
   }) async {
     try {
       final response = await _dio.get(
@@ -20,13 +24,18 @@ class InvoiceService {
         queryParameters: {
           if (patientId != null) 'patientId': patientId,
           if (status != null) 'status': status,
+          if (query != null && query.isNotEmpty) 'query': query,
+          if (category != null && category.isNotEmpty) 'category': category,
+          if (from != null) 'from': from.toIso8601String().split('T').first,
+          if (to != null) 'to': to.toIso8601String().split('T').first,
           'page': page,
           'limit': limit,
         },
       );
 
-      final data = response.data as List<dynamic>;
-      return data.map((json) => Invoice.fromJson(json)).toList();
+      final data = response.data;
+      final list = data is List<dynamic> ? data : (data as Map)['data'] as List<dynamic>? ?? [];
+      return list.map((json) => Invoice.fromJson(json as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
       throw Exception('Failed to load invoices: ${e.message}');
     }

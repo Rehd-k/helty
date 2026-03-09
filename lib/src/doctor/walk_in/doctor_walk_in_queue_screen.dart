@@ -307,7 +307,7 @@ class _DoctorWalkInQueueScreenState
                 SizedBox(
                   width: 260,
                   child: DropdownButtonFormField<ConsultingRoomModel?>(
-                    value: _selectedRoom,
+                    initialValue: _selectedRoom,
                     decoration: InputDecoration(
                       labelText: 'Consulting room',
                       labelStyle: TextStyle(

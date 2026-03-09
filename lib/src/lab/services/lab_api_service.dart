@@ -1,0 +1,370 @@
+import 'package:dio/dio.dart';
+
+import '../../services/api_service.dart';
+import '../models/lab_models.dart';
+
+/// API client for dynamic lab module. All endpoints under /lab.
+class LabApiService {
+  LabApiService() : _dio = ApiService().dio;
+
+  final Dio _dio;
+  static const _prefix = '/lab';
+
+  // ── Categories ───────────────────────────────────────────────────────────
+
+  Future<LabCategory> createCategory({
+    required String name,
+    String? description,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_prefix/categories',
+      data: {
+        'name': name,
+        if (description != null && description.isNotEmpty) 'description': description,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Create category returned no data');
+    return LabCategory.fromJson(data);
+  }
+
+  Future<LabCategoriesResponse> getCategories({
+    int? skip,
+    int? take,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '$_prefix/categories',
+      queryParameters: {
+        if (skip != null) 'skip': skip,
+        if (take != null) 'take': take,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Get categories returned no data');
+    return LabCategoriesResponse.fromJson(data);
+  }
+
+  // ── Tests ───────────────────────────────────────────────────────────────
+
+  Future<LabTest> createTest({
+    required String categoryId,
+    required String name,
+    required String sampleType,
+    String? description,
+    double? price,
+    bool? isActive,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_prefix/tests',
+      data: {
+        'categoryId': categoryId,
+        'name': name,
+        'sampleType': sampleType,
+        if (description != null && description.isNotEmpty) 'description': description,
+        if (price != null) 'price': price,
+        if (isActive != null) 'isActive': isActive,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Create test returned no data');
+    return LabTest.fromJson(data);
+  }
+
+  Future<LabTestsResponse> getTests({
+    String? categoryId,
+    bool? isActive,
+    int? skip,
+    int? take,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '$_prefix/tests',
+      queryParameters: {
+        if (categoryId != null) 'categoryId': categoryId,
+        if (isActive != null) 'isActive': isActive,
+        if (skip != null) 'skip': skip,
+        if (take != null) 'take': take,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Get tests returned no data');
+    return LabTestsResponse.fromJson(data);
+  }
+
+  Future<LabTest> getTestById(String id) async {
+    final response = await _dio.get<Map<String, dynamic>>('$_prefix/tests/$id');
+    final data = response.data;
+    if (data == null) throw StateError('Get test returned no data');
+    return LabTest.fromJson(data);
+  }
+
+  // ── Test versions ────────────────────────────────────────────────────────
+
+  Future<LabTestVersion> createTestVersion(
+    String testId, {
+    bool setActive = true,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_prefix/tests/$testId/version',
+      data: {'setActive': setActive},
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Create version returned no data');
+    return LabTestVersion.fromJson(data);
+  }
+
+  Future<List<LabTestVersion>> getTestVersions(String testId) async {
+    final response = await _dio.get<List<dynamic>>(
+      '$_prefix/tests/$testId/versions',
+    );
+    final list = response.data;
+    if (list == null) return [];
+    return list
+        .map((e) => LabTestVersion.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── Test fields ──────────────────────────────────────────────────────────
+
+  Future<LabTestField> createTestField({
+    required String testVersionId,
+    required String label,
+    required String fieldType,
+    String? unit,
+    String? referenceRange,
+    bool? required,
+    int? position,
+    String? optionsJson,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_prefix/test-fields',
+      data: {
+        'testVersionId': testVersionId,
+        'label': label,
+        'fieldType': fieldType,
+        if (unit != null && unit.isNotEmpty) 'unit': unit,
+        if (referenceRange != null && referenceRange.isNotEmpty)
+          'referenceRange': referenceRange,
+        if (required != null) 'required': required,
+        if (position != null) 'position': position,
+        if (optionsJson != null && optionsJson.isNotEmpty) 'optionsJson': optionsJson,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Create field returned no data');
+    return LabTestField.fromJson(data);
+  }
+
+  Future<List<LabTestField>> getTestFields(String versionId) async {
+    final response = await _dio.get<List<dynamic>>(
+      '$_prefix/test-fields/$versionId',
+    );
+    final list = response.data;
+    if (list == null) return [];
+    return list
+        .map((e) => LabTestField.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── Orders ───────────────────────────────────────────────────────────────
+
+  Future<LabOrder> createOrder({
+    required String patientId,
+    required String doctorId,
+    required List<String> testVersionIds,
+  }) async {
+    if (testVersionIds.isEmpty) {
+      throw ArgumentError('At least one test version is required');
+    }
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_prefix/orders',
+      data: {
+        'patientId': patientId,
+        'doctorId': doctorId,
+        'items': testVersionIds.map((id) => {'testVersionId': id}).toList(),
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Create order returned no data');
+    return LabOrder.fromJson(data);
+  }
+
+  Future<LabOrdersResponse> getOrders({
+    String? patientId,
+    LabOrderStatus? status,
+    int? skip,
+    int? take,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '$_prefix/orders',
+      queryParameters: {
+        if (patientId != null) 'patientId': patientId,
+        if (status != null) 'status': status.apiValue,
+        if (skip != null) 'skip': skip,
+        if (take != null) 'take': take,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Get orders returned no data');
+    return LabOrdersResponse.fromJson(data);
+  }
+
+  Future<LabOrder> getOrderById(String id) async {
+    final response = await _dio.get<Map<String, dynamic>>('$_prefix/orders/$id');
+    final data = response.data;
+    if (data == null) throw StateError('Get order returned no data');
+    return LabOrder.fromJson(data);
+  }
+
+  Future<LabOrder> updateOrderStatus(String id, LabOrderStatus status) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '$_prefix/orders/$id',
+      data: {'status': status.apiValue},
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Update order returned no data');
+    return LabOrder.fromJson(data);
+  }
+
+  // ── Samples ──────────────────────────────────────────────────────────────
+
+  Future<LabSample> createSample({
+    required String orderItemId,
+    required String sampleType,
+    required String collectedBy,
+    required DateTime collectionTime,
+    String? barcode,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_prefix/samples',
+      data: {
+        'orderItemId': orderItemId,
+        'sampleType': sampleType,
+        'collectedBy': collectedBy,
+        'collectionTime': collectionTime.toIso8601String(),
+        if (barcode != null && barcode.isNotEmpty) 'barcode': barcode,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Create sample returned no data');
+    return LabSample.fromJson(data);
+  }
+
+  // ── Results ──────────────────────────────────────────────────────────────
+
+  Future<void> createResult({
+    required String orderItemId,
+    required String fieldId,
+    required String value,
+    required String enteredBy,
+  }) async {
+    await _dio.post(
+      '$_prefix/results',
+      data: {
+        'orderItemId': orderItemId,
+        'fieldId': fieldId,
+        'value': value,
+        'enteredBy': enteredBy,
+      },
+    );
+  }
+
+  Future<void> createResultsBatch({
+    required String orderItemId,
+    required String enteredBy,
+    required List<Map<String, String>> results,
+  }) async {
+    await _dio.post(
+      '$_prefix/results/batch',
+      data: {
+        'orderItemId': orderItemId,
+        'enteredBy': enteredBy,
+        'results': results,
+      },
+    );
+  }
+
+  Future<List<LabResult>> getResults(String orderItemId) async {
+    final response = await _dio.get<List<dynamic>>(
+      '$_prefix/results/$orderItemId',
+    );
+    final list = response.data;
+    if (list == null) return [];
+    return list
+        .map((e) => LabResult.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+}
+
+// ── Response wrappers ──────────────────────────────────────────────────────
+
+class LabCategoriesResponse {
+  const LabCategoriesResponse({
+    required this.data,
+    required this.total,
+    this.skip,
+    this.take,
+  });
+
+  final List<LabCategory> data;
+  final int total;
+  final int? skip;
+  final int? take;
+
+  factory LabCategoriesResponse.fromJson(Map<String, dynamic> json) =>
+      LabCategoriesResponse(
+        data: (json['data'] as List<dynamic>)
+            .map((e) => LabCategory.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        total: (json['total'] as num).toInt(),
+        skip: (json['skip'] as num?)?.toInt(),
+        take: (json['take'] as num?)?.toInt(),
+      );
+}
+
+class LabTestsResponse {
+  const LabTestsResponse({
+    required this.data,
+    required this.total,
+    this.skip,
+    this.take,
+  });
+
+  final List<LabTest> data;
+  final int total;
+  final int? skip;
+  final int? take;
+
+  factory LabTestsResponse.fromJson(Map<String, dynamic> json) =>
+      LabTestsResponse(
+        data: (json['data'] as List<dynamic>)
+            .map((e) => LabTest.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        total: (json['total'] as num).toInt(),
+        skip: (json['skip'] as num?)?.toInt(),
+        take: (json['take'] as num?)?.toInt(),
+      );
+}
+
+class LabOrdersResponse {
+  const LabOrdersResponse({
+    required this.data,
+    required this.total,
+    this.skip,
+    this.take,
+  });
+
+  final List<LabOrder> data;
+  final int total;
+  final int? skip;
+  final int? take;
+
+  factory LabOrdersResponse.fromJson(Map<String, dynamic> json) =>
+      LabOrdersResponse(
+        data: (json['data'] as List<dynamic>)
+            .map((e) => LabOrder.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        total: (json['total'] as num).toInt(),
+        skip: (json['skip'] as num?)?.toInt(),
+        take: (json['take'] as num?)?.toInt(),
+      );
+}

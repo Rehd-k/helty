@@ -1,0 +1,548 @@
+// Dynamic laboratory module — typed models for /lab API.
+
+import 'dart:convert';
+
+/// Lab category (e.g. Hematology, Biochemistry).
+class LabCategory {
+  const LabCategory({
+    required this.id,
+    required this.name,
+    this.description,
+    this.createdAt,
+  });
+
+  final String id;
+  final String name;
+  final String? description;
+  final DateTime? createdAt;
+
+  factory LabCategory.fromJson(Map<String, dynamic> json) => LabCategory(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        description: json['description'] as String?,
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String)
+            : null,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        if (description != null) 'description': description,
+        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+      };
+}
+
+/// Lab test (e.g. CBC, Urinalysis).
+class LabTest {
+  const LabTest({
+    required this.id,
+    required this.name,
+    required this.sampleType,
+    this.description,
+    this.price,
+    this.isActive = true,
+    this.category,
+    this.versions,
+  });
+
+  final String id;
+  final String name;
+  final String sampleType;
+  final String? description;
+  final double? price;
+  final bool isActive;
+  final LabCategoryRef? category;
+  final List<LabTestVersion>? versions;
+
+  factory LabTest.fromJson(Map<String, dynamic> json) => LabTest(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        sampleType: json['sampleType'] as String,
+        description: json['description'] as String?,
+        price: (json['price'] as num?)?.toDouble(),
+        isActive: (json['isActive'] as bool?) ?? true,
+        category: json['category'] != null
+            ? LabCategoryRef.fromJson(
+                json['category'] as Map<String, dynamic>)
+            : null,
+        versions: (json['versions'] as List<dynamic>?)
+            ?.map((e) => LabTestVersion.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'sampleType': sampleType,
+        if (description != null) 'description': description,
+        if (price != null) 'price': price,
+        'isActive': isActive,
+        if (category != null) 'category': category!.toJson(),
+      };
+}
+
+class LabCategoryRef {
+  const LabCategoryRef({required this.id, required this.name});
+  final String id;
+  final String name;
+
+  factory LabCategoryRef.fromJson(Map<String, dynamic> json) => LabCategoryRef(
+        id: json['id'] as String,
+        name: json['name'] as String,
+      );
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+}
+
+/// Version of a test (template revision).
+class LabTestVersion {
+  const LabTestVersion({
+    required this.id,
+    required this.versionNumber,
+    this.isActive = false,
+    this.test,
+    this.fieldCount,
+  });
+
+  final String id;
+  final int versionNumber;
+  final bool isActive;
+  final LabTestRef? test;
+  final int? fieldCount;
+
+  factory LabTestVersion.fromJson(Map<String, dynamic> json) => LabTestVersion(
+        id: json['id'] as String,
+        versionNumber: (json['versionNumber'] as num).toInt(),
+        isActive: (json['isActive'] as bool?) ?? false,
+        test: json['test'] != null
+            ? LabTestRef.fromJson(json['test'] as Map<String, dynamic>)
+            : null,
+        fieldCount: (json['_count'] as Map<String, dynamic>?)?['fields'] as int?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'versionNumber': versionNumber,
+        'isActive': isActive,
+      };
+}
+
+class LabTestRef {
+  const LabTestRef({required this.id, required this.name});
+  final String id;
+  final String name;
+
+  factory LabTestRef.fromJson(Map<String, dynamic> json) => LabTestRef(
+        id: json['id'] as String,
+        name: json['name'] as String,
+      );
+}
+
+/// Field type for dynamic result form.
+enum LabFieldType {
+  text,
+  number,
+  dropdown,
+  checkbox,
+  multiselect,
+  date;
+
+  static LabFieldType fromString(String? value) {
+    if (value == null) return LabFieldType.text;
+    switch (value.toUpperCase()) {
+      case 'TEXT':
+        return LabFieldType.text;
+      case 'NUMBER':
+        return LabFieldType.number;
+      case 'DROPDOWN':
+        return LabFieldType.dropdown;
+      case 'CHECKBOX':
+        return LabFieldType.checkbox;
+      case 'MULTISELECT':
+        return LabFieldType.multiselect;
+      case 'DATE':
+        return LabFieldType.date;
+      default:
+        return LabFieldType.text;
+    }
+  }
+}
+
+/// Single field in a test version (form template).
+class LabTestField {
+  const LabTestField({
+    required this.id,
+    required this.testVersionId,
+    required this.label,
+    required this.fieldType,
+    this.unit,
+    this.referenceRange,
+    this.required = false,
+    this.position = 0,
+    this.optionsJson,
+  });
+
+  final String id;
+  final String testVersionId;
+  final String label;
+  final LabFieldType fieldType;
+  final String? unit;
+  final String? referenceRange;
+  final bool required;
+  final int position;
+  final String? optionsJson;
+
+  /// Parsed options for DROPDOWN/MULTISELECT: list of strings or {value, label}.
+  List<LabFieldOption> get options => _parseOptions(optionsJson);
+
+  static List<LabFieldOption> _parseOptions(String? jsonStr) {
+    if (jsonStr == null || jsonStr.trim().isEmpty) return [];
+    try {
+      final decoded = jsonDecode(jsonStr) as List<dynamic>?;
+      if (decoded == null) return [];
+      return decoded.map((e) {
+        if (e is String) return LabFieldOption(value: e, label: e);
+        if (e is Map<String, dynamic>) {
+          return LabFieldOption(
+            value: (e['value'] ?? e['label'] ?? '').toString(),
+            label: (e['label'] ?? e['value'] ?? '').toString(),
+          );
+        }
+        return LabFieldOption(value: e.toString(), label: e.toString());
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  factory LabTestField.fromJson(Map<String, dynamic> json) => LabTestField(
+        id: (json['id'] as String?) ?? '',
+        testVersionId: (json['testVersionId'] as String?) ?? '',
+        label: (json['label'] as String?) ?? '',
+        fieldType: LabFieldType.fromString(json['fieldType'] as String?),
+        unit: json['unit'] as String?,
+        referenceRange: json['referenceRange'] as String?,
+        required: (json['required'] as bool?) ?? false,
+        position: (json['position'] as num?)?.toInt() ?? 0,
+        optionsJson: json['optionsJson'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'testVersionId': testVersionId,
+        'label': label,
+        'fieldType': fieldType.name.toUpperCase(),
+        if (unit != null) 'unit': unit,
+        if (referenceRange != null) 'referenceRange': referenceRange,
+        'required': required,
+        'position': position,
+        if (optionsJson != null) 'optionsJson': optionsJson,
+      };
+}
+
+class LabFieldOption {
+  const LabFieldOption({required this.value, required this.label});
+  final String value;
+  final String label;
+}
+
+/// Order status.
+enum LabOrderStatus {
+  pending,
+  sampleCollected,
+  processing,
+  completed,
+  verified;
+
+  static LabOrderStatus fromString(String? value) {
+    if (value == null) return LabOrderStatus.pending;
+    switch (value.toUpperCase().replaceAll('_', ' ')) {
+      case 'PENDING':
+        return LabOrderStatus.pending;
+      case 'SAMPLE COLLECTED':
+        return LabOrderStatus.sampleCollected;
+      case 'PROCESSING':
+        return LabOrderStatus.processing;
+      case 'COMPLETED':
+        return LabOrderStatus.completed;
+      case 'VERIFIED':
+        return LabOrderStatus.verified;
+      default:
+        return LabOrderStatus.pending;
+    }
+  }
+
+  String get apiValue {
+    switch (this) {
+      case LabOrderStatus.pending:
+        return 'PENDING';
+      case LabOrderStatus.sampleCollected:
+        return 'SAMPLE_COLLECTED';
+      case LabOrderStatus.processing:
+        return 'PROCESSING';
+      case LabOrderStatus.completed:
+        return 'COMPLETED';
+      case LabOrderStatus.verified:
+        return 'VERIFIED';
+    }
+  }
+}
+
+/// Lab order (request for tests).
+class LabOrder {
+  const LabOrder({
+    required this.id,
+    required this.status,
+    this.patient,
+    this.doctor,
+    this.items = const [],
+    this.createdAt,
+  });
+
+  final String id;
+  final LabOrderStatus status;
+  final LabOrderPatient? patient;
+  final LabOrderStaff? doctor;
+  final List<LabOrderItem> items;
+  final DateTime? createdAt;
+
+  factory LabOrder.fromJson(Map<String, dynamic> json) => LabOrder(
+        id: (json['id'] as String?) ?? '',
+        status: LabOrderStatus.fromString(json['status'] as String?),
+        patient: json['patient'] != null
+            ? LabOrderPatient.fromJson(
+                json['patient'] as Map<String, dynamic>)
+            : null,
+        doctor: json['doctor'] != null
+            ? LabOrderStaff.fromJson(json['doctor'] as Map<String, dynamic>)
+            : null,
+        items: (json['items'] as List<dynamic>?)
+                ?.map((e) => LabOrderItem.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String)
+            : null,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'status': status.apiValue,
+        if (patient != null) 'patient': patient!.toJson(),
+        if (doctor != null) 'doctor': doctor!.toJson(),
+        'items': items.map((e) => e.toJson()).toList(),
+        if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+      };
+}
+
+class LabOrderPatient {
+  const LabOrderPatient({required this.id, this.firstName, this.lastName});
+  final String id;
+  final String? firstName;
+  final String? lastName;
+
+  String get displayName =>
+      [firstName, lastName].where((e) => e != null && e.isNotEmpty).join(' ');
+
+  factory LabOrderPatient.fromJson(Map<String, dynamic> json) =>
+      LabOrderPatient(
+        id: (json['id'] as String?) ?? '',
+        firstName: json['firstName'] as String?,
+        lastName: json['lastName'] as String?,
+      );
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'firstName': firstName, 'lastName': lastName};
+}
+
+class LabOrderStaff {
+  const LabOrderStaff({required this.id, this.firstName, this.lastName});
+  final String id;
+  final String? firstName;
+  final String? lastName;
+
+  String get displayName =>
+      [firstName, lastName].where((e) => e != null && e.isNotEmpty).join(' ');
+
+  factory LabOrderStaff.fromJson(Map<String, dynamic> json) => LabOrderStaff(
+        id: (json['id'] as String?) ?? '',
+        firstName: json['firstName'] as String?,
+        lastName: json['lastName'] as String?,
+      );
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'firstName': firstName, 'lastName': lastName};
+}
+
+/// Single line item in an order (one test).
+class LabOrderItem {
+  const LabOrderItem({
+    required this.id,
+    required this.orderId,
+    this.testVersion,
+    this.sample,
+    this.results = const [],
+    this.fields,
+  });
+
+  final String id;
+  final String orderId;
+  final LabOrderItemTestVersion? testVersion;
+  final LabSample? sample;
+  final List<LabResult> results;
+  final List<LabTestField>? fields;
+
+  factory LabOrderItem.fromJson(Map<String, dynamic> json) => LabOrderItem(
+        id: (json['id'] as String?) ?? '',
+        orderId: (json['orderId'] as String?) ?? '',
+        testVersion: json['testVersion'] != null
+            ? LabOrderItemTestVersion.fromJson(
+                json['testVersion'] as Map<String, dynamic>)
+            : null,
+        sample: json['sample'] != null
+            ? LabSample.fromJson(json['sample'] as Map<String, dynamic>)
+            : null,
+        results: (json['results'] as List<dynamic>?)
+                ?.map((e) => LabResult.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        fields: (json['testVersion']?['fields'] as List<dynamic>?)
+                ?.map((e) => LabTestField.fromJson(e as Map<String, dynamic>))
+                .toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'orderId': orderId,
+        if (testVersion != null) 'testVersion': testVersion!.toJson(),
+        if (sample != null) 'sample': sample!.toJson(),
+        'results': results.map((e) => e.toJson()).toList(),
+      };
+}
+
+class LabOrderItemTestVersion {
+  const LabOrderItemTestVersion({
+    required this.id,
+    this.test,
+    this.fields,
+  });
+
+  final String id;
+  final LabOrderItemTest? test;
+  final List<LabTestField>? fields;
+
+  factory LabOrderItemTestVersion.fromJson(Map<String, dynamic> json) {
+    final fieldsList = json['fields'] as List<dynamic>?;
+    return LabOrderItemTestVersion(
+      id: (json['id'] as String?) ?? '',
+      test: json['test'] != null
+          ? LabOrderItemTest.fromJson(json['test'] as Map<String, dynamic>)
+          : null,
+      fields: fieldsList
+          ?.map((e) => LabTestField.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        if (test != null) 'test': test!.toJson(),
+        if (fields != null) 'fields': fields!.map((e) => e.toJson()).toList(),
+      };
+}
+
+class LabOrderItemTest {
+  const LabOrderItemTest(
+      {required this.id, required this.name, this.sampleType});
+  final String id;
+  final String name;
+  final String? sampleType;
+
+  factory LabOrderItemTest.fromJson(Map<String, dynamic> json) =>
+      LabOrderItemTest(
+        id: (json['id'] as String?) ?? '',
+        name: (json['name'] as String?) ?? '',
+        sampleType: json['sampleType'] as String?,
+      );
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'name': name, 'sampleType': sampleType};
+}
+
+/// Sample recorded for an order item.
+class LabSample {
+  const LabSample({
+    required this.id,
+    required this.orderItemId,
+    required this.sampleType,
+    required this.collectedBy,
+    required this.collectionTime,
+    this.barcode,
+  });
+
+  final String id;
+  final String orderItemId;
+  final String sampleType;
+  final String collectedBy;
+  final DateTime collectionTime;
+  final String? barcode;
+
+  factory LabSample.fromJson(Map<String, dynamic> json) {
+    final collectionTimeStr = json['collectionTime'] as String?;
+    return LabSample(
+      id: (json['id'] as String?) ?? '',
+      orderItemId: (json['orderItemId'] as String?) ?? '',
+      sampleType: (json['sampleType'] as String?) ?? '',
+      collectedBy: (json['collectedBy'] as String?) ?? '',
+      collectionTime: collectionTimeStr != null
+          ? (DateTime.tryParse(collectionTimeStr) ?? DateTime.now())
+          : DateTime.now(),
+      barcode: json['barcode'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'orderItemId': orderItemId,
+        'sampleType': sampleType,
+        'collectedBy': collectedBy,
+        'collectionTime': collectionTime.toIso8601String(),
+        if (barcode != null) 'barcode': barcode,
+      };
+}
+
+/// Single result value for a field.
+class LabResult {
+  const LabResult({
+    required this.id,
+    required this.orderItemId,
+    required this.fieldId,
+    required this.value,
+    this.field,
+    this.enteredBy,
+  });
+
+  final String id;
+  final String orderItemId;
+  final String fieldId;
+  final String value;
+  final LabTestField? field;
+  final String? enteredBy;
+
+  factory LabResult.fromJson(Map<String, dynamic> json) => LabResult(
+        id: (json['id'] as String?) ?? '',
+        orderItemId: (json['orderItemId'] as String?) ?? '',
+        fieldId: (json['fieldId'] as String?) ?? '',
+        value: (json['value'] as Object?).toString(),
+        field: json['field'] != null
+            ? LabTestField.fromJson(json['field'] as Map<String, dynamic>)
+            : null,
+        enteredBy: json['enteredBy'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'orderItemId': orderItemId,
+        'fieldId': fieldId,
+        'value': value,
+        if (field != null) 'field': field!.toJson(),
+        'enteredBy': enteredBy,
+      };
+}

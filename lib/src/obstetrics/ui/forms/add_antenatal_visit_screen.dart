@@ -134,9 +134,9 @@ class _ObstetricsAddAntenatalVisitScreenState
       });
       if (!mounted) return;
       context.router.maybePop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Antenatal visit added.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Antenatal visit added.')));
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -194,18 +194,20 @@ class _ObstetricsAddAntenatalVisitScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedStaffId,
+              initialValue: _selectedStaffId,
               decoration: const InputDecoration(
                 labelText: 'Staff *',
                 border: OutlineInputBorder(),
               ),
               items: _staffList
-                  .map((s) => DropdownMenuItem(
-                        value: s.id,
-                        child: Text(s.fullName),
-                      ))
+                  .map(
+                    (s) =>
+                        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+                  )
                   .toList(),
-              onChanged: _loadingStaff ? null : (v) => setState(() => _selectedStaffId = v),
+              onChanged: _loadingStaff
+                  ? null
+                  : (v) => setState(() => _selectedStaffId = v),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -271,16 +273,13 @@ class _ObstetricsAddAntenatalVisitScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<FetalPresentation>(
-              value: _presentation,
+              initialValue: _presentation,
               decoration: const InputDecoration(
                 labelText: 'Presentation',
                 border: OutlineInputBorder(),
               ),
               items: FetalPresentation.values
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.name),
-                      ))
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                   .toList(),
               onChanged: (v) => setState(() => _presentation = v),
             ),

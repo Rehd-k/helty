@@ -3,25 +3,40 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:intl/intl.dart';
 
 /// A scrollable row of summary cards showing transaction financial totals.
+/// Payment-method cards (Cash, Transfer, Cheque, POS) are tappable to filter by that method.
 ///
 /// Usage:
 /// ```dart
 /// TransactionSummarySection(totals: {
 ///   'totalSales': 1000.0,
 ///   'totalPaid': 900.0,
+///   'transactionCount': 42,
 ///   ...
 /// })
 /// ```
 class TransactionSummarySection extends StatelessWidget {
-  const TransactionSummarySection({super.key, required this.totals});
+  const TransactionSummarySection({
+    super.key,
+    required this.totals,
+    this.onPaymentCardTap,
+    this.selectedPaymentMethod,
+  });
 
   /// Map of financial totals. Expected keys:
-  /// `totalSales`, `totalPaid`, `transfer`, `pos`, `cheque`, `cash`, `grandTotal`
-  final Map<String, double> totals;
+  /// `totalSales`, `totalPaid`, `transfer`, `pos`, `cheque`, `cash`, `grandTotal`, `transactionCount`
+  final Map<String, dynamic> totals;
+  /// Called when a payment-method card is tapped. Pass null to clear filter (show all).
+  final ValueChanged<String?>? onPaymentCardTap;
+  /// Currently selected payment method filter (e.g. 'Cash', 'Transfer').
+  final String? selectedPaymentMethod;
+
+  double _num(Object? v) => (v as num?)?.toDouble() ?? 0.0;
+  int _int(Object? v) => (v is int?) ? (v ?? 0) : ((v as num?)?.toInt() ?? 0);
 
   @override
   Widget build(BuildContext context) {
     final format = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final transactionCount = _int(totals['transactionCount']);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -29,45 +44,59 @@ class TransactionSummarySection extends StatelessWidget {
         children: [
           TransactionSummaryCard(
             title: "Total Sales (Due)",
-            amount: totals['totalSales']!.toFinancial(isMoney: true),
+            amount: _num(totals['totalSales']).toFinancial(isMoney: true),
             isPrimary: true,
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!(null) : null,
+            isSelected: selectedPaymentMethod == null,
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Total Paid",
-            amount: totals['totalPaid']!.toFinancial(isMoney: true),
+            amount: _num(totals['totalPaid']).toFinancial(isMoney: true),
             isSuccess: true,
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!(null) : null,
+            isSelected: selectedPaymentMethod == null,
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Transfers",
-            amount: totals['transfer']!.toFinancial(isMoney: true),
+            amount: _num(totals['transfer']).toFinancial(isMoney: true),
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('Transfer') : null,
+            isSelected: selectedPaymentMethod == 'Transfer',
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "POS",
-            amount: format.format(totals['pos'] ?? 0),
+            amount: format.format(_num(totals['pos'])),
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('POS') : null,
+            isSelected: selectedPaymentMethod == 'POS',
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Cheque",
-            amount: totals['cheque']!.toFinancial(isMoney: true),
+            amount: _num(totals['cheque']).toFinancial(isMoney: true),
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('Cheque') : null,
+            isSelected: selectedPaymentMethod == 'Cheque',
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Cash",
-            amount: totals['cash']!.toFinancial(isMoney: true),
+            amount: _num(totals['cash']).toFinancial(isMoney: true),
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('Cash') : null,
+            isSelected: selectedPaymentMethod == 'Cash',
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "Grand Total",
-            amount: totals['grandTotal']!.toFinancial(isMoney: true),
+            amount: _num(totals['grandTotal']).toFinancial(isMoney: true),
             isPrimary: true,
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!(null) : null,
+            isSelected: selectedPaymentMethod == null,
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "No. of Transactions",
-            amount: 0.toFinancial(isMoney: false),
+            amount: transactionCount.toFinancial(isMoney: false),
             isPrimary: true,
           ),
         ],
@@ -76,7 +105,7 @@ class TransactionSummarySection extends StatelessWidget {
   }
 }
 
-/// A single financial summary card.
+/// A single financial summary card. Optionally tappable to filter by payment method.
 class TransactionSummaryCard extends StatelessWidget {
   const TransactionSummaryCard({
     super.key,
@@ -84,12 +113,16 @@ class TransactionSummaryCard extends StatelessWidget {
     required this.amount,
     this.isPrimary = false,
     this.isSuccess = false,
+    this.onTap,
+    this.isSelected = false,
   });
 
   final String title;
   final String amount;
   final bool isPrimary;
   final bool isSuccess;
+  final VoidCallback? onTap;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -110,8 +143,11 @@ class TransactionSummaryCard extends StatelessWidget {
       textColor = Colors.green[700]!;
       border = Border.all(color: Colors.green.withValues(alpha: 0.3));
     }
+    if (isSelected && onTap != null) {
+      border = Border.all(color: colorScheme.primary, width: 2);
+    }
 
-    return Container(
+    Widget card = Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: bgColor,
@@ -141,5 +177,14 @@ class TransactionSummaryCard extends StatelessWidget {
         ],
       ),
     );
+
+    if (onTap != null) {
+      card = InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: card,
+      );
+    }
+    return card;
   }
 }

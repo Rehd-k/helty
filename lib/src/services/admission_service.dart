@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:dio/dio.dart';
 
 import 'api_service.dart';
@@ -27,10 +29,12 @@ class AdmissionService {
       'isolationRequired': isolationRequired,
       if (reason != null && reason.isNotEmpty) 'reason': reason,
       if (ward != null && ward.isNotEmpty) 'ward': ward,
-      if (bedPreference != null && bedPreference.isNotEmpty) 'bedPreference': bedPreference,
+      if (bedPreference != null && bedPreference.isNotEmpty)
+        'bedPreference': bedPreference,
       if (provisionalDiagnosis != null && provisionalDiagnosis.isNotEmpty)
         'provisionalDiagnosis': provisionalDiagnosis,
-      if (expectedLOS != null && expectedLOS.isNotEmpty) 'expectedLOS': expectedLOS,
+      if (expectedLOS != null && expectedLOS.isNotEmpty)
+        'expectedLOS': expectedLOS,
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,
       if (attendingDoctorId != null && attendingDoctorId.isNotEmpty)
@@ -54,16 +58,31 @@ class AdmissionService {
     final query = <String, dynamic>{};
     if (status != null && status.isNotEmpty) query['status'] = status;
     if (ward != null && ward.isNotEmpty) query['ward'] = ward;
-    if (attendingDoctorId != null && attendingDoctorId.isNotEmpty) query['attendingDoctorId'] = attendingDoctorId;
-    final response = await _dio.get<dynamic>(
+    if (attendingDoctorId != null && attendingDoctorId.isNotEmpty) {
+      query['attendingDoctorId'] = attendingDoctorId;
+    }
+    final response = await _dio.get<Map<String, dynamic>>(
       '/admissions',
       queryParameters: query.isEmpty ? null : query,
     );
     final data = response.data;
-    if (data == null || data is! List) return [];
-    return data
-        .whereType<Map<String, dynamic>>()
-        .map(AdmissionModel.fromJson)
-        .toList();
+    log('data: $data');
+    if (data == null) return [];
+
+    final admissionsData = data['admissions'];
+    if (admissionsData == null) return [];
+
+    if (admissionsData is List) {
+      return admissionsData
+          .whereType<Map<String, dynamic>>()
+          .map(AdmissionModel.fromJson)
+          .toList();
+    }
+
+    if (admissionsData is Map<String, dynamic>) {
+      return [AdmissionModel.fromJson(admissionsData)];
+    }
+
+    return [];
   }
 }

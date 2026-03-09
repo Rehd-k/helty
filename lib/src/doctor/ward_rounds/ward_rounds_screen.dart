@@ -48,6 +48,7 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
         status: 'admitted',
         attendingDoctorId: doctorId,
       );
+
       if (!mounted) return;
       setState(() {
         _admissions = list;
@@ -81,15 +82,13 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => _DocumentRoundDialog(
-        admissionId: admission.id,
-        doctorId: doctorId,
-      ),
+      builder: (ctx) =>
+          _DocumentRoundDialog(admissionId: admission.id, doctorId: doctorId),
     );
     if (saved == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ward round note saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Ward round note saved.')));
     }
   }
 
@@ -128,7 +127,9 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.error),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.error,
+                ),
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
@@ -245,7 +246,11 @@ class _DocumentRoundDialogState extends State<_DocumentRoundDialog> {
     final p = _planCtrl.text.trim();
     if (s.isEmpty && o.isEmpty && a.isEmpty && p.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter at least one field (Subjective, Objective, Assessment, or Plan).')),
+        const SnackBar(
+          content: Text(
+            'Enter at least one field (Subjective, Objective, Assessment, or Plan).',
+          ),
+        ),
       );
       return;
     }
@@ -264,9 +269,9 @@ class _DocumentRoundDialogState extends State<_DocumentRoundDialog> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

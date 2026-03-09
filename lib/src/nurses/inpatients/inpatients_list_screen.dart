@@ -1,46 +1,135 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/models/ward_models.dart';
+import 'package:helty/src/services/ward_service.dart';
 
 @RoutePage()
-class InpatientsListScreen extends StatelessWidget {
+class InpatientsListScreen extends StatefulWidget {
   const InpatientsListScreen({super.key});
+
+  @override
+  State<InpatientsListScreen> createState() => _InpatientsListScreenState();
+}
+
+class _InpatientsListScreenState extends State<InpatientsListScreen> {
+  final _wardService = WardService();
+  final _searchController = TextEditingController();
+
+  List<Ward> _wards = const [];
+  Ward? _selectedWard;
+  List<InpatientCensus> _rows = const [];
+  List<InpatientCensus> _filteredRows = const [];
+
+  bool _isLoadingWards = false;
+  bool _isLoadingWardDetails = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWards();
+    _searchController.addListener(_applySearch);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_applySearch);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadWards() async {
+    setState(() {
+      _isLoadingWards = true;
+    });
+    try {
+      final wards = await _wardService.fetchWards();
+      setState(() {
+        _wards = wards;
+        if (wards.isNotEmpty) {
+          _selectedWard ??= wards.first;
+        }
+      });
+      if (_selectedWard != null) {
+        await _loadWardDetails(_selectedWard!.id);
+      }
+    } catch (e) {
+      _showError('Failed to load wards');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingWards = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadWardDetails(String wardId) async {
+    setState(() {
+      _isLoadingWardDetails = true;
+    });
+    try {
+      final ward = await _wardService.getWardById(wardId);
+      if (!mounted) return;
+      setState(() {
+        _selectedWard = ward;
+        _rows = ward.inpatients;
+      });
+      _applySearch();
+    } catch (e) {
+      _showError('Failed to load ward details');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingWardDetails = false;
+        });
+      }
+    }
+  }
+
+  void _applySearch() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      setState(() {
+        _filteredRows = _rows;
+      });
+      return;
+    }
+
+    setState(() {
+      _filteredRows = _rows.where((row) {
+        final name = row.name.toLowerCase();
+        final bed = row.bedLabel.toLowerCase();
+        final id = row.patientId.toLowerCase();
+        return name.contains(query) ||
+            bed.contains(query) ||
+            id.contains(query);
+      }).toList(growable: false);
+    });
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _openInpatientView(InpatientCensus row) {
+    context.router.push(
+      InpatientPatientViewRoute(
+        patientId: row.patientId,
+        ward: row.wardName,
+        bedNumber: row.bedLabel,
+        diagnosis: row.diagnosis,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    // For now this is a UI-focused census view with mock data.
-    // You can replace `_rows` with real inpatient/admission data later.
-    final rows = [
-      const _InpatientRow(
-        patientId: 'P-0001',
-        name: 'Mr John Doe',
-        ageGender: '54 yrs • Male',
-        ward: 'Male Medical',
-        bed: 'MM-12',
-        diagnosis: 'Severe pneumonia',
-        daysAdmitted: 3,
-      ),
-      const _InpatientRow(
-        patientId: 'P-0002',
-        name: 'Mrs Jane Smith',
-        ageGender: '62 yrs • Female',
-        ward: 'Female Surgical',
-        bed: 'FS-07',
-        diagnosis: 'Post-op hysterectomy',
-        daysAdmitted: 1,
-      ),
-      const _InpatientRow(
-        patientId: 'P-0003',
-        name: 'Master David Okoro',
-        ageGender: '8 yrs • Male',
-        ward: 'Paediatrics',
-        bed: 'P-03',
-        diagnosis: 'Severe malaria',
-        daysAdmitted: 2,
-      ),
-    ];
+    final totalCount = _filteredRows.length;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -50,7 +139,6 @@ class InpatientsListScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -67,7 +155,7 @@ class InpatientsListScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Select a patient in a ward to open the full inpatient view.',
+                        'Select a ward and patient to open the full inpatient view.',
                         style: TextStyle(
                           fontSize: 14,
                           color: colorScheme.onSurface.withValues(alpha: 0.6),
@@ -89,7 +177,9 @@ class InpatientsListScreen extends StatelessWidget {
                         Icon(Icons.bed, size: 18, color: colorScheme.primary),
                         const SizedBox(width: 8),
                         Text(
-                          '${rows.length} Inpatients',
+                          _isLoadingWardDetails
+                              ? 'Loading...'
+                              : '$totalCount Inpatients',
                           style: TextStyle(
                             color: colorScheme.primary,
                             fontWeight: FontWeight.w600,
@@ -102,7 +192,6 @@ class InpatientsListScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Filters row (stub for future ward/doctor filters)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -121,27 +210,33 @@ class InpatientsListScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    // Ward dropdown (placeholder)
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         decoration: const InputDecoration(labelText: 'Ward'),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'All',
-                            child: Text('All wards'),
-                          ),
-                        ],
-                        initialValue: 'All',
-                        onChanged: (_) {},
+                        value: _selectedWard?.id,
+                        isExpanded: true,
+                        items: _wards
+                            .map(
+                              (w) => DropdownMenuItem<String>(
+                                value: w.id,
+                                child: Text(w.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          _loadWardDetails(value);
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Simple search box
                     Expanded(
                       flex: 2,
                       child: TextField(
+                        controller: _searchController,
                         decoration: InputDecoration(
-                          hintText: 'Search by name, hospital number or bed',
+                          hintText:
+                              'Search by name, patient ID or bed (local only)',
                           prefixIcon: Icon(
                             Icons.search,
                             size: 18,
@@ -154,12 +249,17 @@ class InpatientsListScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      tooltip: 'Refresh wards',
+                      onPressed: _isLoadingWards ? null : _loadWards,
+                      icon: const Icon(Icons.refresh),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Table
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -198,133 +298,188 @@ class InpatientsListScreen extends StatelessWidget {
                         color: colorScheme.outline.withValues(alpha: 0.12),
                       ),
                       Expanded(
-                        child: ListView.separated(
-                          itemCount: rows.length,
-                          separatorBuilder: (_, __) => Divider(
-                            height: 1,
-                            color: colorScheme.outline.withValues(alpha: 0.06),
-                          ),
-                          itemBuilder: (context, index) {
-                            final row = rows[index];
-                            return InkWell(
-                              onTap: () => _openInpatientView(
-                                context: context,
-                                row: row,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 14,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 3,
-                                      child: Row(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 16,
-                                            backgroundColor: colorScheme.primary
-                                                .withValues(alpha: 0.12),
-                                            child: Text(
-                                              row.initials,
-                                              style: TextStyle(
-                                                color: colorScheme.primary,
-                                                fontWeight: FontWeight.bold,
+                        child: _isLoadingWardDetails
+                            ? const Center(
+                                child: CircularProgressIndicator(),
+                              )
+                            : _selectedWard == null
+                                ? Center(
+                                    child: Text(
+                                      'Select a ward to view current inpatients.',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                  )
+                                : _filteredRows.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          'No inpatients in this ward.',
+                                          style: TextStyle(
+                                            color: colorScheme.onSurface
+                                                .withValues(alpha: 0.7),
+                                          ),
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        itemCount: _filteredRows.length,
+                                        separatorBuilder: (_, __) => Divider(
+                                          height: 1,
+                                          color: colorScheme.outline
+                                              .withValues(alpha: 0.06),
+                                        ),
+                                        itemBuilder: (context, index) {
+                                          final row = _filteredRows[index];
+                                          return InkWell(
+                                            onTap: () => _openInpatientView(row),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 20,
+                                                vertical: 14,
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Expanded(
+                                                    flex: 3,
+                                                    child: Row(
+                                                      children: [
+                                                        CircleAvatar(
+                                                          radius: 16,
+                                                          backgroundColor:
+                                                              colorScheme
+                                                                  .primary
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.12),
+                                                          child: Text(
+                                                            row.initials,
+                                                            style: TextStyle(
+                                                              color:
+                                                                  colorScheme
+                                                                      .primary,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 10),
+                                                        Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              row.name,
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                color: colorScheme
+                                                                    .onSurface,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                height: 2),
+                                                            if (row.ageGender
+                                                                .isNotEmpty)
+                                                              Text(
+                                                                row.ageGender,
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: colorScheme
+                                                                      .onSurface
+                                                                      .withValues(
+                                                                          alpha:
+                                                                              0.7),
+                                                                ),
+                                                              ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    flex: 2,
+                                                    child: Text(
+                                                      row.wardName,
+                                                      style: TextStyle(
+                                                        color: colorScheme
+                                                            .onSurface
+                                                            .withValues(
+                                                                alpha: 0.8),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    flex: 1,
+                                                    child: Text(
+                                                      row.bedLabel,
+                                                      style: TextStyle(
+                                                        color: colorScheme
+                                                            .onSurface
+                                                            .withValues(
+                                                                alpha: 0.8),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    flex: 3,
+                                                    child: Text(
+                                                      row.diagnosis,
+                                                      style: TextStyle(
+                                                        color: colorScheme
+                                                            .onSurface
+                                                            .withValues(
+                                                                alpha: 0.8),
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    flex: 2,
+                                                    child: Text(
+                                                      '${row.daysAdmitted} days',
+                                                      style: TextStyle(
+                                                        color: colorScheme
+                                                            .onSurface
+                                                            .withValues(
+                                                                alpha: 0.9),
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    flex: 2,
+                                                    child: Align(
+                                                      alignment:
+                                                          Alignment.centerRight,
+                                                      child: OutlinedButton.icon(
+                                                        onPressed: () =>
+                                                            _openInpatientView(
+                                                          row,
+                                                        ),
+                                                        icon: const Icon(
+                                                          Icons.open_in_new,
+                                                          size: 16,
+                                                        ),
+                                                        label: const Text(
+                                                            'Open view'),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                row.name,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  color: colorScheme.onSurface,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                row.ageGender,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: colorScheme.onSurface
-                                                      .withValues(alpha: 0.7),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                          );
+                                        },
                                       ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        row.ward,
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.8),
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 1,
-                                      child: Text(
-                                        row.bed,
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.8),
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Text(
-                                        row.diagnosis,
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.8),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        '${row.daysAdmitted} days',
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.9),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Align(
-                                        alignment: Alignment.centerRight,
-                                        child: OutlinedButton.icon(
-                                          onPressed: () => _openInpatientView(
-                                            context: context,
-                                            row: row,
-                                          ),
-                                          icon: const Icon(
-                                            Icons.open_in_new,
-                                            size: 16,
-                                          ),
-                                          label: const Text('Open view'),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
                       ),
                     ],
                   ),
@@ -335,48 +490,6 @@ class InpatientsListScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  void _openInpatientView({
-    required BuildContext context,
-    required _InpatientRow row,
-  }) {
-    context.router.push(
-      InpatientPatientViewRoute(
-        patientId: row.patientId,
-        ward: row.ward,
-        bedNumber: row.bed,
-        diagnosis: row.diagnosis,
-      ),
-    );
-  }
-}
-
-class _InpatientRow {
-  final String patientId;
-  final String name;
-  final String ageGender;
-  final String ward;
-  final String bed;
-  final String diagnosis;
-  final int daysAdmitted;
-
-  const _InpatientRow({
-    required this.patientId,
-    required this.name,
-    required this.ageGender,
-    required this.ward,
-    required this.bed,
-    required this.diagnosis,
-    required this.daysAdmitted,
-  });
-
-  String get initials {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-        .toUpperCase();
   }
 }
 

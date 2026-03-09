@@ -23,6 +23,10 @@ final invoicesProvider = FutureProvider.family<List<Invoice>, InvoiceFilter>((
   return service.getInvoices(
     patientId: filter.patientId,
     status: filter.status,
+    query: filter.query,
+    category: filter.category,
+    from: filter.from,
+    to: filter.to,
     page: filter.page,
     limit: filter.limit,
   );
@@ -32,17 +36,24 @@ final invoicesProvider = FutureProvider.family<List<Invoice>, InvoiceFilter>((
 class InvoiceFilter {
   final String? patientId;
   final String? status;
+  final String? query;
+  final String? category;
+  final DateTime? from;
+  final DateTime? to;
   final int page;
   final int limit;
 
   const InvoiceFilter({
     this.patientId,
     this.status,
+    this.query,
+    this.category,
+    this.from,
+    this.to,
     this.page = 1,
-    this.limit = 20,
+    this.limit = 100,
   });
 
-  // Optional: override == and hashCode if you want caching to work better
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -50,12 +61,24 @@ class InvoiceFilter {
           runtimeType == other.runtimeType &&
           patientId == other.patientId &&
           status == other.status &&
+          query == other.query &&
+          category == other.category &&
+          from == other.from &&
+          to == other.to &&
           page == other.page &&
           limit == other.limit;
 
   @override
-  int get hashCode =>
-      patientId.hashCode ^ status.hashCode ^ page.hashCode ^ limit.hashCode;
+  int get hashCode => Object.hash(
+        patientId,
+        status,
+        query,
+        category,
+        from,
+        to,
+        page,
+        limit,
+      );
 }
 
 // ────────────────────────────────────────────────

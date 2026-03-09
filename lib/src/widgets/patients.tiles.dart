@@ -60,16 +60,18 @@ class PatientTile extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      _infoBadge(Icons.badge_outlined, patient.patientId),
-                      const SizedBox(width: 12),
-                      _infoBadge(
-                        Icons.phone_outlined,
-                        patient.phoneNumber ?? 'No Phone Number',
-                      ),
-                    ],
+                  // Patient ID as separate labeled field (display patientId, not internal id)
+                  Text(
+                    'Patient ID: ${patient.patientId}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
+                  if (patient.phoneNumber != null && patient.phoneNumber!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    _infoBadge(
+                      Icons.phone_outlined,
+                      patient.phoneNumber!,
+                    ),
+                  ],
                 ],
               ),
             ),

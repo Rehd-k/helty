@@ -5,15 +5,17 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
+import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
 @RoutePage()
 class ObstetricsPregnanciesListScreen extends ConsumerStatefulWidget {
-  final String patientId;
+  /// When null, patient comes from [patientProvider].selectedPatient.
+  final String? patientId;
 
   const ObstetricsPregnanciesListScreen({
     super.key,
-    required this.patientId,
+    this.patientId,
   });
 
   @override
@@ -27,25 +29,44 @@ class _ObstetricsPregnanciesListScreenState
   int _total = 0;
   int _skip = 0;
   static const int _take = 20;
-  bool _loading = true;
+  bool _loading = false;
   String? _error;
 
   ObstetricsService get _service => ref.read(obstetricsServiceProvider);
 
+  /// Patient from state; for API we use id (not patientId) per backend.
+  String? get _effectivePatientId {
+    final selected = ref.watch(patientProvider).selectedPatient;
+    return selected?.id ?? (widget.patientId?.trim().isEmpty == false ? widget.patientId : null);
+  }
+
   @override
-  void initState() {
-    super.initState();
-    _load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ref.watch is only valid after initState; trigger initial load here.
+    final patientId = _effectivePatientId;
+    if (patientId != null &&
+        patientId.isNotEmpty &&
+        _pregnancies.isEmpty &&
+        _skip == 0 &&
+        !_loading) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
+    final patientId = _effectivePatientId;
+    if (patientId == null || patientId.isEmpty) {
+      if (mounted) setState(() { _pregnancies = []; _total = 0; _loading = false; });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final res = await _service.listPregnancies(
-        patientId: widget.patientId,
+        patientId: patientId,
         skip: _skip,
         take: _take,
       );
@@ -75,15 +96,38 @@ class _ObstetricsPregnanciesListScreenState
   }
 
   void _addPregnancy() {
-    context.router.push(
-      ObstetricsAddPregnancyRoute(patientId: widget.patientId),
-    ).then((_) => _load());
+    context.router.push(ObstetricsAddPregnancyRoute()).then((_) => _load());
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final patientId = _effectivePatientId;
+
+    if (patientId == null || patientId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Pregnancies'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.router.maybePop(),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Select a patient to view pregnancies.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

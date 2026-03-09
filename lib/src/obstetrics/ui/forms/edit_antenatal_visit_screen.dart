@@ -13,10 +13,7 @@ import 'package:helty/src/services/staff_service.dart';
 class ObstetricsEditAntenatalVisitScreen extends ConsumerStatefulWidget {
   final String visitId;
 
-  const ObstetricsEditAntenatalVisitScreen({
-    super.key,
-    required this.visitId,
-  });
+  const ObstetricsEditAntenatalVisitScreen({super.key, required this.visitId});
 
   @override
   ConsumerState<ObstetricsEditAntenatalVisitScreen> createState() =>
@@ -149,9 +146,9 @@ class _ObstetricsEditAntenatalVisitScreenState
       });
       if (!mounted) return;
       context.router.maybePop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Visit updated.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Visit updated.')));
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -215,16 +212,16 @@ class _ObstetricsEditAntenatalVisitScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedStaffId,
+              initialValue: _selectedStaffId,
               decoration: const InputDecoration(
                 labelText: 'Staff *',
                 border: OutlineInputBorder(),
               ),
               items: _staffList
-                  .map((s) => DropdownMenuItem(
-                        value: s.id,
-                        child: Text(s.fullName),
-                      ))
+                  .map(
+                    (s) =>
+                        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+                  )
                   .toList(),
               onChanged: (v) => setState(() => _selectedStaffId = v),
             ),
@@ -292,16 +289,13 @@ class _ObstetricsEditAntenatalVisitScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<FetalPresentation>(
-              value: _presentation,
+              initialValue: _presentation,
               decoration: const InputDecoration(
                 labelText: 'Presentation',
                 border: OutlineInputBorder(),
               ),
               items: FetalPresentation.values
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.name),
-                      ))
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                   .toList(),
               onChanged: (v) => setState(() => _presentation = v),
             ),

@@ -46,22 +46,17 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: NursesDashboardRoute.page),
         AutoRoute(page: WaitingPatientsRoute.page),
         AutoRoute(page: ConsultingRoomsRoute.page),
+        AutoRoute(page: DoctorDashboardRoute.page),
+        AutoRoute(page: DoctorOutpatientListRoute.page),
+        AutoRoute(page: DoctorWalkInQueueRoute.page),
+        AutoRoute(page: WardRoundsRoute.page),
         AutoRoute(page: InpatientsListRoute.page),
-        AutoRoute(
-          page: DoctorDashboardRoute.page,
-          children: [
-            AutoRoute(page: DoctorOutpatientListRoute.page, initial: true),
-            AutoRoute(page: DoctorWalkInQueueRoute.page),
-            AutoRoute(page: WardRoundsRoute.page),
-            AutoRoute(page: InpatientsListRoute.page),
-            AutoRoute(page: DoctorPendingLabsRoute.page),
-            AutoRoute(page: DoctorPendingImagingRoute.page),
-            AutoRoute(page: DoctorPendingPrescriptionsRoute.page),
-            AutoRoute(page: DoctorCompletedEncountersRoute.page),
-            AutoRoute(page: DoctorTemplatesRoute.page),
-            AutoRoute(page: DoctorProfileRoute.page),
-          ],
-        ),
+        AutoRoute(page: DoctorPendingLabsRoute.page),
+        AutoRoute(page: DoctorPendingImagingRoute.page),
+        AutoRoute(page: DoctorPendingPrescriptionsRoute.page),
+        AutoRoute(page: DoctorCompletedEncountersRoute.page),
+        AutoRoute(page: DoctorTemplatesRoute.page),
+        AutoRoute(page: DoctorProfileRoute.page),
         AutoRoute(
           page: DoctorCompletedEncounterViewRoute.page,
           children: [
@@ -115,11 +110,15 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: SupplyHistoryRoute.page),
         AutoRoute(page: PharmacyLocationRoute.page),
         AutoRoute(page: PharmacyPOSRoute.page),
-        AutoRoute(page: PharmacyWaitingPatientRoute.page),
+        AutoRoute(page: DispenseRoute.page),
+        AutoRoute(page: WaitingPatientRoute.page),
         // O&G (Obstetrics & Gynaecology)
         AutoRoute(page: ObstetricsDashboardRoute.page),
         AutoRoute(page: ObstetricsPatientSelectRoute.page),
         AutoRoute(page: ObstetricsPregnanciesListRoute.page),
+        AutoRoute(page: InpatientBillsListRoute.page),
+        AutoRoute(page: PatientBillingRoute.page),
+        AutoRoute(page: WardManagementRoute.page),
         AutoRoute(
           page: ObstetricsPregnancyViewRoute.page,
           children: [
@@ -143,6 +142,12 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: ObstetricsGynaeProceduresRoute.page),
         AutoRoute(page: ObstetricsAddGynaeProcedureRoute.page),
         AutoRoute(page: ObstetricsEditGynaeProcedureRoute.page),
+        // Laboratory (dynamic lab module)
+        AutoRoute(page: LabDashboardRoute.page),
+        AutoRoute(page: LabConfigRoute.page),
+        AutoRoute(page: LabCreateOrderRoute.page),
+        AutoRoute(page: LabOrderDetailRoute.page),
+        AutoRoute(page: LabResultEntryRoute.page),
       ],
     ),
 

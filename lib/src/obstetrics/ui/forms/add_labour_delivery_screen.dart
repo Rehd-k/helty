@@ -131,17 +131,18 @@ class _ObstetricsAddLabourDeliveryScreenState
           if (_episiotomy != null) 'episiotomy': _episiotomy,
           if (_perinealTearGradeCtrl.text.trim().isNotEmpty)
             'perinealTearGrade': _perinealTearGradeCtrl.text.trim(),
-          if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
+          if (_notesCtrl.text.trim().isNotEmpty)
+            'notes': _notesCtrl.text.trim(),
         },
       );
       if (!mounted) return;
       context.router.maybePop(true);
-      context.router.push(ObstetricsLabourDeliveryViewRoute(
-        labourDeliveryId: delivery.id,
-      ));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Delivery recorded.')),
+      context.router.push(
+        ObstetricsLabourDeliveryViewRoute(labourDeliveryId: delivery.id),
       );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Delivery recorded.')));
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -200,48 +201,44 @@ class _ObstetricsAddLabourDeliveryScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<DeliveryMode>(
-              value: _mode,
+              initialValue: _mode,
               decoration: const InputDecoration(
                 labelText: 'Mode *',
                 border: OutlineInputBorder(),
               ),
               items: DeliveryMode.values
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.name),
-                      ))
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                   .toList(),
               onChanged: (v) => setState(() => _mode = v),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<DeliveryOutcome>(
-              value: _outcome,
+              initialValue: _outcome,
               decoration: const InputDecoration(
                 labelText: 'Outcome *',
                 border: OutlineInputBorder(),
               ),
               items: DeliveryOutcome.values
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.name),
-                      ))
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                   .toList(),
               onChanged: (v) => setState(() => _outcome = v),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _deliveredById,
+              initialValue: _deliveredById,
               decoration: const InputDecoration(
                 labelText: 'Delivered by *',
                 border: OutlineInputBorder(),
               ),
               items: _staffList
-                  .map((s) => DropdownMenuItem(
-                        value: s.id,
-                        child: Text(s.fullName),
-                      ))
+                  .map(
+                    (s) =>
+                        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+                  )
                   .toList(),
-              onChanged: _loadingStaff ? null : (v) => setState(() => _deliveredById = v),
+              onChanged: _loadingStaff
+                  ? null
+                  : (v) => setState(() => _deliveredById = v),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -254,7 +251,7 @@ class _ObstetricsAddLabourDeliveryScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<bool>(
-              value: _placentaComplete,
+              initialValue: _placentaComplete,
               decoration: const InputDecoration(
                 labelText: 'Placenta complete',
                 border: OutlineInputBorder(),
@@ -268,7 +265,7 @@ class _ObstetricsAddLabourDeliveryScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<bool>(
-              value: _episiotomy,
+              initialValue: _episiotomy,
               decoration: const InputDecoration(
                 labelText: 'Episiotomy',
                 border: OutlineInputBorder(),

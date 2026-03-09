@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
@@ -37,23 +38,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  PageRouteInfo _initialRouteForRole(String role) {
-    print('role: $role, accountType: kaibsfn');
-    switch (role) {
+  PageRouteInfo _initialRouteForRole(String role, String accountType) {
+    log('role: $role, accountType: $accountType');
+    switch (accountType) {
       case 'RECEPTIONIST':
         return const FrontDeskDashboardRoute();
-      case 'billing':
+      case 'bills':
         return const BillingDashboardRoute();
+      case 'pharmacy_store':
+        return const MedicineInventoryRoute();
+      case 'pharmacy_dispensary':
+        return EnlistPaitientRoute(serviceName: 'Pharmacy');
       case 'NURSE':
       case 'outpatient_nurse':
         return const NursesDashboardRoute();
-      case 'doctor':
       case 'consultant':
-        return const DoctorDashboardRoute();
+        return const DoctorOutpatientListRoute();
       case 'admin':
-        return const CMDDashboardRoute();
+        return const FrontDeskDashboardRoute();
       default:
-        return const DashboardRoute();
+        return const FrontDeskDashboardRoute();
     }
   }
 
@@ -66,7 +70,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Replace entire stack so the user can't go back to login.
       final auth = ref.read(authProvider);
       final role = auth.staff?.role ?? '';
-      final initialChild = _initialRouteForRole(role);
+      final accountType = auth.staff?.accountType?.name ?? '';
+      final initialChild = _initialRouteForRole(role, accountType);
       context.router.replaceAll([
         HomeRoute(children: [initialChild]),
       ]);

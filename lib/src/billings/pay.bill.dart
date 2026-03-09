@@ -453,8 +453,6 @@ class PayBillState extends ConsumerState<PayBill> {
           .toList(),
     );
 
-    debugPrint('Payment payload: ${dto.toJson()}');
-
     setState(() => _isSubmitting = true);
 
     try {
@@ -870,7 +868,9 @@ class PayBillState extends ConsumerState<PayBill> {
               OutlinedButton.icon(
                 onPressed: () {
                   ref.read(patientProvider.notifier).clearPatient();
-                  context.router.replaceAll([const EnlistPaitientRoute()]);
+                  context.router.replaceAll([
+                    EnlistPaitientRoute(serviceName: ''),
+                  ]);
                   setState(() {
                     _confirmed = false;
                     _paymentMethod = null;
@@ -881,6 +881,24 @@ class PayBillState extends ConsumerState<PayBill> {
                 },
                 icon: const Icon(Icons.print),
                 label: const Text("Print Receipt"),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () {
+                  ref.read(patientProvider.notifier).clearPatient();
+                  context.router.replaceAll([
+                    EnlistPaitientRoute(serviceName: 'inpatient'),
+                  ]);
+                  setState(() {
+                    _confirmed = false;
+                    _paymentMethod = null;
+                    _selectedBank = null;
+                    _mixedAmounts.clear();
+                    _mixedBanks.clear();
+                  });
+                },
+                icon: const Icon(Icons.bed),
+                label: const Text("Process ward payment"),
               ),
             ],
           ),

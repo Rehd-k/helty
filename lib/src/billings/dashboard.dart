@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/services/api_service.dart';
 
 import 'patient_invoice.dart';
@@ -192,7 +193,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                       ),
                     ),
                     Text(
-                      "Today, 09:41 AM ",
+                      "${DateFormatter.timeOnly(DateTime.now())} ",
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -297,7 +298,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                 const SizedBox(width: 16),
                 _buildKpiCard(
                   context,
-                  "Unpaid Invoices",
+                  "Unpaid Bills",
                   42.toFinancial(isMoney: false),
                   "+ 5.2%",
                   "increase",
@@ -320,7 +321,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                 // Added Value KPI for Department Head
                 _buildKpiCard(
                   context,
-                  "Overdue Accounts (>30d)",
+                  "Overdue Bills (>30d)",
                   18400.toFinancial(isMoney: true),
                   "+ 1.2%",
                   "vs last month",
@@ -614,7 +615,7 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
                                     ),
                                   ),
                                   Text(
-                                    "850k",
+                                    "${850.toFinancial(isMoney: true)}K",
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,

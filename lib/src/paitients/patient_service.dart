@@ -58,8 +58,23 @@ class PatientService {
   }
 
   Future<Patient> getPatientById(String id) async {
-    final resp = await _dio.get('/patients/$id');
-    return Patient.fromJson(resp.data as Map<String, dynamic>);
+    final resp = await _dio.get<Map<String, dynamic>>('/patients/$id');
+    final data = resp.data;
+
+    if (data == null) {
+      throw StateError('Patient response was empty');
+    }
+
+    // The API may wrap the patient object, or return it directly
+    final dynamic raw = data['patient'] ?? data['data'] ?? data;
+
+    if (raw is! Map<String, dynamic>) {
+      throw StateError(
+        'Unexpected patient payload type: ${raw.runtimeType}. Expected Map<String, dynamic>.',
+      );
+    }
+
+    return Patient.fromJson(raw);
   }
 
   // ── Write ─────────────────────────────────────────────────────────────────

@@ -4,16 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
+import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
 @RoutePage()
 class ObstetricsAddPregnancyScreen extends ConsumerStatefulWidget {
-  final String patientId;
+  /// When null or empty, patientId is taken from [patientProvider].selectedPatient.
+  final String? patientId;
 
-  const ObstetricsAddPregnancyScreen({
-    super.key,
-    required this.patientId,
-  });
+  const ObstetricsAddPregnancyScreen({super.key, this.patientId});
 
   @override
   ConsumerState<ObstetricsAddPregnancyScreen> createState() =>
@@ -35,6 +34,15 @@ class _ObstetricsAddPregnancyScreenState
   String? _error;
 
   ObstetricsService get _service => ref.read(obstetricsServiceProvider);
+
+  /// Prefer selectedPatient from state; fallback to widget.patientId (e.g. when opened from pregnancies list).
+  String? get _effectivePatientId {
+    final selected = ref.watch(patientProvider).selectedPatient;
+    return (selected?.patientId.isNotEmpty == true
+            ? selected!.patientId
+            : selected?.id) ??
+        (widget.patientId?.trim().isEmpty == false ? widget.patientId : null);
+  }
 
   @override
   void dispose() {
@@ -81,10 +89,15 @@ class _ObstetricsAddPregnancyScreenState
       setState(() => _error = 'LMP and EDD are required.');
       return;
     }
+    final patientId = _effectivePatientId;
+    if (patientId == null || patientId.isEmpty) {
+      setState(() => _error = 'No patient selected. Select a patient first.');
+      return;
+    }
     setState(() => _saving = true);
     try {
       await _service.createPregnancy({
-        'patientId': widget.patientId,
+        'patientId': patientId,
         'gravida': gravida,
         'para': para,
         'lmp': lmp,
@@ -97,9 +110,9 @@ class _ObstetricsAddPregnancyScreenState
       });
       if (!mounted) return;
       context.router.maybePop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pregnancy added.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pregnancy added.')));
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -118,6 +131,31 @@ class _ObstetricsAddPregnancyScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final patientId = _effectivePatientId;
+
+    if (patientId == null || patientId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Add pregnancy'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => context.router.maybePop(),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Select a patient to add a pregnancy.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -216,7 +254,7 @@ class _ObstetricsAddPregnancyScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<PregnancyStatus>(
-              value: _status,
+              initialValue: _status,
               decoration: const InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(),

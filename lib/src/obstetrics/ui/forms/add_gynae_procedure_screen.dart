@@ -22,10 +22,7 @@ const List<String> _procedureTypes = [
 class ObstetricsAddGynaeProcedureScreen extends ConsumerStatefulWidget {
   final String? patientId;
 
-  const ObstetricsAddGynaeProcedureScreen({
-    super.key,
-    this.patientId,
-  });
+  const ObstetricsAddGynaeProcedureScreen({super.key, this.patientId});
 
   @override
   ConsumerState<ObstetricsAddGynaeProcedureScreen> createState() =>
@@ -138,14 +135,13 @@ class _ObstetricsAddGynaeProcedureScreenState
           'findings': _findingsCtrl.text.trim(),
         if (_complicationsCtrl.text.trim().isNotEmpty)
           'complications': _complicationsCtrl.text.trim(),
-        if (_notesCtrl.text.trim().isNotEmpty)
-          'notes': _notesCtrl.text.trim(),
+        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       });
       if (!mounted) return;
       context.router.maybePop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Procedure added.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Procedure added.')));
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -199,16 +195,13 @@ class _ObstetricsAddGynaeProcedureScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _procedureType,
+              initialValue: _procedureType,
               decoration: const InputDecoration(
                 labelText: 'Procedure type *',
                 border: OutlineInputBorder(),
               ),
               items: _procedureTypes
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e),
-                      ))
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                   .toList(),
               onChanged: (v) => setState(() => _procedureType = v),
             ),
@@ -228,18 +221,20 @@ class _ObstetricsAddGynaeProcedureScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedSurgeonId,
+              initialValue: _selectedSurgeonId,
               decoration: const InputDecoration(
                 labelText: 'Surgeon *',
                 border: OutlineInputBorder(),
               ),
               items: _staffList
-                  .map((s) => DropdownMenuItem(
-                        value: s.id,
-                        child: Text(s.fullName),
-                      ))
+                  .map(
+                    (s) =>
+                        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+                  )
                   .toList(),
-              onChanged: _loadingStaff ? null : (v) => setState(() => _selectedSurgeonId = v),
+              onChanged: _loadingStaff
+                  ? null
+                  : (v) => setState(() => _selectedSurgeonId = v),
             ),
             const SizedBox(height: 16),
             TextFormField(

@@ -104,6 +104,7 @@ class TransactionQuery {
     this.phoneNumber,
     this.createdById,
     this.status,
+    this.paymentMethod,
     this.fromDate,
     this.toDate,
     this.skip = 0,
@@ -119,6 +120,8 @@ class TransactionQuery {
   final String? phoneNumber;
   final String? createdById;
   final String? status; // e.g. 'PAID', 'ACTIVE', 'PARTIALLY_PAID', ...
+  /// Filter by payment method (e.g. 'CASH', 'TRANSFER', 'CHEQUE', 'POS'). Backend may support this param.
+  final String? paymentMethod;
   final DateTime? fromDate;
   final DateTime? toDate;
   final int skip;
@@ -138,6 +141,8 @@ class TransactionQuery {
     if (createdById != null && createdById!.isNotEmpty)
       'createdById': createdById,
     if (status != null && status!.isNotEmpty) 'status': status,
+    if (paymentMethod != null && paymentMethod!.isNotEmpty)
+      'paymentMethod': paymentMethod,
     if (fromDate != null) 'fromDate': fromDate!.toIso8601String(),
     if (toDate != null) 'toDate': toDate!.toIso8601String(),
     'skip': skip,
@@ -212,7 +217,8 @@ class TransactionService {
         ? resp.data as List
         : <dynamic>[];
 
-    final total = (body['total'] as num?)?.toInt() ?? rawList.length;
+    final totalFromApi = _toInt(body['total']);
+    final total = totalFromApi > 0 ? totalFromApi : rawList.length;
 
     return PaginatedTransactions(
       data: rawList.map((e) => _fromJson(e as Map<String, dynamic>)).toList(),
@@ -267,9 +273,49 @@ class TransactionService {
 
   // ── Parsing ───────────────────────────────────────────────────────────────
 
+  /// Parse numeric value from API (Prisma Decimal often comes as string).
+  static double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  static int _toInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  static DateTime _toDateTime(dynamic v) {
+    if (v == null) return DateTime.now();
+    if (v is DateTime) return v;
+    if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
+    return DateTime.now();
+  }
+
+  /// Build display name from patient object (firstName, surname).
+  static String _patientName(Map<String, dynamic>? j) {
+    if (j == null) return '';
+    final first = (j['firstName'] as String?)?.trim() ?? '';
+    final last = (j['surname'] as String?)?.trim() ?? (j['lastName'] as String?)?.trim() ?? '';
+    return [first, last].where((s) => s.isNotEmpty).join(' ');
+  }
+
+  /// Build display name from staff object (firstName, lastName).
+  static String _staffName(Map<String, dynamic>? j) {
+    if (j == null) return '';
+    final first = (j['firstName'] as String?)?.trim() ?? '';
+    final last = (j['lastName'] as String?)?.trim() ?? (j['surname'] as String?)?.trim() ?? '';
+    return [first, last].where((s) => s.isNotEmpty).join(' ');
+  }
+
   /// Maps a raw JSON map (from the API) to a [TransactionModel].
+  /// API uses transactionID, patient{firstName,surname}, createdBy{firstName,lastName};
+  /// Decimal fields may come as strings.
   static TransactionModel _fromJson(Map<String, dynamic> j) {
-    // Items
+    // Items (list may be omitted when only _count is returned)
     final rawItems = (j['items'] as List? ?? []);
     final items = rawItems
         .map((e) => TransactionItemModel.fromMap(e as Map<String, dynamic>))
@@ -282,34 +328,32 @@ class TransactionService {
       return TransactionPaymentModel(
         id: pm['id'] as String? ?? '',
         method: _parsePaymentMethod(pm['method'] as String? ?? 'cash'),
-        amount: (pm['amount'] as num?)?.toDouble() ?? 0,
+        amount: _toDouble(pm['amount']),
         reference: pm['reference'] as String?,
         bankName: pm['bankName'] as String?,
         notes: pm['notes'] as String?,
-        paidAt:
-            DateTime.tryParse(pm['paidAt'] as String? ?? '') ?? DateTime.now(),
+        paidAt: _toDateTime(pm['paidAt']),
         receivedBy: pm['receivedById'] as String? ?? '',
       );
     }).toList();
 
+    final patient = j['patient'] as Map<String, dynamic>?;
+    final createdByObj = j['createdBy'] as Map<String, dynamic>?;
+
     return TransactionModel(
       id: j['id'] as String? ?? '',
-      transactionNumber: j['transactionNumber'] as String? ?? '',
+      transactionNumber: j['transactionID'] as String? ?? j['transactionNumber'] as String? ?? '',
       patientId: j['patientId'] as String? ?? '',
-      patientName:
-          j['patientName'] as String? ??
-          (j['patient'] as Map<String, dynamic>?)?['firstName'] as String? ??
-          '',
-      status: _parseStatus(j['status'] as String? ?? ''),
-      totalAmount: (j['totalAmount'] as num?)?.toDouble() ?? 0,
-      discountAmount: (j['discountAmount'] as num?)?.toDouble() ?? 0,
-      insuranceCovered: (j['insuranceCovered'] as num?)?.toDouble() ?? 0,
-      amountPaid: (j['amountPaid'] as num?)?.toDouble() ?? 0,
+      patientName: j['patientName'] as String? ?? _patientName(patient),
+      status: _parseStatus(j['status'] is String ? j['status'] as String : j['status']?.toString() ?? ''),
+      totalAmount: _toDouble(j['totalAmount']),
+      discountAmount: _toDouble(j['discountAmount']),
+      insuranceCovered: _toDouble(j['insuranceCovered']),
+      amountPaid: _toDouble(j['amountPaid']),
       items: items,
       payments: payments,
-      createdAt:
-          DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
-      createdBy: j['createdById'] as String? ?? '',
+      createdAt: _toDateTime(j['createdAt']),
+      createdBy: _staffName(createdByObj).isEmpty ? (j['createdById'] as String? ?? '') : _staffName(createdByObj),
       admissionId: j['admissionId'] as String?,
       notes: j['notes'] as String?,
     );

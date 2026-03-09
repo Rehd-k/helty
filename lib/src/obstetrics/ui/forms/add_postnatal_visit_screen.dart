@@ -62,7 +62,9 @@ class _ObstetricsAddPostnatalVisitScreenState
     setState(() => _loading = true);
     try {
       final staffList = await _staffService.fetchStaff(limit: 100);
-      final delivery = await _obstetrics.getLabourDelivery(widget.labourDeliveryId);
+      final delivery = await _obstetrics.getLabourDelivery(
+        widget.labourDeliveryId,
+      );
       final babiesRes = await _obstetrics.listBabies(
         labourDeliveryId: widget.labourDeliveryId,
       );
@@ -164,9 +166,9 @@ class _ObstetricsAddPostnatalVisitScreenState
       await _obstetrics.createPostnatalVisit(body);
       if (!mounted) return;
       context.router.maybePop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Postnatal visit added.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Postnatal visit added.')));
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -217,33 +219,31 @@ class _ObstetricsAddPostnatalVisitScreenState
                 ),
               ),
             DropdownButtonFormField<PostnatalVisitType>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(
                 labelText: 'Type *',
                 border: OutlineInputBorder(),
               ),
               items: PostnatalVisitType.values
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.name),
-                      ))
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                   .toList(),
               onChanged: (v) => setState(() => _type = v),
             ),
             const SizedBox(height: 16),
             if (_type == PostnatalVisitType.BABY) ...[
               DropdownButtonFormField<String>(
-                value: _babyId,
+                initialValue: _babyId,
                 decoration: const InputDecoration(
                   labelText: 'Baby *',
                   border: OutlineInputBorder(),
                 ),
                 items: _babies
-                    .map((b) => DropdownMenuItem(
-                          value: b.id,
-                          child: Text(
-                              'Baby ${b.birthOrder} · ${b.sex.name}'),
-                        ))
+                    .map(
+                      (b) => DropdownMenuItem(
+                        value: b.id,
+                        child: Text('Baby ${b.birthOrder} · ${b.sex.name}'),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _babyId = v),
               ),
@@ -264,16 +264,16 @@ class _ObstetricsAddPostnatalVisitScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedStaffId,
+              initialValue: _selectedStaffId,
               decoration: const InputDecoration(
                 labelText: 'Staff *',
                 border: OutlineInputBorder(),
               ),
               items: _staffList
-                  .map((s) => DropdownMenuItem(
-                        value: s.id,
-                        child: Text(s.fullName),
-                      ))
+                  .map(
+                    (s) =>
+                        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+                  )
                   .toList(),
               onChanged: (v) => setState(() => _selectedStaffId = v),
             ),

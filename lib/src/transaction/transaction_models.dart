@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart' show DateTimeRange;
+import 'package:intl/intl.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ENUMS  (mirrors schema.prisma enums)
@@ -77,25 +78,27 @@ class TransactionItemModel {
   final double totalPrice;
   final double paidAmount;
 
+  /// [cost], [unitPrice], [totalPrice], [quantity], [paid], [paidAmount] may be num or string (e.g. Prisma Decimal).
   factory TransactionItemModel.fromMap(Map<String, dynamic> m) =>
       TransactionItemModel(
         id: m['id'] as String? ?? '',
         description: m['name'] as String? ?? m['description'] as String? ?? '',
         source: m['source'] as String? ?? 'OTHER',
-        quantity: (m['quantity'] as num?)?.toInt() ?? 1,
-        unitPrice:
-            (m['cost'] as num?)?.toDouble() ??
-            (m['unitPrice'] as num?)?.toDouble() ??
-            0,
-        totalPrice:
-            (m['cost'] as num?)?.toDouble() ??
-            (m['totalPrice'] as num?)?.toDouble() ??
-            0,
-        paidAmount:
-            (m['paid'] as num?)?.toDouble() ??
-            (m['paidAmount'] as num?)?.toDouble() ??
-            0,
+        quantity: (_itemNum(m['quantity']) ?? 1).toInt(),
+        unitPrice: _itemNum(m['cost']) ?? _itemNum(m['unitPrice']) ?? 0,
+        totalPrice: _itemNum(m['cost']) ?? _itemNum(m['totalPrice']) ?? 0,
+        paidAmount: _itemNum(m['paid']) ?? _itemNum(m['paidAmount']) ?? 0,
       );
+}
+
+double? _itemNum(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  if (v is String) {
+    final n = num.tryParse(v);
+    return n?.toDouble();
+  }
+  return null;
 }
 
 /// Mirrors the `TransactionPayment` model from schema.prisma.
@@ -312,8 +315,48 @@ List<TransactionMap> applyTransactionFilter(
 /// Alias for readability
 typedef TransactionMap = Map<String, dynamic>;
 
+/// Converts a [TransactionModel] from the API into [TransactionMap] for table/totals.
+TransactionMap transactionModelToMap(TransactionModel m) {
+  String paymentMethodLabel = '—';
+  if (m.payments.isNotEmpty) {
+    final methods = m.payments.map((p) => p.method.label).toSet();
+    paymentMethodLabel =
+        methods.length == 1 ? methods.single : 'Mixed';
+  }
+  final dateStr =
+      DateFormat('MMM d, y h:mm a').format(m.createdAt);
+  final services = m.items
+      .map((i) => {
+            'id': i.id,
+            'name': i.description,
+            'source': i.source,
+            'quantity': i.quantity,
+            'cost': i.unitPrice,
+            'totalPrice': i.totalPrice,
+            'paid': i.paidAmount,
+          })
+      .toList();
+  return {
+    'tranId': m.transactionNumber.isNotEmpty ? m.transactionNumber : m.id,
+    'patientId': m.patientId,
+    'patientName': m.patientName,
+    'serviceCount': m.items.length,
+    'amountDue': m.totalAmount,
+    'amountPaid': m.amountPaid,
+    'paymentMethod': paymentMethodLabel,
+    'discount': m.discountAmount,
+    'date': dateStr,
+    'debt': m.balance,
+    'status': m.status.label.toUpperCase().replaceAll(' ', '_'),
+    'initiator': m.createdBy,
+    'services': services,
+    'id': m.id,
+  };
+}
+
 /// Calculates financial totals from a filtered transaction list.
-Map<String, double> calculateTransactionTotals(List<TransactionMap> list) {
+/// Includes [transactionCount] for the summary section.
+Map<String, dynamic> calculateTransactionTotals(List<TransactionMap> list) {
   double totalSales = 0,
       totalPaid = 0,
       transfer = 0,
@@ -337,6 +380,10 @@ Map<String, double> calculateTransactionTotals(List<TransactionMap> list) {
       case 'Cash':
         cash += (txn['amountPaid'] as num).toDouble();
         break;
+      case 'Mixed':
+      case '—':
+        // Don't attribute to a single method bucket
+        break;
     }
   }
 
@@ -348,6 +395,7 @@ Map<String, double> calculateTransactionTotals(List<TransactionMap> list) {
     'cheque': cheque,
     'cash': cash,
     'grandTotal': totalPaid,
+    'transactionCount': list.length,
   };
 }
 

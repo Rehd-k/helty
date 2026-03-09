@@ -13,7 +13,8 @@ import 'selected.user.dart';
 
 @RoutePage()
 class EnlistPaitientScreen extends ConsumerStatefulWidget {
-  const EnlistPaitientScreen({super.key});
+  const EnlistPaitientScreen({super.key, required this.serviceName});
+  final String serviceName;
 
   @override
   EnlistPaitientState createState() => EnlistPaitientState();
@@ -23,6 +24,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
   double spacing = 16.0;
   double runSpacing = 16.0;
   Map<String, dynamic> data = {};
+  String serviceName = '';
 
   void selectNoIdUser(Map<String, dynamic> res) async {
     final prefs = await SharedPreferences.getInstance();
@@ -52,6 +54,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
   @override
   void initState() {
     super.initState();
+    serviceName = widget.serviceName;
     Future.microtask(() => ref.read(patientProvider.notifier).fetchPatients());
     getNoIdPateitn();
   }
@@ -71,6 +74,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
             children: [
               SelectUser(
                 patients: patients,
+                serviceName: serviceName,
                 onSearch: (String value) {
                   ref
                       .read(patientProvider.notifier)
@@ -103,6 +107,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                 flex: 2,
                 child: SelectUser(
                   patients: patients,
+                  serviceName: serviceName,
                   selectNoIdUser: selectNoIdUser,
                   onSearch: (String value) {
                     ref
@@ -145,7 +150,28 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                         height: 56,
                         child: ElevatedButton(
                           onPressed: () {
-                            context.router.push(RenderServiceRoute());
+                            if (serviceName == 'Pharmacy') {
+                              context.router.push(
+                                DispenseRoute(
+                                  patientId: selectedPatient!.patientId,
+                                  patientName:
+                                      "${selectedPatient.firstName} ${selectedPatient.surname}",
+                                  id: selectedPatient.id ?? '',
+                                ),
+                              );
+                            } else if (serviceName == 'inpatient') {
+                              context.router.push(InpatientBillsListRoute());
+                            } else if (serviceName == 'OPD') {
+                              context.router.push(RenderServiceRoute());
+                            } else if (serviceName == 'Investigation') {
+                              context.router.push(RenderServiceRoute());
+                            } else if (serviceName == 'Dialysis') {
+                              context.router.push(RenderServiceRoute());
+                            } else if (serviceName == 'OBGYN') {
+                              context.router.push(ObstetricsPregnanciesListRoute());
+                            } else {
+                              context.router.push(RenderServiceRoute());
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             elevation: 0,

@@ -347,7 +347,6 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
           costPrice: entry.costPrice,
           supplierId: entry.supplierId,
         );
-        print(batch.toJson());
         await _apiService.createDrugBatch(batch);
       }
       if (mounted) {
@@ -509,9 +508,10 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                                 hint: selectableSuppliers.isEmpty
                                     ? 'No suppliers available'
                                     : 'Select origin supplier',
-                                value: selectableSuppliers.any(
-                                  (s) => s.id == _selectedSupplierId,
-                                )
+                                value:
+                                    selectableSuppliers.any(
+                                      (s) => s.id == _selectedSupplierId,
+                                    )
                                     ? _selectedSupplierId
                                     : null,
                                 items: [
