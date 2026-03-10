@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
@@ -228,7 +229,7 @@ class _ObstetricsPregnanciesListScreenState
                               margin: const EdgeInsets.only(bottom: 8),
                               child: ListTile(
                                 title: Text(
-                                  'G${p.gravida}P${p.para} · ${p.lmp} – ${p.edd}',
+                                  'G${p.gravida}P${p.para} · ${DateFormatter.formatFromBackend(p.lmp, DateFormatter.shortDate)} – ${DateFormatter.formatFromBackend(p.edd, DateFormatter.shortDate)}',
                                 ),
                                 subtitle: Text(
                                   'Status: $status${patientName.isNotEmpty ? ' · $patientName' : ''}',

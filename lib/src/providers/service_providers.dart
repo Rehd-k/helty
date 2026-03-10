@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/service_model.dart';
 import '../obstetrics/services/obstetrics_service.dart';
+import '../radiology/services/radiology_service.dart';
 import '../services/service_service.dart';
 
 final serviceServiceProvider = Provider<ServiceService>((ref) {
@@ -26,4 +27,8 @@ final serviceDetailProvider = FutureProvider.family<ServiceModel, String>((
 
 final obstetricsServiceProvider = Provider<ObstetricsService>((ref) {
   return ObstetricsService();
+});
+
+final radiologyServiceProvider = Provider<RadiologyService>((ref) {
+  return RadiologyService();
 });

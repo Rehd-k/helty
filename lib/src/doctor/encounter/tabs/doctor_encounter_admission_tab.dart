@@ -15,7 +15,8 @@ class DoctorEncounterAdmissionTab extends StatefulWidget {
       _DoctorEncounterAdmissionTabState();
 }
 
-class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTab> {
+class _DoctorEncounterAdmissionTabState
+    extends State<DoctorEncounterAdmissionTab> {
   final _admissionService = AdmissionService();
   final _encounterService = EncounterService();
   final _wardService = WardService();
@@ -71,9 +72,9 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load wards')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to load wards')));
     } finally {
       if (mounted) {
         setState(() {
@@ -119,8 +120,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
     if (!_canSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Admission reason, ward and bed must all be selected.'),
+          content: Text('Admission reason, ward and bed must all be selected.'),
         ),
       );
       return;
@@ -133,10 +133,14 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
         reason: _reasonCtrl.text.trim(),
         ward: _selectedWard?.name,
         bedPreference: _selectedBed?.bedNumber,
-        provisionalDiagnosis: _diagnosisCtrl.text.trim().isEmpty ? null : _diagnosisCtrl.text.trim(),
+        provisionalDiagnosis: _diagnosisCtrl.text.trim().isEmpty
+            ? null
+            : _diagnosisCtrl.text.trim(),
         expectedLOS: _losCtrl.text.trim().isEmpty ? null : _losCtrl.text.trim(),
         isolationRequired: _isolationRequired,
-        specialInstructions: _instructionsCtrl.text.trim().isEmpty ? null : _instructionsCtrl.text.trim(),
+        specialInstructions: _instructionsCtrl.text.trim().isEmpty
+            ? null
+            : _instructionsCtrl.text.trim(),
         attendingDoctorId: scope.doctorId,
       );
       await _encounterService.update(scope.encounterId, {'status': 'admitted'});
@@ -153,9 +157,9 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
     }
   }
 
@@ -179,9 +183,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: cs.outline.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -216,10 +218,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
                     ),
                   ],
                 ),
-                Icon(
-                  Icons.local_hospital_outlined,
-                  color: cs.primary,
-                ),
+                Icon(Icons.local_hospital_outlined, color: cs.primary),
               ],
             ),
             const SizedBox(height: 16),
@@ -239,7 +238,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedWard?.id,
+                    initialValue: _selectedWard?.id,
                     isExpanded: true,
                     decoration: InputDecoration(
                       labelText: 'Ward *',
@@ -259,8 +258,9 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
                         ? null
                         : (value) {
                             if (value == null) return;
-                            final ward =
-                                _wards.firstWhere((w) => w.id == value);
+                            final ward = _wards.firstWhere(
+                              (w) => w.id == value,
+                            );
                             setState(() {
                               _selectedWard = ward;
                             });
@@ -271,7 +271,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedBed?.id,
+                    initialValue: _selectedBed?.id,
                     isExpanded: true,
                     decoration: InputDecoration(
                       labelText: 'Bed *',
@@ -292,8 +292,9 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
                         : (value) {
                             if (value == null) return;
                             setState(() {
-                              _selectedBed =
-                                  _beds.firstWhere((b) => b.id == value);
+                              _selectedBed = _beds.firstWhere(
+                                (b) => b.id == value,
+                              );
                             });
                           },
                   ),
@@ -309,8 +310,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(cs.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -328,10 +328,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
             else if (_wards.isEmpty)
               Text(
                 'No wards configured. Please create wards first.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: cs.error,
-                ),
+                style: TextStyle(fontSize: 12, color: cs.error),
               )
             else if (_selectedWard != null && _beds.isEmpty)
               Text(
@@ -367,8 +364,7 @@ class _DoctorEncounterAdmissionTabState extends State<DoctorEncounterAdmissionTa
               value: _isolationRequired,
               contentPadding: EdgeInsets.zero,
               title: const Text('Isolation required?'),
-              onChanged: (v) =>
-                  setState(() => _isolationRequired = v ?? false),
+              onChanged: (v) => setState(() => _isolationRequired = v ?? false),
             ),
             TextField(
               controller: _instructionsCtrl,

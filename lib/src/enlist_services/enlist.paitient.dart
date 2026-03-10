@@ -168,7 +168,15 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                             } else if (serviceName == 'Dialysis') {
                               context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'OBGYN') {
-                              context.router.push(ObstetricsPregnanciesListRoute());
+                              context.router.push(
+                                ObstetricsPregnanciesListRoute(),
+                              );
+                            } else if (serviceName == 'Radiology') {
+                              context.router.push(
+                                RadiologyPatientHistoryRoute(
+                                  patientId: selectedPatient?.id ?? '',
+                                ),
+                              );
                             } else {
                               context.router.push(RenderServiceRoute());
                             }

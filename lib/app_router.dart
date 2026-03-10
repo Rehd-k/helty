@@ -148,6 +148,12 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: LabCreateOrderRoute.page),
         AutoRoute(page: LabOrderDetailRoute.page),
         AutoRoute(page: LabResultEntryRoute.page),
+        // Radiology
+        AutoRoute(page: RadiologyDashboardRoute.page),
+        AutoRoute(page: RadiologyWorklistRoute.page),
+        AutoRoute(page: RadiologyCreateRequestRoute.page),
+        AutoRoute(page: RadiologyRequestDetailRoute.page),
+        AutoRoute(page: RadiologyPatientHistoryRoute.page),
       ],
     ),
 

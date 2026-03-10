@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
@@ -11,10 +12,7 @@ import 'package:helty/src/providers/service_providers.dart';
 class ObstetricsPostnatalListScreen extends ConsumerStatefulWidget {
   final String? labourDeliveryId;
 
-  const ObstetricsPostnatalListScreen({
-    super.key,
-    this.labourDeliveryId,
-  });
+  const ObstetricsPostnatalListScreen({super.key, this.labourDeliveryId});
 
   @override
   ConsumerState<ObstetricsPostnatalListScreen> createState() =>
@@ -24,7 +22,6 @@ class ObstetricsPostnatalListScreen extends ConsumerStatefulWidget {
 class _ObstetricsPostnatalListScreenState
     extends ConsumerState<ObstetricsPostnatalListScreen> {
   List<PostnatalVisit> _visits = [];
-  int _total = 0;
   bool _loading = true;
   String? _error;
   PostnatalVisitType? _filterType;
@@ -51,7 +48,6 @@ class _ObstetricsPostnatalListScreenState
       if (!mounted) return;
       setState(() {
         _visits = res.visits;
-        _total = res.total;
         _loading = false;
       });
     } on AppException catch (e) {
@@ -85,11 +81,13 @@ class _ObstetricsPostnatalListScreenState
           if (widget.labourDeliveryId != null)
             IconButton(
               icon: const Icon(Icons.add),
-              onPressed: () => context.router.push(
-                ObstetricsAddPostnatalVisitRoute(
-                  labourDeliveryId: widget.labourDeliveryId!,
-                ),
-              ).then((_) => _load()),
+              onPressed: () => context.router
+                  .push(
+                    ObstetricsAddPostnatalVisitRoute(
+                      labourDeliveryId: widget.labourDeliveryId!,
+                    ),
+                  )
+                  .then((_) => _load()),
             ),
         ],
       ),
@@ -125,35 +123,37 @@ class _ObstetricsPostnatalListScreenState
             child: _loading && _visits.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : _visits.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No postnatal visits.',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _visits.length,
-                        itemBuilder: (context, index) {
-                          final v = _visits[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              title: Text('${v.type.name} · ${v.visitDate}'),
-                              subtitle: Text(
-                                [
-                                  if (v.notes != null && v.notes!.isNotEmpty)
-                                    v.notes,
-                                  if (v.weight != null) '${v.weight} kg',
-                                ].join(' · '),
-                              ),
-                              trailing: const Icon(Icons.chevron_right),
-                            ),
-                          );
-                        },
+                ? Center(
+                    child: Text(
+                      'No postnatal visits.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _visits.length,
+                    itemBuilder: (context, index) {
+                      final v = _visits[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          title: Text(
+                            '${v.type.name} · ${DateFormatter.formatFromBackend(v.visitDate, DateFormatter.shortDate)}',
+                          ),
+                          subtitle: Text(
+                            [
+                              if (v.notes != null && v.notes!.isNotEmpty)
+                                v.notes,
+                              if (v.weight != null) '${v.weight} kg',
+                            ].join(' · '),
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

@@ -93,6 +93,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       common.addAll(labMenu);
     }
 
+    if (accountType.toLowerCase() == 'radiology') {
+      common.addAll(radiologyMenu);
+    }
+
     if (role.toLowerCase() == 'admin') {
       common.addAll([
         const MenuItem(
@@ -109,6 +113,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           label: 'Laboratory',
           icon: Icons.biotech_rounded,
           route: LabDashboardRoute(),
+        ),
+        const MenuItem(
+          label: 'Radiology',
+          icon: Icons.radar_rounded,
+          route: RadiologyDashboardRoute(),
         ),
         MenuItem(
           label: 'System Setup',

@@ -75,11 +75,6 @@ final frontDesk = <MenuItem>[
       ),
     ],
   ),
-  MenuItem(
-    label: 'Enlist For Dialysis Service',
-    icon: Icons.verified_user_rounded,
-    route: EnlistPaitientRoute(serviceName: 'Dialysis'),
-  ),
 ];
 
 final bills = <MenuItem>[
@@ -97,16 +92,6 @@ final bills = <MenuItem>[
     label: 'Render OPD',
     icon: Icons.dataset_outlined,
     route: EnlistPaitientRoute(serviceName: 'OPD'),
-  ),
-  MenuItem(
-    label: 'Render Investigation',
-    icon: Icons.science_outlined,
-    route: EnlistPaitientRoute(serviceName: 'Investigation'),
-  ),
-  MenuItem(
-    label: 'Render Dialysis',
-    icon: Icons.local_hospital_outlined,
-    route: EnlistPaitientRoute(serviceName: 'Dialysis'),
   ),
   MenuItem(
     label: 'Process Ward Payment',
@@ -127,12 +112,6 @@ final bills = <MenuItem>[
     label: 'Transaction',
     icon: Icons.list_outlined,
     route: TransactionsRoute(),
-  ),
-
-  MenuItem(
-    label: 'View Investigation Service',
-    icon: Icons.verified_user_rounded,
-    route: NotAvailableRoute(),
   ),
 ];
 
@@ -167,7 +146,11 @@ final nurses = <MenuItem>[
     icon: Icons.medical_services_rounded,
     route: ObstetricsGynaeProceduresRoute(),
   ),
-
+  MenuItem(
+    label: 'Radiology',
+    icon: Icons.radar_rounded,
+    route: RadiologyDashboardRoute(),
+  ),
   MenuItem(
     label: 'Appointments',
     icon: Icons.calendar_month,
@@ -313,5 +296,28 @@ final labMenu = <MenuItem>[
     label: 'New order',
     icon: Icons.add_circle_outline_rounded,
     route: LabCreateOrderRoute(),
+  ),
+];
+
+final radiologyMenu = <MenuItem>[
+  MenuItem(
+    label: 'Radiology',
+    icon: Icons.radar_rounded,
+    route: RadiologyDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Worklist',
+    icon: Icons.list_alt_rounded,
+    route: RadiologyWorklistRoute(),
+  ),
+  MenuItem(
+    label: 'New request',
+    icon: Icons.add_circle_outline_rounded,
+    route: RadiologyCreateRequestRoute(),
+  ),
+  MenuItem(
+    label: 'By patient',
+    icon: Icons.person_search_rounded,
+    route: EnlistPaitientRoute(serviceName: 'Radiology'),
   ),
 ];

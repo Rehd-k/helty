@@ -169,9 +169,7 @@ class TransactionFiltersPanel extends StatelessWidget {
               dateTo != null
                   ? DateFormat('yyyy-MM-dd').format(dateTo!)
                   : 'Select',
-              style: TextStyle(
-                color: dateTo != null ? null : Colors.grey[600],
-              ),
+              style: TextStyle(color: dateTo != null ? null : Colors.grey[600]),
             ),
           ),
         ),
@@ -184,13 +182,10 @@ class TransactionFiltersPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'Status',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
+        Text('Status', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const SizedBox(height: 4),
         DropdownButtonFormField<TransactionStatus?>(
-          value: status,
+          initialValue: status,
           decoration: InputDecoration(
             filled: true,
             fillColor: theme.cardColor,
@@ -198,9 +193,7 @@ class TransactionFiltersPanel extends StatelessWidget {
               horizontal: 12,
               vertical: 10,
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           ),
           isExpanded: true,
           items: [
@@ -223,10 +216,7 @@ class TransactionFiltersPanel extends StatelessWidget {
 
   Widget _buildMyTransactionsSwitch(BuildContext context) {
     return SwitchListTile(
-      title: Text(
-        'My transactions only',
-        style: theme.textTheme.bodyMedium,
-      ),
+      title: Text('My transactions only', style: theme.textTheme.bodyMedium),
       value: myTransactionsOnly,
       onChanged: onMyTransactionsOnlyChanged,
       contentPadding: EdgeInsets.zero,
@@ -238,13 +228,10 @@ class TransactionFiltersPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'User',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
+        Text('User', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
-          value: selectedUserId,
+          initialValue: selectedUserId,
           decoration: InputDecoration(
             filled: true,
             fillColor: theme.cardColor,
@@ -252,9 +239,7 @@ class TransactionFiltersPanel extends StatelessWidget {
               horizontal: 12,
               vertical: 10,
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           ),
           isExpanded: true,
           items: [

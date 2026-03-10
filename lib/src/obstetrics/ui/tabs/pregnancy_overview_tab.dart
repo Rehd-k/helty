@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
@@ -103,11 +104,11 @@ class _ObstetricsPregnancyOverviewTabState
                 const SizedBox(height: 16),
                 _Row(label: 'Gravida', value: '${p.gravida}'),
                 _Row(label: 'Para', value: '${p.para}'),
-                _Row(label: 'LMP', value: p.lmp),
-                _Row(label: 'EDD', value: p.edd),
+                _Row(label: 'LMP', value: DateFormatter.formatFromBackend(p.lmp, DateFormatter.shortDate)),
+                _Row(label: 'EDD', value: DateFormatter.formatFromBackend(p.edd, DateFormatter.shortDate)),
                 _Row(label: 'Status', value: p.status?.name ?? '—'),
                 if (p.bookingDate != null)
-                  _Row(label: 'Booking date', value: p.bookingDate!),
+                  _Row(label: 'Booking date', value: DateFormatter.formatFromBackend(p.bookingDate, DateFormatter.shortDate)),
                 if (p.outcome != null && p.outcome!.isNotEmpty)
                   _Row(label: 'Outcome', value: p.outcome!),
                 if (p.patient != null)

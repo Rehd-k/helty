@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
@@ -120,7 +121,7 @@ class _ObstetricsLabourDeliveryViewScreenState
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Delivery · ${d.mode.name}'),
+          title: Text('Delivery · ${DateFormatter.formatFromBackend(d.deliveryDateTime, DateFormatter.dateTime)} · ${d.mode.name}'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.router.maybePop(),
@@ -221,7 +222,7 @@ class _PartogramList extends StatelessWidget {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
-                        title: Text(e.recordedAt),
+                        title: Text(DateFormatter.formatFromBackend(e.recordedAt, DateFormatter.dateTime)),
                         subtitle: Text(
                           [
                             if (e.cervicalDilationCm != null)

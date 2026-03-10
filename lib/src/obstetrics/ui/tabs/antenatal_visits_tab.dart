@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
@@ -12,10 +13,7 @@ import 'package:helty/src/providers/service_providers.dart';
 class ObstetricsAntenatalVisitsTab extends ConsumerStatefulWidget {
   final String? pregnancyId;
 
-  const ObstetricsAntenatalVisitsTab({
-    super.key,
-    this.pregnancyId,
-  });
+  const ObstetricsAntenatalVisitsTab({super.key, this.pregnancyId});
 
   @override
   ConsumerState<ObstetricsAntenatalVisitsTab> createState() =>
@@ -25,7 +23,6 @@ class ObstetricsAntenatalVisitsTab extends ConsumerStatefulWidget {
 class _ObstetricsAntenatalVisitsTabState
     extends ConsumerState<ObstetricsAntenatalVisitsTab> {
   List<AntenatalVisit> _visits = [];
-  int _total = 0;
   bool _loading = true;
   String? _error;
 
@@ -38,7 +35,11 @@ class _ObstetricsAntenatalVisitsTabState
   void didChangeDependencies() {
     super.didChangeDependencies();
     final id = _pregnancyId;
-    if (id != null && id.isNotEmpty && _visits.isEmpty && !_loading && _error == null) {
+    if (id != null &&
+        id.isNotEmpty &&
+        _visits.isEmpty &&
+        _loading &&
+        _error == null) {
       _load(id);
     }
   }
@@ -50,10 +51,12 @@ class _ObstetricsAntenatalVisitsTabState
     });
     try {
       final res = await _service.listAntenatalVisits(id);
+      final visits = res.visits.isNotEmpty
+          ? res.visits
+          : (await _service.getPregnancy(id)).antenatalVisits ?? const <AntenatalVisit>[];
       if (!mounted) return;
       setState(() {
-        _visits = res.visits;
-        _total = res.total;
+        _visits = visits;
         _loading = false;
       });
     } on AppException catch (e) {
@@ -148,56 +151,63 @@ class _ObstetricsAntenatalVisitsTabState
           child: _loading && _visits.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : _visits.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.event_note,
-                              size: 48, color: colorScheme.outline),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No antenatal visits yet.',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          FilledButton.icon(
-                            onPressed: _addVisit,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add first visit'),
-                          ),
-                        ],
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.event_note,
+                        size: 48,
+                        color: colorScheme.outline,
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _visits.length,
-                      itemBuilder: (context, index) {
-                        final v = _visits[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            title: Text(v.visitDate),
-                            subtitle: Text(
-                              [
-                                if (v.gestationWeeks != null)
-                                  '${v.gestationWeeks} wks',
-                                if (v.systolicBP != null && v.diastolicBP != null)
-                                  'BP ${v.systolicBP}/${v.diastolicBP}',
-                                if (v.weight != null) '${v.weight} kg',
-                                if (v.presentation != null)
-                                  v.presentation!.name,
-                              ].join(' · '),
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => context.router.push(
-                              ObstetricsEditAntenatalVisitRoute(visitId: v.id),
-                            ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No antenatal visits yet.',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: _addVisit,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add first visit'),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _visits.length,
+                  itemBuilder: (context, index) {
+                    final v = _visits[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        title: Text(
+                          DateFormatter.formatFromBackend(
+                            v.visitDate,
+                            DateFormatter.shortDate,
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                        subtitle: Text(
+                          [
+                            if (v.gestationWeeks != null)
+                              '${v.gestationWeeks} wks',
+                            if (v.systolicBP != null && v.diastolicBP != null)
+                              'BP ${v.systolicBP}/${v.diastolicBP}',
+                            if (v.weight != null) '${v.weight} kg',
+                            if (v.presentation != null) v.presentation!.name,
+                          ].join(' · '),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.router.push(
+                          ObstetricsEditAntenatalVisitRoute(visitId: v.id),
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );

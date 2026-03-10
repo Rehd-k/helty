@@ -180,6 +180,42 @@ class ObstetricsService {
 
   // ─── Labour & delivery ──────────────────────────────────────────────────
 
+  /// List labour deliveries for a pregnancy.
+  /// GET /obstetrics/pregnancies/:pregnancyId/labour-deliveries
+  /// Returns empty list if backend returns 404 (endpoint not implemented).
+  Future<LabourDeliveriesListResponse> listLabourDeliveries(
+    String pregnancyId, {
+    int skip = 0,
+    int take = 50,
+  }) async {
+    try {
+      final resp = await _dio.get<dynamic>(
+        '$_base/pregnancies/$pregnancyId/labour-deliveries',
+        queryParameters: {'skip': skip, 'take': take > 100 ? 100 : take},
+      );
+      final data = resp.data;
+      if (data == null) {
+        return const LabourDeliveriesListResponse(
+          labourDeliveries: [],
+          total: 0,
+          skip: 0,
+          take: 50,
+        );
+      }
+      return LabourDeliveriesListResponse.fromJson(data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return const LabourDeliveriesListResponse(
+          labourDeliveries: [],
+          total: 0,
+          skip: 0,
+          take: 50,
+        );
+      }
+      _handleError(e);
+    }
+  }
+
   Future<LabourDelivery> createLabourDelivery(
     String pregnancyId,
     Map<String, dynamic> body,

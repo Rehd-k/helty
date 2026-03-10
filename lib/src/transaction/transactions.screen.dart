@@ -30,7 +30,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   TransactionStatus? _status;
   bool _myTransactionsOnly = false;
   String? _createdById;
-  String? _selectedPaymentMethod; // 'Cash', 'Transfer', 'Cheque', 'POS', or null
+  String?
+  _selectedPaymentMethod; // 'Cash', 'Transfer', 'Cheque', 'POS', or null
   bool _isFiltersOpen = false;
 
   // ─── Fetched data (one page for totals + table client-side pagination) ─────
@@ -44,7 +45,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Map<String, dynamic>? _selectedTransaction;
 
   // ─── User list for filter panel (could come from API) ─────────────────────
-  final List<String> _userOptions = ['Sarah Jenkins', 'Michael Chen', 'Alan Grant'];
+  final List<String> _userOptions = [
+    'Sarah Jenkins',
+    'Michael Chen',
+    'Alan Grant',
+  ];
 
   @override
   void initState() {
@@ -63,9 +68,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       search: _searchQuery.trim().isEmpty ? null : _searchQuery.trim(),
       fromDate: _dateFrom,
       toDate: _dateTo,
-      status: _status != null ? _status!.label.toUpperCase().replaceAll(' ', '_') : null,
+      status: _status?.label.toUpperCase().replaceAll(' ', '_'),
       createdById: _myTransactionsOnly ? _createdById : null,
-      paymentMethod: _selectedPaymentMethod != null && _selectedPaymentMethod!.isNotEmpty
+      paymentMethod:
+          _selectedPaymentMethod != null && _selectedPaymentMethod!.isNotEmpty
           ? _selectedPaymentMethod!.toUpperCase()
           : null,
       skip: skip,
@@ -140,7 +146,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     _loadTransactions();
   }
 
-  Future<PagedData<TransactionMap>> _fetchTransactions(int start, int count) async {
+  Future<PagedData<TransactionMap>> _fetchTransactions(
+    int start,
+    int count,
+  ) async {
     if (_transactionMaps.isEmpty && !_loading) {
       return PagedData(items: const [], totalCount: 0);
     }
@@ -257,7 +266,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       child: TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
-                          hintText: 'Search by transaction ID, patient ID, first name, last name...',
+                          hintText:
+                              'Search by transaction ID, patient ID, first name, last name...',
                           hintStyle: TextStyle(
                             fontSize: 13,
                             color: colorScheme.onSurface.withValues(alpha: 0.5),
@@ -268,7 +278,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             color: colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                           filled: true,
-                          fillColor: colorScheme.onSurface.withValues(alpha: 0.03),
+                          fillColor: colorScheme.onSurface.withValues(
+                            alpha: 0.03,
+                          ),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 12,
@@ -322,7 +334,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         padding: const EdgeInsets.all(12),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
+                            Icon(
+                              Icons.error_outline,
+                              color: colorScheme.onErrorContainer,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -351,7 +366,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         Expanded(
                           flex: 2,
                           child: ReusableAsyncTable<TransactionMap>(
-                            key: ValueKey('$_searchQuery$_dateFrom$_dateTo$_status$_selectedPaymentMethod'),
+                            key: ValueKey(
+                              '$_searchQuery$_dateFrom$_dateTo$_status$_selectedPaymentMethod',
+                            ),
                             columns: const [
                               DataColumn2(label: Text('Transaction ID')),
                               DataColumn2(label: Text('Patient Name / ID')),
@@ -389,21 +406,33 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 ),
                               ),
                               DataCell(Text('${txn['serviceCount']} services')),
-                              DataCell(Text(
-                                '\$${(txn['amountDue'] as num).toStringAsFixed(2)}',
-                              )),
-                              DataCell(Text(
-                                '\$${(txn['amountPaid'] as num).toStringAsFixed(2)}',
-                              )),
-                              DataCell(Text((txn['paymentMethod'] as String?) ?? '—')),
-                              DataCell(Text(
-                                '\$${(txn['discount'] as num?)?.toStringAsFixed(2) ?? "0.00"}',
-                              )),
+                              DataCell(
+                                Text(
+                                  '\$${(txn['amountDue'] as num).toStringAsFixed(2)}',
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  '\$${(txn['amountPaid'] as num).toStringAsFixed(2)}',
+                                ),
+                              ),
+                              DataCell(
+                                Text((txn['paymentMethod'] as String?) ?? '—'),
+                              ),
+                              DataCell(
+                                Text(
+                                  '\$${(txn['discount'] as num?)?.toStringAsFixed(2) ?? "0.00"}',
+                                ),
+                              ),
                               DataCell(Text(txn['date'] as String)),
-                              DataCell(Text(
-                                '\$${(txn['debt'] as num).toStringAsFixed(2)}',
-                              )),
-                              DataCell(Text((txn['initiator'] as String?) ?? '')),
+                              DataCell(
+                                Text(
+                                  '\$${(txn['debt'] as num).toStringAsFixed(2)}',
+                                ),
+                              ),
+                              DataCell(
+                                Text((txn['initiator'] as String?) ?? ''),
+                              ),
                               DataCell(
                                 Container(
                                   padding: const EdgeInsets.symmetric(
@@ -415,7 +444,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    (txn['status'] as String?)?.replaceAll('_', ' ') ?? '',
+                                    (txn['status'] as String?)?.replaceAll(
+                                          '_',
+                                          ' ',
+                                        ) ??
+                                        '',
                                     style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
@@ -430,11 +463,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             contextMenuBuilder: (txn) => const [
                               PopupMenuItem(
                                 value: 'details',
-                                child: Text('Show Details', style: TextStyle(fontSize: 13)),
+                                child: Text(
+                                  'Show Details',
+                                  style: TextStyle(fontSize: 13),
+                                ),
                               ),
                               PopupMenuItem(
                                 value: 'reprint',
-                                child: Text('Reprint Receipt', style: TextStyle(fontSize: 13)),
+                                child: Text(
+                                  'Reprint Receipt',
+                                  style: TextStyle(fontSize: 13),
+                                ),
                               ),
                               PopupMenuItem(
                                 value: 'change_method',
@@ -447,15 +486,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 value: 'refund',
                                 child: Text(
                                   'Make a Refund',
-                                  style: TextStyle(fontSize: 13, color: Colors.red),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.red,
+                                  ),
                                 ),
                               ),
                             ],
                             onContextMenuSelected: (txn, action) =>
-                                _handleContextMenuAction(
-                              action as String,
-                              txn,
-                            ),
+                                _handleContextMenuAction(action as String, txn),
                           ),
                         ),
                         const SizedBox(width: 24),
@@ -464,27 +503,28 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             transaction: _selectedTransaction,
                             onReprint: _selectedTransaction != null
                                 ? () => _handleContextMenuAction(
-                                      'reprint',
-                                      _selectedTransaction!,
-                                    )
+                                    'reprint',
+                                    _selectedTransaction!,
+                                  )
                                 : () {},
                             onChangeMethod: _selectedTransaction != null
-                                ? () => _openPaymentDialog(_selectedTransaction!)
+                                ? () =>
+                                      _openPaymentDialog(_selectedTransaction!)
                                 : () {},
                             onRefund: _selectedTransaction != null
                                 ? () => _handleContextMenuAction(
-                                      'refund',
-                                      _selectedTransaction!,
-                                    )
+                                    'refund',
+                                    _selectedTransaction!,
+                                  )
                                 : () {},
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
+          ),
 
           // Slide-in filters panel (like medicine inventory)
           if (_isFiltersOpen)
@@ -510,9 +550,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           children: [
                             Text(
                               'Filters',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             IconButton(
                               icon: const Icon(Icons.close),
@@ -529,7 +568,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           theme: Theme.of(context),
                           dateFrom: _dateFrom,
                           dateTo: _dateTo,
-                          onDateFromChanged: (d) => setState(() => _dateFrom = d),
+                          onDateFromChanged: (d) =>
+                              setState(() => _dateFrom = d),
                           onDateToChanged: (d) => setState(() => _dateTo = d),
                           status: _status,
                           onStatusChanged: (s) => setState(() => _status = s),
@@ -538,7 +578,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               setState(() => _myTransactionsOnly = v),
                           selectedUserId: _createdById,
                           userOptions: _userOptions,
-                          onUserChanged: (v) => setState(() => _createdById = v),
+                          onUserChanged: (v) =>
+                              setState(() => _createdById = v),
                           onApply: () => _applyFiltersFromPanel(
                             dateFrom: _dateFrom,
                             dateTo: _dateTo,

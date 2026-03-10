@@ -158,6 +158,8 @@ class Pregnancy {
     this.status,
     this.outcome,
     this.patient,
+    this.antenatalVisits,
+    this.labourDeliveries,
     this.pregnancyId,
   });
 
@@ -172,6 +174,8 @@ class Pregnancy {
   final PregnancyStatus? status;
   final String? outcome;
   final ObstetricsPatientRef? patient;
+  final List<AntenatalVisit>? antenatalVisits;
+  final List<LabourDelivery>? labourDeliveries;
 
   factory Pregnancy.fromJson(Map<String, dynamic> json) {
     final id = json['id'] as String? ?? json['pregnancyId'] as String? ?? '';
@@ -190,6 +194,12 @@ class Pregnancy {
           ? ObstetricsPatientRef.fromJson(
               json['patient'] as Map<String, dynamic>)
           : null,
+      antenatalVisits: (json['antenatalVisits'] as List<dynamic>?)
+          ?.map((e) => AntenatalVisit.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      labourDeliveries: (json['labourDeliveries'] as List<dynamic>?)
+          ?.map((e) => LabourDelivery.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -354,6 +364,44 @@ class LabourDelivery {
         if (perinealTearGrade != null) 'perinealTearGrade': perinealTearGrade,
         if (notes != null) 'notes': notes,
       };
+}
+
+/// Response for GET /obstetrics/pregnancies/:pregnancyId/labour-deliveries.
+class LabourDeliveriesListResponse {
+  const LabourDeliveriesListResponse({
+    required this.labourDeliveries,
+    this.total = 0,
+    this.skip = 0,
+    this.take = 20,
+  });
+
+  final List<LabourDelivery> labourDeliveries;
+  final int total;
+  final int skip;
+  final int take;
+
+  factory LabourDeliveriesListResponse.fromJson(dynamic data) {
+    if (data is List) {
+      return LabourDeliveriesListResponse(
+        labourDeliveries: data
+            .map((e) => LabourDelivery.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        total: data.length,
+      );
+    }
+    final json = data as Map<String, dynamic>;
+    final list = json['labourDeliveries'] as List<dynamic>? ??
+        json['deliveries'] as List<dynamic>? ??
+        [];
+    return LabourDeliveriesListResponse(
+      labourDeliveries: list
+          .map((e) => LabourDelivery.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      total: (json['total'] as num?)?.toInt() ?? list.length,
+      skip: (json['skip'] as num?)?.toInt() ?? 0,
+      take: (json['take'] as num?)?.toInt() ?? 20,
+    );
+  }
 }
 
 // ─── Partogram entry ───────────────────────────────────────────────────────

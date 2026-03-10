@@ -50,7 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       case 'pharmacy_dispensary':
         return EnlistPaitientRoute(serviceName: 'Pharmacy');
       case 'NURSE':
-      case 'outpatient_nurse':
+      case 'nurse':
         return const NursesDashboardRoute();
       case 'consultant':
         return const DoctorOutpatientListRoute();
