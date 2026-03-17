@@ -1,6 +1,3 @@
-// import 'dart:io';
-
-// import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'dart:io';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -10,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'src/helper/theme.dart';
 import 'src/providers/auth_provider.dart';
 import 'src/services/navigation.service.dart';
+import 'src/widgets/watermark_overlay.dart';
 
 void main() {
   runApp(ProviderScope(child: const MyApp()));
@@ -50,6 +48,14 @@ class _MyAppState extends ConsumerState<MyApp> {
       themeMode: ThemeMode.light,
       debugShowCheckedModeBanner: false,
       routerConfig: NavigationService.router.config(),
+      builder: (context, child) {
+        return Stack(
+          children: [
+            if (child != null) child,
+            const Positioned.fill(child: WatermarkOverlay()),
+          ],
+        );
+      },
     );
   }
 }

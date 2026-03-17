@@ -32,6 +32,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
   bool _saving = false;
   String? _testName;
   String? _testVersionId;
+  bool _hasExistingResults = false;
 
   @override
   void initState() {
@@ -78,6 +79,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
         setState(() {
           _fields = fields;
           _initialValues = initialValues;
+          _hasExistingResults = results.isNotEmpty;
           _loading = false;
         });
       }
@@ -177,6 +179,39 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_hasExistingResults) ...[
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(
+                    color:
+                        theme.colorScheme.primary.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Existing results were loaded for this test. '
+                          'Updating and saving will overwrite the stored values.',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(

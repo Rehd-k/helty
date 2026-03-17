@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/lab/services/lab_api_service.dart';
 import 'package:helty/src/models/staff_model.dart';
@@ -28,6 +29,8 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
   List<Staff> _doctorSearchResults = [];
   bool _searchingPatients = false;
   bool _searchingDoctors = false;
+  String _testSearchQuery = '';
+  String? _selectedCategoryId;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +38,12 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     final api = ref.watch(labApiServiceProvider);
     final patientService = ref.read(patientServiceProvider);
     final staffService = ref.read(staffServiceProvider);
+
+    // If navigated from EnlistPaitientRoute, pre-fill the selected patient.
+    final enlistedPatient = ref.watch(patientProvider).selectedPatient;
+    if (_patient == null && enlistedPatient != null) {
+      _patient = enlistedPatient;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -141,31 +150,287 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
                     );
                   }
                   final tests = snapshot.data!.data;
+                  if (tests.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: Text('No active lab tests configured.'),
+                      ),
+                    );
+                  }
+
+                  // Group tests by category name for nicer browsing.
+                  final Map<String, List<LabTest>> byCategory = {};
+                  for (final t in tests) {
+                    final key = t.category?.name ?? 'Other';
+                    byCategory.putIfAbsent(key, () => []).add(t);
+                  }
+                  final categoryEntries = byCategory.entries.toList()
+                    ..sort((a, b) => a.key.compareTo(b.key));
+
+                  // Determine currently selected category id/name.
+                  final selectedCategoryName = _selectedCategoryId;
+
+                  // Filter tests by search + category.
+                  List<LabTest> filtered = tests;
+                  if (selectedCategoryName != null &&
+                      byCategory.containsKey(selectedCategoryName)) {
+                    filtered = byCategory[selectedCategoryName]!;
+                  }
+                  if (_testSearchQuery.trim().isNotEmpty) {
+                    final q = _testSearchQuery.trim().toLowerCase();
+                    filtered = filtered.where((t) {
+                      final inName = t.name.toLowerCase().contains(q);
+                      final inSample = t.sampleType.toLowerCase().contains(q);
+                      final inCategory =
+                          (t.category?.name.toLowerCase() ?? '').contains(q);
+                      return inName || inSample || inCategory;
+                    }).toList();
+                  }
+
+                  filtered.sort((a, b) => a.name.compareTo(b.name));
+
+                  final selectedTests = tests
+                      .where((t) => _selectedTestIds.contains(t.id))
+                      .toList()
+                    ..sort((a, b) => a.name.compareTo(b.name));
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: tests.map((t) {
-                          final selected = _selectedTestIds.contains(t.id);
-                          return FilterChip(
-                            label: Text('${t.name} (${t.sampleType})'),
-                            selected: selected,
-                            onSelected: (v) {
-                              setState(() {
-                                if (v) {
-                                  _selectedTestIds.add(t.id);
-                                } else {
-                                  _selectedTestIds.remove(t.id);
-                                }
-                              });
-                            },
-                            selectedColor: theme.colorScheme.primaryContainer,
-                            checkmarkColor:
-                                theme.colorScheme.onPrimaryContainer,
-                          );
-                        }).toList(),
+                      TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search tests by name, sample or category',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onChanged: (v) {
+                          setState(() {
+                            _testSearchQuery = v;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            ChoiceChip(
+                              label: const Text('All'),
+                              selected: selectedCategoryName == null,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedCategoryId = null;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            ...categoryEntries.map((entry) {
+                              final selected =
+                                  selectedCategoryName == entry.key;
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                child: ChoiceChip(
+                                  label: Text(
+                                      '${entry.key} (${entry.value.length})'),
+                                  selected: selected,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      _selectedCategoryId = selected
+                                          ? null
+                                          : entry.key;
+                                    });
+                                  },
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Available tests list
+                          Expanded(
+                            flex: 3,
+                            child: Container(
+                              constraints:
+                                  const BoxConstraints(maxHeight: 320),
+                              decoration: BoxDecoration(
+                                color: theme
+                                    .colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.6),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.8),
+                                ),
+                              ),
+                              child: filtered.isEmpty
+                                  ? Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24),
+                                        child: Text(
+                                          'No tests match your filters.',
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      shrinkWrap: true,
+                                      itemCount: filtered.length,
+                                      separatorBuilder: (_, __) =>
+                                          const Divider(height: 1),
+                                      itemBuilder: (context, index) {
+                                        final t = filtered[index];
+                                        final selected = _selectedTestIds
+                                            .contains(t.id);
+                                        return ListTile(
+                                          dense: true,
+                                          onTap: () {
+                                            setState(() {
+                                              if (selected) {
+                                                _selectedTestIds.remove(t.id);
+                                              } else {
+                                                _selectedTestIds.add(t.id);
+                                              }
+                                            });
+                                          },
+                                          leading: Checkbox(
+                                            value: selected,
+                                            onChanged: (v) {
+                                              setState(() {
+                                                if (v == true) {
+                                                  _selectedTestIds.add(t.id);
+                                                } else {
+                                                  _selectedTestIds.remove(t.id);
+                                                }
+                                              });
+                                            },
+                                          ),
+                                          title: Text(
+                                            t.name,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            [
+                                              t.sampleType,
+                                              if (t.category != null)
+                                                t.category!.name,
+                                            ].where((e) => e.isNotEmpty).join(
+                                                  ' • ',
+                                                ),
+                                            style:
+                                                theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                              color: theme.colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                          ),
+                                          trailing: t.price != null
+                                              ? Text(
+                                                  t.price!.toStringAsFixed(2),
+                                                  style: theme
+                                                      .textTheme.bodySmall
+                                                      ?.copyWith(
+                                                    color: theme
+                                                        .colorScheme.primary,
+                                                  ),
+                                                )
+                                              : null,
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Selected tests summary
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Selected tests (${selectedTests.length})',
+                                  style:
+                                      theme.textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                if (selectedTests.isEmpty)
+                                  Text(
+                                    'No tests selected yet.',
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(
+                                      color: theme
+                                          .colorScheme.onSurfaceVariant,
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    constraints: const BoxConstraints(
+                                        maxHeight: 220),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: theme
+                                            .colorScheme.outlineVariant,
+                                      ),
+                                    ),
+                                    child: ListView.separated(
+                                      shrinkWrap: true,
+                                      itemCount: selectedTests.length,
+                                      separatorBuilder: (_, __) =>
+                                          const Divider(height: 1),
+                                      itemBuilder: (context, index) {
+                                        final t = selectedTests[index];
+                                        return ListTile(
+                                          dense: true,
+                                          title: Text(
+                                            t.name,
+                                            style: theme
+                                                .textTheme.bodySmall
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            t.sampleType,
+                                            style: theme
+                                                .textTheme.bodySmall
+                                                ?.copyWith(
+                                              color: theme.colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                          ),
+                                          trailing: IconButton(
+                                            icon: const Icon(
+                                              Icons.close_rounded,
+                                              size: 18,
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _selectedTestIds
+                                                    .remove(t.id);
+                                              });
+                                            },
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   );

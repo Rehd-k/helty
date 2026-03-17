@@ -1,6 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:helty/src/models/service_model.dart';
 
+import '../paitients/patient_model.dart';
+
 part 'invoice.freezed.dart';
 part 'invoice.g.dart';
 
@@ -10,6 +12,8 @@ abstract class Invoice with _$Invoice {
 
   const factory Invoice({
     required String id,
+    required Patient patient,
+    required Map<String, dynamic> staff,
     required String patientId,
     required String
     status, // consider → @JsonKey(name: 'status') TransactionStatus status later
@@ -23,9 +27,9 @@ abstract class Invoice with _$Invoice {
 
   // Custom getter — now allowed
   double get total => invoiceItems.fold(
-        0.0,
-        (sum, item) => sum + ((item.qty ?? 1) * item.cost),
-      );
+    0.0,
+    (sum, item) => sum + ((item.qty ?? 1) * item.cost),
+  );
 
   factory Invoice.fromJson(Map<String, dynamic> json) =>
       _$InvoiceFromJson(json);

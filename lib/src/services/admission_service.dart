@@ -16,6 +16,7 @@ class AdmissionService {
     required String encounterId,
     String? reason,
     String? ward,
+    String? wardId,
     String? bedPreference,
     String? provisionalDiagnosis,
     String? expectedLOS,
@@ -27,10 +28,11 @@ class AdmissionService {
       'patientId': patientId,
       'encounterId': encounterId,
       'isolationRequired': isolationRequired,
+      if (wardId != null && wardId.isNotEmpty) 'wardId': wardId,
       if (reason != null && reason.isNotEmpty) 'reason': reason,
       if (ward != null && ward.isNotEmpty) 'ward': ward,
       if (bedPreference != null && bedPreference.isNotEmpty)
-        'bedPreference': bedPreference,
+        'bedId': bedPreference,
       if (provisionalDiagnosis != null && provisionalDiagnosis.isNotEmpty)
         'provisionalDiagnosis': provisionalDiagnosis,
       if (expectedLOS != null && expectedLOS.isNotEmpty)

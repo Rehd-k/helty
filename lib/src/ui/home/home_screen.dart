@@ -119,6 +119,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           icon: Icons.radar_rounded,
           route: RadiologyDashboardRoute(),
         ),
+        const MenuItem(
+          label: 'Store',
+          icon: Icons.inventory_2_rounded,
+          route: StoreDashboardRoute(),
+        ),
         MenuItem(
           label: 'System Setup',
           icon: Icons.dashboard_outlined,
@@ -142,6 +147,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ]);
+    }
+
+    if (accountType.toLowerCase() == 'store') {
+      common.addAll(storeMenu);
     }
 
     return common;

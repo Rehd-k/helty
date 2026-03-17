@@ -1,20 +1,69 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/models/lab_order_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/services/lab_order_service.dart';
 
 @RoutePage()
-class InpatientLabResultsScreen extends StatelessWidget {
+class InpatientLabResultsScreen extends StatefulWidget {
   const InpatientLabResultsScreen({super.key});
 
   @override
+  State<InpatientLabResultsScreen> createState() =>
+      _InpatientLabResultsScreenState();
+}
+
+class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
+  final _labOrderService = LabOrderService();
+
+  List<LabOrderModel> _orders = [];
+  bool _loading = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final scope = InpatientViewScope.of(context);
+    final encounterId = scope?.encounterId;
+    if (encounterId == null || encounterId.isEmpty) {
+      setState(() {
+        _orders = const [];
+        _loading = false;
+      });
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final list = await _labOrderService.getByEncounter(encounterId);
+      if (!mounted) return;
+      setState(() {
+        _orders = list;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _orders = const [];
+        _loading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final scope = InpatientViewScope.of(context);
+    final isDoctor = scope?.isDoctor ?? false;
+
     final columns = [
-      'Date/Time',
       'Test',
-      'Result',
-      'Units',
-      'Reference Range',
+      'Priority',
       'Status',
+      'Result Summary',
+      if (isDoctor) 'Doctor actions',
     ];
 
     return SingleChildScrollView(
@@ -22,89 +71,68 @@ class InpatientLabResultsScreen extends StatelessWidget {
       child: SectionCard(
         title: 'Lab Results',
         subtitle: 'Read-only view of investigations',
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: columns
-                .map(
-                  (c) => DataColumn(
-                    label: Text(
-                      c,
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                  ),
-                )
-                .toList(),
-            rows: [
-              _row(
-                context,
-                time: 'Today 10:32',
-                test: 'FBC',
-                result: 'Normal',
-                units: '-',
-                range: '-',
-                status: 'Normal',
-                abnormal: false,
+        child: _loading
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _orders.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('No lab results for this admission yet.'),
+              )
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: columns
+                      .map(
+                        (c) => DataColumn(
+                          label: Text(
+                            c,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  rows: _orders.map((o) => _row(context, o, isDoctor)).toList(),
+                ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  DataRow _row(
-    BuildContext context, {
-    required String time,
-    required String test,
-    required String result,
-    required String units,
-    required String range,
-    required String status,
-    required bool abnormal,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    final statusStyle = TextStyle(
-      color: abnormal ? scheme.error : scheme.primary,
-      fontWeight: FontWeight.w600,
-    );
+  DataRow _row(BuildContext context, LabOrderModel order, bool isDoctor) {
+    final resultSummary =
+        order.resultValues != null && order.resultValues!.isNotEmpty
+        ? order.resultValues!.entries
+              .take(3)
+              .map((e) => '${e.key}: ${e.value}')
+              .join(' • ')
+        : '-';
 
     return DataRow(
       cells: [
-        DataCell(Text(time)),
-        DataCell(Text(test)),
-        DataCell(
-          Text(
-            result,
-            style: abnormal ? TextStyle(color: scheme.error) : null,
-          ),
-        ),
-        DataCell(Text(units)),
-        DataCell(Text(range)),
-        DataCell(
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: abnormal
-                  ? scheme.error.withValues(alpha: 0.1)
-                  : scheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              status,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.merge(statusStyle),
+        DataCell(Text(order.testType)),
+        DataCell(Text(order.priority ?? '-')),
+        DataCell(Text(order.status)),
+        DataCell(Text(resultSummary)),
+        if (isDoctor)
+          DataCell(
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'To order new labs, use the doctor encounter investigations tab.',
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Order lab tests'),
             ),
           ),
-        ),
       ],
     );
   }
 }
-

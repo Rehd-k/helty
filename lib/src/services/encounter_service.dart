@@ -19,19 +19,26 @@ class EncounterService {
     return EncounterModel.fromJson(data);
   }
 
-  /// GET /encounters — list encounters. Query: doctorId, date (ISO date), status, skip, take.
+  /// GET /encounters — list encounters.
+  /// Query: doctorId, fromDate, toDate, status, skip, take.
   /// Response: { data: Encounter[], total: number } or array.
   Future<List<EncounterModel>> fetchOutpatientEncounters({
     String? doctorId,
-    DateTime? date,
+    DateTime? fromDate,
+    DateTime? toDate,
     String? status,
     int skip = 0,
     int take = 50,
   }) async {
     final query = <String, dynamic>{'skip': skip, 'take': take};
     if (doctorId != null && doctorId.isNotEmpty) query['doctorId'] = doctorId;
-    if (date != null) query['date'] = date.toIso8601String().split('T').first;
-    if (status != null && status.isNotEmpty) query['status'] = status;
+    if (fromDate != null) {
+      query['fromDate'] = fromDate.toIso8601String();
+    }
+    if (toDate != null) {
+      query['toDate'] = toDate.toIso8601String();
+    }
+    query['status'] = status ?? 'COMPLETED';
 
     final response = await _dio.get<dynamic>(
       '/encounters',

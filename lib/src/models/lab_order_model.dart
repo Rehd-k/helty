@@ -3,7 +3,7 @@ class LabOrderModel {
     required this.id,
     required this.encounterId,
     required this.catalogTestId,
-    required this.testName,
+    required this.testType,
     this.priority,
     this.clinicalNotes,
     required this.status,
@@ -13,7 +13,7 @@ class LabOrderModel {
   final String id;
   final String encounterId;
   final String catalogTestId;
-  final String testName;
+  final String testType;
   final String? priority;
   final String? clinicalNotes;
   final String status;
@@ -25,7 +25,7 @@ class LabOrderModel {
       id: str(json['id']),
       encounterId: str(json['encounterId']),
       catalogTestId: str(json['catalogTestId']),
-      testName: str(json['testName']),
+      testType: str(json['testType']),
       priority: json['priority']?.toString(),
       clinicalNotes: json['clinicalNotes']?.toString(),
       status: (json['status']?.toString()) ?? 'Ordered',

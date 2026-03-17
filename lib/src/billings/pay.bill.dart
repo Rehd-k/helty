@@ -6,6 +6,7 @@ import 'package:helty/src/models/service_model.dart';
 
 import '../../app_router.gr.dart';
 import '../paitients/patient_providers.dart';
+import '../services/invoice_service.dart';
 import '../services/transaction_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,9 +87,11 @@ class PayBill extends ConsumerStatefulWidget {
     required this.hasId,
     required this.firstName,
     required this.patientId,
+    required this.isInvoice,
     required this.selectedItems,
     required this.total,
     required this.staffId,
+    this.invoiceId,
     this.onPaymentComplete,
   });
   final bool hasId;
@@ -97,6 +100,8 @@ class PayBill extends ConsumerStatefulWidget {
   final List<ServiceModel> selectedItems;
   final double total;
   final String staffId;
+  final bool isInvoice;
+  final String? invoiceId;
 
   /// Called after the payment API call succeeds so the caller can clear its cart.
   final VoidCallback? onPaymentComplete;
@@ -119,6 +124,7 @@ class PayBillState extends ConsumerState<PayBill> {
   List<String> _discounts = [];
   String? _selectedDiscount;
   final transactionService = TransactionService();
+  final _invoiceService = InvoiceService();
 
   // Payment State
   String? _paymentMethod;
@@ -456,7 +462,16 @@ class PayBillState extends ConsumerState<PayBill> {
     setState(() => _isSubmitting = true);
 
     try {
-      await transactionService.createQuickTransaction(dto);
+      final txn = await transactionService.createQuickTransaction(dto);
+
+      // If this payment is for an invoice, mark the invoice as PAID and attach transaction id.
+      if (widget.isInvoice && widget.invoiceId != null) {
+        await _invoiceService.updateInvoiceStatus(
+          id: widget.invoiceId!,
+          status: 'PAID',
+          transactionId: txn.id,
+        );
+      }
       if (mounted) {
         setState(() {
           _confirmed = true;

@@ -287,151 +287,171 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final isEditing = widget.patient != null;
     final isFromUnregistered = widget.patient?.fromUnregisteredFlow ?? false;
     log(widget.patient?.toJson().toString() ?? 'No patient');
     return Scaffold(
+      backgroundColor: colors.surfaceContainerHighest.withValues(alpha: 0.03),
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: colors.surface,
         title: Text(
           isEditing
               ? (isFromUnregistered ? 'Register Patient' : 'Edit Patient')
               : 'Register Patient',
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ModernFormCard(
-                title: 'Patient Information', // Patient Information
-                leadingIcon: Icons.person_outline,
-                headerAction: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () {},
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ModernFormCard(
+                      title: 'Patient Information',
+                      leadingIcon: Icons.person_outline,
+                      headerAction: IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () {},
+                      ),
+                      children: [
+                        _buildTextField(_cardNoController, 'Card Number'),
+                        _buildTextField(_titleController, 'Title'),
+                        _buildTextField(
+                          _surnameController,
+                          'Surname *',
+                          required: true,
+                          readOnly: widget.patient?.lockNames ?? false,
+                        ),
+                        _buildTextField(
+                          _firstNameController,
+                          'First Name *',
+                          required: true,
+                          readOnly: widget.patient?.lockNames ?? false,
+                        ),
+                        _buildTextField(_otherNameController, 'Other Name'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ModernFormCard(
+                      title: 'Demographics',
+                      leadingIcon: Icons.badge_outlined,
+                      children: [
+                        _buildDateField(
+                          _dobController,
+                          'Date of Birth',
+                          required: true,
+                        ),
+                        _buildTextField(
+                          _genderController,
+                          'Gender',
+                          required: true,
+                        ),
+                        _buildTextField(
+                          _maritalStatusController,
+                          'Marital Status',
+                        ),
+                        _buildTextField(
+                          _nationalityController,
+                          'Nationality',
+                          required: true,
+                        ),
+                        _buildTextField(
+                          _stateController,
+                          'State of Origin',
+                          required: true,
+                        ),
+                        _buildTextField(_lgaController, 'LGA'),
+                        _buildTextField(_townController, 'Town'),
+                        _buildTextField(
+                          _permanentAddressController,
+                          'Permanent Address',
+                        ),
+                        _buildTextField(_religionController, 'Religion'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ModernFormCard(
+                      title: 'Contact',
+                      leadingIcon: Icons.call_outlined,
+                      children: [
+                        _buildTextField(
+                          _emailController,
+                          'Email',
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        _buildTextField(
+                          _phoneController,
+                          'Phone',
+                          keyboardType: TextInputType.phone,
+                        ),
+                        _buildTextField(
+                          _preferredLanguageController,
+                          'Preferred Language',
+                        ),
+                        _buildTextField(
+                          _addressOfResidenceController,
+                          'Address of Residence',
+                        ),
+                        _buildTextField(_professionController, 'Profession'),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    ModernFormCard(
+                      title: 'Next of Kin',
+                      leadingIcon: Icons.family_restroom_outlined,
+                      children: [
+                        _buildTextField(_nextOfKinNameController, 'Name'),
+                        _buildTextField(_nextOfKinPhoneController, 'Phone'),
+                        _buildTextField(_nextOfKinAddressController, 'Address'),
+                        _buildTextField(
+                          _nextOfKinRelationshipController,
+                          'Relationship',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    _sectionHeader('Other Info'),
+                    ModernFormCard(
+                      title: 'Other Info',
+                      leadingIcon: Icons.more_horiz,
+                      children: [
+                        _buildTextField(_hmoController, 'HMO'),
+                        _buildFingerprintSection(),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 260),
+                        child: ElevatedButton(
+                          onPressed: () => _save(widget.patient?.id),
+                          style: ElevatedButton.styleFrom(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 16.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: Text(
+                            isEditing ? 'Update Patient' : 'Create Patient',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-
-                children: [
-                  _buildTextField(_cardNoController, 'Card Number'),
-                  _buildTextField(_titleController, 'Title'),
-                  _buildTextField(
-                    _surnameController,
-                    'Surname *',
-                    required: true,
-                    readOnly: widget.patient?.lockNames ?? false,
-                  ),
-                  _buildTextField(
-                    _firstNameController,
-                    'First Name *',
-                    required: true,
-                    readOnly: widget.patient?.lockNames ?? false,
-                  ),
-                  _buildTextField(_otherNameController, 'Other Name'),
-                ],
               ),
-              const SizedBox(height: 12),
-
-              ModernFormCard(
-                title: 'Demographics',
-                children: [
-                  _buildDateField(
-                    _dobController,
-                    'Date of Birth',
-                    required: true,
-                  ),
-                  _buildTextField(_genderController, 'Gender', required: true),
-                  _buildTextField(_maritalStatusController, 'Marital Status'),
-                  _buildTextField(
-                    _nationalityController,
-                    'Nationality',
-                    required: true,
-                  ),
-                  _buildTextField(
-                    _stateController,
-                    'State of Origin',
-                    required: true,
-                  ),
-                  _buildTextField(_lgaController, 'LGA'),
-                  _buildTextField(_townController, 'Town'),
-                  _buildTextField(
-                    _permanentAddressController,
-                    'Permanent Address',
-                  ),
-                  _buildTextField(_religionController, 'Religion'),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-              ModernFormCard(
-                title: 'Contact',
-                children: [
-                  _buildTextField(
-                    _emailController,
-                    'Email',
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-
-                  _buildTextField(
-                    _phoneController,
-                    'Phone',
-                    keyboardType: TextInputType.phone,
-                  ),
-
-                  _buildTextField(
-                    _preferredLanguageController,
-                    'Preferred Language',
-                  ),
-
-                  _buildTextField(
-                    _addressOfResidenceController,
-                    'Address of Residence',
-                  ),
-
-                  _buildTextField(_professionController, 'Profession'),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              ModernFormCard(
-                title: 'Next of Kin',
-                children: [
-                  _buildTextField(_nextOfKinNameController, 'Name'),
-
-                  _buildTextField(_nextOfKinPhoneController, 'Phone'),
-
-                  _buildTextField(_nextOfKinAddressController, 'Address'),
-
-                  _buildTextField(
-                    _nextOfKinRelationshipController,
-                    'Relationship',
-                  ),
-                ],
-              ),
-
-              // other
-              const SizedBox(height: 32),
-              _sectionHeader('Other Info'),
-              ModernFormCard(
-                title: 'Other Info',
-                children: [
-                  _buildTextField(_hmoController, 'HMO'),
-                  _buildTextField(_fingerprintController, 'Fingerprint Data'),
-                ],
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity / 2,
-                child: ElevatedButton(
-                  onPressed: () => _save(widget.patient?.id),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Text(isEditing ? 'Update Patient' : 'Create Patient'),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -500,6 +520,109 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           controller.text = picked.toIso8601String().split('T').first;
         }
       },
+    );
+  }
+
+  Widget _buildFingerprintSection() {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final hasFingerprint = _fingerprintController.text.trim().isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            colors.primary.withValues(alpha: 0.08),
+            colors.primary.withValues(alpha: 0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: hasFingerprint
+              ? colors.primary
+              : colors.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.fingerprint_rounded,
+              color: colors.primary,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Fingerprint',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasFingerprint
+                      ? 'Fingerprint data captured. You can rescan or clear it.'
+                      : 'No fingerprint has been captured yet. Place the finger on the scanner to capture.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    if (hasFingerprint)
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _fingerprintController.clear();
+                          });
+                        },
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Clear'),
+                      ),
+                    FilledButton.icon(
+                      onPressed: () async {
+                        setState(() {
+                          _fingerprintController.text =
+                              'Captured at ${DateTime.now().toIso8601String()}';
+                        });
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Fingerprint captured (demo only). Integrate with scanner SDK here.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.fingerprint_rounded),
+                      label:
+                          Text(hasFingerprint ? 'Rescan' : 'Scan fingerprint'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

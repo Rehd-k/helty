@@ -13,6 +13,8 @@ import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../widgets/date.filter.dart';
+
 const String _kSavedConsultingRoomId = 'doctor_walkin_consulting_room_id';
 
 @RoutePage()
@@ -39,6 +41,8 @@ class _DoctorWalkInQueueScreenState
   static const int _rowsPerPage = 50;
   int _skip = 0;
   int _total = 0;
+  DateTime _fromDate = DateTime.now();
+  DateTime _toDate = DateTime.now();
 
   @override
   void initState() {
@@ -110,8 +114,11 @@ class _DoctorWalkInQueueScreenState
         WaitingPatientQuery(
           q: _searchQuery.isEmpty ? null : _searchQuery,
           consultingRoomId: _selectedRoom?.id,
+          unassignedOnly: false,
           skip: _skip,
           take: _rowsPerPage,
+          fromDate: _fromDate,
+          toDate: _toDate,
         ),
       );
       if (!mounted) return;
@@ -262,7 +269,6 @@ class _DoctorWalkInQueueScreenState
             ),
             const SizedBox(height: 24),
 
-            // Filters and search
             Row(
               children: [
                 Expanded(
@@ -344,17 +350,27 @@ class _DoctorWalkInQueueScreenState
                         : (room) => _onConsultingRoomChanged(room),
                   ),
                 ),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: _loading ? null : () => _loadPatients(reset: true),
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Refresh list',
-                ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // Patient list
+            const SizedBox(height: 10),
+            FromToDateFilter(
+              doRefresh: () => _loadPatients(reset: true),
+              dateFilter: true,
+              onFilterChanged:
+                  (
+                    String query,
+                    String category,
+                    DateTime? from,
+                    DateTime? to,
+                  ) {
+                    setState(() {
+                      _fromDate = from ?? DateTime.now();
+                      _toDate = to ?? DateTime.now();
+                      _loadPatients(reset: true);
+                    });
+                  },
+            ),
+            const SizedBox(height: 10),
             Expanded(
               child: Container(
                 decoration: BoxDecoration(

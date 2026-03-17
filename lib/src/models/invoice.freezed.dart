@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Invoice {
 
- String get id; String get patientId; String get status;// consider → @JsonKey(name: 'status') TransactionStatus status later
+ String get id; Patient get patient; Map<String, dynamic> get staff; String get patientId; String get status;// consider → @JsonKey(name: 'status') TransactionStatus status later
  String get createdById; String? get updatedById; String? get staffId; DateTime get createdAt; DateTime get updatedAt; List<ServiceModel> get invoiceItems;
 /// Create a copy of Invoice
 /// with the given fields replaced by the non-null parameter values.
@@ -29,16 +29,16 @@ $InvoiceCopyWith<Invoice> get copyWith => _$InvoiceCopyWithImpl<Invoice>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other.invoiceItems, invoiceItems));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patient, patient) || other.patient == patient)&&const DeepCollectionEquality().equals(other.staff, staff)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other.invoiceItems, invoiceItems));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(invoiceItems));
+int get hashCode => Object.hash(runtimeType,id,patient,const DeepCollectionEquality().hash(staff),patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(invoiceItems));
 
 @override
 String toString() {
-  return 'Invoice(id: $id, patientId: $patientId, status: $status, createdById: $createdById, updatedById: $updatedById, staffId: $staffId, createdAt: $createdAt, updatedAt: $updatedAt, invoiceItems: $invoiceItems)';
+  return 'Invoice(id: $id, patient: $patient, staff: $staff, patientId: $patientId, status: $status, createdById: $createdById, updatedById: $updatedById, staffId: $staffId, createdAt: $createdAt, updatedAt: $updatedAt, invoiceItems: $invoiceItems)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $InvoiceCopyWith<$Res>  {
   factory $InvoiceCopyWith(Invoice value, $Res Function(Invoice) _then) = _$InvoiceCopyWithImpl;
 @useResult
 $Res call({
- String id, String patientId, String status, String createdById, String? updatedById, String? staffId, DateTime createdAt, DateTime updatedAt, List<ServiceModel> invoiceItems
+ String id, Patient patient, Map<String, dynamic> staff, String patientId, String status, String createdById, String? updatedById, String? staffId, DateTime createdAt, DateTime updatedAt, List<ServiceModel> invoiceItems
 });
 
 
@@ -66,10 +66,12 @@ class _$InvoiceCopyWithImpl<$Res>
 
 /// Create a copy of Invoice
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? patientId = null,Object? status = null,Object? createdById = null,Object? updatedById = freezed,Object? staffId = freezed,Object? createdAt = null,Object? updatedAt = null,Object? invoiceItems = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? patient = null,Object? staff = null,Object? patientId = null,Object? status = null,Object? createdById = null,Object? updatedById = freezed,Object? staffId = freezed,Object? createdAt = null,Object? updatedAt = null,Object? invoiceItems = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,patientId: null == patientId ? _self.patientId : patientId // ignore: cast_nullable_to_non_nullable
+as String,patient: null == patient ? _self.patient : patient // ignore: cast_nullable_to_non_nullable
+as Patient,staff: null == staff ? _self.staff : staff // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>,patientId: null == patientId ? _self.patientId : patientId // ignore: cast_nullable_to_non_nullable
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,createdById: null == createdById ? _self.createdById : createdById // ignore: cast_nullable_to_non_nullable
 as String,updatedById: freezed == updatedById ? _self.updatedById : updatedById // ignore: cast_nullable_to_non_nullable
@@ -162,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  Patient patient,  Map<String, dynamic> staff,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Invoice() when $default != null:
-return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
+return $default(_that.id,_that.patient,_that.staff,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
   return orElse();
 
 }
@@ -183,10 +185,10 @@ return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.up
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  Patient patient,  Map<String, dynamic> staff,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)  $default,) {final _that = this;
 switch (_that) {
 case _Invoice():
-return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
+return $default(_that.id,_that.patient,_that.staff,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +205,10 @@ return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.up
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  Patient patient,  Map<String, dynamic> staff,  String patientId,  String status,  String createdById,  String? updatedById,  String? staffId,  DateTime createdAt,  DateTime updatedAt,  List<ServiceModel> invoiceItems)?  $default,) {final _that = this;
 switch (_that) {
 case _Invoice() when $default != null:
-return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
+return $default(_that.id,_that.patient,_that.staff,_that.patientId,_that.status,_that.createdById,_that.updatedById,_that.staffId,_that.createdAt,_that.updatedAt,_that.invoiceItems);case _:
   return null;
 
 }
@@ -218,10 +220,18 @@ return $default(_that.id,_that.patientId,_that.status,_that.createdById,_that.up
 @JsonSerializable()
 
 class _Invoice extends Invoice {
-  const _Invoice({required this.id, required this.patientId, required this.status, required this.createdById, this.updatedById, this.staffId, required this.createdAt, required this.updatedAt, required final  List<ServiceModel> invoiceItems}): _invoiceItems = invoiceItems,super._();
+  const _Invoice({required this.id, required this.patient, required final  Map<String, dynamic> staff, required this.patientId, required this.status, required this.createdById, this.updatedById, this.staffId, required this.createdAt, required this.updatedAt, required final  List<ServiceModel> invoiceItems}): _staff = staff,_invoiceItems = invoiceItems,super._();
   factory _Invoice.fromJson(Map<String, dynamic> json) => _$InvoiceFromJson(json);
 
 @override final  String id;
+@override final  Patient patient;
+ final  Map<String, dynamic> _staff;
+@override Map<String, dynamic> get staff {
+  if (_staff is EqualUnmodifiableMapView) return _staff;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_staff);
+}
+
 @override final  String patientId;
 @override final  String status;
 // consider → @JsonKey(name: 'status') TransactionStatus status later
@@ -251,16 +261,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other._invoiceItems, _invoiceItems));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patient, patient) || other.patient == patient)&&const DeepCollectionEquality().equals(other._staff, _staff)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other._invoiceItems, _invoiceItems));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(_invoiceItems));
+int get hashCode => Object.hash(runtimeType,id,patient,const DeepCollectionEquality().hash(_staff),patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(_invoiceItems));
 
 @override
 String toString() {
-  return 'Invoice(id: $id, patientId: $patientId, status: $status, createdById: $createdById, updatedById: $updatedById, staffId: $staffId, createdAt: $createdAt, updatedAt: $updatedAt, invoiceItems: $invoiceItems)';
+  return 'Invoice(id: $id, patient: $patient, staff: $staff, patientId: $patientId, status: $status, createdById: $createdById, updatedById: $updatedById, staffId: $staffId, createdAt: $createdAt, updatedAt: $updatedAt, invoiceItems: $invoiceItems)';
 }
 
 
@@ -271,7 +281,7 @@ abstract mixin class _$InvoiceCopyWith<$Res> implements $InvoiceCopyWith<$Res> {
   factory _$InvoiceCopyWith(_Invoice value, $Res Function(_Invoice) _then) = __$InvoiceCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String patientId, String status, String createdById, String? updatedById, String? staffId, DateTime createdAt, DateTime updatedAt, List<ServiceModel> invoiceItems
+ String id, Patient patient, Map<String, dynamic> staff, String patientId, String status, String createdById, String? updatedById, String? staffId, DateTime createdAt, DateTime updatedAt, List<ServiceModel> invoiceItems
 });
 
 
@@ -288,10 +298,12 @@ class __$InvoiceCopyWithImpl<$Res>
 
 /// Create a copy of Invoice
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? patientId = null,Object? status = null,Object? createdById = null,Object? updatedById = freezed,Object? staffId = freezed,Object? createdAt = null,Object? updatedAt = null,Object? invoiceItems = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? patient = null,Object? staff = null,Object? patientId = null,Object? status = null,Object? createdById = null,Object? updatedById = freezed,Object? staffId = freezed,Object? createdAt = null,Object? updatedAt = null,Object? invoiceItems = null,}) {
   return _then(_Invoice(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,patientId: null == patientId ? _self.patientId : patientId // ignore: cast_nullable_to_non_nullable
+as String,patient: null == patient ? _self.patient : patient // ignore: cast_nullable_to_non_nullable
+as Patient,staff: null == staff ? _self._staff : staff // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>,patientId: null == patientId ? _self.patientId : patientId // ignore: cast_nullable_to_non_nullable
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,createdById: null == createdById ? _self.createdById : createdById // ignore: cast_nullable_to_non_nullable
 as String,updatedById: freezed == updatedById ? _self.updatedById : updatedById // ignore: cast_nullable_to_non_nullable

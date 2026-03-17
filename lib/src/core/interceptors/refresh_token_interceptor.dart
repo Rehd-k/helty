@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
+import 'package:helty/app_router.gr.dart';
 
 import '../errors/app_exception.dart';
 import '../storage/token_storage.dart';
+import '../../services/navigation.service.dart';
 
 /// Handles transparent access token refresh on 401 responses.
 ///
@@ -35,6 +37,28 @@ class RefreshTokenInterceptor extends Interceptor {
     final response = err.response;
     final statusCode = response?.statusCode;
     final request = err.requestOptions;
+
+    // If backend explicitly reports an invalid/missing auth token,
+    // immediately log out and replace the stack with the login screen
+    // so the user cannot navigate back into protected screens.
+    final data = response?.data;
+    final message = (data is Map && data['message'] is String)
+        ? data['message'] as String
+        : null;
+    if (statusCode == 401 &&
+        message == 'Invalid or missing authentication token') {
+      await TokenStorage.clearAll();
+      NavigationService.router.replaceAll([LoginRoute()]);
+      handler.next(
+        DioException(
+          requestOptions: request,
+          error: const UnauthorizedException(),
+          response: response,
+          type: err.type,
+        ),
+      );
+      return;
+    }
 
     final isUnauthorized = statusCode == 401;
     final isRefreshCall = request.path == refreshEndpoint;
@@ -97,5 +121,3 @@ class RefreshTokenInterceptor extends Interceptor {
     }
   }
 }
-
-

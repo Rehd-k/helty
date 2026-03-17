@@ -1,10 +1,12 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/patient_header_card.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
+import 'package:helty/src/providers/auth_provider.dart';
 
 import '../../helper/date.formatter.dart';
 import '../../../app_router.gr.dart';
@@ -12,7 +14,7 @@ import '../../../app_router.gr.dart';
 const double _contentMaxWidth = 1440;
 
 @RoutePage()
-class InpatientPatientViewScreen extends StatefulWidget {
+class InpatientPatientViewScreen extends ConsumerStatefulWidget {
   final String patientId;
   final String? admissionId;
   final String? ward;
@@ -39,12 +41,12 @@ class InpatientPatientViewScreen extends StatefulWidget {
   });
 
   @override
-  State<InpatientPatientViewScreen> createState() =>
+  ConsumerState<InpatientPatientViewScreen> createState() =>
       _InpatientPatientViewScreenState();
 }
 
 class _InpatientPatientViewScreenState
-    extends State<InpatientPatientViewScreen> {
+    extends ConsumerState<InpatientPatientViewScreen> {
   final _patientService = PatientService();
 
   Patient? _patient;
@@ -87,9 +89,24 @@ class _InpatientPatientViewScreenState
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    final auth = ref.watch(authProvider);
+    final staff = auth.staff;
+    final role = staff?.role.toLowerCase() ?? '';
+    final accountType = staff?.accountType?.name.toLowerCase() ?? '';
+    final staffId = staff?.id ?? staff?.staffId;
+
+    final isDoctor = role == 'doctor' || role == 'consultant';
+    final isNurse = role == 'nurse' || accountType == 'nurse';
+
     return InpatientViewScope(
       patientId: widget.patientId,
       admissionId: widget.admissionId,
+      encounterId: null, // can be wired when backend exposes mapping
+      staffId: staffId,
+      role: role,
+      accountType: accountType,
+      isDoctor: isDoctor,
+      isNurse: isNurse,
       child: AutoTabsRouter(
         routes: [
           InpatientOverviewRoute(),

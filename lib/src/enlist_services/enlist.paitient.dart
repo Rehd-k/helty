@@ -177,6 +177,10 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                                   patientId: selectedPatient?.id ?? '',
                                 ),
                               );
+                            } else if (serviceName == 'lab') {
+                              context.router.push(
+                                const LabCreateOrderRoute(),
+                              );
                             } else {
                               context.router.push(RenderServiceRoute());
                             }

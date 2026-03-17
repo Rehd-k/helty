@@ -11,8 +11,7 @@ class MedicationOrderService {
   /// GET /medication-orders?encounterId= — list orders for an encounter.
   Future<List<MedicationOrderModel>> getByEncounter(String encounterId) async {
     final response = await _dio.get<dynamic>(
-      '/medication-orders',
-      queryParameters: {'encounterId': encounterId},
+      '/medication-orders/encounter/$encounterId',
     );
     final raw = response.data;
     if (raw is List) {
@@ -32,8 +31,10 @@ class MedicationOrderService {
   /// POST /medication-orders — create prescription. Returns created order with id from API.
   Future<MedicationOrderModel> create({
     required String encounterId,
+    required String patientId,
     required String drugId,
     required String drugName,
+    required String staffId,
     String? dose,
     String? frequency,
     String? duration,
@@ -44,6 +45,8 @@ class MedicationOrderService {
       'encounterId': encounterId,
       'drugId': drugId,
       'drugName': drugName,
+      'patientId': patientId,
+      'doctorId': staffId,
       if (dose != null && dose.isNotEmpty) 'dose': dose,
       if (frequency != null && frequency.isNotEmpty) 'frequency': frequency,
       if (duration != null && duration.isNotEmpty) 'duration': duration,
@@ -56,7 +59,9 @@ class MedicationOrderService {
       data: body,
     );
     final data = response.data;
-    if (data == null) throw StateError('Create medication order returned no data');
+    if (data == null) {
+      throw StateError('Create medication order returned no data');
+    }
     return MedicationOrderModel.fromJson(data);
   }
 }

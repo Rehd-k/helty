@@ -1,9 +1,11 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
-import 'package:helty/src/models/drug_catalog_model.dart';
 import 'package:helty/src/models/medication_order_model.dart';
-import 'package:helty/src/services/drug_catalog_service.dart';
+import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
+import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/services/medication_order_service.dart';
 
 @RoutePage()
@@ -17,8 +19,10 @@ class DoctorEncounterPrescriptionTab extends StatefulWidget {
 
 class _DoctorEncounterPrescriptionTabState
     extends State<DoctorEncounterPrescriptionTab> {
-  final _drugCatalogService = DrugCatalogService();
+  final _pharmacyService = PharmacyApiService();
   final _medicationOrderService = MedicationOrderService();
+
+  static const int _searchDrugLimit = 30;
 
   List<MedicationOrderModel> _orders = [];
   bool _loading = true;
@@ -44,7 +48,9 @@ class _DoctorEncounterPrescriptionTabState
     final scope = EncounterScope.of(context);
     if (scope == null) return;
     setState(() => _loading = true);
-    final list = await _medicationOrderService.getByEncounter(scope.encounterId);
+    final list = await _medicationOrderService.getByEncounter(
+      scope.encounterId,
+    );
     if (!mounted) return;
     setState(() {
       _orders = list;
@@ -57,8 +63,10 @@ class _DoctorEncounterPrescriptionTabState
     if (scope == null) return;
 
     final searchCtrl = TextEditingController();
-    List<DrugCatalogModel> results = [];
-    DrugCatalogModel? selected;
+    List<Drug> results = [];
+    Drug? selected;
+    bool searchLoading = false;
+    Timer? searchDebounce;
     final doseCtrl = TextEditingController();
     final frequencyCtrl = TextEditingController();
     final durationCtrl = TextEditingController();
@@ -81,37 +89,106 @@ class _DoctorEncounterPrescriptionTabState
                     children: [
                       TextField(
                         controller: searchCtrl,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Search drug',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.search),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: searchLoading
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : null,
                         ),
-                        onChanged: (v) async {
-                          final r = await _drugCatalogService.search(v);
-                          setState(() => results = r);
+                        onChanged: (v) {
+                          searchDebounce?.cancel();
+                          final query = v.trim();
+                          if (query.isEmpty) {
+                            setState(() {
+                              results = [];
+                              searchLoading = false;
+                            });
+                            return;
+                          }
+                          setState(() {
+                            searchLoading = true;
+                            results = [];
+                          });
+                          searchDebounce = Timer(
+                            const Duration(milliseconds: 300),
+                            () async {
+                              try {
+                                final response = await _pharmacyService
+                                    .searchDrugs(
+                                      SearchDrugParams(
+                                        search: query,
+                                        limit: _searchDrugLimit,
+                                        page: 1,
+                                        pageSize: _searchDrugLimit,
+                                      ),
+                                    );
+                                if (ctx.mounted) {
+                                  setState(() {
+                                    results = response.items;
+                                    searchLoading = false;
+                                  });
+                                }
+                              } catch (_) {
+                                if (ctx.mounted) {
+                                  setState(() {
+                                    results = [];
+                                    searchLoading = false;
+                                  });
+                                }
+                              }
+                            },
+                          );
                         },
                       ),
                       if (results.isNotEmpty && selected == null) ...[
                         const SizedBox(height: 8),
-                        ...results.take(5).map((e) => ListTile(
-                              dense: true,
-                              title: Text('${e.name} ${e.strength ?? ""} ${e.form ?? ""}'),
-                              onTap: () => setState(() => selected = e),
-                            )),
+                        ...results.map(
+                          (e) => ListTile(
+                            dense: true,
+                            title: Text(
+                              '${e.brandName} ${e.strength ?? ""} ${e.dosageForm ?? ""}',
+                            ),
+                            subtitle: e.genericName != e.brandName
+                                ? Text(e.genericName)
+                                : null,
+                            onTap: () => setState(() => selected = e),
+                          ),
+                        ),
                       ],
                       if (selected != null) ...[
                         const SizedBox(height: 12),
                         ListTile(
-                          tileColor: Theme.of(ctx).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                          title: Text(selected!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('${selected!.strength ?? ""} ${selected!.form ?? ""}'),
+                          tileColor: Theme.of(
+                            ctx,
+                          ).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                          title: Text(
+                            selected!.brandName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            '${selected!.strength ?? ""} ${selected!.dosageForm ?? ""}',
+                          ),
                           trailing: IconButton(
                             icon: const Icon(Icons.clear),
                             onPressed: () => setState(() => selected = null),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text('Check patient allergies before prescribing.', style: Theme.of(ctx).textTheme.bodySmall),
+                        Text(
+                          'Check patient allergies before prescribing.',
+                          style: Theme.of(ctx).textTheme.bodySmall,
+                        ),
                         const SizedBox(height: 12),
                         TextField(
                           controller: doseCtrl,
@@ -167,23 +244,38 @@ class _DoctorEncounterPrescriptionTabState
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: selected == null
+                  onPressed: selected == null || selected!.id == null
                       ? null
                       : () async {
                           await _medicationOrderService.create(
+                            staffId: scope.doctorId!,
                             encounterId: scope.encounterId,
-                            drugId: selected!.id,
-                            drugName: selected!.name,
-                            dose: doseCtrl.text.trim().isEmpty ? null : doseCtrl.text.trim(),
-                            frequency: frequencyCtrl.text.trim().isEmpty ? null : frequencyCtrl.text.trim(),
-                            duration: durationCtrl.text.trim().isEmpty ? null : durationCtrl.text.trim(),
-                            route: routeCtrl.text.trim().isEmpty ? null : routeCtrl.text.trim(),
-                            specialInstructions: instructionsCtrl.text.trim().isEmpty ? null : instructionsCtrl.text.trim(),
+                            patientId: scope.patientId,
+                            drugId: selected!.id!,
+                            drugName: selected!.brandName,
+                            dose: doseCtrl.text.trim().isEmpty
+                                ? null
+                                : doseCtrl.text.trim(),
+                            frequency: frequencyCtrl.text.trim().isEmpty
+                                ? null
+                                : frequencyCtrl.text.trim(),
+                            duration: durationCtrl.text.trim().isEmpty
+                                ? null
+                                : durationCtrl.text.trim(),
+                            route: routeCtrl.text.trim().isEmpty
+                                ? null
+                                : routeCtrl.text.trim(),
+                            specialInstructions:
+                                instructionsCtrl.text.trim().isEmpty
+                                ? null
+                                : instructionsCtrl.text.trim(),
                           );
                           if (ctx.mounted) {
                             Navigator.of(ctx).pop();
                             ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(content: Text('Prescription added')),
+                              const SnackBar(
+                                content: Text('Prescription added'),
+                              ),
                             );
                             _load();
                           }
@@ -233,7 +325,9 @@ class _DoctorEncounterPrescriptionTabState
                     child: Text(
                       'No prescriptions. Tap "Add prescription" to add.',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   )

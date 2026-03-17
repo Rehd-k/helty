@@ -1,6 +1,10 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/models/medication_order_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/services/medication_order_service.dart';
+import 'package:helty/src/services/transaction_service.dart';
 
 @RoutePage()
 class InpatientMedicationsScreen extends StatefulWidget {
@@ -13,8 +17,57 @@ class InpatientMedicationsScreen extends StatefulWidget {
 
 class _InpatientMedicationsScreenState
     extends State<InpatientMedicationsScreen> {
+  final _medicationOrderService = MedicationOrderService();
+  final _transactionService = TransactionService();
+
+  List<MedicationOrderModel> _orders = [];
+  bool _loadingOrders = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadOrders();
+  }
+
+  Future<void> _loadOrders() async {
+    final scope = InpatientViewScope.of(context);
+    final encounterId = scope?.encounterId;
+    if (encounterId == null || encounterId.isEmpty) {
+      setState(() {
+        _orders = const [];
+        _loadingOrders = false;
+      });
+      return;
+    }
+    setState(() => _loadingOrders = true);
+    try {
+      final list = await _medicationOrderService.getByEncounter(encounterId);
+      if (!mounted) return;
+      setState(() {
+        _orders = list;
+        _loadingOrders = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _orders = const [];
+        _loadingOrders = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scope = InpatientViewScope.of(context);
+    if (scope == null) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: Text('Inpatient context not available')),
+      );
+    }
+
+    final isDoctor = scope.isDoctor;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -24,7 +77,25 @@ class _InpatientMedicationsScreenState
             child: SectionCard(
               title: 'Active Medication Orders',
               subtitle: 'Standing and PRN orders for this inpatient stay',
-              child: _buildActiveOrdersTable(context),
+              actions: [
+                if (isDoctor)
+                  FilledButton.icon(
+                    onPressed: () {
+                      // For now, doctors should use the encounter prescription tab
+                      // where full prescribing workflow exists.
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'To add prescriptions, open the doctor encounter view for this patient.',
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add medication'),
+                  ),
+              ],
+              child: _buildActiveOrdersTable(context, scope),
             ),
           ),
           const SizedBox(width: 16),
@@ -40,12 +111,29 @@ class _InpatientMedicationsScreenState
     );
   }
 
-  Widget _buildActiveOrdersTable(BuildContext context) {
+  Widget _buildActiveOrdersTable(
+    BuildContext context,
+    InpatientViewScope scope,
+  ) {
+    if (_loadingOrders) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_orders.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Text('No active medication orders for this admission.'),
+      );
+    }
+
     final columns = [
       'Drug',
       'Dose',
       'Route',
-      'Next Due',
+      'Frequency',
       'Administer',
     ];
 
@@ -64,22 +152,27 @@ class _InpatientMedicationsScreenState
               ),
             )
             .toList(),
-        rows: [
-          DataRow(
-            cells: [
-              const DataCell(Text('Paracetamol')),
-              const DataCell(Text('1g 8 hourly')),
-              const DataCell(Text('PO')),
-              const DataCell(Text('14:00')),
-              DataCell(
-                TextButton(
-                  onPressed: () => _openAdministerDialog(context),
-                  child: const Text('Administer'),
-                ),
+        rows: _orders
+            .map(
+              (o) => DataRow(
+                cells: [
+                  DataCell(Text(o.drugName)),
+                  DataCell(Text(o.dose ?? '')),
+                  DataCell(Text(o.route ?? '')),
+                  DataCell(Text(o.frequency ?? '')),
+                  DataCell(
+                    scope.isNurse
+                        ? TextButton(
+                            onPressed: () =>
+                                _openAdministerDialog(context, scope, o),
+                            child: const Text('Administer'),
+                          )
+                        : const Text('-'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+            )
+            .toList(),
       ),
     );
   }
@@ -115,7 +208,11 @@ class _InpatientMedicationsScreenState
     );
   }
 
-  Future<void> _openAdministerDialog(BuildContext context) async {
+  Future<void> _openAdministerDialog(
+    BuildContext context,
+    InpatientViewScope scope,
+    MedicationOrderModel order,
+  ) async {
     final statusNotifier = ValueNotifier<String>('Given');
     final timeCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
@@ -226,8 +323,38 @@ class _InpatientMedicationsScreenState
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop();
+              onPressed: () async {
+                final status = statusNotifier.value;
+                if (status == 'Given') {
+                  final staffId = scope.staffId;
+                  if (staffId != null && staffId.isNotEmpty) {
+                    final dto = CreateTransactionDto(
+                      patientId: scope.patientId,
+                      staffId: staffId,
+                      admissionId: scope.admissionId,
+                      items: [
+                        const CreateTransactionItemDto(
+                          serviceId: '',
+                          name: 'Medication administration',
+                          unitPrice: 0,
+                          quantity: 1,
+                          source: 'MEDICATION',
+                        ),
+                      ],
+                    );
+                    await _transactionService.createTransaction(dto);
+                  }
+                }
+                if (context.mounted) Navigator.of(context).pop();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Medication administration saved and billed to inpatient account.',
+                      ),
+                    ),
+                  );
+                }
               },
               child: const Text('Save'),
             ),

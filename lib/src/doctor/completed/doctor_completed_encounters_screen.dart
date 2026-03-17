@@ -7,6 +7,7 @@ import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/encounter_service.dart';
+import 'package:helty/src/widgets/date.filter.dart';
 import 'package:intl/intl.dart';
 
 @RoutePage()
@@ -30,6 +31,8 @@ class _DoctorCompletedEncountersScreenState
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   DateTime? _filterDate;
+  DateTime? _fromDate = DateTime.now();
+  DateTime? _toDate = DateTime.now();
 
   @override
   void initState() {
@@ -71,16 +74,23 @@ class _DoctorCompletedEncountersScreenState
         doctorId: doctorId,
         status: 'COMPLETED',
         take: 200,
+        fromDate: _fromDate,
+        toDate: _toDate,
       );
       if (list.isEmpty) {
         list = await _encounterService.fetchOutpatientEncounters(
           doctorId: doctorId,
-          status: 'completed',
+          status: 'COMPLETED',
           take: 200,
+          fromDate: _fromDate,
+          toDate: _toDate,
         );
       }
       if (!mounted) return;
-      list.sort((a, b) => (b.closedAt ?? b.startedAt).compareTo(a.closedAt ?? a.startedAt));
+      list.sort(
+        (a, b) =>
+            (b.closedAt ?? b.startedAt).compareTo(a.closedAt ?? a.startedAt),
+      );
       setState(() {
         _encounters = list;
         _loading = false;
@@ -183,7 +193,9 @@ class _DoctorCompletedEncountersScreenState
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.error),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.error,
+                ),
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
@@ -231,7 +243,8 @@ class _DoctorCompletedEncountersScreenState
                       child: TextField(
                         controller: _searchCtrl,
                         decoration: InputDecoration(
-                          hintText: 'Search by patient name, ID, or chief complaint',
+                          hintText:
+                              'Search by patient name, ID, or chief complaint',
                           prefixIcon: Icon(
                             Icons.search,
                             size: 20,
@@ -258,9 +271,11 @@ class _DoctorCompletedEncountersScreenState
                         }
                       },
                       icon: const Icon(Icons.calendar_today, size: 18),
-                      label: Text(_filterDate != null
-                          ? DateFormat.yMMMd().format(_filterDate!)
-                          : 'Filter by date'),
+                      label: Text(
+                        _filterDate != null
+                            ? DateFormat.yMMMd().format(_filterDate!)
+                            : 'Filter by date',
+                      ),
                     ),
                     if (_filterDate != null) ...[
                       const SizedBox(width: 8),
@@ -271,6 +286,25 @@ class _DoctorCompletedEncountersScreenState
                       ),
                     ],
                   ],
+                ),
+                const SizedBox(height: 12),
+                FromToDateFilter(
+                  // Only update the selected range; do not auto-call the API
+                  doRefresh: () {},
+                  dateFilter: true,
+                  onFilterChanged: (
+                    String query,
+                    String category,
+                    DateTime? from,
+                    DateTime? to,
+                  ) {
+                    setState(() {
+                      _fromDate = from;
+                      _toDate = to;
+                    });
+                    // API will be called explicitly via _loadEncounters
+                    // (e.g. pull-to-refresh or Retry button)
+                  },
                 ),
               ],
             ),
@@ -342,7 +376,9 @@ class _DoctorCompletedEncountersScreenState
                                 ? e.chiefComplaint!
                                 : 'No chief complaint recorded',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.8),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -351,7 +387,9 @@ class _DoctorCompletedEncountersScreenState
                           Text(
                             '${DateFormat.yMMMd().format(closed)} • ${e.primaryIcdDescription ?? e.status}',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.6),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
                             ),
                           ),
                         ],

@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
-import 'package:helty/src/providers/invoices_providers.dart';
 
+import '../helper/date.formatter.dart';
 import '../models/invoice.dart';
 import '../providers/auth_provider.dart';
+import '../services/invoice_service.dart';
 import '../widgets/filter.patients.dart';
 import 'pay.bill.dart';
 import 'summary.bills.dart';
@@ -27,6 +28,51 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   /// Current filter from the search bar and date range.
   InvoiceFilter _filter = const InvoiceFilter(limit: 500);
 
+  final InvoiceService _invoiceService = InvoiceService();
+  bool _isLoading = false;
+  String? _error;
+  List<Invoice> _invoices = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInvoices();
+  }
+
+  Future<void> _loadInvoices() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final invoices = await _invoiceService.getInvoices(
+        patientId: _filter.patientId,
+        status: _filter.status,
+        query: _filter.query,
+        category: _filter.category,
+        from: _filter.from,
+        to: _filter.to,
+        page: _filter.page,
+        limit: _filter.limit,
+      );
+
+      setState(() {
+        _invoices = invoices;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   void _handleSelect(Invoice invoice) {
     setState(() => selectedInvoice = invoice);
   }
@@ -34,7 +80,6 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final invoicesAsync = ref.watch(invoicesProvider(_filter));
 
     return Scaffold(
       body: Column(
@@ -47,24 +92,23 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
               {'name': 'fullName', 'value': 'Patient Name'},
               {'name': 'transactionId', 'value': 'Transaction ID'},
             ],
-            onFilterChanged: (
-              String query,
-              String category,
-              DateTime? from,
-              DateTime? to,
-            ) {
-              setState(() {
-                _filter = InvoiceFilter(
-                  query: query.isEmpty ? null : query,
-                  category: category,
-                  from: from,
-                  to: to,
-                  limit: 500,
-                );
-              });
-            },
+            onFilterChanged:
+                (String query, String category, DateTime? from, DateTime? to) {
+                  setState(() {
+                    _filter = InvoiceFilter(
+                      status: 'DRAFT',
+                      query: query.isEmpty ? null : query,
+                      category: category,
+                      from: from,
+                      to: to,
+                      limit: 500,
+                    );
+                  });
+
+                  _loadInvoices();
+                },
             doRefresh: () {
-              ref.invalidate(invoicesProvider(_filter));
+              _loadInvoices();
             },
             dateFilter: true,
           ),
@@ -72,121 +116,129 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: invoicesAsync.when(
-                    data: (invoices) {
-                      if (invoices.isEmpty) {
+                  child: Builder(
+                    builder: (context) {
+                      if (_isLoading) {
                         return const Center(
-                          child: Text('No pending invoices'),
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: CircularProgressIndicator(),
+                          ),
                         );
                       }
-                      return ListView.builder(
-                        itemCount: invoices.length,
-                        itemBuilder: (context, index) {
-                          final invoice = invoices[index];
 
-                      return Slidable(
-                        key: Key(invoice.id),
-                        startActionPane: ActionPane(
-                          motion: const ScrollMotion(),
-                          children: [
-                            SlidableAction(
-                              onPressed: (_) {},
-                              backgroundColor: Colors.blue,
-                              icon: Icons.edit,
-                              label: 'Edit',
-                            ),
-                            SlidableAction(
-                              onPressed: (_) {},
-                              backgroundColor: Colors.orange,
-                              icon: Icons.archive,
-                              label: 'Archive',
-                            ),
-                            SlidableAction(
-                              onPressed: (_) {},
-                              backgroundColor: Colors.red,
-                              icon: Icons.delete,
-                              label: 'Delete',
-                            ),
-                          ],
-                        ),
-                        child: GestureDetector(
-                          onTap: () => _handleSelect(invoice),
-                          onSecondaryTapDown: (details) {
-                            _showContextMenu(
-                              context,
-                              details.globalPosition,
-                              invoice,
-                              auth,
-                              _handleSelect,
-                            );
-                          },
-                          child: Card(
-                            elevation: 3,
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(16),
-                              title: Text(
-                                invoice.patientId,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 4),
-                                  Text("Status: ${invoice.status}"),
-                                  Text(
-                                    "Initiator: ${invoice.createdById}",
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    invoice.createdAt.toIso8601String(),
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                ],
-                              ),
-                              trailing: Text(
-                                invoice.total.toFinancial(isMoney: true),
-                                style: const TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
+                      if (_error != null) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              'Failed to load invoices: $_error',
+                              textAlign: TextAlign.center,
                             ),
                           ),
-                        ),
+                        );
+                      }
+
+                      if (_invoices.isEmpty) {
+                        return const Center(child: Text('No pending invoices'));
+                      }
+
+                      return ListView.builder(
+                        itemCount: _invoices.length,
+                        itemBuilder: (context, index) {
+                          final invoice = _invoices[index];
+
+                          return Slidable(
+                            key: Key(invoice.id),
+                            startActionPane: ActionPane(
+                              motion: const ScrollMotion(),
+                              children: [
+                                SlidableAction(
+                                  onPressed: (_) {},
+                                  backgroundColor: Colors.blue,
+                                  icon: Icons.edit,
+                                  label: 'Edit',
+                                ),
+                                SlidableAction(
+                                  onPressed: (_) {},
+                                  backgroundColor: Colors.orange,
+                                  icon: Icons.archive,
+                                  label: 'Archive',
+                                ),
+                                SlidableAction(
+                                  onPressed: (_) {},
+                                  backgroundColor: Colors.red,
+                                  icon: Icons.delete,
+                                  label: 'Delete',
+                                ),
+                              ],
+                            ),
+                            child: GestureDetector(
+                              onTap: () => _handleSelect(invoice),
+                              onSecondaryTapDown: (details) {
+                                _showContextMenu(
+                                  context,
+                                  details.globalPosition,
+                                  invoice,
+                                  auth,
+                                  _handleSelect,
+                                );
+                              },
+                              child: Card(
+                                elevation: 3,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.all(16),
+                                  title: Text(
+                                    '${invoice.patient.firstName} ${invoice.patient.surname}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 4),
+                                      Text("Status: ${invoice.status}"),
+                                      Text(
+                                        "Initiator: ${invoice.staff['firstName']} ${invoice.staff['lastName']}",
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        DateFormatter.dateTime(
+                                          invoice.createdAt,
+                                        ),
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: Text(
+                                    invoice.total.toFinancial(isMoney: true),
+                                    style: const TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
-                  );
-                    },
-                    loading: () => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                    error: (err, _) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'Failed to load invoices: $err',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
                   ),
                 ),
                 Expanded(
@@ -201,6 +253,28 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
       ),
     );
   }
+}
+
+class InvoiceFilter {
+  final String? patientId;
+  final String? status;
+  final String? query;
+  final String? category;
+  final DateTime? from;
+  final DateTime? to;
+  final int page;
+  final int limit;
+
+  const InvoiceFilter({
+    this.patientId,
+    this.status,
+    this.query,
+    this.category,
+    this.from,
+    this.to,
+    this.page = 1,
+    this.limit = 100,
+  });
 }
 
 void _showContextMenu(
@@ -269,7 +343,11 @@ void _showContextMenu(
   }
 }
 
-void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
+void openCustomModal(
+  BuildContext context,
+  Invoice invoice,
+  String staffId,
+) {
   showGeneralDialog(
     context: context,
     barrierDismissible: true,
@@ -296,12 +374,14 @@ void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
               Material(
                 color: Colors.transparent,
                 child: PayBill(
+                  isInvoice: true,
                   hasId: invoice.patientId.isNotEmpty,
                   selectedItems: invoice.invoiceItems,
                   patientId: invoice.patientId,
-                  firstName: 'Patient Name',
+                  firstName: invoice.patient.firstName,
                   total: invoice.total,
                   staffId: staffId,
+                  invoiceId: invoice.id,
                 ),
               ),
             ],

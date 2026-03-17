@@ -11,7 +11,7 @@ class ImagingOrderService {
   /// GET /imaging-orders?encounterId= — list imaging orders for an encounter.
   Future<List<ImagingOrderModel>> getByEncounter(String encounterId) async {
     final response = await _dio.get<dynamic>(
-      '/imaging-orders',
+      '/imaging-requests',
       queryParameters: {'encounterId': encounterId},
     );
     final raw = response.data;
@@ -29,11 +29,15 @@ class ImagingOrderService {
     return [];
   }
 
-  /// POST /imaging-orders — create imaging order. Returns created order with id from API.
+  /// POST /imaging-requests — create imaging/radiology order. Returns created order with id from API.
+  /// [serviceId] is optional; when provided, an invoice item is created for the service.
   Future<ImagingOrderModel> create({
     required String encounterId,
-    required String catalogId,
     required String studyName,
+    required String patientId,
+    required String staffId,
+    String? serviceId,
+    String? catalogId,
     String? area,
     bool contrast = false,
     String? urgency,
@@ -41,16 +45,19 @@ class ImagingOrderService {
   }) async {
     final body = <String, dynamic>{
       'encounterId': encounterId,
-      'catalogId': catalogId,
       'studyName': studyName,
       'contrast': contrast,
+      'patientId': patientId,
+      'requestedByDoctorId': staffId,
+      if (serviceId != null && serviceId.isNotEmpty) 'serviceId': serviceId,
+      if (catalogId != null && catalogId.isNotEmpty) 'catalogId': catalogId,
       if (area != null && area.isNotEmpty) 'area': area,
       if (urgency != null && urgency.isNotEmpty) 'urgency': urgency,
       if (notesToRadiologist != null && notesToRadiologist.isNotEmpty)
         'notesToRadiologist': notesToRadiologist,
     };
     final response = await _dio.post<Map<String, dynamic>>(
-      '/imaging-orders',
+      '/imaging-requests',
       data: body,
     );
     final data = response.data;

@@ -19,6 +19,69 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
   LabOrderStatus? _filterStatus;
   static const _skip = 0;
   static const _take = 20;
+  bool _loadingSummary = true;
+  String? _summaryError;
+  Map<LabOrderStatus, int> _statusCounts = {};
+  int _todayCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummary();
+  }
+
+  Future<void> _loadSummary() async {
+    setState(() {
+      _loadingSummary = true;
+      _summaryError = null;
+    });
+    try {
+      final api = ref.read(labApiServiceProvider);
+      final now = DateTime.now();
+      final todayFrom = DateTime(now.year, now.month, now.day, 0, 0, 0);
+      final todayTo = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        23,
+        59,
+        59,
+        999,
+      );
+      final response = await api.getOrders(
+        fromDate: todayFrom,
+        toDate: todayTo,
+        skip: 0,
+        take: 200,
+      );
+      final Map<LabOrderStatus, int> counts = {
+        for (final s in LabOrderStatus.values) s: 0,
+      };
+      int today = 0;
+      for (final o in response.data) {
+        counts[o.status] = (counts[o.status] ?? 0) + 1;
+        final created = o.createdAt;
+        if (created != null &&
+            created.year == now.year &&
+            created.month == now.month &&
+            created.day == now.day) {
+          today++;
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _statusCounts = counts;
+        _todayCount = today;
+        _loadingSummary = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _summaryError = e.toString();
+        _loadingSummary = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +100,8 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _buildSummaryRow(theme),
+                  const SizedBox(height: 20),
                   _buildQuickActions(context, theme, isLabManager),
                   const SizedBox(height: 24),
                   _buildOrdersSection(context, theme),
@@ -46,6 +111,107 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSummaryRow(ThemeData theme) {
+    if (_loadingSummary) {
+      return const SizedBox(
+        height: 80,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_summaryError != null) {
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: theme.colorScheme.error.withValues(alpha: 0.4),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline_rounded,
+                  color: theme.colorScheme.error),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Unable to load lab summary.\n${_summaryError!}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _loadSummary,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final cards = <Widget>[
+      _SummaryCard(
+        label: 'Today\'s orders',
+        value: _todayCount.toString(),
+        accent: theme.colorScheme.primary,
+        icon: Icons.today_rounded,
+      ),
+      _SummaryCard(
+        label: 'Pending',
+        value: (_statusCounts[LabOrderStatus.pending] ?? 0).toString(),
+        accent: theme.colorScheme.tertiary,
+        icon: Icons.schedule_rounded,
+      ),
+      _SummaryCard(
+        label: 'Completed',
+        value: (_statusCounts[LabOrderStatus.completed] ?? 0).toString(),
+        accent: theme.colorScheme.primaryContainer,
+        icon: Icons.check_circle_rounded,
+      ),
+      _SummaryCard(
+        label: 'Verified',
+        value: (_statusCounts[LabOrderStatus.verified] ?? 0).toString(),
+        accent: theme.colorScheme.secondary,
+        icon: Icons.verified_rounded,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 720;
+        if (isNarrow) {
+          return SizedBox(
+            height: 130,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: cards.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) => SizedBox(
+                width: 200,
+                child: cards[index],
+              ),
+            ),
+          );
+        }
+        return Row(
+          children: cards
+              .map(
+                (c) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: c,
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
     );
   }
 
@@ -194,6 +360,74 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
   }
 }
 
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({
+    required this.label,
+    required this.value,
+    required this.accent,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                icon,
+                color: accent,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ActionChip extends StatelessWidget {
   const _ActionChip({
     required this.icon,
@@ -290,7 +524,28 @@ class _OrdersList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final api = ref.watch(labApiServiceProvider);
     return FutureBuilder<LabOrdersResponse>(
-      future: api.getOrders(status: status, skip: skip, take: take),
+      future: api.getOrders(
+        status: status,
+        fromDate: DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+          0,
+          0,
+          0,
+        ),
+        toDate: DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+          23,
+          59,
+          59,
+          999,
+        ),
+        skip: skip,
+        take: take,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(

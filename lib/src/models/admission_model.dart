@@ -5,6 +5,7 @@ class AdmissionModel {
     required this.encounterId,
     this.reason,
     this.ward,
+    this.wardId,
     this.bedPreference,
     this.provisionalDiagnosis,
     this.expectedLOS,
@@ -21,6 +22,7 @@ class AdmissionModel {
   final String encounterId;
   final String? reason;
   final String? ward;
+  final String? wardId;
   final String? bedPreference;
   final String? provisionalDiagnosis;
   final String? expectedLOS;
@@ -39,6 +41,7 @@ class AdmissionModel {
       encounterId: str(json['encounterId']),
       reason: json['reason']?.toString(),
       ward: json['ward']?.toString(),
+      wardId: json['wardId']?.toString(),
       bedPreference: json['bedPreference']?.toString(),
       provisionalDiagnosis: json['provisionalDiagnosis']?.toString(),
       expectedLOS: json['expectedLOS']?.toString(),

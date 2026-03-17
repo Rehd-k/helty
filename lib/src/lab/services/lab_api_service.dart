@@ -191,6 +191,8 @@ class LabApiService {
   Future<LabOrdersResponse> getOrders({
     String? patientId,
     LabOrderStatus? status,
+    DateTime? fromDate,
+    DateTime? toDate,
     int? skip,
     int? take,
   }) async {
@@ -199,6 +201,8 @@ class LabApiService {
       queryParameters: {
         if (patientId != null) 'patientId': patientId,
         if (status != null) 'status': status.apiValue,
+        if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
+        if (toDate != null) 'toDate': toDate.toIso8601String(),
         if (skip != null) 'skip': skip,
         if (take != null) 'take': take,
       },

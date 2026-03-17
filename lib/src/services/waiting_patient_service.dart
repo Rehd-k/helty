@@ -18,6 +18,8 @@ class WaitingPatientQuery {
     this.take = 20,
     this.sortBy,
     this.sortOrder = 'asc',
+    this.fromDate,
+    this.toDate,
   });
 
   final String? q;
@@ -28,37 +30,37 @@ class WaitingPatientQuery {
   final int take;
   final String? sortBy;
   final String sortOrder;
+  final DateTime? fromDate;
+  final DateTime? toDate;
 
   Map<String, dynamic> toQueryParameters() => {
-        if (q != null && q!.isNotEmpty) 'q': q,
-        if (patientId != null && patientId!.isNotEmpty) 'patientId': patientId,
-        if (consultingRoomId != null && consultingRoomId!.isNotEmpty)
-          'consultingRoomId': consultingRoomId,
-        if (unassignedOnly != null) 'unassignedOnly': unassignedOnly,
-        'skip': skip,
-        'take': take,
-        if (sortBy != null && sortBy!.isNotEmpty) 'sortBy': sortBy,
-        'sortOrder': sortOrder,
-      };
+    if (q != null && q!.isNotEmpty) 'q': q,
+    if (patientId != null && patientId!.isNotEmpty) 'patientId': patientId,
+    if (consultingRoomId != null && consultingRoomId!.isNotEmpty)
+      'consultingRoomId': consultingRoomId,
+    if (unassignedOnly != null) 'unassignedOnly': unassignedOnly,
+    'skip': skip,
+    'take': take,
+    if (fromDate != null) 'fromDate': fromDate!.toIso8601String(),
+    if (toDate != null) 'toDate': toDate!.toIso8601String(),
+    if (sortBy != null && sortBy!.isNotEmpty) 'sortBy': sortBy,
+    'sortOrder': sortOrder,
+  };
 }
 
 /// Query params for GET consulting-rooms (all / filter).
 class ConsultingRoomQuery {
-  const ConsultingRoomQuery({
-    this.q,
-    this.skip = 0,
-    this.take = 50,
-  });
+  const ConsultingRoomQuery({this.q, this.skip = 0, this.take = 50});
 
   final String? q;
   final int skip;
   final int take;
 
   Map<String, dynamic> toQueryParameters() => {
-        if (q != null && q!.isNotEmpty) 'q': q,
-        'skip': skip,
-        'take': take,
-      };
+    if (q != null && q!.isNotEmpty) 'q': q,
+    'skip': skip,
+    'take': take,
+  };
 }
 
 /// Paginated list response (when API returns { data: [], total: n }).
@@ -119,10 +121,7 @@ class WaitingPatientService {
   Future<PatientVitalsModel> createPatientVitals(
     CreatePatientVitalsDto dto,
   ) async {
-    final resp = await _dio.post(
-      '/patient-vitals',
-      data: dto.toJson(),
-    );
+    final resp = await _dio.post('/patient-vitals', data: dto.toJson());
     return PatientVitalsModel.fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -130,10 +129,7 @@ class WaitingPatientService {
     String id,
     UpdatePatientVitalsDto dto,
   ) async {
-    final resp = await _dio.patch(
-      '/patient-vitals/$id',
-      data: dto.toJson(),
-    );
+    final resp = await _dio.patch('/patient-vitals/$id', data: dto.toJson());
     return PatientVitalsModel.fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -201,8 +197,8 @@ class WaitingPatientService {
     final rawList = body['data'] is List
         ? body['data'] as List
         : resp.data is List
-            ? resp.data as List
-            : <dynamic>[];
+        ? resp.data as List
+        : <dynamic>[];
     final total = (body['total'] as num?)?.toInt() ?? rawList.length;
 
     return PaginatedWaitingPatients(
@@ -245,4 +241,3 @@ class WaitingPatientService {
     await _dio.delete('/waiting-patients/$id');
   }
 }
-

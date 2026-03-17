@@ -4,6 +4,7 @@ import 'dart:math';
 
 import '../helper/date.formatter.dart';
 import '../models/consulting_room_model.dart';
+import '../widgets/date.filter.dart';
 import '../models/patient_vitals_model.dart';
 import '../models/waiting_patient_model.dart';
 import '../services/waiting_patient_service.dart';
@@ -18,8 +19,8 @@ class WaitingPatientsScreen extends StatefulWidget {
 
 class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   final _waitingService = WaitingPatientService();
-  // DateTime? _fromDate;
-  // DateTime? _toDate;
+  DateTime? _fromDate;
+  DateTime? _toDate;
   Function? doRefresh;
 
   // Server-backed waiting patients (current page)
@@ -39,7 +40,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   final int _rowsPerPage = 20;
   int _currentPage = 0;
   bool _sending = false;
-  bool _loading = false;
+  bool _loading = true; // cleared when FromToDateFilter triggers first load
 
   // --- FORM CONTROLLERS ---
   final _sysCtrl = TextEditingController();
@@ -56,8 +57,8 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     super.initState();
     _heightCtrl.addListener(_calculateBMI);
     _weightCtrl.addListener(_calculateBMI);
-    _loadPage(reset: true);
     _loadConsultingRooms();
+    // First load is triggered by FromToDateFilter's onFilterChanged (postFrameCallback)
   }
 
   @override
@@ -90,7 +91,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   int get _totalPages => _total == 0 ? 1 : (_total / _rowsPerPage).ceil();
 
   Future<void> _loadPage({bool reset = false}) async {
-    if (_loading) return;
+    print("from: $_fromDate, to: $_toDate");
     if (reset) {
       _currentPage = 0;
     }
@@ -108,6 +109,8 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
           q: queryText.isEmpty ? null : queryText,
           consultingRoomId: _filterRoom?.id,
           unassignedOnly: _statusFilter == 'Unassigned' ? true : null,
+          fromDate: _fromDate,
+          toDate: _toDate,
           skip: skip,
           take: _rowsPerPage,
         ),
@@ -208,6 +211,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
       });
       await _loadPage(reset: true);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -292,8 +296,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-
+            const SizedBox(height: 16),
             // --- MAIN CONTENT ---
             Expanded(
               child: Row(
@@ -477,6 +480,24 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                             ),
                           ),
 
+                          FromToDateFilter(
+                            doRefresh: () => _loadPage(reset: true),
+                            dateFilter: true,
+                            onFilterChanged:
+                                (
+                                  String query,
+                                  String category,
+                                  DateTime? from,
+                                  DateTime? to,
+                                ) {
+                                  setState(() {
+                                    _fromDate = from;
+                                    _toDate = to;
+                                    _currentPage = 0;
+                                  });
+                                  _loadPage(reset: true);
+                                },
+                          ),
                           // Table Header
                           Container(
                             padding: const EdgeInsets.symmetric(

@@ -132,7 +132,8 @@ class _DoctorEncounterAdmissionTabState
         encounterId: scope.encounterId,
         reason: _reasonCtrl.text.trim(),
         ward: _selectedWard?.name,
-        bedPreference: _selectedBed?.bedNumber,
+        wardId: _selectedWard?.id,
+        bedPreference: _selectedBed?.id,
         provisionalDiagnosis: _diagnosisCtrl.text.trim().isEmpty
             ? null
             : _diagnosisCtrl.text.trim(),

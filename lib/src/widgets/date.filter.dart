@@ -2,28 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../helper/date.formatter.dart';
 
-class PatientsFilterWidget extends StatefulWidget {
-  final List<Map<String, String>> searchCategories;
+class FromToDateFilter extends StatefulWidget {
   final Function doRefresh;
   final bool dateFilter;
   final Function(String query, String category, DateTime? from, DateTime? to)
   onFilterChanged;
 
-  const PatientsFilterWidget({
+  const FromToDateFilter({
     super.key,
-    required this.searchCategories,
     required this.onFilterChanged,
     required this.doRefresh,
     required this.dateFilter,
   });
 
   @override
-  State<PatientsFilterWidget> createState() => _PatientsFilterWidgetState();
+  State<FromToDateFilter> createState() => _PatientsFilterWidgetState();
 }
 
-class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
-  final TextEditingController _searchController = TextEditingController();
-  String? _selectedCategory;
+class _PatientsFilterWidgetState extends State<FromToDateFilter> {
   DateTime? _fromDate;
   DateTime? _toDate;
   Function? doRefresh;
@@ -32,17 +28,46 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
   void initState() {
     super.initState();
     doRefresh = widget.doRefresh;
-    _selectedCategory = widget.searchCategories.first['name'];
+    // Default date range: start of today to end of today
+    final now = DateTime.now();
+    _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    _toDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      23,
+      59,
+      59,
+      999,
+    ); // inclusive
+    // Notify parent immediately so endpoints always receive a date range
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifyParent();
+    });
   }
 
   void _resetFilters() {
-    doRefresh!();
     setState(() {
-      _searchController.clear();
-      _selectedCategory = widget.searchCategories.first['name'];
-      _fromDate = null;
-      _toDate = null;
+      final now = DateTime.now();
+      _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+      _toDate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        23,
+        59,
+        59,
+        999,
+      ); // inclusive
     });
+    _notifyParent();
+    if (doRefresh != null) {
+      doRefresh!();
+    }
+  }
+
+  void _notifyParent() {
+    widget.onFilterChanged('', '', _fromDate, _toDate);
   }
 
   Future<void> _pickFromDate() async {
@@ -54,12 +79,20 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
     );
     if (picked != null) {
       setState(() {
-        _fromDate = picked;
-        // Reset "to" date if it becomes invalid
-        if (_toDate != null && _toDate!.isBefore(_fromDate!)) {
-          _toDate = null;
+        _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
+        if (_toDate == null || _toDate!.isBefore(_fromDate!)) {
+          _toDate = DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            23,
+            59,
+            59,
+            999,
+          );
         }
       });
+      _notifyParent();
     }
   }
 
@@ -73,7 +106,18 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
       lastDate: DateTime(2100),
     );
     if (picked != null) {
-      setState(() => _toDate = picked);
+      setState(() {
+        _toDate = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          23,
+          59,
+          59,
+          999,
+        );
+      });
+      _notifyParent();
     }
   }
 
@@ -92,100 +136,27 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              // Search Bar
-              Expanded(
-                flex: 3,
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (_) => widget.onFilterChanged(
-                    _searchController.text,
-                    _selectedCategory!,
-                    _fromDate,
-                    _toDate,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Search...', // French for Search...
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
+          if (widget.dateFilter)
+            Row(
+              children: [
+                _DateTile(label: 'From', date: _fromDate, onTap: _pickFromDate),
+                const SizedBox(width: 12),
+                _DateTile(
+                  label: 'To',
+                  date: _toDate,
+                  isEnabled: _fromDate != null,
+                  onTap: _pickToDate,
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Category Dropdown
-              Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                  items: widget.searchCategories.map((cat) {
-                    return DropdownMenuItem(
-                      value: cat['name'],
-                      child: Text(cat['value']!),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() => _selectedCategory = val);
-                    widget.onFilterChanged(
-                      _searchController.text,
-                      _selectedCategory!,
-                      _fromDate,
-                      _toDate,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              if (widget.dateFilter)
-                Row(
-                  children: [
-                    _DateTile(
-                      label: 'From', // French for "From"
-                      date: _fromDate,
-                      onTap: _pickFromDate,
-                    ),
-                    const SizedBox(width: 12),
-                    // To Date
-                    _DateTile(
-                      label: 'To', // French for "To"
-                      date: _toDate,
-                      isEnabled: _fromDate != null,
-                      onTap: _pickToDate,
-                    ),
-                  ],
-                ),
-
-              const Spacer(),
-              TextButton.icon(
-                onPressed: () {
-                  _resetFilters;
-                  doRefresh;
-                },
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Reset'), // French for Reset
-                style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-              ),
-            ],
+              ],
+            ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _resetFilters,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Reset'),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
           ),
         ],
       ),

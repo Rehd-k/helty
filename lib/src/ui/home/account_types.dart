@@ -292,10 +292,11 @@ final labMenu = <MenuItem>[
     icon: Icons.biotech_rounded,
     route: LabDashboardRoute(),
   ),
+
   MenuItem(
     label: 'New order',
     icon: Icons.add_circle_outline_rounded,
-    route: LabCreateOrderRoute(),
+    route: EnlistPaitientRoute(serviceName: 'lab'),
   ),
 ];
 
@@ -319,5 +320,43 @@ final radiologyMenu = <MenuItem>[
     label: 'By patient',
     icon: Icons.person_search_rounded,
     route: EnlistPaitientRoute(serviceName: 'Radiology'),
+  ),
+];
+
+final storeMenu = <MenuItem>[
+  MenuItem(
+    label: 'Dashboard',
+    icon: Icons.dashboard_outlined,
+    route: StoreDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Categories',
+    icon: Icons.category_outlined,
+    route: StoreCategoriesRoute(),
+  ),
+  MenuItem(
+    label: 'Items',
+    icon: Icons.inventory_2_outlined,
+    route: StoreItemsRoute(),
+  ),
+  MenuItem(
+    label: 'Locations',
+    icon: Icons.location_on_outlined,
+    route: StoreLocationsRoute(),
+  ),
+  MenuItem(
+    label: 'Stock',
+    icon: Icons.inventory_2_outlined,
+    route: StoreStockRoute(),
+  ),
+  MenuItem(
+    label: 'Movements',
+    icon: Icons.move_to_inbox_outlined,
+    route: StoreMovementsRoute(),
+  ),
+  MenuItem(
+    label: 'Analytics',
+    icon: Icons.analytics_outlined,
+    route: StoreAnalyticsRoute(),
   ),
 ];

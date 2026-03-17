@@ -33,15 +33,39 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
     super.initState();
     doRefresh = widget.doRefresh;
     _selectedCategory = widget.searchCategories.first['name'];
+    // Default date range: start of today to end of today
+    final now = DateTime.now();
+    _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    _toDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      23,
+      59,
+      59,
+      999,
+    ); // inclusive
+    // Notify parent immediately so filters are always date-bounded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifyParent();
+    });
   }
 
   void _resetFilters() {
-    doRefresh!();
     setState(() {
       _searchController.clear();
       _selectedCategory = widget.searchCategories.first['name'];
-      _fromDate = null;
-      _toDate = null;
+      final now = DateTime.now();
+      _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+      _toDate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        23,
+        59,
+        59,
+        999,
+      ); // inclusive
     });
     _notifyParent();
   }
@@ -162,14 +186,13 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
                 Row(
                   children: [
                     _DateTile(
-                      label: 'From', // French for "From"
+                      label: 'From',
                       date: _fromDate,
                       onTap: _pickFromDate,
                     ),
                     const SizedBox(width: 12),
-                    // To Date
                     _DateTile(
-                      label: 'To', // French for "To"
+                      label: 'To',
                       date: _toDate,
                       isEnabled: _fromDate != null,
                       onTap: _pickToDate,
@@ -180,11 +203,13 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
               const Spacer(),
               TextButton.icon(
                 onPressed: () {
-                  _resetFilters;
-                  doRefresh;
+                  _resetFilters();
+                  if (doRefresh != null) {
+                    doRefresh!();
+                  }
                 },
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Reset'), // French for Reset
+                label: const Text('Reset'),
                 style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
               ),
             ],

@@ -154,6 +154,14 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: RadiologyCreateRequestRoute.page),
         AutoRoute(page: RadiologyRequestDetailRoute.page),
         AutoRoute(page: RadiologyPatientHistoryRoute.page),
+        // Store
+        AutoRoute(page: StoreDashboardRoute.page),
+        AutoRoute(page: StoreCategoriesRoute.page),
+        AutoRoute(page: StoreItemsRoute.page),
+        AutoRoute(page: StoreLocationsRoute.page),
+        AutoRoute(page: StoreStockRoute.page),
+        AutoRoute(page: StoreMovementsRoute.page),
+        AutoRoute(page: StoreAnalyticsRoute.page),
       ],
     ),
 

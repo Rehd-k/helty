@@ -45,6 +45,28 @@ class _ObstetricsAddPregnancyScreenState
   }
 
   @override
+  void initState() {
+    super.initState();
+    _lmpCtrl.addListener(_updateEddFromLmp);
+  }
+
+  void _updateEddFromLmp() {
+    final raw = _lmpCtrl.text.trim();
+    if (raw.isEmpty) return;
+    try {
+      final lmp = DateTime.parse(raw);
+      // Standard 280-day gestation (40 weeks)
+      final edd = lmp.add(const Duration(days: 280));
+      final formatted = edd.toIso8601String().split('T').first;
+      if (_eddCtrl.text != formatted) {
+        _eddCtrl.text = formatted;
+      }
+    } catch (_) {
+      // Ignore invalid formats and leave EDD unchanged
+    }
+  }
+
+  @override
   void dispose() {
     _gravidaCtrl.dispose();
     _paraCtrl.dispose();

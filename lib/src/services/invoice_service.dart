@@ -26,16 +26,36 @@ class InvoiceService {
           if (status != null) 'status': status,
           if (query != null && query.isNotEmpty) 'query': query,
           if (category != null && category.isNotEmpty) 'category': category,
-          if (from != null) 'from': from.toIso8601String().split('T').first,
-          if (to != null) 'to': to.toIso8601String().split('T').first,
+          // Use full ISO-8601 strings (UTC) for NestJS-friendly date parsing
+          if (from != null) 'fromDate': from.toUtc().toIso8601String(),
+          if (to != null) 'toDate': to.toUtc().toIso8601String(),
           'page': page,
           'limit': limit,
         },
       );
 
       final data = response.data;
-      final list = data is List<dynamic> ? data : (data as Map)['data'] as List<dynamic>? ?? [];
-      return list.map((json) => Invoice.fromJson(json as Map<String, dynamic>)).toList();
+      List<dynamic> list;
+
+      if (data is List<dynamic>) {
+        list = data;
+      } else if (data is Map<String, dynamic>) {
+        // Support both { data: [...] } and { invoices: [...] } shapes
+        final fromData = data['data'];
+        final fromInvoices = data['invoices'];
+        if (fromData is List) {
+          list = fromData;
+        } else if (fromInvoices is List) {
+          list = fromInvoices;
+        } else {
+          list = const [];
+        }
+      } else {
+        list = const [];
+      }
+      return list
+          .map((json) => Invoice.fromJson(json as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw Exception('Failed to load invoices: ${e.message}');
     }
@@ -104,11 +124,15 @@ class InvoiceService {
   Future<Invoice> updateInvoiceStatus({
     required String id,
     required String status,
+    String? transactionId,
   }) async {
     try {
       final response = await _dio.patch(
         '/invoices/$id',
-        data: {'status': status},
+        data: {
+          'status': status,
+          if (transactionId != null) 'transactionId': transactionId,
+        },
       );
       return Invoice.fromJson(response.data);
     } on DioException catch (e) {

@@ -8,6 +8,8 @@ part of 'invoice.dart';
 
 _Invoice _$InvoiceFromJson(Map<String, dynamic> json) => _Invoice(
   id: json['id'] as String,
+  patient: Patient.fromJson(json['patient'] as Map<String, dynamic>),
+  staff: json['staff'] as Map<String, dynamic>,
   patientId: json['patientId'] as String,
   status: json['status'] as String,
   createdById: json['createdById'] as String,
@@ -22,6 +24,8 @@ _Invoice _$InvoiceFromJson(Map<String, dynamic> json) => _Invoice(
 
 Map<String, dynamic> _$InvoiceToJson(_Invoice instance) => <String, dynamic>{
   'id': instance.id,
+  'patient': instance.patient,
+  'staff': instance.staff,
   'patientId': instance.patientId,
   'status': instance.status,
   'createdById': instance.createdById,

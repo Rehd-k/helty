@@ -8,6 +8,8 @@ import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
+import '../../widgets/date.filter.dart';
+
 @RoutePage()
 class DoctorOutpatientListScreen extends ConsumerStatefulWidget {
   const DoctorOutpatientListScreen({super.key});
@@ -22,6 +24,8 @@ class _DoctorOutpatientListScreenState
   final _encounterService = EncounterService();
   final _patientService = PatientService();
 
+  DateTime? _fromDate = DateTime.now();
+  DateTime? _toDate = DateTime.now();
   List<EncounterModel> _encounters = [];
   Map<String, Patient?> _patients = {};
   bool _loading = true;
@@ -43,6 +47,8 @@ class _DoctorOutpatientListScreenState
       final doctorId = staff?.id ?? staff?.staffId ?? 'DOC-1';
       final list = await _encounterService.fetchOutpatientEncounters(
         doctorId: doctorId,
+        fromDate: _fromDate,
+        toDate: _toDate,
       );
       final patientIds = list.map((e) => e.patientId).toSet().toList();
       final Map<String, Patient?> patients = {};
@@ -100,36 +106,44 @@ class _DoctorOutpatientListScreenState
                   ),
                 ],
               ),
-              FilledButton.icon(
-                onPressed: _loading ? null : _load,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Refresh'),
-              ),
             ],
           ),
+          FromToDateFilter(
+            doRefresh: () => _load(),
+            dateFilter: true,
+            onFilterChanged:
+                (String query, String category, DateTime? from, DateTime? to) {
+                  setState(() {
+                    _fromDate = from;
+                    _toDate = to;
+                  });
+                  _load();
+                },
+          ),
+
           const SizedBox(height: 24),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _error!,
-                              style: TextStyle(color: colorScheme.error),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            FilledButton(
-                              onPressed: _load,
-                              child: const Text('Retry'),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _error!,
+                          style: TextStyle(color: colorScheme.error),
+                          textAlign: TextAlign.center,
                         ),
-                      )
-                    : _buildTable(context),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _load,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _buildTable(context),
           ),
         ],
       ),
@@ -144,9 +158,7 @@ class _DoctorOutpatientListScreenState
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -169,7 +181,10 @@ class _DoctorOutpatientListScreenState
               ],
             ),
           ),
-          Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.12)),
+          Divider(
+            height: 1,
+            color: colorScheme.outline.withValues(alpha: 0.12),
+          ),
           Expanded(
             child: ListView.separated(
               itemCount: _encounters.length,
@@ -189,13 +204,13 @@ class _DoctorOutpatientListScreenState
                 final status = enc.status == 'waiting'
                     ? 'Waiting'
                     : enc.status == 'in_consultation'
-                        ? 'In Consultation'
-                        : 'Done';
+                    ? 'In Consultation'
+                    : 'Done';
                 final statusColor = enc.status == 'waiting'
                     ? Colors.orange
                     : enc.status == 'in_consultation'
-                        ? colorScheme.primary
-                        : Colors.green;
+                    ? colorScheme.primary
+                    : Colors.green;
 
                 return InkWell(
                   onTap: () => _openEncounter(context, enc),
@@ -220,7 +235,9 @@ class _DoctorOutpatientListScreenState
                           child: Text(
                             age,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.8),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                           ),
                         ),
@@ -229,7 +246,9 @@ class _DoctorOutpatientListScreenState
                           child: Text(
                             _formatTime(enc.startedAt),
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.8),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                           ),
                         ),
@@ -256,7 +275,9 @@ class _DoctorOutpatientListScreenState
                           child: Text(
                             enc.visitType ?? '—',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.8),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                           ),
                         ),
@@ -264,7 +285,9 @@ class _DoctorOutpatientListScreenState
                           child: Text(
                             enc.insurance ?? '—',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface.withValues(alpha: 0.8),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                           ),
                         ),
@@ -305,10 +328,7 @@ class _DoctorOutpatientListScreenState
 
   void _openEncounter(BuildContext context, EncounterModel enc) {
     context.router.push(
-      DoctorEncounterViewRoute(
-        encounterId: enc.id,
-        patientId: enc.patientId,
-      ),
+      DoctorEncounterViewRoute(encounterId: enc.id, patientId: enc.patientId),
     );
   }
 }

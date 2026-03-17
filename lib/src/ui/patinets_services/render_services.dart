@@ -138,6 +138,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         total: totalDue,
         staffId: staffId,
         onPaymentComplete: _emptySelection,
+        isInvoice: false,
       ),
     );
   }

@@ -18,6 +18,8 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
   final _apiService = PharmacyApiService();
   bool _isLoading = false;
 
+  final _suppliersScrollController = ScrollController();
+
   final _nameCtrl = TextEditingController();
   final _licenseCtrl = TextEditingController();
   final _creditTermsCtrl = TextEditingController();
@@ -35,6 +37,18 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
   void initState() {
     super.initState();
     _loadSuppliers();
+  }
+
+  @override
+  void dispose() {
+    _suppliersScrollController.dispose();
+    _nameCtrl.dispose();
+    _licenseCtrl.dispose();
+    _creditTermsCtrl.dispose();
+    _leadTimeCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSuppliers() async {
@@ -300,8 +314,10 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
             (cardMinWidth + 16) * crossAxisCount.toDouble() + 16.0;
 
         return Scrollbar(
+          controller: _suppliersScrollController,
           thumbVisibility: true,
           child: SingleChildScrollView(
+            controller: _suppliersScrollController,
             scrollDirection: Axis.horizontal,
             child: SizedBox(
               width: gridWidth.clamp(constraints.maxWidth, double.infinity),

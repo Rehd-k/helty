@@ -11,7 +11,7 @@ class LabOrderService {
   /// GET /lab-orders?encounterId= — list lab orders for an encounter.
   Future<List<LabOrderModel>> getByEncounter(String encounterId) async {
     final response = await _dio.get<dynamic>(
-      '/lab-orders',
+      '/lab-requests',
       queryParameters: {'encounterId': encounterId},
     );
     final raw = response.data;
@@ -29,23 +29,28 @@ class LabOrderService {
     return [];
   }
 
-  /// POST /lab-orders — create lab order. Returns created order with id from API.
+  /// POST /lab-requests — create lab order. Returns created order with id from API.
+  /// [serviceId] is optional; when provided, an invoice item is created for the service.
   Future<LabOrderModel> create({
     required String encounterId,
-    required String catalogTestId,
-    required String testName,
+    required String patientId,
+    required String testType,
+    required String staffId,
+    String? serviceId,
     String? priority,
-    String? clinicalNotes,
+    String? notes,
   }) async {
     final body = <String, dynamic>{
       'encounterId': encounterId,
-      'catalogTestId': catalogTestId,
-      'testName': testName,
+      'testType': testType,
+      'patientId': patientId,
+      'requestedByDoctorId': staffId,
+      if (serviceId != null && serviceId.isNotEmpty) 'serviceId': serviceId,
       if (priority != null && priority.isNotEmpty) 'priority': priority,
-      if (clinicalNotes != null && clinicalNotes.isNotEmpty) 'clinicalNotes': clinicalNotes,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
     final response = await _dio.post<Map<String, dynamic>>(
-      '/lab-orders',
+      '/lab-requests',
       data: body,
     );
     final data = response.data;
@@ -56,7 +61,7 @@ class LabOrderService {
   /// PATCH /lab-orders/:id — update (e.g. status, resultValues).
   Future<LabOrderModel> update(String id, Map<String, dynamic> patch) async {
     final response = await _dio.patch<Map<String, dynamic>>(
-      '/lab-orders/$id',
+      '/lab-requests/$id',
       data: patch,
     );
     final data = response.data;
