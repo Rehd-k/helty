@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:data_table_2/data_table_2.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
 
 import 'transaction_details_pane.dart';
 import 'transaction_filters_panel.dart';
@@ -196,7 +197,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Payment of \$${(result['totalPaid'] as double).toStringAsFixed(2)} recorded.',
+              'Payment of ${(result['totalPaid'] as double).toFinancial(isMoney: true)} recorded.',
             ),
             backgroundColor: Colors.green,
           ),
@@ -392,28 +393,22 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(txn['patientName'] as String),
-                                    Text(
-                                      txn['patientId'] as String,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: colorScheme.onSurface
-                                                .withValues(alpha: 0.6),
-                                          ),
-                                    ),
                                   ],
                                 ),
                               ),
                               DataCell(Text('${txn['serviceCount']} services')),
                               DataCell(
                                 Text(
-                                  '\$${(txn['amountDue'] as num).toStringAsFixed(2)}',
+                                  (txn['amountDue'] as num).toFinancial(
+                                    isMoney: true,
+                                  ),
                                 ),
                               ),
                               DataCell(
                                 Text(
-                                  '\$${(txn['amountPaid'] as num).toStringAsFixed(2)}',
+                                  (txn['amountPaid'] as num).toFinancial(
+                                    isMoney: true,
+                                  ),
                                 ),
                               ),
                               DataCell(
@@ -421,13 +416,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               ),
                               DataCell(
                                 Text(
-                                  '\$${(txn['discount'] as num?)?.toStringAsFixed(2) ?? "0.00"}',
+                                  (txn['discount'] as num?)?.toFinancial(
+                                        isMoney: true,
+                                      ) ??
+                                      "0.00",
                                 ),
                               ),
                               DataCell(Text(txn['date'] as String)),
                               DataCell(
                                 Text(
-                                  '\$${(txn['debt'] as num).toStringAsFixed(2)}',
+                                  (txn['debt'] as num).toFinancial(
+                                    isMoney: true,
+                                  ),
                                 ),
                               ),
                               DataCell(

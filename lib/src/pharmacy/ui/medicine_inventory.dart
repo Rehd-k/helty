@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -119,8 +120,14 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     }
     return SearchDrugParams(
       search: query.isEmpty ? null : query,
-      genericName: _searchFieldType == SearchFieldType.genericName && query.isNotEmpty ? query : null,
-      brandName: _searchFieldType == SearchFieldType.brandName && query.isNotEmpty ? query : null,
+      genericName:
+          _searchFieldType == SearchFieldType.genericName && query.isNotEmpty
+          ? query
+          : null,
+      brandName:
+          _searchFieldType == SearchFieldType.brandName && query.isNotEmpty
+          ? query
+          : null,
       manufacturerId: _manufacturerId,
       supplierId: _supplierId,
       isControlled: _isControlledFilter,
@@ -209,8 +216,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                             color: theme.cardColor,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color:
-                                  theme.dividerColor.withValues(alpha: 0.1),
+                              color: theme.dividerColor.withValues(alpha: 0.1),
                             ),
                           ),
                           child: Column(
@@ -222,15 +228,15 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                                         child: CircularProgressIndicator(),
                                       )
                                     : _errorMessage.isNotEmpty
-                                        ? Center(
-                                            child: Text(
-                                              _errorMessage,
-                                              style: TextStyle(
-                                                color: theme.colorScheme.error,
-                                              ),
-                                            ),
-                                          )
-                                        : _buildTable(theme),
+                                    ? Center(
+                                        child: Text(
+                                          _errorMessage,
+                                          style: TextStyle(
+                                            color: theme.colorScheme.error,
+                                          ),
+                                        ),
+                                      )
+                                    : _buildTable(theme),
                               ),
                               _buildPagination(theme),
                             ],
@@ -420,8 +426,10 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
               icon: const Icon(Icons.filter_list, size: 18),
               label: const Text('Filters'),
               style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 side: BorderSide(
                   color: theme.dividerColor.withValues(alpha: 0.5),
                 ),
@@ -435,8 +443,10 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -869,7 +879,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                   theme,
                   'Selling Price',
                   drug.price != null
-                      ? '\$${drug.price!.toStringAsFixed(2)}'
+                      ? drug.price!.toFinancial(isMoney: true)
                       : '—',
                   '/unit',
                 ),

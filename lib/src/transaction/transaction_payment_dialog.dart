@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
 
 import 'transaction_models.dart';
 
@@ -268,7 +269,7 @@ class _DialogHeader extends StatelessWidget {
                 ),
               ),
               Text(
-                '\$${totalDue.toStringAsFixed(2)}',
+                totalDue.toFinancial(isMoney: true),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -318,7 +319,7 @@ class _BalanceBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Entered: \$${totalEntered.toStringAsFixed(2)}',
+                'Entered: ${totalEntered.toFinancial(isMoney: true)}',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
@@ -327,8 +328,8 @@ class _BalanceBar extends StatelessWidget {
               ),
               Text(
                 isOverpaid
-                    ? 'OVERPAID by \$${(totalEntered - totalDue).toStringAsFixed(2)}'
-                    : 'Remaining: \$${remaining.toStringAsFixed(2)}',
+                    ? 'OVERPAID by ${(totalEntered - totalDue).toFinancial(isMoney: true)}'
+                    : 'Remaining: ${remaining.toFinancial(isMoney: true)}',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,

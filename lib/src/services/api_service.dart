@@ -6,9 +6,9 @@ import '../core/interceptors/error_interceptor.dart';
 import '../core/interceptors/refresh_token_interceptor.dart';
 
 /// Base URL for every API call. Change to your server address.
-// const _kBaseUrl = 'http://72.62.185.238:5000';
-
 const _kBaseUrl = 'http://localhost:3000';
+
+// const _kBaseUrl = 'http://72.62.185.238:5000';
 
 /// Singleton Dio client, pre-configured with auth + refresh + error interceptors.
 class ApiService {

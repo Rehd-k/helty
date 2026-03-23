@@ -425,13 +425,13 @@ class _TransactionRow extends StatelessWidget {
                         color: colorScheme.onSurface,
                       ),
                     ),
-                    Text(
-                      txn['patientId'] as String,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: colorScheme.onSurface.withValues(alpha: 0.5),
-                      ),
-                    ),
+                    // Text(
+                    //   txn['patientId'] as String,
+                    //   style: TextStyle(
+                    //     fontSize: 10,
+                    //     color: colorScheme.onSurface.withValues(alpha: 0.5),
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -449,7 +449,7 @@ class _TransactionRow extends StatelessWidget {
               SizedBox(
                 width: _kColAmountDue,
                 child: Text(
-                  '\$${(txn['amountDue'] as num).toStringAsFixed(2)}',
+                  txn['amountDue'].toFinancial(isMoney: true),
                   style: TextStyle(fontSize: 12, color: colorScheme.onSurface),
                 ),
               ),
@@ -458,7 +458,7 @@ class _TransactionRow extends StatelessWidget {
               SizedBox(
                 width: _kColAmountPaid,
                 child: Text(
-                  '\$${(txn['amountPaid'] as num).toStringAsFixed(2)}',
+                  txn['amountPaid'].toFinancial(isMoney: true),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -480,7 +480,7 @@ class _TransactionRow extends StatelessWidget {
               SizedBox(
                 width: _kColDiscount,
                 child: Text(
-                  '\$${(txn['discount'] as num).toStringAsFixed(2)}',
+                  txn['discount'].toFinancial(isMoney: true),
                   style: const TextStyle(fontSize: 12, color: Colors.orange),
                 ),
               ),
@@ -501,7 +501,7 @@ class _TransactionRow extends StatelessWidget {
               SizedBox(
                 width: _kColDebt,
                 child: Text(
-                  '\$${(txn['debt'] as num).toStringAsFixed(2)}',
+                  txn['debt'].toFinancial(isMoney: true),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,

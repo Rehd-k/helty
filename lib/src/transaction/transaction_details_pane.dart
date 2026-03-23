@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/extensions/number.extention.dart';
 
 /// Displays detailed information about a single selected transaction.
 ///
@@ -435,7 +436,7 @@ class _ServicesSection extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '\$${(svc['cost'] as num).toStringAsFixed(2)}',
+                          (svc['cost'] as num).toFinancial(isMoney: true),
                           style: TextStyle(
                             fontSize: 11,
                             color: colorScheme.onSurface.withValues(
@@ -445,7 +446,7 @@ class _ServicesSection extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '\$${(svc['paid'] as num).toStringAsFixed(2)}',
+                          (svc['paid'] as num).toFinancial(isMoney: true),
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -574,7 +575,7 @@ class _BreakdownRow extends StatelessWidget {
             ),
           ),
           Text(
-            '${isDiscount ? '-' : ''}\$${amount.toStringAsFixed(2)}',
+            '${isDiscount ? '-' : ''}${amount.toFinancial(isMoney: true)}',
             style: TextStyle(
               fontSize: 13,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
