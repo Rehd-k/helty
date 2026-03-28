@@ -106,7 +106,7 @@ class _SelectUserState extends State<SelectUser> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -130,14 +130,10 @@ class _SelectUserState extends State<SelectUser> {
                             decoration: BoxDecoration(
                               color: Theme.of(
                                 context,
-                              ).primaryColor.withValues(alpha: 0.1),
+                              ).cardColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(
-                              Icons.person_search_rounded,
-                              color: Theme.of(context).primaryColor,
-                              size: 20,
-                            ),
+                            child: Icon(Icons.person_search_rounded, size: 20),
                           ),
                           const SizedBox(width: 12),
                           const Text(
@@ -161,19 +157,12 @@ class _SelectUserState extends State<SelectUser> {
                               icon: const Icon(
                                 Icons.person_add_alt_1_rounded,
                                 size: 16,
-                                color: Colors.white,
                               ),
                               label: const Text(
                                 "New Patient",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                ),
+                                style: TextStyle(fontSize: 13),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).primaryColor, // Often Blue in these designs
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 16,
@@ -189,8 +178,7 @@ class _SelectUserState extends State<SelectUser> {
                       // Modern Search Input
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.transparent),
                         ),
                         child: TextField(
@@ -213,10 +201,7 @@ class _SelectUserState extends State<SelectUser> {
                               color: Colors.grey,
                             ),
                             suffixIcon: IconButton(
-                              icon: Icon(
-                                Icons.fingerprint,
-                                color: Theme.of(context).primaryColor,
-                              ),
+                              icon: Icon(Icons.fingerprint),
                               onPressed: () {},
                               tooltip: "Scan Fingerprint",
                             ),

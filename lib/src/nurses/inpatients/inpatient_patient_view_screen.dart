@@ -5,18 +5,20 @@ import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/patient_header_card.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/paitients/patient_model.dart';
-import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
 import '../../helper/date.formatter.dart';
 import '../../../app_router.gr.dart';
+import '../../models/admission_model.dart';
+import '../../models/invoice.dart';
+import '../../services/admission_service.dart';
+import '../../services/invoice_service.dart';
 
 const double _contentMaxWidth = 1440;
 
 @RoutePage()
 class InpatientPatientViewScreen extends ConsumerStatefulWidget {
-  final String patientId;
-  final String? admissionId;
+  final String admissionId;
   final String? ward;
   final String? bedNumber;
   final String? attendingDoctor;
@@ -28,8 +30,7 @@ class InpatientPatientViewScreen extends ConsumerStatefulWidget {
 
   const InpatientPatientViewScreen({
     super.key,
-    required this.patientId,
-    this.admissionId,
+    required this.admissionId,
     this.ward,
     this.bedNumber,
     this.attendingDoctor,
@@ -47,9 +48,10 @@ class InpatientPatientViewScreen extends ConsumerStatefulWidget {
 
 class _InpatientPatientViewScreenState
     extends ConsumerState<InpatientPatientViewScreen> {
-  final _patientService = PatientService();
+  final _admissionService = AdmissionService();
 
   Patient? _patient;
+  AdmissionModel? _admission;
   bool _loadingPatient = false;
   String? _patientError;
 
@@ -59,17 +61,47 @@ class _InpatientPatientViewScreenState
     _loadPatient();
   }
 
+  Future<void> _openBilling() async {
+    final patient = _patient;
+    if (patient == null) return;
+    final apiPatientId = patient.id ?? patient.patientId;
+    try {
+      final invoices = await InvoiceService().getPatientInvoices(apiPatientId);
+      if (!mounted) return;
+      if (invoices.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No invoice found for this patient')),
+        );
+        return;
+      }
+      invoices.sort(
+        (Invoice a, Invoice b) => b.updatedAt.compareTo(a.updatedAt),
+      );
+      final name = '${patient.firstName} ${patient.surname}';
+      context.router.push(
+        PatientBillingRoute(invoiceId: invoices.first.id, patientName: name),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open billing: $e')));
+    }
+  }
+
   Future<void> _loadPatient() async {
     setState(() {
       _loadingPatient = true;
       _patientError = null;
+      _patient = null;
+      _admission = null;
     });
 
     try {
-      final p = await _patientService.getPatientById(widget.patientId);
+      _admission = await _admissionService.getOneById(widget.admissionId);
       if (!mounted) return;
       setState(() {
-        _patient = p;
+        _patient = _admission?.patient;
         _loadingPatient = false;
       });
     } catch (e) {
@@ -77,6 +109,8 @@ class _InpatientPatientViewScreenState
       setState(() {
         _patientError = 'Failed to load patient: $e';
         _loadingPatient = false;
+        _patient = null;
+        _admission = null;
       });
       ScaffoldMessenger.of(
         context,
@@ -99,7 +133,7 @@ class _InpatientPatientViewScreenState
     final isNurse = role == 'nurse' || accountType == 'nurse';
 
     return InpatientViewScope(
-      patientId: widget.patientId,
+      patientId: _patient?.id ?? '',
       admissionId: widget.admissionId,
       encounterId: null, // can be wired when backend exposes mapping
       staffId: staffId,
@@ -110,7 +144,10 @@ class _InpatientPatientViewScreenState
       child: AutoTabsRouter(
         routes: [
           InpatientOverviewRoute(),
-          InpatientVitalsRoute(),
+          InpatientVitalsRoute(
+            admissionId: widget.admissionId,
+            vitals: _admission?.patientVitals ?? [],
+          ),
           InpatientMedicationsRoute(),
           InpatientIVRoute(),
           InpatientIORoute(),
@@ -127,58 +164,58 @@ class _InpatientPatientViewScreenState
           final tabsRouter = AutoTabsRouter.of(context);
 
           return Scaffold(
-          backgroundColor: colorScheme.surface,
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final double horizontalPadding = constraints.maxWidth > 1400
-                    ? 32
-                    : 20;
+            backgroundColor: colorScheme.surface,
+            body: SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final double horizontalPadding = constraints.maxWidth > 1400
+                      ? 32
+                      : 20;
 
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: _contentMaxWidth,
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalPadding,
-                        24,
-                        horizontalPadding,
-                        24,
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: _contentMaxWidth,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildHeaderRow(context),
-                          const SizedBox(height: 16),
-                          _buildPatientHeader(context),
-                          const SizedBox(height: 20),
-                          _buildTabsStrip(context, tabsRouter),
-                          const SizedBox(height: 16),
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surface,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: child,
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          24,
+                          horizontalPadding,
+                          24,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildHeaderRow(context),
+                            const SizedBox(height: 16),
+                            _buildPatientHeader(context),
+                            const SizedBox(height: 20),
+                            _buildTabsStrip(context, tabsRouter),
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surface,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4.0),
+                                    child: child,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        );
+          );
         },
       ),
     );
@@ -189,7 +226,7 @@ class _InpatientPatientViewScreenState
     final scheme = theme.colorScheme;
 
     final title = 'Inpatient Patient View';
-    final subtitle = 'Bedside overview for nurses';
+    final subtitle = 'Bedside overview';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -213,33 +250,93 @@ class _InpatientPatientViewScreenState
             ),
           ],
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: scheme.primary.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.monitor_heart_outlined,
-                size: 18,
-                color: scheme.primary,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: _patient == null ? null : _openBilling,
+              icon: const Icon(Icons.receipt_long_outlined, size: 18),
+              label: const Text('Billing'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: _admission == null ? null : _attemptDischarge,
+              icon: const Icon(Icons.logout, size: 18),
+              label: const Text('Discharge'),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(999),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Inpatient module • Nurses',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.monitor_heart_outlined,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Inpatient module',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
+  }
+
+  Future<void> _attemptDischarge() async {
+    final admission = _admission;
+    if (admission == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm discharge'),
+        content: const Text(
+          'This will request discharge now. If unpaid invoices exist, discharge will be blocked.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Discharge'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await _admissionService.dischargeAdmission(admission.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient discharged successfully')),
+      );
+      await _loadPatient();
+    } on AdmissionDischargeBlockedException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+      await _openBilling();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Discharge failed: $e')));
+    }
   }
 
   Widget _buildPatientHeader(BuildContext context) {
@@ -291,34 +388,61 @@ class _InpatientPatientViewScreenState
     }
 
     final patient = _patient;
-    final name = patient != null
-        ? '${patient.title} ${patient.firstName} ${patient.surname}'
-        : 'Unknown Patient';
+    final admission = _admission;
 
-    final ageYears = patient != null
-        ? DateTime.now().year - patient.dob.year
-        : null;
-    final ageGender = [
-      if (ageYears != null) '$ageYears yrs',
-      if (patient != null && patient.gender.isNotEmpty) patient.gender,
-    ].join(' • ');
+    if (patient == null || admission == null) {
+      return SectionCard(
+        title: 'Patient',
+        subtitle: 'No patient data available',
+        actions: [
+          TextButton.icon(
+            onPressed: _loadPatient,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Retry'),
+          ),
+        ],
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: scheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Waiting for backend response...',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurface.withValues(alpha: 0.75),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-    final hospitalNumber = patient != null
-        ? patient.patientId
-        : widget.patientId;
+    final name = '${patient.title} ${patient.firstName} ${patient.surname}';
 
-    final ward = widget.ward ?? '—';
-    final bed = widget.bedNumber ?? '—';
-    final doctor = widget.attendingDoctor ?? '—';
-    final diagnosis = widget.diagnosis ?? '—';
+    final ageYears = DateTime.now().year - patient.dob.year;
+    final ageGender = '$ageYears yrs, ${patient.gender}';
 
-    final admissionDateStr = widget.admissionDate != null
-        ? DateFormatter.fullDate(widget.admissionDate!)
+    final hospitalNumber = patient.patientId;
+
+    final ward = admission.ward ?? '—';
+    final bed = admission.bedPreference ?? '—';
+    final doctor = admission.attendingDoctorId ?? '—';
+    final diagnosis = admission.reason ?? '—';
+
+    final admissionDateStr = admission.createdAt != null
+        ? DateFormatter.fullDate(admission.createdAt!)
         : '—';
 
-    final allergies = widget.allergies ?? const [];
-    final codeStatus = widget.codeStatus ?? 'Full Code';
-    final riskFlags = widget.riskFlags ?? const [];
+    final allergies = admission.specialInstructions?.split("") ?? const [];
+    final codeStatus = admission.status == 'Active'
+        ? 'Full Code'
+        : 'Partial Code';
+    final riskFlags =
+        // admission.status == 'Active'
+        //     ? const []
+        // :
+        const ['Risk of infection'];
 
     return PatientHeaderCard(
       patientName: name.trim(),

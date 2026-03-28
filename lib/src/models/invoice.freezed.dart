@@ -11,7 +11,6 @@ part of 'invoice.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$Invoice {
 
@@ -23,8 +22,6 @@ mixin _$Invoice {
 @pragma('vm:prefer-inline')
 $InvoiceCopyWith<Invoice> get copyWith => _$InvoiceCopyWithImpl<Invoice>(this as Invoice, _$identity);
 
-  /// Serializes this Invoice to a JSON map.
-  Map<String, dynamic> toJson();
 
 
 @override
@@ -32,7 +29,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patient, patient) || other.patient == patient)&&const DeepCollectionEquality().equals(other.staff, staff)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other.invoiceItems, invoiceItems));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,id,patient,const DeepCollectionEquality().hash(staff),patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(invoiceItems));
 
@@ -217,11 +214,11 @@ return $default(_that.id,_that.patient,_that.staff,_that.patientId,_that.status,
 }
 
 /// @nodoc
-@JsonSerializable()
+
 
 class _Invoice extends Invoice {
   const _Invoice({required this.id, required this.patient, required final  Map<String, dynamic> staff, required this.patientId, required this.status, required this.createdById, this.updatedById, this.staffId, required this.createdAt, required this.updatedAt, required final  List<ServiceModel> invoiceItems}): _staff = staff,_invoiceItems = invoiceItems,super._();
-  factory _Invoice.fromJson(Map<String, dynamic> json) => _$InvoiceFromJson(json);
+  
 
 @override final  String id;
 @override final  Patient patient;
@@ -254,17 +251,14 @@ class _Invoice extends Invoice {
 @pragma('vm:prefer-inline')
 _$InvoiceCopyWith<_Invoice> get copyWith => __$InvoiceCopyWithImpl<_Invoice>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$InvoiceToJson(this, );
-}
+
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patient, patient) || other.patient == patient)&&const DeepCollectionEquality().equals(other._staff, _staff)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other._invoiceItems, _invoiceItems));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,id,patient,const DeepCollectionEquality().hash(_staff),patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(_invoiceItems));
 

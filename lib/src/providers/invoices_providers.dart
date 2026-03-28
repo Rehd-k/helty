@@ -3,6 +3,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/invoice.dart';
+import '../models/invoice_billing_models.dart';
 import '../services/invoice_service.dart';
 
 // ────────────────────────────────────────────────
@@ -89,6 +90,32 @@ final invoiceProvider = FutureProvider.family<Invoice, String>((ref, id) async {
   return service.getInvoice(id);
 });
 
+final billingInvoiceProvider =
+    FutureProvider.family<BillingInvoiceDetail, String>((ref, invoiceId) async {
+  final service = ref.watch(invoiceServiceProvider);
+  return service.getBillingInvoice(invoiceId);
+});
+
+final patientBillingInvoicesProvider =
+    FutureProvider.family<List<Invoice>, String>((ref, patientId) async {
+  final service = ref.watch(invoiceServiceProvider);
+  return service.getPatientInvoices(patientId);
+});
+
+final patientWalletProvider =
+    FutureProvider.family<BillingWallet, String>((ref, patientId) async {
+  final service = ref.watch(invoiceServiceProvider);
+  return service.getWallet(patientId);
+});
+
+final walletTransactionsProvider =
+    FutureProvider.family<List<BillingWalletTransaction>, String>(
+  (ref, patientId) async {
+    final service = ref.watch(invoiceServiceProvider);
+    return service.getWalletTransactions(patientId);
+  },
+);
+
 // ────────────────────────────────────────────────
 // Notifier for creating / updating invoices
 // ────────────────────────────────────────────────
@@ -152,6 +179,109 @@ class InvoiceNotifier extends StateNotifier<AsyncValue<Invoice?>> {
   }
 
   // You can add more methods: addItem, deleteItem, etc.
+
+  Future<BillingInvoiceDetail> getOrCreateBillingInvoice({
+    required String patientId,
+    String? staffId,
+    String? encounterId,
+  }) async {
+    final service = ref.read(invoiceServiceProvider);
+    final existing = await service.getPatientInvoices(patientId);
+    if (existing.isNotEmpty) {
+      final latest = existing.first;
+      final detail = await service.getBillingInvoice(latest.id);
+      ref.invalidate(billingInvoiceProvider(latest.id));
+      return detail;
+    }
+    final created = await service.createBillingInvoice(
+      patientId: patientId,
+      staffId: staffId,
+      encounterId: encounterId,
+    );
+    ref.invalidate(patientBillingInvoicesProvider(patientId));
+    ref.invalidate(billingInvoiceProvider(created.id));
+    return created;
+  }
+
+  Future<BillingInvoiceDetail> addBillingItem({
+    required String invoiceId,
+    required AddInvoiceItemPayload payload,
+  }) async {
+    final service = ref.read(invoiceServiceProvider);
+    final updated = await service.addBillingItem(
+      invoiceId: invoiceId,
+      payload: payload,
+    );
+    _invalidateInvoiceState(updated);
+    return updated;
+  }
+
+  Future<BillingInvoiceDetail> pauseRecurringItem({
+    required String invoiceId,
+    required String itemId,
+  }) async {
+    final service = ref.read(invoiceServiceProvider);
+    final updated = await service.pauseRecurringItem(
+      invoiceId: invoiceId,
+      itemId: itemId,
+    );
+    _invalidateInvoiceState(updated);
+    return updated;
+  }
+
+  Future<BillingInvoiceDetail> resumeRecurringItem({
+    required String invoiceId,
+    required String itemId,
+  }) async {
+    final service = ref.read(invoiceServiceProvider);
+    final updated = await service.resumeRecurringItem(
+      invoiceId: invoiceId,
+      itemId: itemId,
+    );
+    _invalidateInvoiceState(updated);
+    return updated;
+  }
+
+  Future<BillingInvoiceDetail> recordPayment({
+    required String invoiceId,
+    required RecordPaymentPayload payload,
+  }) async {
+    final service = ref.read(invoiceServiceProvider);
+    final updated = await service.recordInvoicePayment(
+      invoiceId: invoiceId,
+      payload: payload,
+    );
+    _invalidateInvoiceState(updated, includeWallet: true);
+    return updated;
+  }
+
+  Future<BillingWallet> depositWallet({
+    required String patientId,
+    required WalletDepositPayload payload,
+  }) async {
+    final service = ref.read(invoiceServiceProvider);
+    final wallet = await service.depositToWallet(
+      patientId: patientId,
+      payload: payload,
+    );
+    ref.invalidate(patientWalletProvider(patientId));
+    ref.invalidate(walletTransactionsProvider(patientId));
+    return wallet;
+  }
+
+  void _invalidateInvoiceState(
+    BillingInvoiceDetail invoice, {
+    bool includeWallet = false,
+  }) {
+    ref.invalidate(billingInvoiceProvider(invoice.id));
+    ref.invalidate(patientBillingInvoicesProvider(invoice.patientId));
+    ref.invalidate(invoicesProvider);
+    ref.invalidate(invoiceProvider(invoice.id));
+    if (includeWallet) {
+      ref.invalidate(patientWalletProvider(invoice.patientId));
+      ref.invalidate(walletTransactionsProvider(invoice.patientId));
+    }
+  }
 }
 
 // Provider for the notifier

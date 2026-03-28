@@ -4,10 +4,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../paitients/patient_model.dart';
+import '../paitients/patient_notifier.dart';
 import 'select.user.dart';
 import 'selected.user.dart';
 
@@ -25,6 +27,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
   double runSpacing = 16.0;
   Map<String, dynamic> data = {};
   String serviceName = '';
+  late final PatientNotifier _patientNotifier;
 
   void selectNoIdUser(Map<String, dynamic> res) async {
     final prefs = await SharedPreferences.getInstance();
@@ -54,9 +57,24 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
   @override
   void initState() {
     super.initState();
+    _patientNotifier = ref.read(patientProvider.notifier);
     serviceName = widget.serviceName;
-    Future.microtask(() => ref.read(patientProvider.notifier).fetchPatients());
+    Future.microtask(() {
+      final filter = switch (widget.serviceName) {
+        'inpatient' => PatientListStatusFilter.onlyAdmitted,
+        'OPD' => PatientListStatusFilter.excludeAdmitted,
+        _ => PatientListStatusFilter.none,
+      };
+      _patientNotifier.setListStatusFilter(filter);
+      _patientNotifier.fetchPatients();
+    });
     getNoIdPateitn();
+  }
+
+  @override
+  void dispose() {
+    _patientNotifier.setListStatusFilter(PatientListStatusFilter.none);
+    super.dispose();
   }
 
   @override
@@ -151,12 +169,15 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             if (serviceName == 'Pharmacy') {
+                              final staffId =
+                                  ref.read(authProvider).staff?.id ?? '';
                               context.router.push(
                                 DispenseRoute(
                                   patientId: selectedPatient!.patientId,
                                   patientName:
                                       "${selectedPatient.firstName} ${selectedPatient.surname}",
                                   id: selectedPatient.id ?? '',
+                                  staffId: staffId.isEmpty ? null : staffId,
                                 ),
                               );
                             } else if (serviceName == 'inpatient') {
@@ -178,9 +199,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                                 ),
                               );
                             } else if (serviceName == 'lab') {
-                              context.router.push(
-                                const LabCreateOrderRoute(),
-                              );
+                              context.router.push(const LabCreateOrderRoute());
                             } else {
                               context.router.push(RenderServiceRoute());
                             }

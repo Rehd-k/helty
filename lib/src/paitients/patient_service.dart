@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:dio/dio.dart';
 import 'package:helty/src/paitients/noid_patient.model.dart';
 
@@ -21,6 +19,7 @@ class PatientService {
     DateTime? toDate,
     String? sortBy,
     required bool isAscending,
+    PatientListStatusFilter listStatusFilter = PatientListStatusFilter.none,
   }) async {
     final resp = await _dio.get(
       '/patients',
@@ -48,13 +47,24 @@ class PatientService {
               ? raw['data'] as List
               : <dynamic>[]);
 
-    return list
+    final patients = list
         .map(
           (e) => Patient.fromJson(
             Map<String, dynamic>.from(e as Map<String, dynamic>),
           ),
         )
         .toList();
+
+    switch (listStatusFilter) {
+      case PatientListStatusFilter.none:
+        return patients;
+      case PatientListStatusFilter.onlyAdmitted:
+        return patients.where((p) => patientStatusIsAdmitted(p.status)).toList();
+      case PatientListStatusFilter.excludeAdmitted:
+        return patients
+            .where((p) => !patientStatusIsAdmitted(p.status))
+            .toList();
+    }
   }
 
   Future<Patient> getPatientById(String id) async {
@@ -85,8 +95,7 @@ class PatientService {
   }
 
   Future<Patient> updatePatient(Patient p, String? patientId) async {
-    log('patientId: ${patientId?.toString()}');
-    final resp = await _dio.patch('/patients/$patientId', data: p.toJson());
+    final resp = await _dio.patch('/patients/$patientId', data: p);
     return Patient.fromJson(resp.data as Map<String, dynamic>);
   }
 

@@ -100,12 +100,7 @@ class PharmacyApiService {
 
     // Null or unexpected type: return empty to avoid "Invalid paginated response"
     if (data == null) {
-      return PaginatedResponse<T>(
-        items: [],
-        total: 0,
-        page: 1,
-        pageSize: 20,
-      );
+      return PaginatedResponse<T>(items: [], total: 0, page: 1, pageSize: 20);
     }
 
     // Some endpoints return a bare list.
@@ -128,12 +123,7 @@ class PharmacyApiService {
     }
 
     if (data is! Map) {
-      return PaginatedResponse<T>(
-        items: [],
-        total: 0,
-        page: 1,
-        pageSize: 20,
-      );
+      return PaginatedResponse<T>(items: [], total: 0, page: 1, pageSize: 20);
     }
 
     Map<String, dynamic> map = Map<String, dynamic>.from(data);
@@ -551,7 +541,7 @@ class PharmacyApiService {
     final params = q ?? const PharmacyQueryParams();
     try {
       final resp = await _dio.get(
-        '$_basePath/drug-batches',
+        '$_basePath/batches',
         queryParameters: _buildBatchSearchQuery(params),
       );
       return _parsePaginated(resp, (m) => DrugBatch.fromJson(m));
@@ -564,7 +554,7 @@ class PharmacyApiService {
 
   Future<DrugBatch> getDrugBatchById(String id) async {
     try {
-      final resp = await _dio.get('$_basePath/drug-batches/$id');
+      final resp = await _dio.get('$_basePath/batches/$id');
       return DrugBatch.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -588,7 +578,7 @@ class PharmacyApiService {
     }
     try {
       final resp = await _dio.patch(
-        '$_basePath/drug-batches/${batch.id}',
+        '$_basePath/batches/${batch.id}',
         data: batch.toJson(),
       );
       return DrugBatch.fromJson(_mapFromResponse(resp));
@@ -599,7 +589,7 @@ class PharmacyApiService {
 
   Future<void> deleteDrugBatch(String id) async {
     try {
-      await _dio.delete('$_basePath/drug-batches/$id');
+      await _dio.delete('$_basePath/batches/$id');
     } on DioException catch (e) {
       _handleError(e);
     }
@@ -865,6 +855,37 @@ class PharmacyApiService {
   Future<void> deletePharmacyLocation(String id) async {
     try {
       await _dio.delete('$_basePath/locations/$id');
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
+  Future<List<DrugLocationQuantity>> getDrugLocationQuantities(
+    String drugId,
+  ) async {
+    if (drugId.trim().isEmpty) {
+      throw const ValidationException('Drug id is required.');
+    }
+    try {
+      final resp = await _dio.get('$_basePath/locations/drug/$drugId/quantity');
+      final payload = resp.data;
+      final dynamic listData;
+      if (payload is List) {
+        listData = payload;
+      } else if (payload is Map) {
+        final map = Map<String, dynamic>.from(payload);
+        listData = map['data'] ?? map['items'] ?? map['results'] ?? map['list'];
+      } else {
+        listData = null;
+      }
+
+      if (listData is! List) return <DrugLocationQuantity>[];
+      return listData
+          .whereType<Map>()
+          .map(
+            (e) => DrugLocationQuantity.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList();
     } on DioException catch (e) {
       _handleError(e);
     }

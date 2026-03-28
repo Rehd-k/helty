@@ -1,13 +1,37 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import 'cmd_providers.dart';
+import 'models/cmd_models.dart';
 
 @RoutePage()
-class CMDDashboardScreen extends StatelessWidget {
+class CMDDashboardScreen extends ConsumerWidget {
   const CMDDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final asyncDash = ref.watch(cmdExecutiveDashboardProvider);
+
+    return asyncDash.when(
+      loading: () => Scaffold(
+        backgroundColor: theme.colorScheme.surface,
+        appBar: AppBar(title: const Text('CMD Executive Dashboard')),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: theme.colorScheme.surface,
+        appBar: AppBar(title: const Text('CMD Executive Dashboard')),
+        body: Center(child: SelectableText('Error: $e')),
+      ),
+      data: (bundle) => _buildDashboardScaffold(context, bundle),
+    );
+  }
+
+  Widget _buildDashboardScaffold(BuildContext context, CmdExecutiveDashboardBundle bundle) {
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -70,32 +94,36 @@ class CMDDashboardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle(context, 'Alerts & Risk Panel'),
+                  _buildSectionTitle(context, 'Alerts & risk panel'),
                   const SizedBox(height: 16),
-                  _buildAlertsSection(context),
+                  _buildAlertsSection(context, bundle.alerts),
 
                   const SizedBox(height: 32),
-                  _buildSectionTitle(context, 'Executive Summary'),
+                  _buildSectionTitle(context, 'Live activity feed'),
                   const SizedBox(height: 16),
-                  _buildExecutiveSummary(context, isDesktop, isTablet),
+                  _buildActivityFeed(context, bundle.activityFeed),
 
                   const SizedBox(height: 32),
-                  // Charts Row
+                  _buildSectionTitle(context, 'Executive summary'),
+                  const SizedBox(height: 16),
+                  _buildExecutiveSummary(context, isDesktop, isTablet, bundle.kpis),
+
+                  const SizedBox(height: 32),
                   if (isDesktop)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: _buildFinancialOverview(context)),
+                        Expanded(child: _buildFinancialOverview(context, bundle)),
                         const SizedBox(width: 24),
-                        Expanded(child: _buildCapacityManagement(context)),
+                        Expanded(child: _buildCapacityManagement(context, bundle.capacity)),
                       ],
                     )
                   else
                     Column(
                       children: [
-                        _buildFinancialOverview(context),
+                        _buildFinancialOverview(context, bundle),
                         const SizedBox(height: 24),
-                        _buildCapacityManagement(context),
+                        _buildCapacityManagement(context, bundle.capacity),
                       ],
                     ),
 
@@ -104,22 +132,22 @@ class CMDDashboardScreen extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: _buildClinicalPerformance(context)),
+                        Expanded(child: _buildClinicalPerformance(context, bundle.clinical)),
                         const SizedBox(width: 24),
-                        Expanded(child: _buildStaffOverview(context)),
+                        Expanded(child: _buildStaffOverview(context, bundle.staff)),
                       ],
                     )
                   else
                     Column(
                       children: [
-                        _buildClinicalPerformance(context),
+                        _buildClinicalPerformance(context, bundle.clinical),
                         const SizedBox(height: 24),
-                        _buildStaffOverview(context),
+                        _buildStaffOverview(context, bundle.staff),
                       ],
                     ),
 
                   const SizedBox(height: 32),
-                  _buildPharmacyAndLabSection(context, isDesktop),
+                  _buildPharmacyAndLabSection(context, isDesktop, bundle.pharmacy, bundle.lab),
                 ],
               ),
             );
@@ -138,64 +166,42 @@ class CMDDashboardScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildActivityFeed(BuildContext context, List<CmdActivityFeedItem> items) {
+    final theme = Theme.of(context);
+    final fmt = DateFormat('HH:mm');
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant, width: 1),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            ListTile(
+              dense: true,
+              leading: CircleAvatar(
+                backgroundColor: theme.colorScheme.primaryContainer,
+                child: Text(items[i].category.substring(0, 1)),
+              ),
+              title: Text(items[i].message, style: theme.textTheme.bodyMedium),
+              subtitle: Text('${fmt.format(items[i].at)} · ${items[i].actorLabel} · ${items[i].category}'),
+            ),
+            if (i < items.length - 1) Divider(height: 1, color: theme.colorScheme.outlineVariant),
+          ],
+        ],
+      ),
+    );
+  }
+
   // 1️⃣ Executive Summary
   Widget _buildExecutiveSummary(
     BuildContext context,
     bool isDesktop,
     bool isTablet,
+    List<CmdKpiTile> kpis,
   ) {
-    int crossAxisCount = isDesktop ? 5 : (isTablet ? 3 : 2);
-
-    final kpis = [
-      {
-        'title': 'Patients Today',
-        'value': '1,240',
-        'icon': Icons.people_outline,
-        'trend': '+5%',
-      },
-      {
-        'title': 'Admissions',
-        'value': '85',
-        'icon': Icons.login,
-        'trend': '+2%',
-      },
-      {
-        'title': 'Bed Occupancy',
-        'value': '78%',
-        'icon': Icons.bed_outlined,
-        'trend': '-1%',
-      },
-      {
-        'title': 'Revenue Today',
-        'value': '\$42.5k',
-        'icon': Icons.attach_money,
-        'trend': '+12%',
-      },
-      {
-        'title': 'Emergencies',
-        'value': '142',
-        'icon': Icons.warning_amber_rounded,
-        'trend': '+8%',
-      },
-      {
-        'title': 'Avg Length Stay',
-        'value': '4.2 d',
-        'icon': Icons.timer_outlined,
-        'trend': '-0.5 d',
-      },
-      {
-        'title': 'Mortality (Mo)',
-        'value': '1.2%',
-        'icon': Icons.monitor_heart_outlined,
-        'trend': '0%',
-      },
-      {
-        'title': 'Outstanding',
-        'value': '\$120k',
-        'icon': Icons.receipt_long_outlined,
-        'trend': '-2%',
-      },
-    ];
+    final crossAxisCount = isDesktop ? 5 : (isTablet ? 3 : 2);
 
     return GridView.builder(
       shrinkWrap: true,
@@ -208,38 +214,26 @@ class CMDDashboardScreen extends StatelessWidget {
       ),
       itemCount: kpis.length,
       itemBuilder: (context, index) {
-        final kpi = kpis[index];
-        return _KPICard(
-          title: kpi['title'] as String,
-          value: kpi['value'] as String,
-          icon: kpi['icon'] as IconData,
-          trend: kpi['trend'] as String,
-        );
+        return _KPICard(kpi: kpis[index]);
       },
     );
   }
 
-  // 6️⃣ Alerts & Risk Panel
-  Widget _buildAlertsSection(BuildContext context) {
+  Widget _buildAlertsSection(BuildContext context, List<CmdAlertChip> alerts) {
     final theme = Theme.of(context);
-    final alerts = [
-      '🔴 ICU at 95% capacity',
-      '🔴 Paracetamol stock critically low',
-      '🔴 High surgical infection rate (Ward B)',
-      '🔴 MRI Machine under maintenance',
-    ];
 
     return Wrap(
       spacing: 12,
       runSpacing: 12,
       children: alerts.map((alert) {
+        final isCrit = alert.level == 'critical';
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+            color: (isCrit ? theme.colorScheme.errorContainer : theme.colorScheme.tertiaryContainer).withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: theme.colorScheme.error.withValues(alpha: 0.3),
+              color: (isCrit ? theme.colorScheme.error : theme.colorScheme.tertiary).withValues(alpha: 0.35),
             ),
           ),
           child: Row(
@@ -247,15 +241,15 @@ class CMDDashboardScreen extends StatelessWidget {
             children: [
               Icon(
                 Icons.error_outline,
-                color: theme.colorScheme.error,
+                color: isCrit ? theme.colorScheme.error : theme.colorScheme.tertiary,
                 size: 20,
               ),
               const SizedBox(width: 8),
-              Text(
-                alert.replaceAll('🔴 ', ''),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onErrorContainer,
-                  fontWeight: FontWeight.w600,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Text(
+                  alert.message,
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -265,16 +259,27 @@ class CMDDashboardScreen extends StatelessWidget {
     );
   }
 
-  // 3️⃣ Financial Overview (Line Chart)
-  Widget _buildFinancialOverview(BuildContext context) {
+  Widget _buildFinancialOverview(BuildContext context, CmdExecutiveDashboardBundle bundle) {
     final theme = Theme.of(context);
+    final series = bundle.revenueWeek;
+    var maxY = 48.0;
+    if (series.isNotEmpty) {
+      maxY = series
+              .map((e) => e.revenueInpatient > e.revenueOutpatient ? e.revenueInpatient : e.revenueOutpatient)
+              .reduce((a, b) => a > b ? a : b) *
+          1.08 /
+          1000;
+      if (maxY < 8) maxY = 8;
+    }
 
     return _DashboardCard(
-      title: 'Revenue Analytics (This Week)',
+      title: 'Revenue analytics (dummy, this week · \$k)',
       child: SizedBox(
         height: 250,
         child: LineChart(
           LineChartData(
+            minY: 0,
+            maxY: maxY,
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
@@ -294,22 +299,12 @@ class CMDDashboardScreen extends StatelessWidget {
                 sideTitles: SideTitles(
                   showTitles: true,
                   getTitlesWidget: (value, meta) {
-                    const days = [
-                      'Mon',
-                      'Tue',
-                      'Wed',
-                      'Thu',
-                      'Fri',
-                      'Sat',
-                      'Sun',
-                    ];
-                    if (value.toInt() >= 0 && value.toInt() < days.length) {
+                    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    final i = value.toInt();
+                    if (i >= 0 && i < days.length) {
                       return Padding(
                         padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          days[value.toInt()],
-                          style: theme.textTheme.labelSmall,
-                        ),
+                        child: Text(days[i], style: theme.textTheme.labelSmall),
                       );
                     }
                     return const Text('');
@@ -320,14 +315,8 @@ class CMDDashboardScreen extends StatelessWidget {
             borderData: FlBorderData(show: false),
             lineBarsData: [
               LineChartBarData(
-                spots: const [
-                  FlSpot(0, 30),
-                  FlSpot(1, 45),
-                  FlSpot(2, 35),
-                  FlSpot(3, 50),
-                  FlSpot(4, 40),
-                  FlSpot(5, 60),
-                  FlSpot(6, 55),
+                spots: [
+                  for (final p in series) FlSpot(p.dayIndex.toDouble(), p.revenueInpatient / 1000),
                 ],
                 isCurved: true,
                 color: theme.colorScheme.primary,
@@ -339,14 +328,8 @@ class CMDDashboardScreen extends StatelessWidget {
                 ),
               ),
               LineChartBarData(
-                spots: const [
-                  FlSpot(0, 20),
-                  FlSpot(1, 25),
-                  FlSpot(2, 22),
-                  FlSpot(3, 28),
-                  FlSpot(4, 25),
-                  FlSpot(5, 30),
-                  FlSpot(6, 28),
+                spots: [
+                  for (final p in series) FlSpot(p.dayIndex.toDouble(), p.revenueOutpatient / 1000),
                 ],
                 isCurved: true,
                 color: theme.colorScheme.tertiary,
@@ -360,12 +343,12 @@ class CMDDashboardScreen extends StatelessWidget {
     );
   }
 
-  // 2️⃣ Patient & Capacity Management (Pie Chart / Progress)
-  Widget _buildCapacityManagement(BuildContext context) {
+  Widget _buildCapacityManagement(BuildContext context, CmdCapacitySnapshot cap) {
     final theme = Theme.of(context);
+    final avail = cap.totalBeds - cap.occupiedBeds;
 
     return _DashboardCard(
-      title: 'Capacity Management',
+      title: 'Capacity management',
       child: SizedBox(
         height: 250,
         child: Row(
@@ -381,43 +364,32 @@ class CMDDashboardScreen extends StatelessWidget {
                       sections: [
                         PieChartSectionData(
                           color: theme.colorScheme.primary,
-                          value: 65,
-                          title: 'Gen Ward',
+                          value: cap.generalWardPercent,
+                          title: 'Gen',
                           radius: 20,
-                          titleStyle: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                          ),
+                          titleStyle: const TextStyle(fontSize: 10, color: Colors.white),
                         ),
                         PieChartSectionData(
                           color: theme.colorScheme.error,
-                          value: 20,
+                          value: cap.icuPercent,
                           title: 'ICU',
-                          radius: 25, // Pop out ICU
-                          titleStyle: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                          ),
+                          radius: 25,
+                          titleStyle: const TextStyle(fontSize: 10, color: Colors.white),
                         ),
                         PieChartSectionData(
                           color: theme.colorScheme.secondary,
-                          value: 15,
-                          title: 'Maternity',
+                          value: cap.maternityPercent,
+                          title: 'Mat',
                           radius: 20,
-                          titleStyle: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                          ),
+                          titleStyle: const TextStyle(fontSize: 10, color: Colors.white),
                         ),
                       ],
                     ),
                   ),
                   Text(
-                    '78%\nFull',
+                    '${cap.occupancyPercent.toStringAsFixed(0)}%\nocc.',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -428,26 +400,26 @@ class CMDDashboardScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _CapacityIndicator(
-                    title: 'Total Beds',
-                    value: '500',
+                    title: 'Total beds',
+                    value: '${cap.totalBeds}',
                     color: theme.colorScheme.onSurface,
                   ),
                   const SizedBox(height: 12),
                   _CapacityIndicator(
                     title: 'Available',
-                    value: '110',
+                    value: '$avail',
                     color: theme.colorScheme.primary,
                   ),
                   const SizedBox(height: 12),
                   _CapacityIndicator(
-                    title: 'ICU Load',
-                    value: '95%',
+                    title: 'ICU load',
+                    value: '${cap.icuLoadPercent.toStringAsFixed(0)}%',
                     color: theme.colorScheme.error,
                   ),
                   const SizedBox(height: 12),
                   _CapacityIndicator(
-                    title: 'ER Load',
-                    value: 'High',
+                    title: 'ER load',
+                    value: cap.erLoadLabel,
                     color: theme.colorScheme.tertiary,
                   ),
                 ],
@@ -459,50 +431,48 @@ class CMDDashboardScreen extends StatelessWidget {
     );
   }
 
-  // 4️⃣ Clinical Performance Metrics
-  Widget _buildClinicalPerformance(BuildContext context) {
+  Widget _buildClinicalPerformance(BuildContext context, CmdClinicalPerformance c) {
     return _DashboardCard(
-      title: 'Clinical Performance',
+      title: 'Clinical performance',
       child: Column(
         children: [
-          _PerformanceRow(label: 'Surgery Success Rate', percentage: 0.98),
+          _PerformanceRow(label: 'Surgery success rate', percentage: c.surgerySuccessRate),
           const SizedBox(height: 16),
           _PerformanceRow(
-            label: 'Readmission Rate (30d)',
-            percentage: 0.12,
+            label: 'Readmission rate (30d)',
+            percentage: c.readmission30d,
             isReversed: true,
           ),
           const SizedBox(height: 16),
           _PerformanceRow(
-            label: 'Infection Rate',
-            percentage: 0.04,
+            label: 'Infection rate',
+            percentage: c.infectionRate,
             isReversed: true,
           ),
           const SizedBox(height: 16),
-          _PerformanceRow(label: 'Patient Satisfaction', percentage: 0.88),
+          _PerformanceRow(label: 'Patient satisfaction', percentage: c.patientSatisfaction),
         ],
       ),
     );
   }
 
-  // 5️⃣ Staff Overview
-  Widget _buildStaffOverview(BuildContext context) {
+  Widget _buildStaffOverview(BuildContext context, CmdStaffDutySnapshot staff) {
     final theme = Theme.of(context);
     return _DashboardCard(
-      title: 'Staff Overview',
+      title: 'Staff overview',
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _StaffMetricBox(
-                title: 'Doctors On Duty',
-                count: '42',
+                title: 'Doctors on duty',
+                count: '${staff.doctorsOnDuty}',
                 icon: Icons.medical_services_outlined,
               ),
               _StaffMetricBox(
-                title: 'Nurses On Duty',
-                count: '128',
+                title: 'Nurses on duty',
+                count: '${staff.nursesOnDuty}',
                 icon: Icons.local_hospital_outlined,
               ),
             ],
@@ -511,9 +481,9 @@ class CMDDashboardScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Absenteeism Rate', style: theme.textTheme.bodyMedium),
+              Text('Absenteeism rate', style: theme.textTheme.bodyMedium),
               Text(
-                '3.2%',
+                '${staff.absenteeismPercent.toStringAsFixed(1)}%',
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.error,
                   fontWeight: FontWeight.bold,
@@ -525,12 +495,10 @@ class CMDDashboardScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Overtime Hours (Week)', style: theme.textTheme.bodyMedium),
+              Text('Overtime hours (week)', style: theme.textTheme.bodyMedium),
               Text(
-                '450 hrs',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                '${staff.overtimeHoursWeek} hrs',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -539,103 +507,95 @@ class CMDDashboardScreen extends StatelessWidget {
     );
   }
 
-  // 7 & 8 ️⃣ Pharmacy & Lab
-  Widget _buildPharmacyAndLabSection(BuildContext context, bool isDesktop) {
+  Widget _buildPharmacyAndLabSection(
+    BuildContext context,
+    bool isDesktop,
+    CmdPharmacySnapshot pharmacy,
+    CmdLabSnapshot lab,
+  ) {
     return isDesktop
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _buildPharmacy(context)),
+              Expanded(child: _buildPharmacy(context, pharmacy)),
               const SizedBox(width: 24),
-              Expanded(child: _buildLab(context)),
+              Expanded(child: _buildLab(context, lab)),
             ],
           )
         : Column(
             children: [
-              _buildPharmacy(context),
+              _buildPharmacy(context, pharmacy),
               const SizedBox(height: 24),
-              _buildLab(context),
+              _buildLab(context, lab),
             ],
           );
   }
 
-  Widget _buildPharmacy(BuildContext context) {
+  Widget _buildPharmacy(BuildContext context, CmdPharmacySnapshot pharmacy) {
     final theme = Theme.of(context);
     return _DashboardCard(
-      title: 'Pharmacy & Inventory Snapshot',
+      title: 'Pharmacy & inventory snapshot',
       child: Column(
         children: [
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: CircleAvatar(
               backgroundColor: theme.colorScheme.errorContainer,
-              child: Icon(
-                Icons.warning,
-                color: theme.colorScheme.error,
-                size: 18,
-              ),
+              child: Icon(Icons.warning, color: theme.colorScheme.error, size: 18),
             ),
-            title: const Text('Low Stock Alerts'),
-            trailing: const Text(
-              '14 Items',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            title: const Text('Low stock alerts'),
+            trailing: Text(
+              '${pharmacy.lowStockCount} items',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: CircleAvatar(
               backgroundColor: theme.colorScheme.tertiaryContainer,
-              child: Icon(
-                Icons.date_range,
-                color: theme.colorScheme.tertiary,
-                size: 18,
-              ),
+              child: Icon(Icons.date_range, color: theme.colorScheme.tertiary, size: 18),
             ),
             title: const Text('Expiring within 30 days'),
-            trailing: const Text(
-              '5 Batches',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            trailing: Text(
+              '${pharmacy.expiringBatches} batches',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: CircleAvatar(
               backgroundColor: theme.colorScheme.secondaryContainer,
-              child: Icon(
-                Icons.trending_up,
-                color: theme.colorScheme.secondary,
-                size: 18,
-              ),
+              child: Icon(Icons.trending_up, color: theme.colorScheme.secondary, size: 18),
             ),
-            title: const Text('Top Dispensed'),
-            subtitle: const Text('Amoxicillin, Paracetamol, Metformin'),
+            title: const Text('Top dispensed'),
+            subtitle: Text(pharmacy.topDispensed.join(', ')),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLab(BuildContext context) {
+  Widget _buildLab(BuildContext context, CmdLabSnapshot lab) {
     final theme = Theme.of(context);
     return _DashboardCard(
-      title: 'Lab & Diagnostics Overview',
+      title: 'Lab & diagnostics overview',
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _LabStat(
-                value: '1,420',
-                label: 'Tests Today',
+                value: '${lab.testsToday}',
+                label: 'Tests today',
                 color: theme.colorScheme.primary,
               ),
               _LabStat(
-                value: '85',
+                value: '${lab.pendingCount}',
                 label: 'Pending',
                 color: theme.colorScheme.secondary,
               ),
               _LabStat(
-                value: '2.5h',
+                value: '${lab.avgTurnaroundHours.toStringAsFixed(1)}h',
                 label: 'Avg TAT',
                 color: theme.colorScheme.tertiary,
               ),
@@ -645,9 +605,9 @@ class CMDDashboardScreen extends StatelessWidget {
           const Divider(),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Machine Uptime'),
+            title: const Text('Machine uptime'),
             trailing: Text(
-              '99.2%',
+              '${lab.machineUptimePercent.toStringAsFixed(1)}%',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.bold,
@@ -656,12 +616,10 @@ class CMDDashboardScreen extends StatelessWidget {
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Repeated Tests (Quality flag)'),
+            title: const Text('Repeated tests (quality flag)'),
             trailing: Text(
-              '1.8%',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              '${lab.redoRatePercent.toStringAsFixed(1)}%',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -670,29 +628,44 @@ class CMDDashboardScreen extends StatelessWidget {
   }
 }
 
+IconData _cmdIconFromKey(String key) {
+  switch (key) {
+    case 'people':
+      return Icons.people_outline;
+    case 'login':
+      return Icons.login;
+    case 'bed':
+      return Icons.bed_outlined;
+    case 'money':
+      return Icons.attach_money;
+    case 'badge':
+      return Icons.badge_outlined;
+    case 'science':
+      return Icons.science_outlined;
+    case 'receipt':
+      return Icons.receipt_long_outlined;
+    case 'emergency':
+      return Icons.local_hospital_outlined;
+    default:
+      return Icons.analytics_outlined;
+  }
+}
+
 // --- Helper Widgets ---
 
 class _KPICard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final String trend;
+  final CmdKpiTile kpi;
 
-  const _KPICard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.trend,
-  });
+  const _KPICard({required this.kpi});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isPositive = trend.startsWith('+');
-    final isNeutral = trend == '0%';
-    final trendColor = isNeutral
-        ? theme.colorScheme.onSurfaceVariant
-        : (isPositive ? Colors.green : theme.colorScheme.error);
+    final trendColor = switch (kpi.direction) {
+      CmdTrendDirection.up => Colors.green,
+      CmdTrendDirection.down => theme.colorScheme.error,
+      CmdTrendDirection.flat => theme.colorScheme.onSurfaceVariant,
+    };
 
     return Card(
       elevation: 0,
@@ -705,23 +678,20 @@ class _KPICard extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(icon, color: theme.colorScheme.primary, size: 24),
+                Icon(_cmdIconFromKey(kpi.iconKey), color: theme.colorScheme.primary, size: 24),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: trendColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    trend,
+                    kpi.trendLabel,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: trendColor,
                       fontWeight: FontWeight.bold,
@@ -730,20 +700,18 @@ class _KPICard extends StatelessWidget {
                 ),
               ],
             ),
-            const Spacer(),
+            const SizedBox(height: 12),
             Text(
-              value,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              kpi.value,
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
-              title,
+              kpi.label,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ],

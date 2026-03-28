@@ -15,11 +15,7 @@ class InpatientBillsListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
-    final filter = InvoiceFilter(
-      patientId: selectedPatient?.patientId,
-      category: 'inpatient',
-      limit: 500,
-    );
+    final filter = InvoiceFilter(patientId: selectedPatient?.id, limit: 500);
     final invoicesAsync = ref.watch(invoicesProvider(filter));
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -60,7 +56,8 @@ class InpatientBillsListScreen extends ConsumerWidget {
             itemCount: invoices.length,
             itemBuilder: (context, index) {
               final invoice = invoices[index];
-              final patientName = selectedPatient != null &&
+              final patientName =
+                  selectedPatient != null &&
                       selectedPatient.patientId == invoice.patientId
                   ? '${selectedPatient.firstName} ${selectedPatient.surname}'
                   : '—';
@@ -69,7 +66,7 @@ class InpatientBillsListScreen extends ConsumerWidget {
                 patientName: patientName,
                 onTap: () => context.router.push(
                   PatientBillingRoute(
-                    patientId: invoice.patientId,
+                    invoiceId: invoice.id,
                     patientName: patientName,
                   ),
                 ),
@@ -134,7 +131,10 @@ class _BillCard extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
@@ -193,9 +193,14 @@ class _BillCard extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: _statusColor(invoice.status).withValues(alpha: 0.15),
+                      color: _statusColor(
+                        invoice.status,
+                      ).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(

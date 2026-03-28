@@ -1,7 +1,11 @@
+import 'dart:developer';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/models/ward_models.dart';
+import 'package:helty/src/paitients/patient_model.dart';
+import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/ward_service.dart';
@@ -20,6 +24,10 @@ class _DoctorEncounterAdmissionTabState
   final _admissionService = AdmissionService();
   final _encounterService = EncounterService();
   final _wardService = WardService();
+  final _patientService = PatientService();
+
+  Patient? _patient;
+  bool _loadingPatient = true;
 
   final _reasonCtrl = TextEditingController();
   final _diagnosisCtrl = TextEditingController();
@@ -45,6 +53,37 @@ class _DoctorEncounterAdmissionTabState
   void initState() {
     super.initState();
     _loadWards();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPatient());
+  }
+
+  static bool _isAdmittedPatientStatus(String? status) {
+    final s = status?.trim();
+    if (s == null || s.isEmpty) return false;
+    final u = s.toUpperCase();
+    return u == 'ADMITED' || u == 'ADMITTED';
+  }
+
+  Future<void> _loadPatient() async {
+    final scope = EncounterScope.of(context);
+    if (scope == null) {
+      if (mounted) setState(() => _loadingPatient = false);
+      return;
+    }
+    setState(() => _loadingPatient = true);
+    try {
+      final p = await _patientService.getPatientById(scope.patientId);
+      if (!mounted) return;
+      setState(() {
+        _patient = p;
+        _loadingPatient = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _patient = null;
+        _loadingPatient = false;
+      });
+    }
   }
 
   @override
@@ -144,7 +183,7 @@ class _DoctorEncounterAdmissionTabState
             : _instructionsCtrl.text.trim(),
         attendingDoctorId: scope.doctorId,
       );
-      await _encounterService.update(scope.encounterId, {'status': 'admitted'});
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Admission requested. Encounter closed.')),
@@ -176,6 +215,63 @@ class _DoctorEncounterAdmissionTabState
     }
 
     final cs = theme.colorScheme;
+
+    if (_loadingPatient) {
+      return const Padding(
+        padding: EdgeInsets.all(24.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_isAdmittedPatientStatus(_patient?.status)) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: cs.primary, size: 40),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Patient already admitted',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'This patient\'s status is already set to admitted. No further admission action is needed here.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: cs.onSurface.withValues(alpha: 0.75),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),

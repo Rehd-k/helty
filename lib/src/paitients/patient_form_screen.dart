@@ -1,8 +1,8 @@
-import 'dart:developer';
-
 import 'package:auto_route/auto_route.dart';
+import 'package:country_picker/country_picker.dart' as cp;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:states_and_capitals/states_and_capitals.dart' as sac;
 
 import 'patient_model.dart';
 import 'patient_providers.dart';
@@ -19,6 +19,28 @@ class PatientFormScreen extends ConsumerStatefulWidget {
 
 class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  static const String _nigeriaName = 'Nigeria';
+  static const List<String> _titleOptions = <String>[
+    'Mr',
+    'Miss',
+    'Mrs',
+    'Master',
+    'Dr',
+    'Prof',
+    'Rev',
+  ];
+  static const List<String> _genderOptions = <String>[
+    'Male',
+    'Female',
+    'Other',
+  ];
+  static const List<String> _maritalStatusOptions = <String>[
+    'Single',
+    'Married',
+    'Divorced',
+    'Widowed',
+    'Separated',
+  ];
 
   // controllers for all fields
 
@@ -47,6 +69,12 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   late TextEditingController _nextOfKinRelationshipController;
   late TextEditingController _hmoController;
   late TextEditingController _fingerprintController;
+
+  late final List<cp.Country> _countries;
+  late final List<sac.State> _nigerianStates;
+  List<sac.LGA> _availableLgas = const [];
+  sac.State? _selectedNigerianState;
+  String? _selectedLgaName;
 
   @override
   void initState() {
@@ -95,6 +123,18 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     _fingerprintController = TextEditingController(
       text: p?.fingerprintData ?? '',
     );
+
+    _countries = List.of(cp.CountryService().getAll())
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    final nigeriaCountry = sac.StatesAndCapitals.getCountries().firstWhere(
+      (country) => _equalsIgnoreCase(country.name, _nigeriaName),
+    );
+    _nigerianStates = sac.StatesAndCapitals.getStatesInCountry(
+      countryId: nigeriaCountry.countryId,
+    )..sort((a, b) => a.name.compareTo(b.name));
+
+    _syncLocationSelectionsFromControllers();
   }
 
   @override
@@ -291,7 +331,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     final colors = theme.colorScheme;
     final isEditing = widget.patient != null;
     final isFromUnregistered = widget.patient?.fromUnregisteredFlow ?? false;
-    log(widget.patient?.toJson().toString() ?? 'No patient');
     return Scaffold(
       backgroundColor: colors.surfaceContainerHighest.withValues(alpha: 0.03),
       appBar: AppBar(
@@ -324,7 +363,11 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       ),
                       children: [
                         _buildTextField(_cardNoController, 'Card Number'),
-                        _buildTextField(_titleController, 'Title'),
+                        _buildDropdownField(
+                          _titleController,
+                          'Title',
+                          options: _titleOptions,
+                        ),
                         _buildTextField(
                           _surnameController,
                           'Surname *',
@@ -350,26 +393,29 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                           'Date of Birth',
                           required: true,
                         ),
-                        _buildTextField(
+                        _buildDropdownField(
                           _genderController,
                           'Gender',
                           required: true,
+                          options: _genderOptions,
                         ),
-                        _buildTextField(
+                        _buildDropdownField(
                           _maritalStatusController,
                           'Marital Status',
+                          options: _maritalStatusOptions,
                         ),
-                        _buildTextField(
-                          _nationalityController,
-                          'Nationality',
-                          required: true,
-                        ),
-                        _buildTextField(
-                          _stateController,
-                          'State of Origin',
-                          required: true,
-                        ),
-                        _buildTextField(_lgaController, 'LGA'),
+                        _buildNationalityDropdown(),
+                        if (_isNigeriaSelected) ...[
+                          _buildNigerianStateDropdown(),
+                          _buildNigerianLgaDropdown(),
+                        ] else ...[
+                          _buildTextField(
+                            _stateController,
+                            'State of Origin',
+                            required: true,
+                          ),
+                          _buildTextField(_lgaController, 'LGA'),
+                        ],
                         _buildTextField(_townController, 'Town'),
                         _buildTextField(
                           _permanentAddressController,
@@ -436,8 +482,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         child: ElevatedButton(
                           onPressed: () => _save(widget.patient?.id),
                           style: ElevatedButton.styleFrom(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 16.0),
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
@@ -486,6 +531,197 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       validator: required
           ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
           : null,
+    );
+  }
+
+  Widget _buildDropdownField(
+    TextEditingController controller,
+    String label, {
+    required List<String> options,
+    bool required = false,
+  }) {
+    final currentValue = controller.text.trim();
+    final initialValue = options.contains(currentValue) ? currentValue : null;
+
+    return DropdownButtonFormField<String>(
+      initialValue: initialValue,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      isExpanded: true,
+      items: options
+          .map(
+            (option) =>
+                DropdownMenuItem<String>(value: option, child: Text(option)),
+          )
+          .toList(),
+      onChanged: (value) {
+        controller.text = value ?? '';
+      },
+      validator: required
+          ? (value) =>
+                (value == null || value.trim().isEmpty) ? 'Required' : null
+          : null,
+    );
+  }
+
+  bool get _isNigeriaSelected =>
+      _equalsIgnoreCase(_nationalityController.text.trim(), _nigeriaName);
+
+  bool _equalsIgnoreCase(String a, String b) =>
+      a.toLowerCase() == b.toLowerCase();
+
+  void _syncLocationSelectionsFromControllers() {
+    if (!_isNigeriaSelected) {
+      _selectedNigerianState = null;
+      _availableLgas = const [];
+      _selectedLgaName = null;
+      return;
+    }
+
+    _selectedNigerianState = _findNigerianStateByName(_stateController.text);
+    _refreshLgasForSelectedState(keepCurrentLga: true);
+  }
+
+  sac.State? _findNigerianStateByName(String stateName) {
+    final normalized = stateName.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    for (final state in _nigerianStates) {
+      if (state.name.toLowerCase() == normalized) return state;
+    }
+    return null;
+  }
+
+  void _refreshLgasForSelectedState({required bool keepCurrentLga}) {
+    final selectedState = _selectedNigerianState;
+    if (selectedState == null) {
+      _availableLgas = const [];
+      _selectedLgaName = null;
+      _lgaController.clear();
+      return;
+    }
+
+    final nigeriaCountryId = sac.StatesAndCapitals.getCountries()
+        .firstWhere((country) => _equalsIgnoreCase(country.name, _nigeriaName))
+        .countryId;
+    _availableLgas = sac.StatesAndCapitals.getLocalGovernmentsInCountryAndState(
+      countryId: nigeriaCountryId,
+      stateId: selectedState.stateId,
+    )..sort((a, b) => a.name.compareTo(b.name));
+
+    if (keepCurrentLga) {
+      final normalizedLga = _lgaController.text.trim().toLowerCase();
+      final match = _availableLgas.where(
+        (lga) => lga.name.toLowerCase() == normalizedLga,
+      );
+      _selectedLgaName = match.isNotEmpty ? match.first.name : null;
+      if (_selectedLgaName == null) _lgaController.clear();
+      return;
+    }
+
+    _selectedLgaName = null;
+    _lgaController.clear();
+  }
+
+  Widget _buildNationalityDropdown() {
+    final selectedNationality = _countries.where(
+      (country) =>
+          country.name.toLowerCase() ==
+          _nationalityController.text.trim().toLowerCase(),
+    );
+
+    return DropdownButtonFormField<String>(
+      initialValue: selectedNationality.isNotEmpty
+          ? selectedNationality.first.name
+          : null,
+      decoration: const InputDecoration(
+        labelText: 'Nationality',
+        border: OutlineInputBorder(),
+      ),
+      validator: (value) =>
+          (value == null || value.trim().isEmpty) ? 'Required' : null,
+      isExpanded: true,
+      items: _countries
+          .map(
+            (country) => DropdownMenuItem<String>(
+              value: country.name,
+              child: Text(country.name),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value == null) return;
+        setState(() {
+          _nationalityController.text = value;
+          if (_equalsIgnoreCase(value, _nigeriaName)) {
+            _selectedNigerianState = _findNigerianStateByName(
+              _stateController.text,
+            );
+            _refreshLgasForSelectedState(keepCurrentLga: true);
+          } else {
+            _selectedNigerianState = null;
+            _selectedLgaName = null;
+            _availableLgas = const [];
+            _stateController.clear();
+            _lgaController.clear();
+          }
+        });
+      },
+    );
+  }
+
+  Widget _buildNigerianStateDropdown() {
+    return DropdownButtonFormField<sac.State>(
+      initialValue: _selectedNigerianState,
+      decoration: const InputDecoration(
+        labelText: 'State of Origin',
+        border: OutlineInputBorder(),
+      ),
+      validator: (value) => value == null ? 'Required' : null,
+      isExpanded: true,
+      items: _nigerianStates
+          .map(
+            (state) => DropdownMenuItem<sac.State>(
+              value: state,
+              child: Text(state.name),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        setState(() {
+          _selectedNigerianState = value;
+          _stateController.text = value?.name ?? '';
+          _refreshLgasForSelectedState(keepCurrentLga: false);
+        });
+      },
+    );
+  }
+
+  Widget _buildNigerianLgaDropdown() {
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedLgaName,
+      decoration: const InputDecoration(
+        labelText: 'LGA',
+        border: OutlineInputBorder(),
+      ),
+      isExpanded: true,
+      items: _availableLgas
+          .map(
+            (lga) => DropdownMenuItem<String>(
+              value: lga.name,
+              child: Text(lga.name),
+            ),
+          )
+          .toList(),
+      onChanged: _availableLgas.isEmpty
+          ? null
+          : (value) {
+              setState(() {
+                _selectedLgaName = value;
+                _lgaController.text = value ?? '';
+              });
+            },
     );
   }
 
@@ -613,8 +849,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         }
                       },
                       icon: const Icon(Icons.fingerprint_rounded),
-                      label:
-                          Text(hasFingerprint ? 'Rescan' : 'Scan fingerprint'),
+                      label: Text(
+                        hasFingerprint ? 'Rescan' : 'Scan fingerprint',
+                      ),
                     ),
                   ],
                 ),

@@ -2,10 +2,16 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/billings/pay.bill.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/invoice_billing_models.dart';
+import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
+import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/services/invoice_service.dart';
 
 // -----------------------------------------------------------------------------
 // CART MODEL (uses Drug from pharmacy_model)
@@ -21,22 +27,31 @@ class CartItem {
 // MAIN UI
 // -----------------------------------------------------------------------------
 @RoutePage()
-class DispenseScreen extends StatefulWidget {
+class DispenseScreen extends ConsumerStatefulWidget {
   final String patientId;
   final String patientName;
   final String id;
+
+  /// When set, cart lines are posted to this invoice instead of opening PayBill.
+  final String? invoiceId;
+
+  /// Used for PayBill when [invoiceId] is null; falls back to signed-in staff.
+  final String? staffId;
+
   const DispenseScreen({
     super.key,
     required this.patientId,
     required this.patientName,
     required this.id,
+    this.invoiceId,
+    this.staffId,
   });
 
   @override
-  State<DispenseScreen> createState() => _DispenseScreenState();
+  ConsumerState<DispenseScreen> createState() => _DispenseScreenState();
 }
 
-class _DispenseScreenState extends State<DispenseScreen> {
+class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   String patientId = '';
   String patientName = '';
   String id = '';
@@ -61,12 +76,12 @@ class _DispenseScreenState extends State<DispenseScreen> {
 
   List<CartItem> cart = [];
   String selectedCategory = 'All';
+  bool _checkoutBusy = false;
 
   double get subtotal => cart.fold(
-        0,
-        (sum, item) =>
-            sum + ((item.drug.price ?? 0) * item.quantity),
-      );
+    0,
+    (sum, item) => sum + ((item.drug.price ?? 0) * item.quantity),
+  );
   double get vat => subtotal * 0.12;
   double get discount => 0.00;
   double get totalAmount => subtotal + vat - discount;
@@ -75,8 +90,7 @@ class _DispenseScreenState extends State<DispenseScreen> {
     final query = _searchController.text.trim();
     return SearchDrugParams(
       search: query.isEmpty ? null : query,
-      therapeuticClass:
-          selectedCategory == 'All' ? null : selectedCategory,
+      therapeuticClass: selectedCategory == 'All' ? null : selectedCategory,
       page: 1,
       pageSize: _pageSize,
       limit: _pageSize,
@@ -126,8 +140,7 @@ class _DispenseScreenState extends State<DispenseScreen> {
 
   void addToCart(Drug drug) {
     setState(() {
-      final existingIndex =
-          cart.indexWhere((item) => item.drug.id == drug.id);
+      final existingIndex = cart.indexWhere((item) => item.drug.id == drug.id);
       if (existingIndex >= 0) {
         cart[existingIndex].quantity++;
       } else {
@@ -159,7 +172,9 @@ class _DispenseScreenState extends State<DispenseScreen> {
     patientId = widget.patientId;
     patientName = widget.patientName;
     id = widget.id;
-    _searchController.addListener(() => _onSearchChanged(_searchController.text));
+    _searchController.addListener(
+      () => _onSearchChanged(_searchController.text),
+    );
     _loadDrugs();
   }
 
@@ -170,11 +185,89 @@ class _DispenseScreenState extends State<DispenseScreen> {
     super.dispose();
   }
 
-  void makePayment() {
-    // Placeholder for your Payment Module
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Opening Payment Module... (Le module de paiement)'),
+  Future<void> _checkout() async {
+    if (cart.isEmpty || _checkoutBusy) return;
+    final invId = widget.invoiceId?.trim();
+    if (invId != null && invId.isNotEmpty) {
+      setState(() => _checkoutBusy = true);
+      try {
+        final svc = InvoiceService();
+        for (final ci in cart) {
+          final did = ci.drug.id?.trim();
+          if (did == null || did.isEmpty) {
+            throw Exception(
+              'Drug "${ci.drug.brandName}" is missing a server id.',
+            );
+          }
+          await svc.addBillingItem(
+            invoiceId: invId,
+            payload: AddInvoiceItemPayload(
+              drugId: did,
+              unitPrice: ci.drug.price ?? 0,
+              quantity: ci.quantity,
+            ),
+          );
+        }
+        if (!mounted) return;
+        clearCart();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Medicines added to patient invoice')),
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not add to invoice: $e')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _checkoutBusy = false);
+      }
+      return;
+    }
+
+    final staffId = (widget.staffId?.trim().isNotEmpty == true)
+        ? widget.staffId!.trim()
+        : (ref.read(authProvider).staff?.id ?? '');
+    if (staffId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in required to take payment')),
+      );
+      return;
+    }
+
+    final patientPayId = widget.id.trim().isNotEmpty
+        ? widget.id.trim()
+        : widget.patientId;
+    final items = <ServiceModel>[
+      for (final ci in cart)
+        ServiceModel(
+          id: ci.drug.id ?? '',
+          serviceId: ci.drug.id ?? '',
+          name: ci.drug.brandName.isNotEmpty
+              ? ci.drug.brandName
+              : ci.drug.genericName,
+          cost: ci.drug.price ?? 0,
+          qty: ci.quantity,
+          categoryName: 'Pharmacy',
+        ),
+    ];
+
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (ctx) => PayBill(
+        hasId: widget.id.trim().isNotEmpty,
+        patientId: patientPayId,
+        firstName: patientName,
+        selectedItems: items,
+        total: totalAmount,
+        staffId: staffId,
+        isInvoice: false,
+        onPaymentComplete: () {
+          clearCart();
+          Navigator.of(ctx).pop();
+        },
       ),
     );
   }
@@ -198,15 +291,9 @@ class _DispenseScreenState extends State<DispenseScreen> {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      flex: 5,
-                      child: _buildLeftPanel(colorScheme),
-                    ),
+                    Expanded(flex: 5, child: _buildLeftPanel(colorScheme)),
                     const SizedBox(width: 16),
-                    Expanded(
-                      flex: 4,
-                      child: _buildMiddlePanel(colorScheme),
-                    ),
+                    Expanded(flex: 4, child: _buildMiddlePanel(colorScheme)),
                     const SizedBox(width: 16),
                     Expanded(
                       flex: 3,
@@ -296,8 +383,7 @@ class _DispenseScreenState extends State<DispenseScreen> {
                   color: isSelected
                       ? colorScheme.onPrimary
                       : colorScheme.onSurface,
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -325,114 +411,111 @@ class _DispenseScreenState extends State<DispenseScreen> {
                   ),
                 )
               : _errorMessage.isNotEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: colorScheme.error,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _errorMessage,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: colorScheme.error,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: _loadDrugs,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : _drugs.isEmpty
+              ? Center(
+                  child: Text(
+                    'No drugs found. Try another search or category.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  ),
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 200,
+                    childAspectRatio: 1.35,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: _drugs.length,
+                  itemBuilder: (context, index) {
+                    final drug = _drugs[index];
+                    final price = drug.price ?? 0;
+                    return InkWell(
+                      onTap: () => addToCart(drug),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                        ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 48,
-                              color: colorScheme.error,
-                            ),
-                            const SizedBox(height: 8),
                             Text(
-                              _errorMessage,
-                              textAlign: TextAlign.center,
+                              price > 0
+                                  ? price.toFinancial(isMoney: true)
+                                  : '—',
                               style: TextStyle(
-                                color: colorScheme.error,
-                                fontSize: 12,
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            FilledButton.icon(
-                              onPressed: _loadDrugs,
-                              icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text('Retry'),
+                            const SizedBox(height: 6),
+                            Text(
+                              drug.brandName.isNotEmpty
+                                  ? drug.brandName
+                                  : drug.genericName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Stock: ${drug.displayStock} ${drug.displayUnit}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-                    )
-                  : _drugs.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No drugs found. Try another search or category.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        )
-                      : GridView.builder(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 200,
-                            childAspectRatio: 1.35,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
-                          itemCount: _drugs.length,
-                          itemBuilder: (context, index) {
-                            final drug = _drugs[index];
-                            final price = drug.price ?? 0;
-                            return InkWell(
-                              onTap: () => addToCart(drug),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: colorScheme.outlineVariant
-                                        .withValues(alpha: 0.5),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      price > 0
-                                          ? price.toFinancial(isMoney: true)
-                                          : '—',
-                                      style: TextStyle(
-                                        color: colorScheme.primary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      drug.brandName.isNotEmpty
-                                          ? drug.brandName
-                                          : drug.genericName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const Spacer(),
-                                    Text(
-                                      'Stock: ${drug.displayStock} ${drug.displayUnit}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -582,10 +665,7 @@ class _DispenseScreenState extends State<DispenseScreen> {
                               children: [
                                 _buildQtyBtn(
                                   Icons.remove,
-                                  () => updateQuantity(
-                                    drug,
-                                    item.quantity - 1,
-                                  ),
+                                  () => updateQuantity(drug, item.quantity - 1),
                                   colorScheme,
                                 ),
                                 const SizedBox(width: 8),
@@ -597,10 +677,7 @@ class _DispenseScreenState extends State<DispenseScreen> {
                                 const SizedBox(width: 8),
                                 _buildQtyBtn(
                                   Icons.add,
-                                  () => updateQuantity(
-                                    drug,
-                                    item.quantity + 1,
-                                  ),
+                                  () => updateQuantity(drug, item.quantity + 1),
                                   colorScheme,
                                 ),
                               ],
@@ -779,10 +856,7 @@ class _DispenseScreenState extends State<DispenseScreen> {
                     subtotal.toFinancial(isMoney: true),
                   ),
                   const SizedBox(height: 12),
-                  _buildSummaryRow(
-                    'VAT (12%)',
-                    vat.toFinancial(isMoney: true),
-                  ),
+                  _buildSummaryRow('VAT (12%)', vat.toFinancial(isMoney: true)),
                   const SizedBox(height: 12),
                   _buildSummaryRow(
                     'Discount',
@@ -818,11 +892,25 @@ class _DispenseScreenState extends State<DispenseScreen> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
-                    onPressed: cart.isEmpty ? null : makePayment,
-                    icon: const Icon(Icons.payments_outlined),
-                    label: const Text(
-                      'Send To Bill',
-                      style: TextStyle(
+                    onPressed: cart.isEmpty || _checkoutBusy ? null : _checkout,
+                    icon: _checkoutBusy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            widget.invoiceId != null &&
+                                    widget.invoiceId!.trim().isNotEmpty
+                                ? Icons.receipt_long_outlined
+                                : Icons.payments_outlined,
+                          ),
+                    label: Text(
+                      widget.invoiceId != null &&
+                              widget.invoiceId!.trim().isNotEmpty
+                          ? 'Add to invoice'
+                          : 'Pay',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),

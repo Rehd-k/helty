@@ -54,7 +54,7 @@ class _InpatientsListScreenState extends State<InpatientsListScreen> {
         await _loadWardDetails(_selectedWard!.id);
       }
     } catch (e) {
-      _showError('Failed to load wards');
+      _showError('Failed to load wards, $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -77,7 +77,7 @@ class _InpatientsListScreenState extends State<InpatientsListScreen> {
       });
       _applySearch();
     } catch (e) {
-      _showError('Failed to load ward details');
+      _showError('Failed to load ward details, $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -119,7 +119,7 @@ class _InpatientsListScreenState extends State<InpatientsListScreen> {
   void _openInpatientView(InpatientCensus row) {
     context.router.push(
       InpatientPatientViewRoute(
-        patientId: row.patientId,
+        admissionId: row.id,
         ward: row.wardName,
         bedNumber: row.bedLabel,
         diagnosis: row.diagnosis,

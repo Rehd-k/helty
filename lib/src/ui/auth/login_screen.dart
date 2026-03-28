@@ -39,7 +39,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   PageRouteInfo _initialRouteForRole(String role, String accountType) {
-    log('role: $role, accountType: $accountType');
     switch (accountType) {
       case 'RECEPTIONIST':
         return const FrontDeskDashboardRoute();
@@ -146,7 +145,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   spacing: 8,
                   children: [
                     const SlidingNotificationDropdown(),
-                    _TitleBarLogoutButton(),
                     const WindowButtons(),
                   ],
                 ),

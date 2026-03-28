@@ -60,6 +60,8 @@ dependencies:
   fl_chart: ^1.1.1
   esc_pos_utils_plus: ^2.0.4
   esc_pos_printer_plus: ^0.1.1
+  states_and_capitals: ^0.0.1
+  country_picker: ^2.0.27
 
 
 dev_dependencies:
@@ -67,7 +69,7 @@ dev_dependencies:
     sdk: flutter
   build_runner: ^2.11.1
   auto_route_generator: ^10.5.0
-  flutter_launcher_icons: ^0.14.4
+  flutter_launcher_icons: ^0.14.4 
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

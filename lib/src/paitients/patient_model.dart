@@ -1,3 +1,17 @@
+/// How [PatientService.fetchPatients] should narrow results by [Patient.status].
+enum PatientListStatusFilter {
+  none,
+  onlyAdmitted,
+  excludeAdmitted,
+}
+
+/// True when [status] represents an inpatient admission (matches API spellings).
+bool patientStatusIsAdmitted(String? status) {
+  if (status == null) return false;
+  final u = status.toUpperCase().trim();
+  return u == 'ADMITED' || u == 'ADMITTED';
+}
+
 class Patient {
   final String? id;
   final String patientId;
@@ -30,6 +44,9 @@ class Patient {
   final DateTime? updatedAt;
   final String? createdBy;
   final String? updatedBy;
+
+  /// Inpatient / visit status from the API (e.g. `ADMITED`).
+  final String? status;
 
   /// Client-side flags/metadata (not necessarily persisted).
   /// When `true`, the UI should treat surname/firstName as read‑only.
@@ -73,6 +90,7 @@ class Patient {
     this.updatedAt,
     this.createdBy,
     this.updatedBy,
+    this.status,
     this.lockNames = false,
     this.fromUnregisteredFlow = false,
     this.unregisteredTransactionId,
@@ -120,6 +138,7 @@ class Patient {
       updatedBy: json['updatedBy'] != null
           ? '${json['updatedBy']['lastName']} ${json['updatedBy']['firstName']}'
           : null,
+      status: json['status']?.toString(),
       fingerprintData: json['fingerprintData'] as String? ?? 'No Fingerprint',
       // Client-only flags default to false/null when coming from backend.
       lockNames: false,
@@ -162,6 +181,48 @@ class Patient {
       'updatedAt': updatedAt?.toIso8601String(),
       'updatedBy': updatedBy,
       'fingerprintData': fingerprintData,
+      if (status != null) 'status': status,
     };
+  }
+
+  /// Returns a copy with [status] set (for PATCH via [PatientService.updatePatient]).
+  Patient withStatus(String newStatus) {
+    return Patient(
+      id: id,
+      patientId: patientId,
+      cardNo: cardNo,
+      title: title,
+      surname: surname,
+      firstName: firstName,
+      otherName: otherName,
+      dob: dob,
+      gender: gender,
+      maritalStatus: maritalStatus,
+      nationality: nationality,
+      stateOfOrigin: stateOfOrigin,
+      lga: lga,
+      town: town,
+      permanentAddress: permanentAddress,
+      religion: religion,
+      email: email,
+      preferredLanguage: preferredLanguage,
+      phoneNumber: phoneNumber,
+      addressOfResidence: addressOfResidence,
+      profession: profession,
+      nextOfKinName: nextOfKinName,
+      nextOfKinPhone: nextOfKinPhone,
+      nextOfKinAddress: nextOfKinAddress,
+      nextOfKinRelationship: nextOfKinRelationship,
+      hmo: hmo,
+      fingerprintData: fingerprintData,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      createdBy: createdBy,
+      updatedBy: updatedBy,
+      status: newStatus,
+      lockNames: lockNames,
+      fromUnregisteredFlow: fromUnregisteredFlow,
+      unregisteredTransactionId: unregisteredTransactionId,
+    );
   }
 }

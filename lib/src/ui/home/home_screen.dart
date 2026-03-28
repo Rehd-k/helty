@@ -99,10 +99,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (role.toLowerCase() == 'admin') {
       common.addAll([
-        const MenuItem(
-          label: 'CMD Dashboard',
-          icon: Icons.dashboard_outlined,
-          route: CMDDashboardRoute(),
+        MenuItem(
+          label: 'CMD Panel',
+          icon: Icons.dashboard_customize_outlined,
+          route: const CMDDashboardRoute(),
+          children: [
+            const MenuItem(
+              label: 'Executive dashboard',
+              icon: Icons.home_outlined,
+              route: CMDDashboardRoute(),
+            ),
+            const MenuItem(
+              label: 'Hospital overview',
+              icon: Icons.account_balance_outlined,
+              route: CMDHospitalOverviewRoute(),
+            ),
+            const MenuItem(
+              label: 'Financial command',
+              icon: Icons.payments_outlined,
+              route: CMDFinancialCommandRoute(),
+            ),
+            const MenuItem(
+              label: 'Staff oversight',
+              icon: Icons.groups_outlined,
+              route: CMDStaffOversightRoute(),
+            ),
+            const MenuItem(
+              label: 'Beds & facilities',
+              icon: Icons.bed_outlined,
+              route: CMDBedsFacilitiesRoute(),
+            ),
+            const MenuItem(
+              label: 'Lab monitoring',
+              icon: Icons.biotech_outlined,
+              route: CMDLabMonitoringRoute(),
+            ),
+            const MenuItem(
+              label: 'Alerts & incidents',
+              icon: Icons.crisis_alert_outlined,
+              route: CMDAlertsIncidentsRoute(),
+            ),
+            const MenuItem(
+              label: 'Reports & analytics',
+              icon: Icons.assessment_outlined,
+              route: CMDReportsAnalyticsRoute(),
+            ),
+            const MenuItem(
+              label: 'Audit & compliance',
+              icon: Icons.fact_check_outlined,
+              route: CMDAuditComplianceRoute(),
+            ),
+            const MenuItem(
+              label: 'Communication',
+              icon: Icons.campaign_outlined,
+              route: CMDCommunicationCenterRoute(),
+            ),
+            const MenuItem(
+              label: 'Patient experience',
+              icon: Icons.star_outline,
+              route: CMDPatientExperienceRoute(),
+            ),
+            const MenuItem(
+              label: 'System control',
+              icon: Icons.tune_outlined,
+              route: CMDSystemControlRoute(),
+            ),
+          ],
         ),
         const MenuItem(
           label: 'Register',
@@ -255,7 +317,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildTitleBar(BuildContext context) {
     return WindowTitleBarBox(
       child: Container(
-        height: 48,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
@@ -271,14 +332,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: _kSidebarAccent.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.health_and_safety_rounded,
-                          size: 20,
-                          color: _kSidebarAccent,
+
+                        child: Image.asset(
+                          'assets/logo.png',
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -291,13 +348,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               letterSpacing: 0.5,
                             ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Hospital Management',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: _kSidebarTextMuted,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -309,7 +359,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 spacing: 8,
                 children: [
                   const SlidingNotificationDropdown(),
-                  _TitleBarLogoutButton(),
                   const WindowButtons(),
                 ],
               ),
@@ -542,20 +591,6 @@ class _SidebarEntry extends StatefulWidget {
   @override
   State<_SidebarEntry> createState() => _SidebarEntryState();
 }
-
-/// Route names that are children of DoctorDashboardRoute; navigate via inner router when on dashboard.
-const _doctorDashboardChildNames = {
-  'DoctorOutpatientListRoute',
-  'DoctorWalkInQueueRoute',
-  'WardRoundsRoute',
-  'InpatientsListRoute',
-  'DoctorPendingLabsRoute',
-  'DoctorPendingImagingRoute',
-  'DoctorPendingPrescriptionsRoute',
-  'DoctorCompletedEncountersRoute',
-  'DoctorTemplatesRoute',
-  'DoctorProfileRoute',
-};
 
 class _SidebarEntryState extends State<_SidebarEntry> {
   bool _hover = false;

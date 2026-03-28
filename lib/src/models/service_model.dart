@@ -10,6 +10,7 @@ class ServiceModel {
     this.departmentId,
     this.departmentName,
     this.qty,
+    this.isRecurringDaily = false,
   });
 
   final String id;
@@ -22,6 +23,7 @@ class ServiceModel {
   final String? departmentName;
   final String serviceId;
   int? qty;
+  final bool isRecurringDaily;
 
   /// helper for debug output
   @override
@@ -31,19 +33,37 @@ class ServiceModel {
   /// (with quantity, priceAtTime, and nested service).
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
     final service = json['service'] as Map<String, dynamic>?;
-    final costValue = json['priceAtTime'] ?? json['cost'];
+    final costValue = json['unitPrice'] ?? json['priceAtTime'] ?? json['cost'];
+    final recurringRaw = json['isRecurringDaily'];
+    final isRecurringDaily =
+        recurringRaw == true ||
+        recurringRaw == 1 ||
+        recurringRaw?.toString().toLowerCase() == 'true';
     final quantity = json['quantity'] ?? json['qty'];
+    final parsedCost = costValue is num
+        ? costValue.toDouble()
+        : double.tryParse(costValue?.toString() ?? '') ?? 0.0;
     return ServiceModel(
       id: json['id']?.toString() ?? '',
       name: (service?['name'] ?? json['name']) as String? ?? '',
       description: (service?['description'] ?? json['description']) as String?,
-      cost: costValue != null ? (costValue as num).toDouble() : 0.0,
-      serviceId: (json['serviceId'] ?? service?['id'] ?? json['searviceCode'] ?? '') as String,
+      cost: parsedCost,
+      serviceId:
+          (json['serviceId'] ?? service?['id'] ?? json['searviceCode'] ?? '')
+              as String,
       categoryId: (service?['categoryId'] ?? json['categoryId']) as String?,
-      categoryName: (service?['category']?['name'] ?? json['category']?['name']) as String?,
-      departmentId: (service?['departmentId'] ?? json['departmentId']) as String?,
-      departmentName: (service?['department']?['name'] ?? json['department']?['name']) as String?,
-      qty: quantity != null ? (quantity is int ? quantity : (quantity as num).toInt()) : null,
+      categoryName:
+          (service?['category']?['name'] ?? json['category']?['name'])
+              as String?,
+      departmentId:
+          (service?['departmentId'] ?? json['departmentId']) as String?,
+      departmentName:
+          (service?['department']?['name'] ?? json['department']?['name'])
+              as String?,
+      qty: quantity != null
+          ? (quantity is int ? quantity : (quantity as num).toInt())
+          : null,
+      isRecurringDaily: isRecurringDaily,
     );
   }
 

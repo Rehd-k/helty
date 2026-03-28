@@ -1,13 +1,20 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
 
 @RoutePage()
 class InpatientVitalsScreen extends StatefulWidget {
-  const InpatientVitalsScreen({super.key});
+  final List<PatientVitalsModel> vitals;
+  final String admissionId;
+  const InpatientVitalsScreen({
+    super.key,
+    required this.vitals,
+    required this.admissionId,
+  });
 
   @override
   State<InpatientVitalsScreen> createState() => _InpatientVitalsScreenState();
@@ -97,7 +104,27 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
                   DataColumn(label: Text('Glucose')),
                   DataColumn(label: Text('Recorded by')),
                 ],
-                rows: const [],
+                rows: widget.vitals
+                    .map(
+                      (v) => DataRow(
+                        cells: [
+                          DataCell(Text(DateFormatter.dateTime(v.createdAt))),
+                          DataCell(Text(v.temperature.toString())),
+                          DataCell(
+                            Text(
+                              '${v.systolic?.toString() ?? '—'}/${v.diastolic?.toString() ?? '—'}',
+                            ),
+                          ),
+                          DataCell(Text(v.pulseRate.toString())),
+                          DataCell(Text(v.respRate?.toString() ?? '—')),
+                          DataCell(Text(v.spo2.toString())),
+                          DataCell(Text(v.painScore ?? '—')),
+                          DataCell(Text(v.bloodGlucose ?? '—')),
+                          DataCell(Text(v.recordedBy ?? '—')),
+                        ],
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ),
@@ -309,11 +336,16 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
       await _waitingService.createPatientVitals(
         CreatePatientVitalsDto(
           waitingPatientId: '',
+          admissionId: widget.admissionId,
           systolic: int.tryParse(_sysCtrl.text),
           diastolic: int.tryParse(_diaCtrl.text),
           temperature: double.tryParse(_tempCtrl.text),
           pulseRate: int.tryParse(_pulseCtrl.text),
+          respRate: int.tryParse(_respCtrl.text),
           spo2: double.tryParse(_spo2Ctrl.text),
+          notes: _notesCtrl.text,
+          bloodGlucose: _glucoseCtrl.text,
+          painScore: _painCtrl.value.toInt().toString(),
         ),
       );
 

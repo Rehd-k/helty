@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'theme_provider.dart';
+import '../providers/theme_mode_provider.dart';
 
-/// A reusable IconButton to toggle between light and dark themes.
-class ThemeSwitchButton extends StatelessWidget {
+/// Cycles Light → Dark → System. Prefer [WindowButtons] theme menu for explicit choice.
+class ThemeSwitchButton extends ConsumerWidget {
   const ThemeSwitchButton({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Watch for changes in the theme state to update the icon.
-    final themeProvider = context.watch<ThemeProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
 
     return InkWell(
-      // Choose icon based on the current theme.
       onTap: () {
-        // Call the toggle function. 'read' is used here because we're
-        // calling a function and don't need to rebuild this specific widget
-        // when the state changes (the parent MaterialApp handles that).
-        context.read<ThemeProvider>().toggleTheme();
+        final next = switch (mode) {
+          ThemeMode.light => ThemeMode.dark,
+          ThemeMode.dark => ThemeMode.system,
+          ThemeMode.system => ThemeMode.light,
+        };
+        ref.read(themeModeProvider.notifier).setThemeMode(next);
       },
-      // Choose icon based on the current theme.
       child: Tooltip(
-        message: 'Toggle Theme',
+        message: 'Cycle theme',
         child: Icon(
-          themeProvider.isDarkMode
-              ? Icons.wb_sunny_outlined
-              : Icons.nightlight_round,
+          switch (mode) {
+            ThemeMode.light => Icons.wb_sunny_outlined,
+            ThemeMode.dark => Icons.nightlight_round,
+            ThemeMode.system => Icons.brightness_auto_outlined,
+          },
           size: 10,
         ),
       ),

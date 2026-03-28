@@ -1,11 +1,4 @@
-enum WardType {
-  general,
-  private,
-  icu,
-  maternity,
-  paediatric,
-  surgical,
-}
+enum WardType { general, private, icu, maternity, paediatric, surgical }
 
 WardType _wardTypeFromJson(String? value) {
   if (value == null) return WardType.general;
@@ -45,12 +38,7 @@ String wardTypeToJson(WardType type) {
   }
 }
 
-enum BedStatus {
-  available,
-  occupied,
-  reserved,
-  outOfService,
-}
+enum BedStatus { available, occupied, reserved, outOfService }
 
 BedStatus _bedStatusFromJson(String? value) {
   if (value == null) return BedStatus.available;
@@ -96,18 +84,18 @@ class Bed {
   final BedStatus status;
 
   factory Bed.fromJson(Map<String, dynamic> json) => Bed(
-        id: json['id']?.toString() ?? '',
-        wardId: json['wardId']?.toString() ?? '',
-        bedNumber: json['bedNumber'] as String? ?? '',
-        status: _bedStatusFromJson(json['status'] as String?),
-      );
+    id: json['id']?.toString() ?? '',
+    wardId: json['wardId']?.toString() ?? '',
+    bedNumber: json['bedNumber'] as String? ?? '',
+    status: _bedStatusFromJson(json['status'] as String?),
+  );
 
   Map<String, dynamic> toJson() => {
-        if (id.isNotEmpty) 'id': id,
-        'wardId': wardId,
-        'bedNumber': bedNumber,
-        'status': bedStatusToJson(status),
-      };
+    if (id.isNotEmpty) 'id': id,
+    'wardId': wardId,
+    'bedNumber': bedNumber,
+    'status': bedStatusToJson(status),
+  };
 }
 
 class InpatientCensus {
@@ -140,9 +128,13 @@ class InpatientCensus {
   }
 
   factory InpatientCensus.fromJson(Map<String, dynamic> json) {
-    final patient = json['patient'] as Map<String, dynamic>?;
-    final ward = json['ward'] as Map<String, dynamic>?;
-    final bed = json['bed'] as Map<String, dynamic>?;
+    final patientRaw = json['patient'];
+    final wardRaw = json['ward'];
+    final bedRaw = json['bed'];
+
+    final patient = patientRaw is Map<String, dynamic> ? patientRaw : null;
+    final ward = wardRaw is Map<String, dynamic> ? wardRaw : null;
+    final bed = bedRaw is Map<String, dynamic> ? bedRaw : null;
 
     final firstName = patient?['firstName'] ?? patient?['firstname'];
     final lastName = patient?['lastName'] ?? patient?['lastname'];
@@ -158,24 +150,24 @@ class InpatientCensus {
             gender.toString().substring(1).toLowerCase(),
     ].join(' • ');
 
-    final wardName = json['wardName'] ??
-        ward?['name'] ??
-        json['ward']?.toString() ??
-        '';
+    final wardName =
+        json['wardName'] ?? ward?['name'] ?? json['ward']?.toString() ?? '';
     final bedLabel =
         json['bedNumber'] ?? bed?['bedNumber'] ?? json['bed']?.toString() ?? '';
 
-    final diagnosis = json['diagnosis'] ??
+    final diagnosis =
+        json['diagnosis'] ??
         json['primaryDiagnosis'] ??
         json['provisionalDiagnosis'] ??
+        json['reason'] ??
         '';
 
-    final daysRaw = json['daysAdmitted'] ??
-        json['lengthOfStay'] ??
-        json['los'] ??
-        0;
+    final daysRaw =
+        json['daysAdmitted'] ?? json['lengthOfStay'] ?? json['los'] ?? 0;
 
-    final days = daysRaw is num ? daysRaw.toInt() : int.tryParse('$daysRaw') ?? 0;
+    final days = daysRaw is num
+        ? daysRaw.toInt()
+        : int.tryParse('$daysRaw') ?? 0;
 
     return InpatientCensus(
       id: json['id']?.toString() ?? '',
@@ -218,8 +210,7 @@ class Ward {
 
   factory Ward.fromJson(Map<String, dynamic> json) {
     final bedsJson = json['beds'];
-    final inpatientsJson =
-        json['activeInpatients'] ?? json['inpatients'] ?? json['admissions'];
+    final inpatientsJson = json['admissions'];
     return Ward(
       id: json['id']?.toString() ?? '',
       name: json['name'] as String? ?? '',
@@ -234,25 +225,24 @@ class Ward {
           : null,
       beds: bedsJson is List
           ? bedsJson
-              .whereType<Map<String, dynamic>>()
-              .map(Bed.fromJson)
-              .toList()
+                .whereType<Map<String, dynamic>>()
+                .map(Bed.fromJson)
+                .toList()
           : const [],
       inpatients: inpatientsJson is List
           ? inpatientsJson
-              .whereType<Map<String, dynamic>>()
-              .map(InpatientCensus.fromJson)
-              .toList()
+                .whereType<Map<String, dynamic>>()
+                .map(InpatientCensus.fromJson)
+                .toList()
           : const [],
     );
   }
 
   Map<String, dynamic> toJson() => {
-        if (id.isNotEmpty) 'id': id,
-        'name': name,
-        'capacity': capacity,
-        'type': wardTypeToJson(type),
-        if (departmentId != null) 'departmentId': departmentId,
-      };
+    if (id.isNotEmpty) 'id': id,
+    'name': name,
+    'capacity': capacity,
+    'type': wardTypeToJson(type),
+    if (departmentId != null) 'departmentId': departmentId,
+  };
 }
-

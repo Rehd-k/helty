@@ -175,11 +175,9 @@ class _PharmacyPOSState extends State<PharmacyPOSScreen> {
 
   void makePayment() {
     // Placeholder for your Payment Module
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Opening Payment Module... (Le module de paiement)'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Opening Payment Module')));
   }
 
   @override

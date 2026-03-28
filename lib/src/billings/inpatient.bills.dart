@@ -2,12 +2,22 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
-import 'package:helty/src/models/invoice.dart';
+import 'package:helty/src/billings/pay.bill.dart';
+import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/models/service_model.dart';
-import 'package:helty/src/providers/invoices_providers.dart';
+import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
+import 'package:helty/src/services/admission_service.dart';
+import 'package:helty/src/services/invoice_service.dart';
+
+/// Backend expects catalog UUID on `serviceId` (not human-readable codes).
+String catalogServiceUuid(ServiceModel s) {
+  final id = s.id.trim();
+  if (id.isNotEmpty) return id;
+  return s.serviceId.trim();
+}
 
 // ==========================================
 // 1. MODELS (Mock Data Structures)
@@ -17,6 +27,9 @@ enum ChargeCategory { daily, pharmacy, lab, radiology, surgery, other }
 
 class ChargeItem {
   final String id;
+
+  /// Invoice line id from API (`invoiceItems[].id`).
+  final String invoiceLineItemId;
   final String description;
   final double amount;
   final DateTime date;
@@ -25,6 +38,7 @@ class ChargeItem {
 
   ChargeItem({
     required this.id,
+    required this.invoiceLineItemId,
     required this.description,
     required this.amount,
     required this.date,
@@ -33,6 +47,35 @@ class ChargeItem {
   });
 
   double get total => amount * quantity;
+}
+
+/// Maps API invoice line items to UI charge buckets: recurring daily first, then lab by category name.
+ChargeCategory _chargeCategoryForBillingItem(BillingInvoiceItem item) {
+  if (item.isRecurringDaily) return ChargeCategory.daily;
+  final name = (item.serviceCategoryName ?? '').trim().toLowerCase();
+  if (name == 'laboratory tests' ||
+      name == 'laboratory' ||
+      name == 'radiology & imaging') {
+    return ChargeCategory.lab;
+  }
+  return ChargeCategory.other;
+}
+
+List<ChargeItem> _chargesFromBillingDetail(BillingInvoiceDetail? inv) {
+  if (inv == null) return [];
+  final created = inv.createdAt ?? DateTime.now();
+  return [
+    for (final item in inv.invoiceItems)
+      ChargeItem(
+        id: '${inv.id}-${item.id}',
+        invoiceLineItemId: item.id,
+        description: item.serviceName ?? item.serviceId,
+        amount: item.unitPrice,
+        quantity: item.quantity,
+        date: created,
+        category: _chargeCategoryForBillingItem(item),
+      ),
+  ];
 }
 
 class PaymentItem {
@@ -57,13 +100,14 @@ class PaymentItem {
 
 @RoutePage()
 class PatientBillingScreen extends ConsumerStatefulWidget {
-  final String patientId;
+  /// Server invoice id; used to load `/invoices/:id` on each visit.
+  final String invoiceId;
   final String patientName;
 
   const PatientBillingScreen({
     super.key,
-    required this.patientId,
-    required this.patientName,
+    required this.invoiceId,
+    this.patientName = '',
   });
 
   @override
@@ -74,14 +118,21 @@ class PatientBillingScreen extends ConsumerStatefulWidget {
 class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final AdmissionService _admissionService = AdmissionService();
+  final InvoiceService _invoiceService = InvoiceService();
 
-  // Payments (no payments in Invoice model; can be extended when API available)
   final List<PaymentItem> _payments = [];
+  BillingInvoiceDetail? _billingDetail;
+  BillingWallet? _wallet;
+  bool _loading = true;
+  String? _loadError;
+  final Set<String> _selectedLineIdsForPay = {};
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadBillingData();
   }
 
   @override
@@ -90,27 +141,124 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     super.dispose();
   }
 
+  Future<void> _loadBillingData() async {
+    final id = widget.invoiceId.trim();
+    if (id.isEmpty) {
+      setState(() {
+        _loading = false;
+        _loadError = 'Missing invoice id';
+        _billingDetail = null;
+        _wallet = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+
+    try {
+      final detail = await _invoiceService.getBillingInvoice(id);
+      BillingWallet? wallet;
+      try {
+        wallet = await _invoiceService.getWallet(detail.patientId);
+      } catch (_) {
+        wallet = null;
+      }
+      if (!mounted) return;
+      setState(() {
+        _billingDetail = detail;
+        _wallet = wallet;
+        _loading = false;
+        _loadError = null;
+        _selectedLineIdsForPay.clear();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _billingDetail = null;
+        _wallet = null;
+        _loading = false;
+        _loadError = e.toString();
+      });
+    }
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  /// Build charge items from invoice items (for display).
-  static List<ChargeItem> _chargesFromInvoices(List<Invoice> invoices) {
-    final list = <ChargeItem>[];
-    for (final inv in invoices) {
-      for (final item in inv.invoiceItems) {
-        final qty = item.qty ?? 1;
-        list.add(ChargeItem(
-          id: '${inv.id}-${item.id}',
-          description: item.name,
-          amount: item.cost,
-          quantity: qty,
-          date: inv.createdAt,
-          category: ChargeCategory.other,
-        ));
-      }
+  ServiceModel _billingItemToServiceModel(BillingInvoiceItem item) {
+    return ServiceModel(
+      id: item.id,
+      serviceId: item.serviceId,
+      name: item.serviceName ?? item.serviceId,
+      cost: item.unitPrice,
+      qty: item.quantity,
+      categoryName: item.serviceCategoryName,
+    );
+  }
+
+  void _openPayBillForItems(List<BillingInvoiceItem> lines) {
+    final detail = _billingDetail;
+    if (detail == null || lines.isEmpty) return;
+    final staff = ref.read(authProvider).staff;
+    if (staff == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in required to take payment')),
+      );
+      return;
     }
-    return list;
+    final allocations = <InvoiceItemAllocationInput>[];
+    for (final line in lines) {
+      final due = line.lineAmountDue;
+      if (due <= 0) continue;
+      allocations.add(
+        InvoiceItemAllocationInput(
+          invoiceItemId: line.id,
+          amount: (due * 100).round() / 100.0,
+        ),
+      );
+    }
+    if (allocations.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nothing due on selected lines')),
+      );
+      return;
+    }
+    final total = allocations.fold(0.0, (s, e) => s + e.amount);
+    final name = widget.patientName.trim().isNotEmpty
+        ? widget.patientName
+        : 'Patient';
+    final models = lines.map(_billingItemToServiceModel).toList();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (ctx) => PayBill(
+        hasId: true,
+        patientId: detail.patientId,
+        firstName: name,
+        selectedItems: models,
+        total: total,
+        staffId: staff.id,
+        isInvoice: true,
+        invoiceId: detail.id,
+        invoiceItemAllocations: allocations,
+        onPaymentComplete: _loadBillingData,
+      ),
+    );
+  }
+
+  BillingInvoiceItem? _billingLineForCharge(
+    ChargeItem charge,
+    BillingInvoiceDetail? detail,
+  ) {
+    if (detail == null) return null;
+    for (final i in detail.invoiceItems) {
+      if (i.id == charge.invoiceLineItemId) return i;
+    }
+    return null;
   }
 
   // --- Actions ---
@@ -134,7 +282,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Text(
                     'Add to bill',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -144,11 +295,18 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 ),
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                    child: Icon(Icons.medication_outlined, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
+                    child: Icon(
+                      Icons.medication_outlined,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
                   ),
                   title: const Text('Add drugs'),
-                  subtitle: const Text('Medicine sales — saved as invoice for patient'),
+                  subtitle: const Text(
+                    'Medicine sales — saved as invoice for patient',
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     context.router.push(
@@ -156,6 +314,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                         patientId: effectivePatientId,
                         patientName: effectivePatientName,
                         id: selectedPatient?.id ?? '',
+                        invoiceId: widget.invoiceId.trim().isEmpty
+                            ? null
+                            : widget.invoiceId.trim(),
+                        staffId: ref.read(authProvider).staff?.id,
                       ),
                     );
                   },
@@ -169,31 +331,43 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                   subtitle: const Text('Add radiology services'),
                   onTap: () {
                     Navigator.pop(context);
-                    context.router.push(EnlistPaitientRoute(serviceName: 'Investigation'));
+                    context.router.push(
+                      EnlistPaitientRoute(serviceName: 'Investigation'),
+                    );
                   },
                 ),
                 ListTile(
                   leading: CircleAvatar(
                     backgroundColor: Colors.teal.shade100,
-                    child: Icon(Icons.science_outlined, color: Colors.teal.shade800),
+                    child: Icon(
+                      Icons.science_outlined,
+                      color: Colors.teal.shade800,
+                    ),
                   ),
                   title: const Text('Labs'),
                   subtitle: const Text('Add laboratory services'),
                   onTap: () {
                     Navigator.pop(context);
-                    context.router.push(EnlistPaitientRoute(serviceName: 'Investigation'));
+                    context.router.push(
+                      EnlistPaitientRoute(serviceName: 'Investigation'),
+                    );
                   },
                 ),
                 ListTile(
                   leading: CircleAvatar(
                     backgroundColor: Colors.orange.shade100,
-                    child: Icon(Icons.receipt_long, color: Colors.orange.shade800),
+                    child: Icon(
+                      Icons.receipt_long,
+                      color: Colors.orange.shade800,
+                    ),
                   ),
                   title: const Text('Add other bills'),
-                  subtitle: const Text('Room charges, daily charges, and other services'),
+                  subtitle: const Text(
+                    'Room charges, daily charges, and other services',
+                  ),
                   onTap: () {
                     Navigator.pop(context);
-                    _showAddOtherBillsModal(context, effectivePatientId);
+                    _showAddOtherBillsModal(context);
                   },
                 ),
               ],
@@ -208,99 +382,43 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
-    final effectivePatientId = widget.patientId.trim().isEmpty
-        ? (selectedPatient?.patientId ?? '')
-        : widget.patientId;
-    final effectivePatientName = widget.patientName.trim().isEmpty
-        ? (selectedPatient != null
-            ? '${selectedPatient.firstName} ${selectedPatient.surname}'
-            : '')
-        : widget.patientName;
+    final detail = _billingDetail;
+    final effectivePatientId =
+        detail?.patientId ??
+        (selectedPatient?.id ?? selectedPatient?.patientId ?? '');
+    final effectivePatientName = widget.patientName.trim().isNotEmpty
+        ? widget.patientName.trim()
+        : (selectedPatient != null
+              ? '${selectedPatient.firstName} ${selectedPatient.surname}'
+              : '');
 
-    final filter = InvoiceFilter(
-      patientId: effectivePatientId.isEmpty ? null : effectivePatientId,
-      limit: 200,
-    );
-    final invoicesAsync = ref.watch(invoicesProvider(filter));
-
-    if (effectivePatientId.isEmpty) {
+    if (_loading) {
       return Scaffold(
         backgroundColor: colorScheme.surfaceContainerLowest,
         appBar: AppBar(
-          title: const Text('Billing Dashboard'),
-          elevation: 0,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.person_outline,
-                size: 64,
-                color: colorScheme.onSurface.withValues(alpha: 0.3),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Select a patient to view billing',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return invoicesAsync.when(
-      data: (invoices) {
-        final charges = _chargesFromInvoices(invoices);
-        final totalCharges =
-            charges.fold(0.0, (sum, item) => sum + item.total);
-        final totalPayments =
-            _payments.fold(0.0, (sum, item) => sum + item.amount);
-        final balanceDue = totalCharges - totalPayments;
-        return _buildContent(
-          context,
-          colorScheme,
-          effectivePatientId: effectivePatientId,
-          effectivePatientName: effectivePatientName,
-          charges: charges,
-          totalCharges: totalCharges,
-          totalPayments: totalPayments,
-          balanceDue: balanceDue,
-        );
-      },
-      loading: () => Scaffold(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Billing Dashboard', style: TextStyle(fontSize: 18)),
-              Text(
-                'Patient ID: $effectivePatientId',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                effectivePatientName,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+          title: const Text(
+            'Billing Dashboard',
+            style: TextStyle(fontSize: 18),
           ),
           elevation: 0,
         ),
         body: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (err, _) => Scaffold(
-        appBar: AppBar(title: const Text('Billing Dashboard')),
+      );
+    }
+
+    if (_loadError != null) {
+      return Scaffold(
+        backgroundColor: colorScheme.surfaceContainerLowest,
+        appBar: AppBar(
+          title: const Text('Billing Dashboard'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadBillingData,
+              tooltip: 'Retry',
+            ),
+          ],
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -309,12 +427,45 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               children: [
                 Icon(Icons.error_outline, size: 48, color: colorScheme.error),
                 const SizedBox(height: 16),
-                Text(err.toString(), textAlign: TextAlign.center),
+                Text(_loadError!, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _loadBillingData,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
               ],
             ),
           ),
         ),
-      ),
+      );
+    }
+
+    final inv = detail;
+    if (inv == null) {
+      return Scaffold(
+        backgroundColor: colorScheme.surfaceContainerLowest,
+        appBar: AppBar(title: const Text('Billing Dashboard')),
+        body: const Center(child: Text('Invoice data unavailable.')),
+      );
+    }
+
+    final charges = _chargesFromBillingDetail(inv);
+    final totalCharges = inv.totalAmount;
+    final totalPayments = inv.amountPaid;
+    final balanceDue = inv.amountDue;
+
+    return _buildContent(
+      context,
+      colorScheme,
+      effectivePatientId: effectivePatientId,
+      effectivePatientName: effectivePatientName,
+      charges: charges,
+      totalCharges: totalCharges,
+      totalPayments: totalPayments,
+      balanceDue: balanceDue,
+      walletBalance: _wallet?.balance ?? 0,
+      invoiceDetail: inv,
     );
   }
 
@@ -327,6 +478,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double totalCharges,
     required double totalPayments,
     required double balanceDue,
+    required double walletBalance,
+    required BillingInvoiceDetail? invoiceDetail,
   }) {
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -353,6 +506,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Reload invoice',
+            onPressed: _loadBillingData,
+          ),
+          IconButton(
             icon: const Icon(Icons.print_outlined),
             tooltip: 'Print Invoice',
             onPressed: () {},
@@ -374,34 +532,106 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             balanceDue: balanceDue,
             totalCharges: totalCharges,
             totalPayments: totalPayments,
+            walletBalance: walletBalance,
           ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildChargesTab(colorScheme, charges),
-                _buildPaymentsTab(colorScheme),
+                _buildChargesTab(colorScheme, charges, invoiceDetail),
+                _buildPaymentsTab(colorScheme, invoiceDetail),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddActionSheet(
-          context,
-          effectivePatientId,
-          effectivePatientName,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: () => _showAddActionSheet(
+                  context,
+                  effectivePatientId,
+                  effectivePatientName,
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Service'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: invoiceDetail == null
+                    ? null
+                    : () {
+                        final lines = _selectedLineIdsForPay.isEmpty
+                            ? invoiceDetail.invoiceItems.toList()
+                            : invoiceDetail.invoiceItems
+                                  .where(
+                                    (e) =>
+                                        _selectedLineIdsForPay.contains(e.id),
+                                  )
+                                  .toList();
+                        if (lines.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('No bill lines to pay'),
+                            ),
+                          );
+                          return;
+                        }
+                        _openPayBillForItems(lines);
+                      },
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: Text(
+                  _selectedLineIdsForPay.isEmpty
+                      ? 'Pay bill (all)'
+                      : 'Pay selected (${_selectedLineIdsForPay.length})',
+                ),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: effectivePatientId.isEmpty
+                    ? null
+                    : () =>
+                          _showWalletDepositDialog(context, effectivePatientId),
+                icon: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 18,
+                ),
+                label: const Text('Deposit Wallet'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed:
+                    invoiceDetail == null ||
+                        invoiceDetail.invoiceItems
+                            .where((e) => e.isRecurringDaily)
+                            .isEmpty
+                    ? null
+                    : () => _showRecurringControlDialog(context, invoiceDetail),
+                icon: const Icon(Icons.pause_circle_outline, size: 18),
+                label: const Text('Pause/Resume'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: () => _showDischargeDialog(
+                  context,
+                  effectivePatientId,
+                  effectivePatientName,
+                ),
+                icon: const Icon(Icons.logout, size: 18),
+                label: const Text('Discharge'),
+              ),
+            ],
+          ),
         ),
-        icon: const Icon(Icons.add),
-        label: const Text('Add'),
       ),
     );
   }
 
-  void _showAddOtherBillsModal(
-    BuildContext context,
-    String patientId,
-  ) {
+  void _showAddOtherBillsModal(BuildContext context) {
+    final invoiceId = widget.invoiceId.trim();
+    if (invoiceId.isEmpty) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -410,11 +640,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => _AddOtherBillsSheet(
-        patientId: patientId,
+        invoiceId: invoiceId,
+        invoiceService: _invoiceService,
         onClose: () => Navigator.pop(ctx),
         onAdded: () {
-          ref.invalidate(invoicesProvider);
           Navigator.pop(ctx);
+          _loadBillingData();
         },
       ),
     );
@@ -429,6 +660,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double balanceDue,
     required double totalCharges,
     required double totalPayments,
+    required double walletBalance,
   }) {
     final bool isPaidOff = balanceDue <= 0;
 
@@ -531,6 +763,27 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Wallet Balance:',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        walletBalance.toFinancial(isMoney: true),
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -540,7 +793,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     );
   }
 
-  Widget _buildChargesTab(ColorScheme colorScheme, List<ChargeItem> charges) {
+  Widget _buildChargesTab(
+    ColorScheme colorScheme,
+    List<ChargeItem> charges,
+    BillingInvoiceDetail? detail,
+  ) {
     // Group charges by Category
     final groupedCharges = <ChargeCategory, List<ChargeItem>>{};
     for (var charge in charges) {
@@ -551,28 +808,41 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       padding: const EdgeInsets.all(16),
       children: [
         _buildSectionHeader('Compulsory & Daily Charges'),
-        _buildChargeGroup(colorScheme, groupedCharges[ChargeCategory.daily] ?? []),
+        _buildChargeGroup(
+          colorScheme,
+          groupedCharges[ChargeCategory.daily] ?? [],
+          detail,
+        ),
         const SizedBox(height: 24),
 
         _buildSectionHeader('Pharmacy & Medications'),
-        _buildChargeGroup(colorScheme, groupedCharges[ChargeCategory.pharmacy] ?? []),
+        _buildChargeGroup(
+          colorScheme,
+          groupedCharges[ChargeCategory.pharmacy] ?? [],
+          detail,
+        ),
         const SizedBox(height: 24),
 
         _buildSectionHeader('Laboratory & Diagnostics'),
+        _buildChargeGroup(colorScheme, [
+          ...?groupedCharges[ChargeCategory.lab],
+          ...?groupedCharges[ChargeCategory.radiology],
+        ], detail),
+        _buildSectionHeader('Other'),
         _buildChargeGroup(
           colorScheme,
-          [
-            ...?groupedCharges[ChargeCategory.lab],
-            ...?groupedCharges[ChargeCategory.radiology],
-          ],
+          groupedCharges[ChargeCategory.other] ?? [],
+          detail,
         ),
-        _buildSectionHeader('Other'),
-        _buildChargeGroup(colorScheme, groupedCharges[ChargeCategory.other] ?? []),
       ],
     );
   }
 
-  Widget _buildChargeGroup(ColorScheme colorScheme, List<ChargeItem> items) {
+  Widget _buildChargeGroup(
+    ColorScheme colorScheme,
+    List<ChargeItem> items,
+    BillingInvoiceDetail? detail,
+  ) {
     if (items.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -596,10 +866,28 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         separatorBuilder: (context, index) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final item = items[index];
+          final line = _billingLineForCharge(item, detail);
+          final selected = _selectedLineIdsForPay.contains(
+            item.invoiceLineItemId,
+          );
           return ListTile(
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
+              horizontal: 8,
               vertical: 4,
+            ),
+            leading: Checkbox(
+              value: selected,
+              onChanged: detail == null
+                  ? null
+                  : (v) {
+                      setState(() {
+                        if (v == true) {
+                          _selectedLineIdsForPay.add(item.invoiceLineItemId);
+                        } else {
+                          _selectedLineIdsForPay.remove(item.invoiceLineItemId);
+                        }
+                      });
+                    },
             ),
             title: Text(
               item.description,
@@ -620,22 +908,37 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 ],
               ],
             ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  item.total.toFinancial(isMoney: true),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      item.total.toFinancial(isMoney: true),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (item.quantity > 1)
+                      Text(
+                        '${item.amount.toFinancial(isMoney: true)} each',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
+                  ],
                 ),
-                if (item.quantity > 1)
-                  Text(
-                    '${item.amount.toFinancial(isMoney: true)} each',
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  ),
+                IconButton(
+                  tooltip: 'Pay this line',
+                  icon: const Icon(Icons.payment_outlined, size: 22),
+                  onPressed: line == null
+                      ? null
+                      : () => _openPayBillForItems([line]),
+                ),
               ],
             ),
           );
@@ -644,16 +947,25 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     );
   }
 
-  Widget _buildPaymentsTab(ColorScheme colorScheme) {
-    if (_payments.isEmpty) {
+  Widget _buildPaymentsTab(
+    ColorScheme colorScheme,
+    BillingInvoiceDetail? invoiceDetail,
+  ) {
+    final detailPayments =
+        invoiceDetail?.payments ?? const <BillingInvoicePayment>[];
+    if (_payments.isEmpty && detailPayments.isEmpty) {
       return const Center(child: Text('No payments recorded yet.'));
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _payments.length,
+      itemCount: _payments.length + detailPayments.length,
       itemBuilder: (context, index) {
-        final payment = _payments[index];
+        final hasLegacy = index < _payments.length;
+        final payment = hasLegacy ? _payments[index] : null;
+        final detail = hasLegacy
+            ? null
+            : detailPayments[index - _payments.length];
         return Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
@@ -668,12 +980,20 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               child: Icon(Icons.check_circle, color: Colors.green),
             ),
             title: Text(
-              'Receipt: ${payment.receiptNumber}',
+              hasLegacy
+                  ? 'Receipt: ${payment!.receiptNumber}'
+                  : 'Invoice payment',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text('${_formatDate(payment.date)} • ${payment.method}'),
+            subtitle: Text(
+              hasLegacy
+                  ? '${_formatDate(payment!.date)} • ${payment.method}'
+                  : '${_formatDate(detail!.createdAt ?? DateTime.now())} • ${detail.source}',
+            ),
             trailing: Text(
-              payment.amount.toFinancial(isMoney: true),
+              (hasLegacy ? payment!.amount : detail!.amount).toFinancial(
+                isMoney: true,
+              ),
               style: const TextStyle(
                 color: Colors.green,
                 fontWeight: FontWeight.bold,
@@ -684,6 +1004,176 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         );
       },
     );
+  }
+
+  Future<void> _showWalletDepositDialog(
+    BuildContext context,
+    String patientId,
+  ) async {
+    final amountCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Deposit wallet'),
+        content: TextField(
+          controller: amountCtrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Amount'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Deposit'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final amount = double.tryParse(amountCtrl.text) ?? 0;
+    if (amount <= 0) return;
+    try {
+      await _invoiceService.depositToWallet(
+        patientId: patientId,
+        payload: WalletDepositPayload(amount: amount, reference: 'deposit'),
+      );
+      if (!mounted) return;
+      await _loadBillingData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        this.context,
+      ).showSnackBar(const SnackBar(content: Text('Wallet funded')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        this.context,
+      ).showSnackBar(SnackBar(content: Text('Deposit failed: $e')));
+    }
+  }
+
+  Future<void> _showRecurringControlDialog(
+    BuildContext context,
+    BillingInvoiceDetail invoice,
+  ) async {
+    final recurringItems = invoice.invoiceItems.where(
+      (e) => e.isRecurringDaily,
+    );
+    final item = recurringItems.first;
+    final isActive = item.usageSegments.any((e) => e.isActive);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          isActive ? 'Pause recurring item' : 'Resume recurring item',
+        ),
+        content: Text(
+          '${item.serviceName ?? item.serviceId} will be ${isActive ? 'paused' : 'resumed'}.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isActive ? 'Pause' : 'Resume'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      if (isActive) {
+        await _invoiceService.pauseRecurringItem(
+          invoiceId: invoice.id,
+          itemId: item.id,
+        );
+      } else {
+        await _invoiceService.resumeRecurringItem(
+          invoiceId: invoice.id,
+          itemId: item.id,
+        );
+      }
+      if (!mounted) return;
+      await _loadBillingData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isActive ? 'Recurring item paused' : 'Recurring item resumed',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(content: Text('Unable to update recurring item: $e')),
+      );
+    }
+  }
+
+  Future<void> _showDischargeDialog(
+    BuildContext context,
+    String patientId,
+    String patientName,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discharge patient'),
+        content: const Text(
+          'This will attempt discharge now. If invoice is unpaid, discharge is blocked.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Discharge'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final admissionId = _billingDetail?.encounterId;
+    if (admissionId == null || admissionId.isEmpty) {
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Admission ID unavailable here. Open from inpatient view.',
+          ),
+        ),
+      );
+      return;
+    }
+    try {
+      await _admissionService.dischargeAdmission(admissionId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        const SnackBar(content: Text('Patient discharged successfully')),
+      );
+    } on AdmissionDischargeBlockedException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+      final invId = _billingDetail?.id ?? widget.invoiceId;
+      if (invId.isNotEmpty) {
+        this.context.router.push(
+          PatientBillingRoute(invoiceId: invId, patientName: patientName),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        this.context,
+      ).showSnackBar(SnackBar(content: Text('Discharge failed: $e')));
+    }
   }
 
   Widget _buildSectionHeader(String title) {
@@ -708,17 +1198,20 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
 
 class _AddOtherBillsSheet extends ConsumerStatefulWidget {
   const _AddOtherBillsSheet({
-    required this.patientId,
+    required this.invoiceId,
+    required this.invoiceService,
     required this.onClose,
     required this.onAdded,
   });
 
-  final String patientId;
+  final String invoiceId;
+  final InvoiceService invoiceService;
   final VoidCallback onClose;
   final VoidCallback onAdded;
 
   @override
-  ConsumerState<_AddOtherBillsSheet> createState() => _AddOtherBillsSheetState();
+  ConsumerState<_AddOtherBillsSheet> createState() =>
+      _AddOtherBillsSheetState();
 }
 
 class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
@@ -734,7 +1227,9 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final servicesAsync = ref.watch(serviceListProvider(_query.isEmpty ? null : _query));
+    final servicesAsync = ref.watch(
+      serviceListProvider(_query.isEmpty ? null : _query),
+    );
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -787,7 +1282,9 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
                         _query.isEmpty
                             ? 'Enter a search term to find services'
                             : 'No services found',
-                        style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                        style: TextStyle(
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
                       ),
                     );
                   }
@@ -802,8 +1299,15 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
                         child: ListTile(
                           title: Text(service.name),
                           subtitle: Text(
-                            service.categoryName ?? service.departmentName ?? 'Service',
-                            style: TextStyle(fontSize: 12, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                            service.categoryName ??
+                                service.departmentName ??
+                                'Service',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
                           ),
                           trailing: Text(
                             service.cost.toFinancial(isMoney: true),
@@ -837,68 +1341,126 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
     );
   }
 
-  Future<void> _addServiceToInvoice(BuildContext context, ServiceModel service) async {
+  Future<void> _addServiceToInvoice(
+    BuildContext context,
+    ServiceModel service,
+  ) async {
+    String fmtDay(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
     final qtyCtrl = TextEditingController(text: '1');
-    final qty = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(service.name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Price: ${service.cost.toFinancial(isMoney: true)}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: qtyCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Quantity',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final n = int.tryParse(qtyCtrl.text);
-              Navigator.pop(ctx, n != null && n > 0 ? n : 1);
+    var recurring = false;
+    var startDay = DateUtils.dateOnly(DateTime.now());
+    final result =
+        await showDialog<({int qty, bool recurring, DateTime? start})>(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (context, setLocal) {
+              return AlertDialog(
+                title: Text(service.name),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Price: ${service.cost.toFinancial(isMoney: true)}'),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: qtyCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Quantity',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Recurring daily'),
+                        value: recurring,
+                        onChanged: (v) => setLocal(() => recurring = v),
+                      ),
+                      if (recurring)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Start date'),
+                          subtitle: Text(fmtDay(startDay)),
+                          trailing: const Icon(Icons.calendar_today_outlined),
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: startDay,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setLocal(
+                                () => startDay = DateUtils.dateOnly(picked),
+                              );
+                            }
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final n = int.tryParse(qtyCtrl.text);
+                      final q = n != null && n > 0 ? n : 1;
+                      Navigator.pop(ctx, (
+                        qty: q,
+                        recurring: recurring,
+                        start: recurring ? startDay : null,
+                      ));
+                    },
+                    child: const Text('Add to bill'),
+                  ),
+                ],
+              );
             },
-            child: const Text('Add to bill'),
           ),
-        ],
-      ),
-    );
+        );
     qtyCtrl.dispose();
-    if (qty == null || !mounted) return;
+    if (result == null || !mounted) return;
+    final serviceUuid = catalogServiceUuid(service);
+    if (serviceUuid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Service has no valid id — cannot add to invoice'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     try {
-      final notifier = ref.read(invoiceNotifierProvider.notifier);
-      await notifier.create(
-        patientId: widget.patientId,
-        status: 'PENDING',
-        items: [
-          {
-            'serviceId': service.serviceId,
-            'quantity': qty,
-            'priceAtTime': service.cost,
-          },
-        ],
+      await widget.invoiceService.addBillingItem(
+        invoiceId: widget.invoiceId,
+        payload: AddInvoiceItemPayload(
+          serviceId: serviceUuid,
+          unitPrice: service.cost,
+          quantity: result.qty,
+          isRecurringDaily: result.recurring,
+          startedAt: result.start,
+        ),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Added ${service.name} x$qty to bill')),
+          SnackBar(
+            content: Text('Added ${service.name} x${result.qty} to bill'),
+          ),
         );
         widget.onAdded();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed to add: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

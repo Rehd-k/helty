@@ -57,6 +57,9 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   List<Manufacturer> _manufacturers = [];
   List<Supplier> _suppliers = [];
   bool _filtersLoaded = false;
+  final Map<String, List<DrugLocationQuantity>> _drugLocationQuantities = {};
+  final Set<String> _loadingDrugLocationIds = {};
+  final Map<String, String> _drugLocationErrors = {};
 
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
@@ -162,6 +165,9 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
           _selectedDrug = _drugs.first;
         }
       });
+      if (_selectedDrug?.id != null) {
+        await _fetchDrugLocationQuantities(_selectedDrug!.id!);
+      }
     } on AppException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
@@ -185,6 +191,48 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       _currentPage = newPage;
     });
     _fetchData();
+  }
+
+  Future<void> _fetchDrugLocationQuantities(String drugId) async {
+    if (drugId.trim().isEmpty) return;
+    if (_loadingDrugLocationIds.contains(drugId)) return;
+
+    setState(() {
+      _loadingDrugLocationIds.add(drugId);
+      _drugLocationErrors.remove(drugId);
+    });
+
+    try {
+      final locations = await _drugService.getDrugLocationQuantities(drugId);
+      if (!mounted) return;
+      setState(() {
+        _drugLocationQuantities[drugId] = locations;
+      });
+    } on AppException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _drugLocationErrors[drugId] = e.message;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _drugLocationErrors[drugId] = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingDrugLocationIds.remove(drugId);
+        });
+      }
+    }
+  }
+
+  void _selectDrug(Drug drug) {
+    setState(() => _selectedDrug = drug);
+    final id = drug.id;
+    if (id != null && id.isNotEmpty) {
+      _fetchDrugLocationQuantities(id);
+    }
   }
 
   @override
@@ -543,7 +591,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                   selected: isSelected,
                   onSelectChanged: (selected) {
                     if (selected != null && selected) {
-                      setState(() => _selectedDrug = drug);
+                      _selectDrug(drug);
                     }
                   },
                   color: WidgetStateProperty.resolveWith<Color?>((
@@ -911,9 +959,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
 
           // Locations Card
           _buildInfoCard(theme, 'Stock Locations', Icons.storefront_outlined, [
-            _buildLocationRow('Main Pharmacy (Front)', 45),
-            const Divider(),
-            _buildLocationRow('Storage Room B', 75),
+            ..._buildStockLocationChildren(theme, drug),
           ]),
           const SizedBox(height: 24),
           // Order button
@@ -1045,6 +1091,63 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildStockLocationChildren(ThemeData theme, Drug drug) {
+    final id = drug.id;
+    if (id == null || id.isEmpty) {
+      return [
+        Text(
+          'No stock locations available.',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      ];
+    }
+
+    if (_loadingDrugLocationIds.contains(id)) {
+      return const [
+        Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    final error = _drugLocationErrors[id];
+    if (error != null && error.isNotEmpty) {
+      return [
+        Text(
+          error,
+          style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+        ),
+      ];
+    }
+
+    final locations = _drugLocationQuantities[id] ?? const <DrugLocationQuantity>[];
+    if (locations.isEmpty) {
+      return [
+        Text(
+          'No stock locations available.',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      ];
+    }
+
+    final rows = <Widget>[];
+    for (var i = 0; i < locations.length; i++) {
+      final loc = locations[i];
+      rows.add(_buildLocationRow(loc.locationName, loc.quantity));
+      if (i < locations.length - 1) {
+        rows.add(const Divider());
+      }
+    }
+    return rows;
   }
 
   void _showAddMedicineModal(BuildContext context, ThemeData theme) {

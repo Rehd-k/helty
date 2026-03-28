@@ -1,60 +1,192 @@
+import '../paitients/patient_model.dart';
+import 'patient_vitals_model.dart';
+
+/// Inpatient admission as returned by GET/POST/PATCH `/admissions`.
 class AdmissionModel {
   const AdmissionModel({
     required this.id,
     required this.patientId,
-    required this.encounterId,
+    required this.patient,
+    this.encounterId,
+    this.patientVitals = const [],
+    this.admissionDate,
+    this.dischargeDate,
+    this.admissionDateTime,
+    this.dischargeDateTime,
+    this.room,
     this.reason,
+    this.admissionReason,
+    this.admissionType,
     this.ward,
     this.wardId,
+    this.bedId,
+
+    /// Bed label for UI (from nested `bed.bedNumber` or legacy `bedPreference`).
     this.bedPreference,
+    this.primaryDiagnosis,
     this.provisionalDiagnosis,
     this.expectedLOS,
     this.isolationRequired = false,
     this.specialInstructions,
     required this.status,
     this.attendingDoctorId,
+    this.admittedByDoctorId,
+    this.createdById,
+    this.updatedById,
+    this.dischargeSummary,
+    this.outcome,
     this.createdAt,
     this.updatedAt,
+    this.wardEntity,
+    this.bed,
+    this.encounter,
   });
 
   final String id;
   final String patientId;
-  final String encounterId;
+
+  /// Present on create-from-encounter flows; may be absent when `encounter` is null.
+  final String? encounterId;
+
+  final Patient patient;
+  final List<PatientVitalsModel> patientVitals;
+
+  final DateTime? admissionDate;
+  final DateTime? dischargeDate;
+  final DateTime? admissionDateTime;
+  final DateTime? dischargeDateTime;
+
+  final String? room;
   final String? reason;
+  final String? admissionReason;
+  final String? admissionType;
+
   final String? ward;
   final String? wardId;
+  final String? bedId;
   final String? bedPreference;
+
+  final String? primaryDiagnosis;
+
+  /// Kept for screens that predate `primaryDiagnosis`; filled from API in [fromJson].
   final String? provisionalDiagnosis;
+
   final String? expectedLOS;
   final bool isolationRequired;
   final String? specialInstructions;
+
   final String status;
+
   final String? attendingDoctorId;
+  final String? admittedByDoctorId;
+  final String? createdById;
+  final String? updatedById;
+
+  final String? dischargeSummary;
+  final String? outcome;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// Raw `wardEntity` object when included (id, name, capacity, type, …).
+  final Map<String, dynamic>? wardEntity;
+
+  /// Raw `bed` object when included (id, bedNumber, wardId, …).
+  final Map<String, dynamic>? bed;
+
+  /// Raw `encounter` when included (often null after admission is persisted).
+  final Map<String, dynamic>? encounter;
+
+  /// Best display date for “admitted on” UIs.
+  DateTime? get displayAdmissionInstant =>
+      admissionDateTime ?? admissionDate ?? createdAt;
+
   factory AdmissionModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
+
+    final patientRaw = json['patient'];
+    if (patientRaw is! Map) {
+      throw StateError('Admission JSON missing `patient` map');
+    }
+    final patientMap = Map<String, dynamic>.from(patientRaw);
+
+    final bedRaw = json['bed'];
+    final bedMap = bedRaw is Map ? Map<String, dynamic>.from(bedRaw) : null;
+
+    final wardEntityRaw = json['wardEntity'];
+    final wardEntityMap = wardEntityRaw is Map
+        ? Map<String, dynamic>.from(wardEntityRaw)
+        : null;
+
+    final encounterRaw = json['encounter'];
+    final encounterMap = encounterRaw is Map
+        ? Map<String, dynamic>.from(encounterRaw)
+        : null;
+
+    final encounterIdFromJson = json['encounterId']?.toString();
+    final encounterIdNested = encounterMap?['id']?.toString();
+    final encounterId =
+        (encounterIdFromJson != null && encounterIdFromJson.isNotEmpty)
+        ? encounterIdFromJson
+        : encounterIdNested;
+
+    final primaryDiagnosis = json['primaryDiagnosis']?.toString();
+    final provisionalFromJson = json['provisionalDiagnosis']?.toString();
+    final provisionalDiagnosis = provisionalFromJson ?? primaryDiagnosis;
+
+    final vitalsList = json['patientVitals'];
+    final patientVitals = vitalsList is List
+        ? vitalsList
+              .whereType<Map>()
+              .map(
+                (v) =>
+                    PatientVitalsModel.fromJson(Map<String, dynamic>.from(v)),
+              )
+              .toList()
+        : <PatientVitalsModel>[];
+
+    DateTime? parseDt(dynamic v) {
+      if (v == null) return null;
+      return DateTime.tryParse(v.toString());
+    }
+
+    final bedNumberFromNested = bedMap?['bedNumber']?.toString();
+
     return AdmissionModel(
       id: str(json['id']),
       patientId: str(json['patientId']),
-      encounterId: str(json['encounterId']),
+      encounterId: encounterId,
+      patient: Patient.fromJson(patientMap),
+      patientVitals: patientVitals,
+      admissionDate: parseDt(json['admissionDate']),
+      dischargeDate: parseDt(json['dischargeDate']),
+      admissionDateTime: parseDt(json['admissionDateTime']),
+      dischargeDateTime: parseDt(json['dischargeDateTime']),
+      room: json['room']?.toString(),
       reason: json['reason']?.toString(),
+      admissionReason: json['admissionReason']?.toString(),
+      admissionType: json['admissionType']?.toString(),
       ward: json['ward']?.toString(),
       wardId: json['wardId']?.toString(),
-      bedPreference: json['bedPreference']?.toString(),
-      provisionalDiagnosis: json['provisionalDiagnosis']?.toString(),
+      bedId: json['bedId']?.toString() ?? bedMap?['id']?.toString(),
+      bedPreference: bedNumberFromNested ?? json['bedPreference']?.toString(),
+      primaryDiagnosis: primaryDiagnosis,
+      provisionalDiagnosis: provisionalDiagnosis,
       expectedLOS: json['expectedLOS']?.toString(),
       isolationRequired: json['isolationRequired'] == true,
       specialInstructions: json['specialInstructions']?.toString(),
       status: (json['status']?.toString()) ?? 'Pending',
       attendingDoctorId: json['attendingDoctorId']?.toString(),
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString())
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.tryParse(json['updatedAt'].toString())
-          : null,
+      admittedByDoctorId: json['admittedByDoctorId']?.toString(),
+      createdById: json['createdById']?.toString(),
+      updatedById: json['updatedById']?.toString(),
+      dischargeSummary: json['dischargeSummary']?.toString(),
+      outcome: json['outcome']?.toString(),
+      createdAt: parseDt(json['createdAt']),
+      updatedAt: parseDt(json['updatedAt']),
+      wardEntity: wardEntityMap,
+      bed: bedMap,
+      encounter: encounterMap,
     );
   }
 }

@@ -66,7 +66,6 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
   void _openInpatientView(AdmissionModel admission) {
     context.router.push(
       InpatientPatientViewRoute(
-        patientId: admission.patientId,
         admissionId: admission.id,
         ward: admission.ward,
         bedNumber: admission.bedPreference,

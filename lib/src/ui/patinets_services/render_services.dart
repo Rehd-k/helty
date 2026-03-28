@@ -5,6 +5,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/invoice.dart';
+import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
@@ -15,6 +17,7 @@ import '../../enlist_services/selected.user.dart';
 import '../../models/service_category_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/department_service.dart';
+import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
 import '../../services/service_service.dart';
 
@@ -163,13 +166,16 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       } else {
         _selectedItems.add(
           ServiceModel(
+            id: item.id,
             serviceId: item.serviceId,
             name: item.name,
             description: item.description,
             categoryId: item.categoryId,
+            categoryName: item.categoryName,
+            departmentId: item.departmentId,
+            departmentName: item.departmentName,
             cost: item.cost,
             qty: 1,
-            id: 'uhi',
           ),
         );
       }
@@ -201,7 +207,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     if (selected != null) {
       setState(() {
         noIdPatient = {
-          'id': selected.patientId,
+          if (selected.id != null && selected.id!.trim().isNotEmpty)
+            'id': selected.id,
+          'patientId': selected.patientId,
           'firstName': selected.firstName,
         };
       });
@@ -957,53 +965,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     color: Theme.of(context).primaryColor,
                   ),
                 ),
-                auth.staff!.accountType?.name == 'bills'
-                    ? ElevatedButton(
-                        onPressed: () {
-                          _openPaymentModal(
-                            context,
-                            selectedPatient,
-                            noIdPatient,
-                            _selectedItems,
-                            _totalDue,
-                            auth.staff!.id,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(40),
-                          ),
-                        ),
-                        child: const Text(
-                          "Pay",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    : ElevatedButton(
-                        onPressed: () {
-                          if (_selectedItems.isNotEmpty) {
-                            _handleSendToBill();
-                            _emptySelection();
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(40),
-                          ),
-                        ),
-                        child: const Text(
-                          "Send To Bills",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                _footerCheckoutButton(
+                  auth: auth,
+                  selectedPatient: selectedPatient,
+                  noIdPatient: noIdPatient,
+                ),
               ],
             ),
           ),
@@ -1015,23 +981,156 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // =========================================================================
   // SHARED HELPERS
   // =========================================================================
-  void _handleSendToBill() {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (context) => Center(
-        child: SizedBox(
-          width: 300,
-          height: 300,
-          child: Card.outlined(
-            child: const Padding(
-              padding: EdgeInsets.all(20),
-              child: Center(child: Text('Sent to Bill')),
-            ),
+  Widget _footerCheckoutButton({
+    required AuthState auth,
+    required Patient? selectedPatient,
+    required Map<String, dynamic> noIdPatient,
+  }) {
+    final staff = auth.staff;
+    if (staff == null) {
+      return const SizedBox.shrink();
+    }
+    final isBillsRole = staff.accountType?.name == 'bills';
+    final admitted =
+        selectedPatient != null &&
+        patientStatusIsAdmitted(selectedPatient.status);
+    final usePayBill = isBillsRole && !admitted && noIdPatient.isEmpty;
+
+    if (usePayBill) {
+      return ElevatedButton(
+        onPressed: () {
+          _openPaymentModal(
+            context,
+            selectedPatient,
+            noIdPatient,
+            _selectedItems,
+            _totalDue,
+            staff.id,
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(40),
           ),
         ),
+        child: const Text(
+          'Pay',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
+
+    return ElevatedButton(
+      onPressed: _selectedItems.isEmpty
+          ? null
+          : () => _handleSendToBill(
+              selectedPatient: selectedPatient,
+              noIdPatient: noIdPatient,
+            ),
+      style: ElevatedButton.styleFrom(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+      ),
+      child: const Text(
+        'Send To Bills',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     );
+  }
+
+  /// Backend `/invoices` routes expect the patient's internal UUID, not the display `patientId`.
+  static bool _looksLikeUuid(String s) {
+    final t = s.trim();
+    return RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    ).hasMatch(t);
+  }
+
+  static String? _resolvePatientUuidForInvoice({
+    required Patient? selectedPatient,
+    required Map<String, dynamic> noIdPatient,
+  }) {
+    if (noIdPatient.isNotEmpty) {
+      for (final key in ['id', 'patientUuid', 'uuid']) {
+        final v = noIdPatient[key]?.toString().trim() ?? '';
+        if (_looksLikeUuid(v)) return v;
+      }
+      return null;
+    }
+    final id = selectedPatient?.id?.trim() ?? '';
+    return _looksLikeUuid(id) ? id : null;
+  }
+
+  /// Prefer a non-terminal invoice; do not attach lines to paid/cancelled bills from this flow.
+  static Invoice? _pickOpenInvoice(List<Invoice> list) {
+    if (list.isEmpty) return null;
+    bool isOpen(Invoice i) {
+      final s = i.status.toUpperCase();
+      return s != 'PAID' &&
+          s != 'FULLY_PAID' &&
+          s != 'CANCELLED' &&
+          s != 'VOID';
+    }
+
+    final open = list.where(isOpen).toList();
+    if (open.isEmpty) return null;
+    open.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return open.first;
+  }
+
+  Future<void> _handleSendToBill({
+    required Patient? selectedPatient,
+    required Map<String, dynamic> noIdPatient,
+  }) async {
+    if (_selectedItems.isEmpty) return;
+    final patientUuid = _resolvePatientUuidForInvoice(
+      selectedPatient: selectedPatient,
+      noIdPatient: noIdPatient,
+    );
+    if (patientUuid == null) {
+      _snack(
+        'Cannot add to bill: patient needs a server id (UUID). '
+        'Use a registered patient, or open billing from Inpatient Bills.',
+      );
+      return;
+    }
+    try {
+      final svc = InvoiceService();
+      final list = await svc.getPatientInvoices(patientUuid);
+      if (list.isEmpty) {
+        _snack(
+          'No invoice found for this patient. Open Inpatient Bills and start billing there first.',
+        );
+        return;
+      }
+      final invoice = _pickOpenInvoice(list);
+      if (invoice == null) {
+        _snack(
+          'No open invoice for this patient (only paid or closed bills). '
+          'Use Inpatient Bills if a new admission invoice is needed.',
+        );
+        return;
+      }
+      for (final line in _selectedItems) {
+        final sid = line.id.trim().isNotEmpty ? line.id : line.serviceId;
+        if (sid.isEmpty) continue;
+        await svc.addBillingItem(
+          invoiceId: invoice.id,
+          payload: AddInvoiceItemPayload(
+            serviceId: sid,
+            unitPrice: line.cost,
+            quantity: line.qty ?? 1,
+          ),
+        );
+      }
+      if (!mounted) return;
+      _emptySelection();
+      _snack('Services added to patient invoice.');
+    } catch (e) {
+      _snack('Failed to add to bill: $e');
+    }
   }
 
   Widget _headerCell(String title, {required int flex}) {

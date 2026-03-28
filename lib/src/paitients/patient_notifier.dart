@@ -9,6 +9,10 @@ class PatientNotifier extends StateNotifier<PatientState> {
 
   PatientNotifier(this.service) : super(const PatientState());
 
+  void setListStatusFilter(PatientListStatusFilter filter) {
+    state = state.copyWith(listStatusFilter: filter);
+  }
+
   Future<void> fetchPatients({String? query, bool isAscending = true}) async {
     state = state.copyWith(isLoading: true);
 
@@ -22,6 +26,7 @@ class PatientNotifier extends StateNotifier<PatientState> {
         toDate: state.toDate,
         sortBy: state.sortBy,
         isAscending: state.isAscending,
+        listStatusFilter: state.listStatusFilter,
       );
 
       state = state.copyWith(isLoading: false, patients: data);
@@ -46,6 +51,7 @@ class PatientNotifier extends StateNotifier<PatientState> {
         toDate: state.toDate,
         sortBy: state.sortBy,
         isAscending: state.isAscending,
+        listStatusFilter: state.listStatusFilter,
       );
 
       state = state.copyWith(isLoading: false, patients: data);

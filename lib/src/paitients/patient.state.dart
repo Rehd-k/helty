@@ -14,6 +14,7 @@ class PatientState {
   final String? sortBy;
   final bool isAscending;
   final Patient? selectedPatient;
+  final PatientListStatusFilter listStatusFilter;
 
   const PatientState({
     this.isLoading = false,
@@ -28,6 +29,7 @@ class PatientState {
     this.sortBy,
     this.isAscending = false,
     this.selectedPatient,
+    this.listStatusFilter = PatientListStatusFilter.none,
   });
 
   /// Sentinel value used to distinguish "clear selected patient" from "keep existing".
@@ -47,6 +49,7 @@ class PatientState {
     bool? isAscending,
     // Use Object? so callers can pass null intentionally to clear the field.
     Object? selectedPatient = _unset,
+    PatientListStatusFilter? listStatusFilter,
   }) {
     return PatientState(
       isLoading: isLoading ?? this.isLoading,
@@ -63,6 +66,7 @@ class PatientState {
       selectedPatient: identical(selectedPatient, _unset)
           ? this.selectedPatient
           : selectedPatient as Patient?,
+      listStatusFilter: listStatusFilter ?? this.listStatusFilter,
     );
   }
 }

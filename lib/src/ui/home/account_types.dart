@@ -89,7 +89,7 @@ final bills = <MenuItem>[
     route: PendingBillsRoute(),
   ),
   MenuItem(
-    label: 'Render OPD',
+    label: 'Render Service',
     icon: Icons.dataset_outlined,
     route: EnlistPaitientRoute(serviceName: 'OPD'),
   ),

@@ -38,7 +38,9 @@ class _PatientListPageState extends ConsumerState<PatientListScreen> {
     super.initState();
 
     Future.microtask(() {
-      ref.read(patientProvider.notifier).fetchPatients();
+      final n = ref.read(patientProvider.notifier);
+      n.setListStatusFilter(PatientListStatusFilter.none);
+      n.fetchPatients();
     });
   }
 

@@ -18,7 +18,7 @@ class PatientTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).appBarTheme.backgroundColor,
           border: Border.all(color: Colors.grey.shade100),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -63,19 +63,17 @@ class PatientTile extends StatelessWidget {
                   // Patient ID as separate labeled field (display patientId, not internal id)
                   Text(
                     'Patient ID: ${patient.patientId}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12),
                   ),
-                  if (patient.phoneNumber != null && patient.phoneNumber!.isNotEmpty) ...[
+                  if (patient.phoneNumber != null &&
+                      patient.phoneNumber!.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    _infoBadge(
-                      Icons.phone_outlined,
-                      patient.phoneNumber!,
-                    ),
+                    _infoBadge(Icons.phone_outlined, patient.phoneNumber!),
                   ],
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.grey[300]),
+            Icon(Icons.chevron_right),
           ],
         ),
       ),

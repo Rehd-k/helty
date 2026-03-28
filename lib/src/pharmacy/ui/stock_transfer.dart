@@ -163,7 +163,8 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
     final used = _lines
         .where((l) => l.batch.id == batch.id)
         .fold<int>(0, (sum, l) => sum + l.quantity);
-    return (batch.quantityReceived - used).clamp(0, batch.quantityReceived);
+    final baseQty = batch.quantityRemaining ?? batch.quantityReceived;
+    return (baseQty - used).clamp(0, baseQty);
   }
 
   Future<void> _addLine() async {

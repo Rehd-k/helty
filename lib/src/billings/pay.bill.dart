@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
 
 import '../../app_router.gr.dart';
@@ -92,6 +93,9 @@ class PayBill extends ConsumerStatefulWidget {
     required this.total,
     required this.staffId,
     this.invoiceId,
+    /// When non-empty with [invoiceId], uses `allocate-item-payments` (line allocation).
+    /// When null/empty with [invoiceId], uses legacy `POST .../payments` (header payment).
+    this.invoiceItemAllocations,
     this.onPaymentComplete,
   });
   final bool hasId;
@@ -102,6 +106,9 @@ class PayBill extends ConsumerStatefulWidget {
   final String staffId;
   final bool isInvoice;
   final String? invoiceId;
+
+  /// Per-line amounts for allocated invoice pay; sum should match [total] before discounts.
+  final List<InvoiceItemAllocationInput>? invoiceItemAllocations;
 
   /// Called after the payment API call succeeds so the caller can clear its cart.
   final VoidCallback? onPaymentComplete;
@@ -180,6 +187,75 @@ class PayBillState extends ConsumerState<PayBill> {
     } catch (_) {
       if (mounted) setState(() => _banksLoading = false);
     }
+  }
+
+  /// Maps UI payment method to invoice payment `source` (backend enum).
+  static String _invoicePaymentSource(String? method) {
+    switch (method) {
+      case 'cash':
+        return 'CASH';
+      case 'transfer':
+      case 'pos':
+      case 'cheque':
+        return 'TRANSFER';
+      case 'mixed':
+        return 'CASH';
+      default:
+        return 'CASH';
+    }
+  }
+
+  /// `TransactionPaymentMethod` for allocate-item-payments.
+  static String _allocateItemPaymentMethod(String? method) {
+    switch (method) {
+      case 'cash':
+        return 'CASH';
+      case 'pos':
+        return 'CARD';
+      case 'transfer':
+        return 'TRANSFER';
+      case 'cheque':
+        return 'TRANSFER';
+      case 'mixed':
+        return 'CASH';
+      default:
+        return 'CASH';
+    }
+  }
+
+  static double _moneyRound(double x) => (x * 100).round() / 100.0;
+
+  /// Scales line allocations when discounts change [_amountToPay] vs original sum.
+  List<InvoiceItemAllocationDto> _buildScaledAllocations() {
+    final inputs = widget.invoiceItemAllocations;
+    if (inputs == null || inputs.isEmpty) return [];
+    final sum0 = inputs.fold(0.0, (s, e) => s + e.amount);
+    if (sum0 <= 0) return [];
+    final target = _moneyRound(_amountToPay);
+    if (inputs.length == 1) {
+      return [
+        InvoiceItemAllocationDto(
+          invoiceItemId: inputs.first.invoiceItemId,
+          amount: target,
+        ),
+      ];
+    }
+    final scaled = inputs
+        .map((e) => _moneyRound(target * e.amount / sum0))
+        .toList();
+    final acc = scaled.fold(0.0, (a, b) => a + b);
+    var diff = _moneyRound(target - acc);
+    if (scaled.isNotEmpty && diff != 0) {
+      scaled[scaled.length - 1] =
+          _moneyRound(scaled.last + diff);
+    }
+    return List.generate(
+      inputs.length,
+      (i) => InvoiceItemAllocationDto(
+        invoiceItemId: inputs[i].invoiceItemId,
+        amount: scaled[i],
+      ),
+    );
   }
 
   Future<void> _fetchDetails() async {
@@ -462,15 +538,47 @@ class PayBillState extends ConsumerState<PayBill> {
     setState(() => _isSubmitting = true);
 
     try {
-      final txn = await transactionService.createQuickTransaction(dto);
+      final invId = widget.invoiceId?.trim();
+      final useAllocate = invId != null &&
+          invId.isNotEmpty &&
+          widget.invoiceItemAllocations != null &&
+          widget.invoiceItemAllocations!.isNotEmpty;
 
-      // If this payment is for an invoice, mark the invoice as PAID and attach transaction id.
-      if (widget.isInvoice && widget.invoiceId != null) {
-        await _invoiceService.updateInvoiceStatus(
-          id: widget.invoiceId!,
-          status: 'PAID',
-          transactionId: txn.id,
+      if (useAllocate) {
+        final allocations = _buildScaledAllocations();
+        if (allocations.isEmpty) {
+          throw Exception('No line allocations to submit');
+        }
+        final allocSum =
+            allocations.fold(0.0, (s, e) => s + e.amount);
+        if ((allocSum - _amountToPay).abs() > 0.02) {
+          throw Exception('Allocation total does not match amount to pay');
+        }
+        await _invoiceService.allocateInvoiceItemPayments(
+          invoiceId: invId,
+          payload: AllocateInvoiceItemPaymentsPayload(
+            staffId: _staffId,
+            amount: _moneyRound(_amountToPay),
+            method: _allocateItemPaymentMethod(_paymentMethod),
+            reference: _paymentMethod == 'mixed'
+                ? 'paybill_mixed'
+                : (_selectedDiscount ?? 'paybill'),
+            allocations: allocations,
+          ),
         );
+      } else if (invId != null && invId.isNotEmpty) {
+        await _invoiceService.recordInvoicePayment(
+          invoiceId: invId,
+          payload: RecordPaymentPayload(
+            amount: _amountToPay,
+            source: _invoicePaymentSource(_paymentMethod),
+            reference: _paymentMethod == 'mixed'
+                ? 'paybill_mixed'
+                : (_selectedDiscount ?? 'paybill'),
+          ),
+        );
+      } else {
+        await transactionService.createQuickTransaction(dto);
       }
       if (mounted) {
         setState(() {

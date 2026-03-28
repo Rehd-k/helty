@@ -1,11 +1,38 @@
 import 'package:dio/dio.dart';
 import 'package:helty/src/models/service_model.dart';
 import '../models/invoice.dart';
+import '../models/invoice_billing_models.dart';
 import 'api_service.dart';
 
 class InvoiceService {
   InvoiceService() : _dio = ApiService().dio;
   final Dio _dio;
+
+  List<dynamic> _extractList(dynamic data, {String? key}) {
+    if (data is List<dynamic>) return data;
+    if (data is Map<String, dynamic>) {
+      final candidates = [
+        if (key != null) data[key],
+        data['data'],
+        data['items'],
+        data['invoices'],
+        data['payments'],
+        data['transactions'],
+      ];
+      for (final entry in candidates) {
+        if (entry is List) return entry;
+      }
+    }
+    return const [];
+  }
+
+  String _dioMessage(DioException e, String fallback) {
+    final payload = e.response?.data;
+    if (payload is Map && payload['message'] != null) {
+      return payload['message'].toString();
+    }
+    return e.message ?? fallback;
+  }
 
   // ── Get all invoices (with optional filters) ──
   Future<List<Invoice>> getInvoices({
@@ -34,30 +61,12 @@ class InvoiceService {
         },
       );
 
-      final data = response.data;
-      List<dynamic> list;
-
-      if (data is List<dynamic>) {
-        list = data;
-      } else if (data is Map<String, dynamic>) {
-        // Support both { data: [...] } and { invoices: [...] } shapes
-        final fromData = data['data'];
-        final fromInvoices = data['invoices'];
-        if (fromData is List) {
-          list = fromData;
-        } else if (fromInvoices is List) {
-          list = fromInvoices;
-        } else {
-          list = const [];
-        }
-      } else {
-        list = const [];
-      }
+      final list = _extractList(response.data, key: 'invoices');
       return list
           .map((json) => Invoice.fromJson(json as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
-      throw Exception('Failed to load invoices: ${e.message}');
+      throw Exception('Failed to load invoices: ${_dioMessage(e, 'Unknown error')}');
     }
   }
 
@@ -65,9 +74,36 @@ class InvoiceService {
   Future<Invoice> getInvoice(String id) async {
     try {
       final response = await _dio.get('/invoices/$id');
-      return Invoice.fromJson(response.data);
+      return Invoice.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception('Failed to load invoice: ${e.message}');
+      throw Exception('Failed to load invoice: ${_dioMessage(e, 'Unknown error')}');
+    }
+  }
+
+  Future<List<Invoice>> getPatientInvoices(String patientId) async {
+    try {
+      final response = await _dio.get('/invoices/patient/$patientId');
+      final list = _extractList(response.data, key: 'invoices');
+      return list
+          .whereType<Map>()
+          .map((json) => Invoice.fromJson(Map<String, dynamic>.from(json)))
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load patient invoices: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingInvoiceDetail> getBillingInvoice(String invoiceId) async {
+    try {
+      final response = await _dio.get('/invoices/$invoiceId');
+      final payload = response.data as Map<String, dynamic>;
+      return BillingInvoiceDetail.fromJson(payload);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load invoice detail: ${_dioMessage(e, 'Unknown error')}',
+      );
     }
   }
 
@@ -92,7 +128,32 @@ class InvoiceService {
       return Invoice.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Failed to create invoice: ${e.response?.data ?? e.message}',
+        'Failed to create invoice: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingInvoiceDetail> createBillingInvoice({
+    required String patientId,
+    String? staffId,
+    String? encounterId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/invoices',
+        data: {
+          'patientId': patientId,
+          if (staffId != null && staffId.isNotEmpty) 'staffId': staffId,
+          if (encounterId != null && encounterId.isNotEmpty)
+            'encounterId': encounterId,
+        },
+      );
+      return BillingInvoiceDetail.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to create billing invoice: ${_dioMessage(e, 'Unknown error')}',
       );
     }
   }
@@ -116,7 +177,163 @@ class InvoiceService {
 
       return ServiceModel.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception('Failed to add item: ${e.message}');
+      throw Exception('Failed to add item: ${_dioMessage(e, 'Unknown error')}');
+    }
+  }
+
+  Future<BillingInvoiceDetail> addBillingItem({
+    required String invoiceId,
+    required AddInvoiceItemPayload payload,
+  }) async {
+    try {
+      await _dio.post('/invoices/$invoiceId/items', data: payload.toJson());
+      return getBillingInvoice(invoiceId);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to add invoice item: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingInvoiceDetail> pauseRecurringItem({
+    required String invoiceId,
+    required String itemId,
+  }) async {
+    try {
+      await _dio.post('/invoices/$invoiceId/items/$itemId/pause');
+      return getBillingInvoice(invoiceId);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to pause recurring item: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingInvoiceDetail> resumeRecurringItem({
+    required String invoiceId,
+    required String itemId,
+  }) async {
+    try {
+      await _dio.post('/invoices/$invoiceId/items/$itemId/resume');
+      return getBillingInvoice(invoiceId);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to resume recurring item: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingInvoiceDetail> recordInvoicePayment({
+    required String invoiceId,
+    required RecordPaymentPayload payload,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/invoices/$invoiceId/payments',
+        data: payload.toJson(),
+      );
+      if (response.data is Map<String, dynamic>) {
+        return BillingInvoiceDetail.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      }
+      return getBillingInvoice(invoiceId);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to record payment: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  /// Allocates a billing payment to specific invoice lines (partial line pay).
+  /// See `POST /invoices/:invoiceId/allocate-item-payments`.
+  Future<BillingInvoiceDetail> allocateInvoiceItemPayments({
+    required String invoiceId,
+    required AllocateInvoiceItemPaymentsPayload payload,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/invoices/$invoiceId/allocate-item-payments',
+        data: payload.toJson(),
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final inv = data['invoice'];
+        if (inv is Map<String, dynamic>) {
+          return BillingInvoiceDetail.fromJson(inv);
+        }
+        return BillingInvoiceDetail.fromJson(data);
+      }
+      return getBillingInvoice(invoiceId);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to allocate item payment: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<List<BillingInvoicePayment>> getInvoicePayments(String invoiceId) async {
+    try {
+      final response = await _dio.get('/invoices/$invoiceId/payments');
+      final list = _extractList(response.data, key: 'payments');
+      return list
+          .whereType<Map>()
+          .map(
+            (e) => BillingInvoicePayment.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load payments: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingWallet> getWallet(String patientId) async {
+    try {
+      final response = await _dio.get('/invoices/wallets/$patientId');
+      return BillingWallet.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load wallet: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingWallet> depositToWallet({
+    required String patientId,
+    required WalletDepositPayload payload,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/invoices/wallets/$patientId/deposits',
+        data: payload.toJson(),
+      );
+      return BillingWallet.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to deposit to wallet: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<List<BillingWalletTransaction>> getWalletTransactions(
+    String patientId,
+  ) async {
+    try {
+      final response = await _dio.get('/invoices/wallets/$patientId/transactions');
+      final list = _extractList(response.data, key: 'transactions');
+      return list
+          .whereType<Map>()
+          .map(
+            (e) =>
+                BillingWalletTransaction.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load wallet transactions: ${_dioMessage(e, 'Unknown error')}',
+      );
     }
   }
 
@@ -136,7 +353,9 @@ class InvoiceService {
       );
       return Invoice.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception('Failed to update status: ${e.message}');
+      throw Exception(
+        'Failed to update status: ${_dioMessage(e, 'Unknown error')}',
+      );
     }
   }
 
@@ -145,7 +364,9 @@ class InvoiceService {
     try {
       await _dio.delete('/invoices/$id');
     } on DioException catch (e) {
-      throw Exception('Failed to delete invoice: ${e.message}');
+      throw Exception(
+        'Failed to delete invoice: ${_dioMessage(e, 'Unknown error')}',
+      );
     }
   }
 
@@ -154,7 +375,7 @@ class InvoiceService {
     try {
       await _dio.delete('/invoices/$invoiceId/items/$itemId');
     } on DioException catch (e) {
-      throw Exception('Failed to delete item: ${e.message}');
+      throw Exception('Failed to delete item: ${_dioMessage(e, 'Unknown error')}');
     }
   }
 }
