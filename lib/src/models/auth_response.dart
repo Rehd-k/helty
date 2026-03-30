@@ -12,9 +12,23 @@ class AuthResponse {
   final String? refreshToken;
   final Staff staff;
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) => AuthResponse(
-    accessToken: json['accessToken'] as String,
-    refreshToken: json['refreshToken'] != null ? json['refreshToken'] as String : null,
-    staff: Staff.fromJson(json['staff'] as Map<String, dynamic>),
-  );
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    final token = json['accessToken'] as String?;
+    if (token == null || token.isEmpty) {
+      throw FormatException(
+        'AuthResponse: missing accessToken (expected login-shaped envelope)',
+      );
+    }
+    final staffRaw = json['staff'];
+    if (staffRaw is! Map<String, dynamic>) {
+      throw FormatException('AuthResponse: missing or invalid staff object');
+    }
+    return AuthResponse(
+      accessToken: token,
+      refreshToken: json['refreshToken'] != null
+          ? json['refreshToken'] as String
+          : null,
+      staff: Staff.fromJson(staffRaw),
+    );
+  }
 }

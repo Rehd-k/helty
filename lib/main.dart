@@ -9,6 +9,7 @@ import 'src/helper/theme.dart';
 import 'src/providers/auth_provider.dart';
 import 'src/providers/theme_mode_provider.dart';
 import 'src/services/navigation.service.dart';
+import 'src/widgets/helty_desktop_update_layer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,14 +65,9 @@ class _MyAppState extends ConsumerState<MyApp> {
       themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       routerConfig: NavigationService.router.config(),
-      // builder: (context, child) {
-      //   return Stack(
-      //     children: [
-      //       if (child != null) child,
-      //       const Positioned.fill(child: WatermarkOverlay()),
-      //     ],
-      //   );
-      // },
+      builder: (context, child) {
+        return HeltyDesktopUpdateLayer(child: child ?? const SizedBox.shrink());
+      },
     );
   }
 }

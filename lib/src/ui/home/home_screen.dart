@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../services/helty_desktop_update_service.dart';
 import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
 import 'account_types.dart';
@@ -63,41 +64,122 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<MenuItem> _menuForRole(String role, String accountType) {
     print(role);
     final common = <MenuItem>[];
-    // if (_isObstetricsAllowed(accountType)) {
-    //   common.addAll(obstetrics);
-    // }
+    final r = role.toLowerCase();
+    final at = accountType.toLowerCase();
 
-    if (role == 'receptionist') {
+    final isFrontDesk =
+        at == 'front_desk' ||
+        at == 'frontdesk' ||
+        r == 'front_desk' ||
+        r == 'receptionist';
+    if (isFrontDesk) {
       common.addAll(frontDesk);
     }
 
-    if (role == 'billing') {
+    final isBilling =
+        at == 'billing' ||
+        at == 'bills' ||
+        r == 'billing' ||
+        r == 'billing_head' ||
+        r == 'billing_staff';
+    if (isBilling) {
       common.addAll(bills);
     }
 
-    if (role == 'nurse') {
+    final isNurse =
+        at == 'nurse' ||
+        at == 'head_nurse' ||
+        at == 'inpatient_nurse' ||
+        at == 'outpatient_nurse' ||
+        r == 'nurse' ||
+        r == 'head_nurse' ||
+        r == 'inpatient_nurse' ||
+        r == 'outpatient_nurse';
+    if (isNurse) {
       common.addAll(nurses);
     }
 
-    if (accountType.toLowerCase() == 'pharmacy_store') {
-      common.addAll(pharmacy);
+    final isPharmacyDept =
+        at == 'pharmacy' ||
+        at == 'pharmacy_store' ||
+        at == 'pharmacy_dispensary' ||
+        at == 'pharmacy_head';
+    if (isPharmacyDept) {
+      final isDispensary =
+          at == 'pharmacy_dispensary' ||
+          (at == 'pharmacy' && r == 'pharmacy_dispensary');
+      if (isDispensary) {
+        common.addAll(phamDispense);
+      } else {
+        common.addAll(pharmacy);
+      }
     }
-    if (accountType.toLowerCase() == 'pharmacy_dispensary') {
-      common.addAll(phamDispense);
-    }
-    if (role == 'doctor' || role == 'consultant') {
+
+    final isPhysician =
+        at == 'physician' ||
+        at == 'consultant' ||
+        at == 'inpatient_doctor' ||
+        r == 'doctor' ||
+        r == 'consultant' ||
+        r == 'resident' ||
+        r == 'intern' ||
+        r == 'junior_resident' ||
+        r == 'senior_resident' ||
+        r == 'chief_resident' ||
+        r == 'medical_student';
+    if (isPhysician) {
       common.addAll(doctors);
     }
 
-    if (role == 'lab_technician') {
+    final isLab =
+        at == 'laboratory' ||
+        at == 'lab' ||
+        r == 'lab_head' ||
+        r == 'lab_scientist' ||
+        r == 'lab_technician';
+    if (isLab) {
       common.addAll(labMenu);
     }
 
-    if (accountType.toLowerCase() == 'radiology') {
+    if (at == 'radiology') {
       common.addAll(radiologyMenu);
     }
 
-    if (role.toLowerCase() == 'admin') {
+    if (at == 'ict' || r == 'ict_staff') {
+      common.addAll([
+        const MenuItem(
+          label: 'Dashboard',
+          icon: Icons.dashboard_outlined,
+          route: DashboardRoute(),
+        ),
+      ]);
+    }
+
+    if (at == 'medical_records' || r == 'medical_records') {
+      common.addAll([
+        const MenuItem(
+          label: 'Dashboard',
+          icon: Icons.dashboard_outlined,
+          route: DashboardRoute(),
+        ),
+      ]);
+    }
+
+    if (at == 'accounting' || at == 'accounts') {
+      common.addAll([
+        const MenuItem(
+          label: 'Dashboard',
+          icon: Icons.dashboard_outlined,
+          route: DashboardRoute(),
+        ),
+      ]);
+    }
+
+    if (role.toLowerCase() == 'admin' ||
+        at == 'cmd' ||
+        at == 'cmac' ||
+        at == 'super_admin' ||
+        r == 'super_admin') {
       common.addAll([
         MenuItem(
           label: 'CMD Panel',
@@ -211,7 +293,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ]);
     }
 
-    if (accountType.toLowerCase() == 'store') {
+    if (at == 'store') {
       common.addAll(storeMenu);
     }
 
@@ -263,7 +345,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         Expanded(
-          child: Container(color: const Color(0xFFF1F5F9), child: AutoRouter()),
+          child: Container(
+            color: const Color(0xFFF1F5F9),
+            child: AutoRouter(),
+          ),
         ),
       ],
     );
@@ -359,11 +444,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 spacing: 8,
                 children: [
                   const SlidingNotificationDropdown(),
+                  const _WindowsCheckForUpdatesButton(),
                   const WindowButtons(),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WindowsCheckForUpdatesButton extends StatefulWidget {
+  const _WindowsCheckForUpdatesButton();
+
+  @override
+  State<_WindowsCheckForUpdatesButton> createState() =>
+      _WindowsCheckForUpdatesButtonState();
+}
+
+class _WindowsCheckForUpdatesButtonState
+    extends State<_WindowsCheckForUpdatesButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: Tooltip(
+        message: 'Check for updates',
+        child: InkWell(
+          onTap: () => HeltyDesktopUpdateService.triggerCheckFromUi(),
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              Icons.system_update_rounded,
+              color: _hover ? _kSidebarAccent : _kSidebarTextMuted,
+              size: 18,
+            ),
+          ),
         ),
       ),
     );

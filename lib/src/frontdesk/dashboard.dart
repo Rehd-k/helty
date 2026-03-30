@@ -1,90 +1,206 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 import '../../app_router.gr.dart';
+import '../models/frontdesk_dashboard_models.dart';
+import '../models/staff_model.dart';
+import '../providers/auth_provider.dart';
+import '../services/frontdesk_dashboard_service.dart';
 
 @RoutePage()
-class FrontDeskDashboardScreen extends StatefulWidget {
+class FrontDeskDashboardScreen extends ConsumerStatefulWidget {
   const FrontDeskDashboardScreen({super.key});
 
   @override
-  State<FrontDeskDashboardScreen> createState() => _FrontDeskDashboardState();
+  ConsumerState<FrontDeskDashboardScreen> createState() =>
+      _FrontDeskDashboardState();
 }
 
-class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
-  // Calendar State
+class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
+  final FrontdeskDashboardService _api = FrontdeskDashboardService();
+
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // Mock Data for Appointments (Used for the Calendar)
-  final Map<DateTime, int> _appointmentCounts = {
-    DateTime.now(): 12,
-    DateTime.now().add(const Duration(days: 1)): 5,
-    DateTime.now().add(const Duration(days: 2)): 8,
-  };
+  FrontdeskDashboardSummary? _summary;
+  List<FrontdeskQueueRow> _queue = [];
 
-  // Mock Data for Live Patient Queue
-  final List<Map<String, dynamic>> _patients = [
-    {
-      'id': '#45821',
-      'initials': 'SJ',
-      'name': 'Mathew ThankGod',
-      'time': '09:30 AM',
-      'doctor': 'Dr. Udo',
-      'status': 'With Doctor',
-      'room': 'Room 304',
-      'enlisted': true,
-      'color': Colors.blue,
-    },
-    {
-      'id': '#45822',
-      'initials': 'MC',
-      'name': 'Michael kalu',
-      'time': '09:45 AM',
-      'doctor': 'Dr. Ben Johnson',
-      'status': 'Waiting',
-      'room': 'Lobby Area B',
-      'enlisted': false,
-      'color': Colors.orange,
-    },
-    {
-      'id': '#45823',
-      'initials': 'ER',
-      'name': 'Emma Chibueze',
-      'time': '10:00 AM',
-      'doctor': 'Dr. Victor Chris',
-      'status': 'Checked In',
-      'room': 'Room 305',
-      'enlisted': true,
-      'color': Colors.green,
-    },
-    {
-      'id': '#45824',
-      'initials': 'DK',
-      'name': 'David Kimberly',
-      'time': '10:15 AM',
-      'doctor': 'Dr. James',
-      'status': 'Scheduled',
-      'room': '-',
-      'enlisted': false,
-      'color': Colors.grey,
-    },
-  ];
+  bool _loadingSummary = true;
+  bool _loadingQueue = true;
+  String? _summaryError;
+  String? _queueError;
+
+  Timer? _queuePoll;
+  Timer? _summaryPoll;
+
+  static const _queuePollSeconds = 20;
+  static const _summaryPollMinutes = 2;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSummary();
+      _loadQueue();
+      _queuePoll = Timer.periodic(
+        const Duration(seconds: _queuePollSeconds),
+        (_) => _loadQueue(),
+      );
+      _summaryPoll = Timer.periodic(
+        const Duration(minutes: _summaryPollMinutes),
+        (_) => _loadSummary(),
+      );
+    });
   }
 
-  // Handle Right Click or Menu Tap
-  void _showPatientActions(BuildContext context, Offset position, int index) {
-    final patient = _patients[index];
-    final bool isEnlisted = patient['enlisted'];
+  @override
+  void dispose() {
+    _queuePoll?.cancel();
+    _summaryPoll?.cancel();
+    super.dispose();
+  }
 
-    showMenu(
+  Future<void> _loadSummary() async {
+    setState(() {
+      _summaryError = null;
+      if (_summary == null) _loadingSummary = true;
+    });
+    try {
+      final s = await _api.getSummary();
+      if (!mounted) return;
+      setState(() {
+        _summary = s;
+        _loadingSummary = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _summaryError = e.toString();
+        _loadingSummary = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_summaryError!)));
+      }
+    }
+  }
+
+  Future<void> _loadQueue() async {
+    setState(() {
+      _queueError = null;
+      if (_queue.isEmpty) _loadingQueue = true;
+    });
+    try {
+      final q = await _api.getQueue();
+      if (!mounted) return;
+      setState(() {
+        _queue = q;
+        _loadingQueue = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _queueError = e.toString();
+        _loadingQueue = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_queueError!)));
+      }
+    }
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([_loadSummary(), _loadQueue()]);
+  }
+
+  String _welcomeName(Staff? staff) {
+    if (staff == null) return 'there';
+    final first = staff.firstName.trim();
+    if (first.isNotEmpty) return first;
+    final full = staff.fullName.trim();
+    if (full.isNotEmpty) return full;
+    return 'there';
+  }
+
+  String _formatAppointmentDelta(AppointmentsChange c) {
+    if (c.percentChange == null) return '—';
+    final p = c.percentChange!;
+    if (c.direction == 'flat') return '0%';
+    final sign = c.direction == 'down' ? '−' : '+';
+    final abs = p.abs();
+    final decimals = abs == abs.roundToDouble() ? 0 : 2;
+    return '$sign${abs.toStringAsFixed(decimals)}%';
+  }
+
+  bool _appointmentDeltaNegative(AppointmentsChange c) => c.direction == 'down';
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'Waiting':
+        return 'Waiting';
+      case 'InRoom':
+        return 'In room';
+      case 'InConsultation':
+        return 'In consultation';
+      default:
+        return status;
+    }
+  }
+
+  (Color bg, Color fg) _statusColors(String status, ColorScheme scheme) {
+    switch (status) {
+      case 'Waiting':
+        return (Colors.orange.withValues(alpha: 0.12), Colors.orange.shade800);
+      case 'InRoom':
+        return (Colors.blue.withValues(alpha: 0.12), Colors.blue.shade800);
+      case 'InConsultation':
+        return (Colors.green.withValues(alpha: 0.12), Colors.green.shade800);
+      default:
+        return (scheme.surfaceContainerHighest, scheme.onSurfaceVariant);
+    }
+  }
+
+  String _initials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) {
+      final s = parts[0];
+      return s.length >= 2 ? s.substring(0, 2).toUpperCase() : s.toUpperCase();
+    }
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  Color _avatarColor(String seed, ColorScheme scheme) {
+    final i = seed.hashCode.abs();
+    final palette = <Color>[
+      scheme.primary,
+      scheme.secondary,
+      scheme.tertiary,
+      Colors.teal,
+      Colors.deepPurple,
+    ];
+    return palette[i % palette.length];
+  }
+
+  void _showPatientActions(
+    BuildContext context,
+    Offset position,
+    FrontdeskQueueRow row,
+  ) {
+    showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
         position.dx,
@@ -93,69 +209,53 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
         position.dy,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      items: [
+      items: const [
         PopupMenuItem(
           value: 'enlist_consult',
           child: Text(
-            isEnlisted ? "DeEnlist" : "Enlist For Consultation",
-            style: TextStyle(
-              fontSize: 12, // Reduced font
-              color: isEnlisted
-                  ? Theme.of(context).colorScheme.error
-                  : Theme.of(context).colorScheme.primary,
-            ),
+            'Enlist For Consultation',
+            style: TextStyle(fontSize: 12),
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'enlist_pharmacy',
-          child: Text("Enlist for pharmacy", style: TextStyle(fontSize: 12)),
+          child: Text('Enlist for pharmacy', style: TextStyle(fontSize: 12)),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'bio_data',
-          child: Text("Patient Bio Data", style: TextStyle(fontSize: 12)),
+          child: Text('Patient Bio Data', style: TextStyle(fontSize: 12)),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'ward_rounds',
-          child: Text("Ward Rounds", style: TextStyle(fontSize: 12)),
+          child: Text('Ward Rounds', style: TextStyle(fontSize: 12)),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'consults',
-          child: Text("Consults", style: TextStyle(fontSize: 12)),
+          child: Text('Consults', style: TextStyle(fontSize: 12)),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'transactions',
-          child: Text("Transactions", style: TextStyle(fontSize: 12)),
+          child: Text('Transactions', style: TextStyle(fontSize: 12)),
         ),
       ],
     ).then((value) {
-      if (!mounted) return;
-      if (value == 'enlist_consult') {
-        setState(() {
-          _patients[index]['enlisted'] = !isEnlisted;
-        });
-      } else if (value == 'ward_rounds') {
+      if (!context.mounted || value == null) return;
+      if (value == 'ward_rounds') {
         context.router.push(const InpatientsListRoute());
       }
-      // Handle other actions here...
     });
   }
 
-  // Show dialog when calendar day is double-clicked
   void _showDayAppointments(DateTime day) {
-    int count = _getEventsForDay(day);
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Appointments on ${DateFormat('MMM d, yyyy').format(day)}'),
-        content: count > 0
-            ? Text(
-                'There are $count appointments scheduled for this date.',
-                style: const TextStyle(fontSize: 14),
-              )
-            : const Text(
-                'No appointments scheduled for this date.',
-                style: TextStyle(fontSize: 14),
-              ),
+        content: const Text(
+          'Per-day appointment counts on the calendar are not provided by the '
+          'API. Use the "Today\'s Appointments" KPI for the current day\'s total.',
+          style: TextStyle(fontSize: 14),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -166,20 +266,14 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
     );
   }
 
-  int _getEventsForDay(DateTime day) {
-    // Normalize dates to ignore time for matching
-    final normalizedDay = DateTime(day.year, day.month, day.day);
-    for (var key in _appointmentCounts.keys) {
-      if (DateTime(key.year, key.month, key.day) == normalizedDay) {
-        return _appointmentCounts[key]!;
-      }
-    }
-    return 0;
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final staff = ref.watch(currentStaffProvider);
+    final welcome = _welcomeName(staff);
+
+    final summary = _summary;
+    final apptChange = summary?.appointmentsChange;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -188,65 +282,79 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left Column
             Expanded(
               flex: 7,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Welcome back, Sarah. Here is the overview for today.",
+                    'Welcome back, $welcome. Here is the overview for today.',
                     style: TextStyle(
                       color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontSize: 13, // Reduced font
+                      fontSize: 13,
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Stat Cards Row
                   Row(
                     children: [
                       _buildStatCard(
                         context,
                         "Today's Appointments",
-                        "142",
-                        "+5%",
+                        _loadingSummary
+                            ? '…'
+                            : '${summary?.appointmentsToday ?? '—'}',
+                        apptChange != null
+                            ? _formatAppointmentDelta(apptChange)
+                            : '—',
                         Icons.calendar_today,
                         Colors.blue,
+                        isNegative: apptChange != null
+                            ? _appointmentDeltaNegative(apptChange)
+                            : false,
                       ),
                       const SizedBox(width: 16),
                       _buildStatCard(
                         context,
-                        "Checked-In",
-                        "89",
-                        "+12%",
+                        'Checked-In',
+                        _loadingSummary
+                            ? '…'
+                            : '${summary?.checkInsToday ?? '—'}',
+                        '—',
                         Icons.check_circle_outline,
                         Colors.green,
                       ),
                       const SizedBox(width: 16),
                       _buildStatCard(
                         context,
-                        "Waiting Room",
-                        "12",
-                        "-3%",
+                        'Waiting Room',
+                        _loadingSummary
+                            ? '…'
+                            : '${summary?.waitingRoomCount ?? '—'}',
+                        '—',
                         Icons.hourglass_empty,
                         Colors.orange,
-                        isNegative: true,
                       ),
                       const SizedBox(width: 16),
                       _buildStatCard(
                         context,
-                        "Discharged",
-                        "45",
-                        "+8%",
+                        'Discharged',
+                        _loadingSummary
+                            ? '…'
+                            : '${summary?.dischargesToday ?? '—'}',
+                        '—',
                         Icons.logout,
                         Colors.purple,
                       ),
                     ],
                   ),
+                  if (_summaryError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _summaryError!,
+                      style: TextStyle(fontSize: 12, color: colorScheme.error),
+                    ),
+                  ],
                   const SizedBox(height: 32),
-
-                  // Live Patient Queue Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -262,7 +370,7 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "Live Patient Queue",
+                            'Live Patient Queue',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -271,46 +379,33 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                           ),
                         ],
                       ),
-                      Row(
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.filter_list, size: 16),
-                            label: const Text(
-                              "Filter",
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              minimumSize: Size.zero,
-                            ),
+                      OutlinedButton.icon(
+                        onPressed: _loadingQueue ? null : _refreshAll,
+                        icon: _loadingQueue
+                            ? SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colorScheme.primary,
+                                ),
+                              )
+                            : const Icon(Icons.refresh, size: 16),
+                        label: Text(
+                          _loadingQueue ? 'Refreshing…' : 'Refresh',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
                           ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.refresh, size: 16),
-                            label: const Text(
-                              "Refresh",
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              minimumSize: Size.zero,
-                            ),
-                          ),
-                        ],
+                          minimumSize: Size.zero,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // Patient Table
                   Container(
                     decoration: BoxDecoration(
                       color: colorScheme.surface,
@@ -322,7 +417,6 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Table Header
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -333,39 +427,39 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                               Expanded(
                                 flex: 3,
                                 child: Text(
-                                  "Patient Name",
+                                  'Patient Name',
                                   style: _headerStyle(colorScheme),
                                 ),
                               ),
                               Expanded(
                                 flex: 2,
                                 child: Text(
-                                  "Time",
+                                  'Time',
                                   style: _headerStyle(colorScheme),
                                 ),
                               ),
                               Expanded(
                                 flex: 2,
                                 child: Text(
-                                  "Doctor",
+                                  'Doctor',
                                   style: _headerStyle(colorScheme),
                                 ),
                               ),
                               Expanded(
                                 flex: 2,
                                 child: Text(
-                                  "Status",
+                                  'Status',
                                   style: _headerStyle(colorScheme),
                                 ),
                               ),
                               Expanded(
                                 flex: 2,
                                 child: Text(
-                                  "Assigned Room",
+                                  'Assigned Room',
                                   style: _headerStyle(colorScheme),
                                 ),
                               ),
-                              const SizedBox(width: 48), // Action space
+                              const SizedBox(width: 48),
                             ],
                           ),
                         ),
@@ -373,230 +467,214 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                           height: 1,
                           color: colorScheme.outline.withValues(alpha: 0.2),
                         ),
+                        if (_loadingQueue && _queue.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_queue.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Center(
+                              child: Text(
+                                _queueError != null
+                                    ? 'Could not load queue.'
+                                    : 'No patients in the queue right now.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _queue.length,
+                            separatorBuilder: (context, index) => Divider(
+                              height: 1,
+                              color: colorScheme.outline.withValues(alpha: 0.1),
+                            ),
+                            itemBuilder: (context, index) {
+                              final row = _queue[index];
+                              final avatarColor = _avatarColor(
+                                row.patientName,
+                                colorScheme,
+                              );
+                              final (stBg, stFg) = _statusColors(
+                                row.status,
+                                colorScheme,
+                              );
+                              final timeStr = DateFormat.jm().format(
+                                row.time.toLocal(),
+                              );
+                              final doctorStr = row.doctor != null
+                                  ? row.doctor!.displayName
+                                  : '—';
+                              final roomStr = row.assignedRoom?.name ?? '—';
 
-                        // Table Rows
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _patients.length,
-                          separatorBuilder: (context, index) => Divider(
-                            height: 1,
-                            color: colorScheme.outline.withValues(alpha: 0.1),
-                          ),
-                          itemBuilder: (context, index) {
-                            final patient = _patients[index];
-                            return GestureDetector(
-                              // Right click (desktop)
-                              onSecondaryTapDown: (details) =>
-                                  _showPatientActions(
-                                    context,
-                                    details.globalPosition,
-                                    index,
-                                  ),
-                              // Long press (mobile alternative)
-                              onLongPressStart: (details) =>
-                                  _showPatientActions(
-                                    context,
-                                    details.globalPosition,
-                                    index,
-                                  ),
-                              child: InkWell(
-                                onTap: () {}, // Handled just for ripple effect
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      // Name & Initials
-                                      Expanded(
-                                        flex: 3,
-                                        child: Row(
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 16,
-                                              backgroundColor: patient['color']
-                                                  .withOpacity(0.1),
-                                              child: Text(
-                                                patient['initials'],
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: patient['color'],
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  patient['name'],
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w500,
-                                                    color:
-                                                        colorScheme.onSurface,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  "ID: ${patient['id']}",
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: colorScheme.onSurface
-                                                        .withValues(alpha: 0.5),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      // Time
-                                      Expanded(
-                                        flex: 2,
-                                        child: Text(
-                                          patient['time'],
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colorScheme.onSurface
-                                                .withValues(alpha: 0.7),
-                                          ),
-                                        ),
-                                      ),
-                                      // Doctor
-                                      Expanded(
-                                        flex: 2,
-                                        child: Text(
-                                          patient['doctor'],
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colorScheme.onSurface
-                                                .withValues(alpha: 0.7),
-                                          ),
-                                        ),
-                                      ),
-                                      // Status Badge
-                                      Expanded(
-                                        flex: 2,
-                                        child: Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: patient['color']
-                                                  .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              patient['status'],
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: patient['color'],
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // Room
-                                      Expanded(
-                                        flex: 2,
-                                        child: Text(
-                                          patient['room'],
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colorScheme.onSurface
-                                                .withValues(alpha: 0.7),
-                                          ),
-                                        ),
-                                      ),
-                                      // Action Icon / Quick check-in link
-                                      SizedBox(
-                                        width: 48,
-                                        child: patient['status'] == 'Scheduled'
-                                            ? InkWell(
-                                                onTap: () {},
+                              return GestureDetector(
+                                onSecondaryTapDown: (details) =>
+                                    _showPatientActions(
+                                      context,
+                                      details.globalPosition,
+                                      row,
+                                    ),
+                                onLongPressStart: (details) =>
+                                    _showPatientActions(
+                                      context,
+                                      details.globalPosition,
+                                      row,
+                                    ),
+                                child: InkWell(
+                                  onTap: () {},
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 3,
+                                          child: Row(
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 16,
+                                                backgroundColor: avatarColor
+                                                    .withValues(alpha: 0.15),
                                                 child: Text(
-                                                  "Check\nIn",
-                                                  textAlign: TextAlign.center,
+                                                  _initials(row.patientName),
                                                   style: TextStyle(
-                                                    color: colorScheme.primary,
                                                     fontSize: 11,
+                                                    color: avatarColor,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                              )
-                                            : IconButton(
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                row.patientName,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: colorScheme.onSurface,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            timeStr,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.7),
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            doctorStr,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.7),
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: stBg,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                _statusLabel(row.status),
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: stFg,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            roomStr,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.7),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 48,
+                                          child: Builder(
+                                            builder: (buttonContext) {
+                                              return IconButton(
                                                 icon: const Icon(
                                                   Icons.more_vert,
                                                   size: 18,
                                                 ),
                                                 onPressed: () {
-                                                  // Calculate position for the popup menu based on context
-                                                  final RenderBox renderBox =
-                                                      context.findRenderObject()
-                                                          as RenderBox;
-                                                  final position = renderBox
-                                                      .localToGlobal(
+                                                  final renderBox =
+                                                      buttonContext
+                                                              .findRenderObject()
+                                                          as RenderBox?;
+                                                  final position =
+                                                      renderBox?.localToGlobal(
                                                         Offset.zero,
-                                                      );
+                                                      ) ??
+                                                      Offset.zero;
                                                   _showPatientActions(
-                                                    context,
+                                                    buttonContext,
                                                     position,
-                                                    index,
+                                                    row,
                                                   );
                                                 },
-                                              ),
-                                      ),
-                                    ],
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-
-                        // Pagination / Footer
+                              );
+                            },
+                          ),
                         Padding(
                           padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "Showing 4 of 28 patients",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.5,
-                                  ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _queue.isEmpty && !_loadingQueue
+                                  ? '0 patients in queue'
+                                  : '${_queue.length} patient${_queue.length == 1 ? '' : 's'} in queue',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.5,
                                 ),
                               ),
-                              Row(
-                                children: [
-                                  TextButton(
-                                    onPressed: () {},
-                                    child: const Text(
-                                      "Previous",
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {},
-                                    child: const Text(
-                                      "Next",
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ],
@@ -606,13 +684,10 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
               ),
             ),
             const SizedBox(width: 24),
-
-            // Right Column
             Expanded(
               flex: 3,
               child: Column(
                 children: [
-                  // Quick Actions Card
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -626,7 +701,7 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          "Quick Actions",
+                          'Quick Actions',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -644,7 +719,7 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                             color: Colors.white,
                           ),
                           label: const Text(
-                            "Register New Patient",
+                            'Register New Patient',
                             style: TextStyle(color: Colors.white, fontSize: 13),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -666,7 +741,7 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                             color: colorScheme.primary,
                           ),
                           label: Text(
-                            "Book Appointment",
+                            'Book Appointment',
                             style: TextStyle(
                               fontSize: 13,
                               color: colorScheme.onSurface,
@@ -688,7 +763,7 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                             color: colorScheme.primary,
                           ),
                           label: Text(
-                            "Check-In Patient",
+                            'Check-In Patient',
                             style: TextStyle(
                               fontSize: 13,
                               color: colorScheme.onSurface,
@@ -705,8 +780,6 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Calendar Card
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -719,7 +792,6 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // We use a Builder to provide custom double-tap gesture wraps over the calendar
                         TableCalendar(
                           firstDay: DateTime.utc(2020, 10, 16),
                           lastDay: DateTime.utc(2030, 3, 14),
@@ -765,7 +837,6 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                             ),
                           ),
                           calendarBuilders: CalendarBuilders(
-                            // Adding custom builder to intercept double taps while preserving standard UI
                             defaultBuilder: (context, day, focusedDay) {
                               return GestureDetector(
                                 onDoubleTap: () => _showDayAppointments(day),
@@ -824,121 +895,16 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                                 ),
                               );
                             },
-                            markerBuilder: (context, day, events) {
-                              int count = _getEventsForDay(day);
-                              if (count > 0) {
-                                return Positioned(
-                                  bottom: 4,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.secondary,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Text(
-                                      '$count',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 8,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                              return null;
-                            },
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Doctors on duty",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              "12",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Recent Activity Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Recent Activity",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                            Text(
-                              "View All",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _buildActivityItem(
-                          context,
-                          "Check-in Complete",
-                          "Emma Rodriguez - Dr. Lee",
-                          "2 mins ago",
-                          Colors.green,
-                        ),
-                        _buildActivityItem(
-                          context,
-                          "New Appointment",
-                          "John Doe - Cardiology",
-                          "15 mins ago",
-                          Colors.blue,
-                        ),
-                        _buildActivityItem(
-                          context,
-                          "Wait Time Alert",
-                          "Pediatrics Queue > 20m",
-                          "1 hour ago",
-                          Colors.orange,
-                        ),
-                        _buildActivityItem(
-                          context,
-                          "Shift Change",
-                          "Nurse Station A",
-                          "2 hours ago",
-                          Colors.grey,
-                          isLast: true,
+                        Text(
+                          "Today's total appointments: "
+                          '${_loadingSummary ? '…' : '${_summary?.appointmentsToday ?? '—'}'}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
                         ),
                       ],
                     ),
@@ -952,7 +918,6 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
     );
   }
 
-  // Helper Widget for Stat Cards
   Widget _buildStatCard(
     BuildContext context,
     String title,
@@ -963,6 +928,7 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
     bool isNegative = false,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
+    final showTrend = change != '—';
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -985,14 +951,24 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
                   ),
                   child: Icon(icon, color: iconColor, size: 20),
                 ),
-                Text(
-                  change,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isNegative ? Colors.red : Colors.green,
+                if (showTrend)
+                  Text(
+                    change,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isNegative ? Colors.red : Colors.green,
+                    ),
+                  )
+                else
+                  Text(
+                    change,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface.withValues(alpha: 0.35),
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1015,73 +991,6 @@ class _FrontDeskDashboardState extends State<FrontDeskDashboardScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  // Helper Widget for Activity Timeline
-  Widget _buildActivityItem(
-    BuildContext context,
-    String title,
-    String subtitle,
-    String time,
-    Color dotColor, {
-    bool isLast = false,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: dotColor,
-                shape: BoxShape.circle,
-              ),
-            ),
-            if (!isLast)
-              Container(
-                width: 2,
-                height: 40,
-                color: colorScheme.outline.withValues(alpha: 0.2),
-              ),
-          ],
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              Text(
-                time,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-              ),
-              if (!isLast) const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ],
     );
   }
 

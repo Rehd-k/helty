@@ -70,7 +70,11 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
   @override
   void didUpdateWidget(ReusableAsyncTable<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update the data source with new callbacks and refresh
+    // Update callbacks only. Do not call refreshDatasource() here: the parent
+    // rebuilds often (errors, banners, etc.) and function references change
+    // every build, which would trigger an infinite loop of API calls.
+    // Remount with a new [key] when query/sort/filter inputs change so data
+    // reloads when those actually change.
     _source.updateCallbacks(
       fetchData: widget.fetchData,
       rowBuilder: widget.rowBuilder,
@@ -80,7 +84,6 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
       contextMenuBuilder: widget.contextMenuBuilder,
       onContextMenuSelected: widget.onContextMenuSelected,
     );
-    _source.refreshDatasource();
   }
 
   @override
@@ -123,6 +126,23 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
 
   final Set<String> _selectedIds = {};
   final Map<String, T> _cachedItems = {};
+
+  /// When [dispose] runs, [AsyncDataTableSource] may still complete an in-flight
+  /// fetch and call [notifyListeners]. Suppress those to avoid
+  /// "used after being disposed" on the underlying [ChangeNotifier].
+  bool _suppressNotifications = false;
+
+  @override
+  void notifyListeners() {
+    if (_suppressNotifications) return;
+    super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _suppressNotifications = true;
+    super.dispose();
+  }
 
   _GenericDataSource({
     required this.context,

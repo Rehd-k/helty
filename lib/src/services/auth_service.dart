@@ -51,7 +51,49 @@ class AuthService {
         if (accountType != null) 'accountType': accountType.name.toUpperCase(),
       },
     );
-    return AuthResponse.fromJson(resp.data['staff'] as Map<String, dynamic>);
+    final raw = resp.data;
+    if (raw is! Map<String, dynamic>) {
+      throw DioException(
+        requestOptions: resp.requestOptions,
+        response: resp,
+        message: 'Register: expected a JSON object response',
+      );
+    }
+
+    // Same shape as login: { accessToken, refreshToken?, staff }
+    if (raw['accessToken'] is String && raw['staff'] is Map<String, dynamic>) {
+      return AuthResponse.fromJson(raw);
+    }
+
+    // POST /staff often returns the created Staff only (no JWT).
+    Map<String, dynamic>? staffJson;
+    if (raw['staff'] is Map<String, dynamic>) {
+      staffJson = raw['staff'] as Map<String, dynamic>;
+    } else if (raw.containsKey('id') &&
+        raw.containsKey('staffId') &&
+        raw['accessToken'] == null) {
+      staffJson = raw;
+    }
+
+    if (staffJson != null) {
+      final trimmedEmail = email?.trim() ?? '';
+      if (trimmedEmail.isNotEmpty) {
+        return login(email: trimmedEmail, password: password);
+      }
+      throw DioException(
+        requestOptions: resp.requestOptions,
+        response: resp,
+        message:
+            'Account created. Add an email on registration to sign in automatically, '
+            'or sign in manually once the API returns a token.',
+      );
+    }
+
+    throw DioException(
+      requestOptions: resp.requestOptions,
+      response: resp,
+      message: 'Register: unrecognized response shape',
+    );
   }
 
   // ── Forgot / Reset Password ─────────────────────────────────────────────────

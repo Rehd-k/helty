@@ -8,11 +8,22 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 
 import '../helper/date.formatter.dart';
 import '../models/invoice.dart';
+import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/invoice_service.dart';
 import '../widgets/filter.patients.dart';
 import 'pay.bill.dart';
 import 'summary.bills.dart';
+
+bool _staffIsBilling(Staff? staff) {
+  if (staff == null) return false;
+  final at = staff.accountType?.name.toLowerCase() ?? '';
+  if (at == 'billing' || at == 'bills') return true;
+  final r = staff.role.toUpperCase();
+  return r == 'BILLING_HEAD' ||
+      r == 'BILLING_STAFF' ||
+      staff.role.toLowerCase() == 'bills';
+}
 
 @RoutePage()
 class PendingBillsScreen extends ConsumerStatefulWidget {
@@ -26,7 +37,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   Invoice? selectedInvoice;
 
   /// Current filter from the search bar and date range.
-  InvoiceFilter _filter = const InvoiceFilter(limit: 500);
+  InvoiceFilter _filter = const InvoiceFilter(limit: 500, allowIP: false);
 
   final InvoiceService _invoiceService = InvoiceService();
   bool _isLoading = false;
@@ -55,6 +66,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
         to: _filter.to,
         page: _filter.page,
         limit: _filter.limit,
+        allowIP: _filter.allowIP,
       );
 
       setState(() {
@@ -87,10 +99,8 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
           PatientsFilterWidget(
             searchCategories: const [
               {'name': 'patientId', 'value': 'Patient ID'},
-              {'name': 'cardNo', 'value': 'Card No'},
               {'name': 'services', 'value': 'Services'},
               {'name': 'fullName', 'value': 'Patient Name'},
-              {'name': 'transactionId', 'value': 'Transaction ID'},
             ],
             onFilterChanged:
                 (String query, String category, DateTime? from, DateTime? to) {
@@ -102,6 +112,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                       from: from,
                       to: to,
                       limit: 500,
+                      allowIP: false,
                     );
                   });
 
@@ -257,6 +268,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
 
 class InvoiceFilter {
   final String? patientId;
+  final bool allowIP;
   final String? status;
   final String? query;
   final String? category;
@@ -268,6 +280,7 @@ class InvoiceFilter {
   const InvoiceFilter({
     this.patientId,
     this.status,
+    this.allowIP = true,
     this.query,
     this.category,
     this.from,
@@ -294,7 +307,7 @@ void _showContextMenu(
       position.dy + 1,
     ),
     items: [
-      if (auth.staff?.role == 'bills')
+      if (_staffIsBilling(auth.staff))
         PopupMenuItem(
           value: 'Make Payment',
           onTap: () => openCustomModal(context, invoice, auth.staff?.id ?? ''),
@@ -343,11 +356,7 @@ void _showContextMenu(
   }
 }
 
-void openCustomModal(
-  BuildContext context,
-  Invoice invoice,
-  String staffId,
-) {
+void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
   showGeneralDialog(
     context: context,
     barrierDismissible: true,

@@ -107,7 +107,8 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
     final order = _order!;
     final hasAnyResults = order.items.any((i) => i.results.isNotEmpty);
     final isHeadOfLab = (staff?.role.toLowerCase() == 'admin') ||
-        (staff?.accountType?.name.toLowerCase() == 'lab');
+        (staff?.accountType?.name.toLowerCase() == 'laboratory' ||
+            staff?.accountType?.name.toLowerCase() == 'lab');
 
     return Scaffold(
       appBar: AppBar(

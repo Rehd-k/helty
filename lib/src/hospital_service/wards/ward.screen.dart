@@ -93,9 +93,9 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openWardForm({Ward? ward}) async {
@@ -121,9 +121,11 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
           ? await _service.updateWard(result)
           : await _service.createWard(result);
 
-      await _loadWards(query: _searchController.text.trim().isEmpty
-          ? null
-          : _searchController.text.trim());
+      await _loadWards(
+        query: _searchController.text.trim().isEmpty
+            ? null
+            : _searchController.text.trim(),
+      );
 
       if (mounted) {
         setState(() {
@@ -132,9 +134,7 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isEdit ? 'Ward updated' : 'Ward created'),
-        ),
+        SnackBar(content: Text(isEdit ? 'Ward updated' : 'Ward created')),
       );
     } catch (e) {
       _showError('Failed to save ward');
@@ -169,13 +169,15 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
 
     try {
       await _service.deleteWard(ward.id);
-      await _loadWards(query: _searchController.text.trim().isEmpty
-          ? null
-          : _searchController.text.trim());
+      await _loadWards(
+        query: _searchController.text.trim().isEmpty
+            ? null
+            : _searchController.text.trim(),
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ward deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Ward deleted')));
       }
     } catch (e) {
       _showError('Failed to delete ward');
@@ -194,10 +196,7 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
           insetPadding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
-            child: _BedForm(
-              wardId: ward.id,
-              initial: bed,
-            ),
+            child: _BedForm(wardId: ward.id, initial: bed),
           ),
         );
       },
@@ -217,8 +216,7 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
               .toList(growable: false);
         });
       } else {
-        final created =
-            await _service.createBed(wardId: ward.id, bed: result);
+        final created = await _service.createBed(wardId: ward.id, bed: result);
         if (!mounted) return;
         setState(() {
           _beds = [..._beds, created];
@@ -226,9 +224,7 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isEdit ? 'Bed updated' : 'Bed created'),
-        ),
+        SnackBar(content: Text(isEdit ? 'Bed updated' : 'Bed created')),
       );
     } catch (e) {
       _showError('Failed to save bed');
@@ -267,9 +263,9 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
       setState(() {
         _beds = _beds.where((b) => b.id != bed.id).toList(growable: false);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bed deleted')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Bed deleted')));
     } catch (e) {
       _showError('Failed to delete bed');
     }
@@ -481,24 +477,27 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
                                         'Capacity: ${ward.capacity}',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: cs.onSurface
-                                              .withValues(alpha: 0.7),
+                                          color: cs.onSurface.withValues(
+                                            alpha: 0.7,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       Icon(
                                         Icons.king_bed_outlined,
                                         size: 14,
-                                        color: cs.onSurface
-                                            .withValues(alpha: 0.5),
+                                        color: cs.onSurface.withValues(
+                                          alpha: 0.5,
+                                        ),
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
                                         '${ward.beds.length} beds',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: cs.onSurface
-                                              .withValues(alpha: 0.7),
+                                          color: cs.onSurface.withValues(
+                                            alpha: 0.7,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -623,10 +622,7 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
                     IconButton(
                       tooltip: 'Delete ward',
                       onPressed: () => _deleteWard(ward),
-                      icon: Icon(
-                        Icons.delete_outline,
-                        color: cs.error,
-                      ),
+                      icon: Icon(Icons.delete_outline, color: cs.error),
                     ),
                   ],
                 ),
@@ -647,8 +643,9 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
                 Row(
                   children: [
                     TextButton.icon(
-                      onPressed:
-                          _isLoadingBeds ? null : () => _loadBedsForWard(ward),
+                      onPressed: _isLoadingBeds
+                          ? null
+                          : () => _loadBedsForWard(ward),
                       icon: const Icon(Icons.refresh, size: 18),
                       label: const Text('Refresh'),
                     ),
@@ -667,98 +664,93 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
               child: _isLoadingBeds
                   ? const Center(child: CircularProgressIndicator())
                   : _beds.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.king_bed_outlined,
+                            size: 40,
+                            color: cs.onSurface.withValues(alpha: 0.4),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No beds in this ward yet',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Add beds to start admitting inpatients here.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _beds.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final bed = _beds[index];
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: cs.outline.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Row(
                             children: [
                               Icon(
-                                Icons.king_bed_outlined,
-                                size: 40,
-                                color: cs.onSurface.withValues(alpha: 0.4),
+                                Icons.bed_outlined,
+                                size: 20,
+                                color: cs.onSurface.withValues(alpha: 0.7),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'No beds in this ward yet',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: cs.onSurface,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      bed.bedNumber,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: cs.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    _BedStatusChip(status: bed.status),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Add beds to start admitting inpatients here.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: cs.onSurface
-                                      .withValues(alpha: 0.6),
+                              IconButton(
+                                tooltip: 'Edit bed',
+                                onPressed: () => _openBedForm(bed: bed),
+                                icon: const Icon(Icons.edit_outlined),
+                              ),
+                              IconButton(
+                                tooltip: 'Delete bed',
+                                onPressed: () => _deleteBed(bed),
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  color: cs.error,
                                 ),
                               ),
                             ],
                           ),
-                        )
-                      : ListView.separated(
-                          itemCount: _beds.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final bed = _beds[index];
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color:
-                                      cs.outline.withValues(alpha: 0.2),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.bed_outlined,
-                                    size: 20,
-                                    color:
-                                        cs.onSurface.withValues(alpha: 0.7),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          bed.bedNumber,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            color: cs.onSurface,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        _BedStatusChip(status: bed.status),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Edit bed',
-                                    onPressed: () => _openBedForm(bed: bed),
-                                    icon: const Icon(Icons.edit_outlined),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Delete bed',
-                                    onPressed: () => _deleteBed(bed),
-                                    icon: Icon(
-                                      Icons.delete_outline,
-                                      color: cs.error,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -831,11 +823,11 @@ class _BedStatusChip extends StatelessWidget {
   Color _background(ColorScheme cs) {
     switch (status) {
       case BedStatus.available:
-        return Colors.green.withOpacity(0.08);
+        return Colors.green.withValues(alpha: 0.08);
       case BedStatus.occupied:
         return cs.error.withValues(alpha: 0.08);
       case BedStatus.reserved:
-        return Colors.orange.withOpacity(0.08);
+        return Colors.orange.withValues(alpha: 0.08);
       case BedStatus.outOfService:
         return cs.outline.withValues(alpha: 0.08);
     }
@@ -896,10 +888,12 @@ class _WardFormState extends State<_WardForm> {
     super.initState();
     final initial = widget.initial;
     _nameController = TextEditingController(text: initial?.name ?? '');
-    _capacityController =
-        TextEditingController(text: initial?.capacity.toString() ?? '');
-    _departmentController =
-        TextEditingController(text: initial?.departmentId ?? '');
+    _capacityController = TextEditingController(
+      text: initial?.capacity.toString() ?? '',
+    );
+    _departmentController = TextEditingController(
+      text: initial?.departmentId ?? '',
+    );
     _type = initial?.type ?? WardType.general;
   }
 
@@ -939,8 +933,9 @@ class _WardFormState extends State<_WardForm> {
       name: name,
       capacity: capacity,
       type: _type,
-      departmentId:
-          _departmentController.text.trim().isEmpty ? null : _departmentController.text.trim(),
+      departmentId: _departmentController.text.trim().isEmpty
+          ? null
+          : _departmentController.text.trim(),
       createdAt: initial?.createdAt,
       updatedAt: initial?.updatedAt,
       beds: initial?.beds ?? const [],
@@ -963,14 +958,12 @@ class _WardFormState extends State<_WardForm> {
           SetupFormHeader(
             icon: Icons.meeting_room_outlined,
             title: isEdit ? 'Edit ward' : 'New ward',
-            subtitle:
-                isEdit ? 'Update ward details' : 'Create a new hospital ward',
+            subtitle: isEdit
+                ? 'Update ward details'
+                : 'Create a new hospital ward',
           ),
           const SizedBox(height: 16),
-          SetupTextField(
-            label: 'Ward name',
-            controller: _nameController,
-          ),
+          SetupTextField(label: 'Ward name', controller: _nameController),
           const SizedBox(height: 12),
           SetupTextField(
             label: 'Capacity (beds)',
@@ -993,8 +986,7 @@ class _WardFormState extends State<_WardForm> {
             onChanged: (value) {
               if (value == null) return;
               setState(() {
-                _type =
-                    WardType.values.firstWhere((e) => e.name == value);
+                _type = WardType.values.firstWhere((e) => e.name == value);
               });
             },
           ),
@@ -1008,9 +1000,7 @@ class _WardFormState extends State<_WardForm> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed: _isSaving
-                    ? null
-                    : () => Navigator.of(context).pop(),
+                onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
                 child: const Text('Cancel'),
               ),
               const SizedBox(width: 12),
@@ -1032,10 +1022,7 @@ class _WardFormState extends State<_WardForm> {
 }
 
 class _BedForm extends StatefulWidget {
-  const _BedForm({
-    required this.wardId,
-    this.initial,
-  });
+  const _BedForm({required this.wardId, this.initial});
 
   final String wardId;
   final Bed? initial;
@@ -1053,8 +1040,9 @@ class _BedFormState extends State<_BedForm> {
   void initState() {
     super.initState();
     final initial = widget.initial;
-    _bedNumberController =
-        TextEditingController(text: initial?.bedNumber ?? '');
+    _bedNumberController = TextEditingController(
+      text: initial?.bedNumber ?? '',
+    );
     _status = initial?.status ?? BedStatus.available;
   }
 
@@ -1067,9 +1055,9 @@ class _BedFormState extends State<_BedForm> {
   Future<void> _submit() async {
     final bedNumber = _bedNumberController.text.trim();
     if (bedNumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bed number is required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Bed number is required')));
       return;
     }
 
@@ -1125,8 +1113,7 @@ class _BedFormState extends State<_BedForm> {
             onChanged: (value) {
               if (value == null) return;
               setState(() {
-                _status =
-                    BedStatus.values.firstWhere((e) => e.name == value);
+                _status = BedStatus.values.firstWhere((e) => e.name == value);
               });
             },
           ),
@@ -1135,9 +1122,7 @@ class _BedFormState extends State<_BedForm> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed: _isSaving
-                    ? null
-                    : () => Navigator.of(context).pop(),
+                onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
                 child: const Text('Cancel'),
               ),
               const SizedBox(width: 12),

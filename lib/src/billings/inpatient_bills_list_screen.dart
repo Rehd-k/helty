@@ -4,20 +4,146 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice.dart';
-import 'package:helty/src/providers/invoices_providers.dart';
+import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
+import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/providers/invoices_providers.dart';
+import 'package:helty/src/services/invoice_service.dart';
+import 'package:helty/src/widgets/date.filter.dart';
 import 'package:intl/intl.dart';
 
+bool _looksLikeUuid(String s) {
+  final t = s.trim();
+  return RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  ).hasMatch(t);
+}
+
 @RoutePage()
-class InpatientBillsListScreen extends ConsumerWidget {
+class InpatientBillsListScreen extends ConsumerStatefulWidget {
   const InpatientBillsListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InpatientBillsListScreen> createState() =>
+      _InpatientBillsListScreenState();
+}
+
+class _InpatientBillsListScreenState
+    extends ConsumerState<InpatientBillsListScreen> {
+  final InvoiceService _invoiceService = InvoiceService();
+
+  bool _isLoading = true;
+  String? _error;
+  List<Invoice> _invoices = const [];
+  bool _creatingBill = false;
+
+  DateTime? _fromDate;
+  DateTime? _toDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+  }
+
+  Future<void> _loadInvoices() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final selectedPatient = ref.read(patientProvider).selectedPatient;
+      final patientUuid = selectedPatient?.id;
+      final from = _fromDate;
+      final to = _toDate;
+      final List<Invoice> invoices;
+      if (patientUuid != null && _looksLikeUuid(patientUuid)) {
+        invoices = await _invoiceService.getInvoices(
+          patientId: patientUuid,
+          from: from,
+          to: to,
+          limit: 500,
+        );
+      } else {
+        invoices = await _invoiceService.getInvoices(
+          from: from,
+          to: to,
+          limit: 500,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _invoices = invoices;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openServicesForNewBill() async {
+    final selected = ref.read(patientProvider).selectedPatient;
+    final uuid = selected?.id?.trim();
+    if (uuid == null || !_looksLikeUuid(uuid)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Select a registered patient before adding a bill.',
+          ),
+        ),
+      );
+      return;
+    }
+    setState(() => _creatingBill = true);
+    try {
+      await ref.read(invoiceNotifierProvider.notifier).getOrCreateBillingInvoice(
+            patientId: uuid,
+            staffId: ref.read(authProvider).staff?.id,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start billing: $e')),
+        );
+      }
+      return;
+    } finally {
+      if (mounted) setState(() => _creatingBill = false);
+    }
+    if (!mounted) return;
+    await context.router.push(const RenderServiceRoute());
+    if (mounted) _loadInvoices();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(patientProvider, (previous, next) {
+      final prevId = previous?.selectedPatient?.id;
+      final nextId = next.selectedPatient?.id;
+      if (prevId != nextId) {
+        Future.microtask(() {
+          if (mounted) _loadInvoices();
+        });
+      }
+    });
+
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
-    final filter = InvoiceFilter(patientId: selectedPatient?.id, limit: 500);
-    final invoicesAsync = ref.watch(invoicesProvider(filter));
     final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
@@ -27,73 +153,139 @@ class InpatientBillsListScreen extends ConsumerWidget {
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
       ),
-      body: invoicesAsync.when(
-        data: (invoices) {
-          if (invoices.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 64,
-                    color: colorScheme.onSurface.withValues(alpha: 0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No inpatient bills found',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: (_isLoading || _creatingBill)
+                      ? null
+                      : _openServicesForNewBill,
+                  icon: _creatingBill
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.onPrimary,
+                          ),
+                        )
+                      : const Icon(Icons.receipt_long_outlined, size: 20),
+                  label: Text(_creatingBill ? 'Opening…' : 'Add bill'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Opens the services list so you can add lines to this '
+                    "patient's invoice (a bill is created if needed).",
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.72),
                     ),
                   ),
-                ],
-              ),
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: invoices.length,
-            itemBuilder: (context, index) {
-              final invoice = invoices[index];
-              final patientName =
-                  selectedPatient != null &&
-                      selectedPatient.patientId == invoice.patientId
-                  ? '${selectedPatient.firstName} ${selectedPatient.surname}'
-                  : '—';
-              return _BillCard(
-                invoice: invoice,
-                patientName: patientName,
-                onTap: () => context.router.push(
-                  PatientBillingRoute(
-                    invoiceId: invoice.id,
-                    patientName: patientName,
-                  ),
-                ),
-                colorScheme: colorScheme,
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: colorScheme.error),
-                const SizedBox(height: 16),
-                Text(
-                  err.toString(),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colorScheme.onSurface),
                 ),
               ],
             ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: FromToDateFilter(
+              doRefresh: _loadInvoices,
+              dateFilter: true,
+              onFilterChanged:
+                  (String query, String category, DateTime? from, DateTime? to) {
+                setState(() {
+                  _fromDate = from;
+                  _toDate = to;
+                });
+                _loadInvoices();
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _buildBody(selectedPatient, colorScheme),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildBody(Patient? selectedPatient, ColorScheme colorScheme) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colorScheme.onSurface),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final invoices = _invoices;
+    if (invoices.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 64,
+              color: colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No inpatient bills found for this range',
+              style: TextStyle(
+                fontSize: 16,
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: invoices.length,
+      itemBuilder: (context, index) {
+        final invoice = invoices[index];
+        final patientName =
+            selectedPatient != null &&
+                selectedPatient.patientId == invoice.patientId
+            ? '${selectedPatient.firstName} ${selectedPatient.surname}'
+            : '—';
+        return _BillCard(
+          invoice: invoice,
+          patientName: patientName,
+          onTap: () async {
+            await context.router.push(
+              PatientBillingRoute(
+                invoiceId: invoice.id,
+                patientName: patientName,
+              ),
+            );
+            if (mounted) _loadInvoices();
+          },
+          colorScheme: colorScheme,
+        );
+      },
     );
   }
 }

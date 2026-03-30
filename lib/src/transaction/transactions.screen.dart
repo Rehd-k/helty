@@ -10,6 +10,7 @@ import 'transaction_models.dart';
 import 'transaction_payment_dialog.dart';
 import 'transaction_summary_section.dart';
 import '../services/transaction_service.dart';
+import '../widgets/receipt_escpos_service.dart';
 import '../widgets/table/reusable_async_table.dart';
 
 @RoutePage()
@@ -171,10 +172,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         setState(() => _selectedTransaction = transaction);
         break;
       case 'reprint':
-        _showSimpleModal(
-          'Reprint Receipt',
-          'Reprint the receipt for ${transaction['tranId']}?',
-        );
+        _showReprintReceiptDialog(transaction);
         break;
       case 'change_method':
         _openPaymentDialog(transaction);
@@ -239,6 +237,64 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               backgroundColor: colorScheme.primary,
             ),
             child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReprintReceiptDialog(Map<String, dynamic> transaction) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final tid = transaction['tranId']?.toString() ?? '';
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          'Reprint receipt',
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Send receipt for $tid to the default printer?',
+          style: TextStyle(
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final nav = Navigator.of(dialogContext);
+              final messenger = ScaffoldMessenger.of(context);
+              nav.pop();
+              final data = ReceiptEscposService.fromTransactionMap(transaction);
+              try {
+                await ReceiptEscposService.printReceipt(data: data);
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Receipt sent to default printer'),
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Print failed: $e')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colorScheme.primary,
+            ),
+            child: const Text('Print', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

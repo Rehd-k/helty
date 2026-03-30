@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
@@ -7,7 +5,6 @@ import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/services/admission_service.dart';
-import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/ward_service.dart';
 
 @RoutePage()
@@ -22,7 +19,6 @@ class DoctorEncounterAdmissionTab extends StatefulWidget {
 class _DoctorEncounterAdmissionTabState
     extends State<DoctorEncounterAdmissionTab> {
   final _admissionService = AdmissionService();
-  final _encounterService = EncounterService();
   final _wardService = WardService();
   final _patientService = PatientService();
 

@@ -33,28 +33,8 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
     super.initState();
     doRefresh = widget.doRefresh;
     _selectedCategory = widget.searchCategories.first['name'];
-    // Default date range: start of today to end of today
-    final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
-    _toDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      23,
-      59,
-      59,
-      999,
-    ); // inclusive
-    // Notify parent immediately so filters are always date-bounded
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _notifyParent();
-    });
-  }
-
-  void _resetFilters() {
-    setState(() {
-      _searchController.clear();
-      _selectedCategory = widget.searchCategories.first['name'];
+    if (widget.dateFilter) {
+      // Default date range: start of today to end of today
       final now = DateTime.now();
       _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
       _toDate = DateTime(
@@ -66,6 +46,35 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
         59,
         999,
       ); // inclusive
+    } else {
+      _fromDate = null;
+      _toDate = null;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifyParent();
+    });
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _searchController.clear();
+      _selectedCategory = widget.searchCategories.first['name'];
+      if (widget.dateFilter) {
+        final now = DateTime.now();
+        _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+        _toDate = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          23,
+          59,
+          59,
+          999,
+        ); // inclusive
+      } else {
+        _fromDate = null;
+        _toDate = null;
+      }
     });
     _notifyParent();
   }
@@ -74,8 +83,8 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
     widget.onFilterChanged(
       _searchController.text,
       _selectedCategory!,
-      _fromDate,
-      _toDate,
+      widget.dateFilter ? _fromDate : null,
+      widget.dateFilter ? _toDate : null,
     );
   }
 

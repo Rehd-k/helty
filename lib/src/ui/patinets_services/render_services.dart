@@ -990,24 +990,26 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     if (staff == null) {
       return const SizedBox.shrink();
     }
-    final isBillsRole = staff.accountType?.name == 'bills';
     final admitted =
         selectedPatient != null &&
         patientStatusIsAdmitted(selectedPatient.status);
-    final usePayBill = isBillsRole && !admitted && noIdPatient.isEmpty;
+    // Inpatient charges attach to the ward invoice; outpatients / walk-ins pay at POS.
+    final usePayAtPos = !admitted;
 
-    if (usePayBill) {
+    if (usePayAtPos) {
       return ElevatedButton(
-        onPressed: () {
-          _openPaymentModal(
-            context,
-            selectedPatient,
-            noIdPatient,
-            _selectedItems,
-            _totalDue,
-            staff.id,
-          );
-        },
+        onPressed: _selectedItems.isEmpty
+            ? null
+            : () {
+                _openPaymentModal(
+                  context,
+                  selectedPatient,
+                  noIdPatient,
+                  _selectedItems,
+                  _totalDue,
+                  staff.id,
+                );
+              },
         style: ElevatedButton.styleFrom(
           elevation: 0,
           shape: RoundedRectangleBorder(

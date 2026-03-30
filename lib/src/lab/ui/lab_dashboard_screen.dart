@@ -88,6 +88,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     final theme = Theme.of(context);
     final staff = ref.watch(currentStaffProvider);
     final isLabManager = staff?.role.toLowerCase() == 'admin' ||
+        staff?.accountType?.name.toLowerCase() == 'laboratory' ||
         staff?.accountType?.name.toLowerCase() == 'lab';
 
     return Scaffold(

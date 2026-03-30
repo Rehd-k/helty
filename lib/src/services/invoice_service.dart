@@ -44,6 +44,7 @@ class InvoiceService {
     DateTime? to,
     int page = 1,
     int limit = 100,
+    bool allowIP = true,
   }) async {
     try {
       final response = await _dio.get(
@@ -58,6 +59,7 @@ class InvoiceService {
           if (to != null) 'toDate': to.toUtc().toIso8601String(),
           'page': page,
           'limit': limit,
+          if (allowIP) 'allowIP': allowIP,
         },
       );
 
@@ -66,7 +68,9 @@ class InvoiceService {
           .map((json) => Invoice.fromJson(json as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
-      throw Exception('Failed to load invoices: ${_dioMessage(e, 'Unknown error')}');
+      throw Exception(
+        'Failed to load invoices: ${_dioMessage(e, 'Unknown error')}',
+      );
     }
   }
 
@@ -76,7 +80,9 @@ class InvoiceService {
       final response = await _dio.get('/invoices/$id');
       return Invoice.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception('Failed to load invoice: ${_dioMessage(e, 'Unknown error')}');
+      throw Exception(
+        'Failed to load invoice: ${_dioMessage(e, 'Unknown error')}',
+      );
     }
   }
 
@@ -272,7 +278,9 @@ class InvoiceService {
     }
   }
 
-  Future<List<BillingInvoicePayment>> getInvoicePayments(String invoiceId) async {
+  Future<List<BillingInvoicePayment>> getInvoicePayments(
+    String invoiceId,
+  ) async {
     try {
       final response = await _dio.get('/invoices/$invoiceId/payments');
       final list = _extractList(response.data, key: 'payments');
@@ -321,7 +329,9 @@ class InvoiceService {
     String patientId,
   ) async {
     try {
-      final response = await _dio.get('/invoices/wallets/$patientId/transactions');
+      final response = await _dio.get(
+        '/invoices/wallets/$patientId/transactions',
+      );
       final list = _extractList(response.data, key: 'transactions');
       return list
           .whereType<Map>()
@@ -375,7 +385,9 @@ class InvoiceService {
     try {
       await _dio.delete('/invoices/$invoiceId/items/$itemId');
     } on DioException catch (e) {
-      throw Exception('Failed to delete item: ${_dioMessage(e, 'Unknown error')}');
+      throw Exception(
+        'Failed to delete item: ${_dioMessage(e, 'Unknown error')}',
+      );
     }
   }
 }

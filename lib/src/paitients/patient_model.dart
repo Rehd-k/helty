@@ -101,7 +101,7 @@ class Patient {
     final String? dobStr = json['dob'] as String?;
     return Patient(
       id: json['id'] as String?,
-      patientId: json['patientId'] as String,
+      patientId: json['patientId'] as String? ?? '',
       cardNo: json['cardNo'] as String? ?? '',
       title: json['title'] as String? ?? '',
       surname: json['surname'] as String? ?? '',

@@ -73,8 +73,13 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
 
   @override
   void dispose() {
-    _patientNotifier.setListStatusFilter(PatientListStatusFilter.none);
+    // Do not update Riverpod notifiers synchronously in dispose — it runs while
+    // the tree is still tearing down (e.g. logout) and triggers StateNotifierListenerError.
+    final notifier = _patientNotifier;
     super.dispose();
+    Future.microtask(() {
+      notifier.setListStatusFilter(PatientListStatusFilter.none);
+    });
   }
 
   @override

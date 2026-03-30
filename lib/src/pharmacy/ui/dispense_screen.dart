@@ -612,7 +612,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
             child: cart.isEmpty
                 ? Center(
                     child: Text(
-                      'Le panier est vide\n(Cart is empty)',
+                      'Cart is empty',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: colorScheme.onSurfaceVariant),
                     ),

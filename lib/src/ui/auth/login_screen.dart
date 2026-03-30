@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
@@ -39,25 +38,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   PageRouteInfo _initialRouteForRole(String role, String accountType) {
-    switch (accountType) {
-      case 'RECEPTIONIST':
+    final at = accountType.toLowerCase();
+    final r = role.toUpperCase();
+
+    switch (at) {
+      case 'front_desk':
+      case 'frontdesk':
         return const FrontDeskDashboardRoute();
+      case 'billing':
       case 'bills':
         return const BillingDashboardRoute();
+      case 'nurse':
+      case 'head_nurse':
+      case 'inpatient_nurse':
+      case 'outpatient_nurse':
+        return const NursesDashboardRoute();
+      case 'pharmacy':
       case 'pharmacy_store':
+      case 'pharmacy_head':
+        if (r == 'PHARMACY_DISPENSARY' || at == 'pharmacy_dispensary') {
+          return EnlistPaitientRoute(serviceName: 'Pharmacy');
+        }
         return const MedicineInventoryRoute();
       case 'pharmacy_dispensary':
         return EnlistPaitientRoute(serviceName: 'Pharmacy');
-      case 'NURSE':
-      case 'outpatient_nurse':
-        return const NursesDashboardRoute();
-
-      case 'RADIOLOGY':
-        return const RadiologyDashboardRoute();
+      case 'physician':
       case 'consultant':
+      case 'inpatient_doctor':
         return const DoctorOutpatientListRoute();
+      case 'laboratory':
+      case 'lab':
+        return const LabDashboardRoute();
+      case 'radiology':
+        return const RadiologyDashboardRoute();
+      case 'store':
+        return const StoreDashboardRoute();
+      case 'accounting':
+      case 'accounts':
+      case 'medical_records':
+      case 'ict':
+        return const DashboardRoute();
+      case 'cmd':
+      case 'cmac':
+      case 'super_admin':
+        return const CMDDashboardRoute();
       case 'admin':
-        return const FrontDeskDashboardRoute();
+        return const CMDDashboardRoute();
       default:
         return const FrontDeskDashboardRoute();
     }

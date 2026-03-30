@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +38,15 @@ class ChargeItem {
   final ChargeCategory category;
   final int quantity;
 
+  /// Server `lineTotal` (can exceed unit × qty, e.g. recurring daily roll-up).
+  final double lineTotal;
+
+  /// Server `amountPaid` on this invoice line.
+  final double amountPaid;
+
+  /// Remaining due on this line (`lineAmountDue`).
+  final double lineAmountDue;
+
   ChargeItem({
     required this.id,
     required this.invoiceLineItemId,
@@ -44,9 +55,25 @@ class ChargeItem {
     required this.date,
     required this.category,
     this.quantity = 1,
+    this.lineTotal = 0,
+    this.amountPaid = 0,
+    this.lineAmountDue = 0,
   });
 
   double get total => amount * quantity;
+
+  /// Denominator for payment progress (prefer API line total).
+  double get displayLineTotal {
+    if (lineTotal > 0) return lineTotal;
+    final t = total;
+    return t > 0 ? t : 1;
+  }
+
+  /// 0..1 for green fill (`amountPaid` vs line total).
+  double get paymentProgress => (amountPaid / displayLineTotal).clamp(0.0, 1.0);
+
+  bool get isLineFullyPaid =>
+      lineAmountDue <= 0.001 || paymentProgress >= 0.999;
 }
 
 /// Maps API invoice line items to UI charge buckets: recurring daily first, then lab by category name.
@@ -64,6 +91,8 @@ ChargeCategory _chargeCategoryForBillingItem(BillingInvoiceItem item) {
 List<ChargeItem> _chargesFromBillingDetail(BillingInvoiceDetail? inv) {
   if (inv == null) return [];
   final created = inv.createdAt ?? DateTime.now();
+
+  log('inv.invoiceItems: ${inv.invoiceItems}');
   return [
     for (final item in inv.invoiceItems)
       ChargeItem(
@@ -74,6 +103,9 @@ List<ChargeItem> _chargesFromBillingDetail(BillingInvoiceDetail? inv) {
         quantity: item.quantity,
         date: created,
         category: _chargeCategoryForBillingItem(item),
+        lineTotal: item.lineTotal,
+        amountPaid: item.lineItemAmountPaid,
+        lineAmountDue: item.lineAmountDue,
       ),
   ];
 }
@@ -189,6 +221,80 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
+  /// Calendar date in local time (strip time component).
+  DateTime _dateOnlyLocal(DateTime dt) {
+    final l = dt.toLocal();
+    return DateTime(l.year, l.month, l.day);
+  }
+
+  /// Inclusive calendar days from [start] through [end] (same day → 1).
+  int _inclusiveCalendarDays(DateTime start, DateTime end) {
+    final a = _dateOnlyLocal(start);
+    final b = _dateOnlyLocal(end);
+    return b.difference(a).inDays + 1;
+  }
+
+  /// Active usage segment for recurring lines (`endAt == null`); earliest [startAt] if several.
+  BillingUsageSegment? _activeUsageSegment(BillingInvoiceItem item) {
+    final withStart = item.usageSegments
+        .where((s) => s.isActive && s.startAt != null)
+        .toList();
+    if (withStart.isEmpty) return null;
+    withStart.sort((a, b) => a.startAt!.compareTo(b.startAt!));
+    return withStart.first;
+  }
+
+  Widget _recurringDailySubtitle(BillingInvoiceItem line, ThemeData theme) {
+    final dailyRate = line.unitPrice;
+    final active = _activeUsageSegment(line);
+    final startAt = active?.startAt;
+
+    if (startAt == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            line.usageSegments.isEmpty
+                ? 'Recurring daily (no usage window yet)'
+                : 'Paused · no active usage segment',
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            'Daily charge ${dailyRate.toFinancial(isMoney: true)}',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      );
+    }
+
+    final now = DateTime.now();
+    final days = _inclusiveCalendarDays(startAt, now);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Started ${_formatDate(startAt.toLocal())} · '
+          'Today ${_formatDate(now)} · '
+          '$days ${days == 1 ? 'day' : 'days'}',
+          style: const TextStyle(fontSize: 12),
+        ),
+        Text(
+          'Daily charge ${dailyRate.toFinancial(isMoney: true)}',
+          style: TextStyle(
+            fontSize: 12,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
   ServiceModel _billingItemToServiceModel(BillingInvoiceItem item) {
     return ServiceModel(
       id: item.id,
@@ -200,7 +306,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     );
   }
 
-  void _openPayBillForItems(List<BillingInvoiceItem> lines) {
+  /// Opens [PayBill] with line allocations. Use [paymentByLineId] to pay less than
+  /// full [BillingInvoiceItem.lineAmountDue] on specific lines (partial pay).
+  void _openPayBillForItems(
+    List<BillingInvoiceItem> lines, {
+    Map<String, double>? paymentByLineId,
+  }) {
     final detail = _billingDetail;
     if (detail == null || lines.isEmpty) return;
     final staff = ref.read(authProvider).staff;
@@ -214,10 +325,18 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     for (final line in lines) {
       final due = line.lineAmountDue;
       if (due <= 0) continue;
+      double payAmount;
+      if (paymentByLineId != null && paymentByLineId.containsKey(line.id)) {
+        payAmount = paymentByLineId[line.id]!;
+        if (payAmount <= 0) continue;
+        payAmount = payAmount.clamp(0.01, due);
+      } else {
+        payAmount = (due * 100).round() / 100.0;
+      }
       allocations.add(
         InvoiceItemAllocationInput(
           invoiceItemId: line.id,
-          amount: (due * 100).round() / 100.0,
+          amount: (payAmount * 100).round() / 100.0,
         ),
       );
     }
@@ -259,6 +378,321 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       if (i.id == charge.invoiceLineItemId) return i;
     }
     return null;
+  }
+
+  Widget _chargeRowPaymentBackdrop(ChargeItem item) {
+    final progress = item.paymentProgress;
+    final due = item.lineAmountDue;
+    final nothingPaid = progress < 0.001 && due > 0.001;
+    final full = item.isLineFullyPaid;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (nothingPaid) ColoredBox(color: Colors.red.withValues(alpha: 0.10)),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: full ? 1.0 : progress,
+            heightFactor: 1,
+            child: ColoredBox(
+              color: Colors.green.withValues(alpha: full ? 0.26 : 0.22),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool _isRecurringUsageActive(BillingInvoiceItem item) =>
+      item.usageSegments.any((s) => s.isActive);
+
+  Future<void> _onLinePayMenuChoice(
+    String? choice,
+    BillingInvoiceItem line,
+    ChargeItem charge,
+  ) async {
+    if (choice == null || !mounted) return;
+    if (choice == 'full') {
+      _openPayBillForItems([line]);
+    } else if (choice == 'partial') {
+      await _showPartialPaymentModal(line, charge);
+    } else if (choice == 'pause_recurring') {
+      await _toggleSingleRecurringLine(line: line, pause: true);
+    } else if (choice == 'resume_recurring') {
+      await _toggleSingleRecurringLine(line: line, pause: false);
+    }
+  }
+
+  Future<void> _toggleSingleRecurringLine({
+    required BillingInvoiceItem line,
+    required bool pause,
+  }) async {
+    final invoice = _billingDetail;
+    if (invoice == null || !line.isRecurringDaily || !mounted) return;
+    try {
+      if (pause) {
+        await _invoiceService.pauseRecurringItem(
+          invoiceId: invoice.id,
+          itemId: line.id,
+        );
+      } else {
+        await _invoiceService.resumeRecurringItem(
+          invoiceId: invoice.id,
+          itemId: line.id,
+        );
+      }
+      if (!mounted) return;
+      await _loadBillingData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            pause
+                ? 'Paused recurring billing for this line'
+                : 'Resumed recurring billing for this line',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to update recurring line: $e')),
+      );
+    }
+  }
+
+  List<PopupMenuEntry<String>> _lineContextMenuEntries(
+    BillingInvoiceItem line,
+    ChargeItem charge,
+  ) {
+    final entries = <PopupMenuEntry<String>>[
+      PopupMenuItem<String>(
+        value: 'full',
+        child: ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.payments_outlined, size: 22),
+          title: const Text('Pay full balance'),
+          subtitle: Text(
+            charge.lineAmountDue.toFinancial(isMoney: true),
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+      ),
+      const PopupMenuItem<String>(
+        value: 'partial',
+        child: ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.pie_chart_outline, size: 22),
+          title: Text('Partial payment'),
+          subtitle: Text(
+            'Pay less than the full balance',
+            style: TextStyle(fontSize: 12),
+          ),
+        ),
+      ),
+    ];
+    if (line.isRecurringDaily) {
+      entries.add(const PopupMenuDivider());
+      if (_isRecurringUsageActive(line)) {
+        entries.add(
+          const PopupMenuItem<String>(
+            value: 'pause_recurring',
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.pause_circle_outline, size: 22),
+              title: Text('Pause recurring (this line only)'),
+              subtitle: Text(
+                'Stops daily accrual for this service',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        );
+      } else {
+        entries.add(
+          const PopupMenuItem<String>(
+            value: 'resume_recurring',
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.play_circle_outline, size: 22),
+              title: Text('Resume recurring (this line only)'),
+              subtitle: Text(
+                'Restarts daily accrual for this service',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    return entries;
+  }
+
+  void _showLinePaymentMenuAt(
+    Offset globalPosition,
+    BillingInvoiceItem line,
+    ChargeItem charge,
+  ) {
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx + 1,
+        globalPosition.dy + 1,
+      ),
+      items: _lineContextMenuEntries(line, charge),
+    ).then((choice) {
+      if (mounted) _onLinePayMenuChoice(choice, line, charge);
+    });
+  }
+
+  Future<void> _showLinePaymentBottomSheet(
+    BillingInvoiceItem line,
+    ChargeItem charge,
+  ) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                charge.description,
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.payments_outlined),
+              title: const Text('Pay full balance'),
+              subtitle: Text(
+                'Due ${charge.lineAmountDue.toFinancial(isMoney: true)}',
+              ),
+              onTap: () => Navigator.pop(ctx, 'full'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.pie_chart_outline),
+              title: const Text('Partial payment'),
+              subtitle: const Text(
+                'Choose an amount, then complete in Pay Bill',
+              ),
+              onTap: () => Navigator.pop(ctx, 'partial'),
+            ),
+            if (line.isRecurringDaily) ...[
+              const Divider(height: 1),
+              if (_isRecurringUsageActive(line))
+                ListTile(
+                  leading: const Icon(Icons.pause_circle_outline),
+                  title: const Text('Pause recurring (this line only)'),
+                  subtitle: const Text('Stops daily accrual for this service'),
+                  onTap: () => Navigator.pop(ctx, 'pause_recurring'),
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.play_circle_outline),
+                  title: const Text('Resume recurring (this line only)'),
+                  subtitle: const Text(
+                    'Restarts daily accrual for this service',
+                  ),
+                  onTap: () => Navigator.pop(ctx, 'resume_recurring'),
+                ),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _onLinePayMenuChoice(choice, line, charge);
+  }
+
+  Future<void> _showPartialPaymentModal(
+    BillingInvoiceItem line,
+    ChargeItem charge,
+  ) async {
+    final due = line.lineAmountDue;
+    if (due <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Nothing due on this line')));
+      return;
+    }
+    final ctrl = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Partial payment'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(charge.description),
+              const SizedBox(height: 8),
+              Text(
+                'Balance due: ${due.toFinancial(isMoney: true)}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Amount to pay',
+                  hintText: 'Max ${due.toFinancial(isMoney: true)}',
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Continue to Pay Bill'),
+          ),
+        ],
+      ),
+    );
+    if (submitted != true || !mounted) return;
+    final raw = ctrl.text.trim().replaceAll(',', '');
+    final amount = double.tryParse(raw) ?? 0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a positive amount')));
+      return;
+    }
+    if (amount > due + 0.02) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Amount cannot exceed ${due.toFinancial(isMoney: true)}',
+          ),
+        ),
+      );
+      return;
+    }
+    _openPayBillForItems([line], paymentByLineId: {line.id: amount});
   }
 
   // --- Actions ---
@@ -855,6 +1289,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
 
     return Card(
       elevation: 0,
+
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: colorScheme.outlineVariant),
@@ -870,76 +1305,187 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           final selected = _selectedLineIdsForPay.contains(
             item.invoiceLineItemId,
           );
-          return ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
-            leading: Checkbox(
-              value: selected,
-              onChanged: detail == null
-                  ? null
-                  : (v) {
-                      setState(() {
-                        if (v == true) {
-                          _selectedLineIdsForPay.add(item.invoiceLineItemId);
-                        } else {
-                          _selectedLineIdsForPay.remove(item.invoiceLineItemId);
-                        }
-                      });
-                    },
-            ),
-            title: Text(
-              item.description,
-              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-            ),
-            subtitle: Row(
-              children: [
-                Text(
-                  _formatDate(item.date),
-                  style: const TextStyle(fontSize: 12),
-                ),
-                if (item.quantity > 1) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    'Qty: ${item.quantity}',
-                    style: const TextStyle(fontSize: 12, color: Colors.blue),
-                  ),
-                ],
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      item.total.toFinancial(isMoney: true),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+          final theme = Theme.of(context);
+          final trailingAmount = item.lineAmountDue > 0.001
+              ? item.lineAmountDue
+              : item.displayLineTotal;
+          return Material(
+            color: Colors.transparent,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Checkbox(
+                      value: selected,
+                      onChanged: detail == null
+                          ? null
+                          : (v) {
+                              setState(() {
+                                if (v == true) {
+                                  _selectedLineIdsForPay.add(
+                                    item.invoiceLineItemId,
+                                  );
+                                } else {
+                                  _selectedLineIdsForPay.remove(
+                                    item.invoiceLineItemId,
+                                  );
+                                }
+                              });
+                            },
                     ),
-                    if (item.quantity > 1)
-                      Text(
-                        '${item.amount.toFinancial(isMoney: true)} each',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onSecondaryTapDown: line == null || item.isLineFullyPaid
+                          ? null
+                          : (d) => _showLinePaymentMenuAt(
+                              d.globalPosition,
+                              line,
+                              item,
+                            ),
+                      onLongPress: line == null || item.isLineFullyPaid
+                          ? null
+                          : () => _showLinePaymentBottomSheet(line, item),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned.fill(
+                              child: _chargeRowPaymentBackdrop(item),
+                            ),
+                            ListTile(
+                              tileColor: Colors.transparent,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              title: Text(
+                                item.description,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (line != null && line.isRecurringDaily)
+                                    _recurringDailySubtitle(line, theme)
+                                  else
+                                    Row(
+                                      children: [
+                                        Text(
+                                          _formatDate(item.date),
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                        if (item.quantity > 1) ...[
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Qty: ${item.quantity}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Paid ${item.amountPaid.toFinancial(isMoney: true)} / ${item.displayLineTotal.toFinancial(isMoney: true)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        trailingAmount.toFinancial(
+                                          isMoney: true,
+                                        ),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                          color: item.isLineFullyPaid
+                                              ? Colors.green.shade800
+                                              : null,
+                                        ),
+                                      ),
+                                      if (item.lineAmountDue > 0.001 &&
+                                          item.amountPaid > 0.001)
+                                        Text(
+                                          'due',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                        ),
+                                      if (item.quantity > 1)
+                                        Text(
+                                          '${item.amount.toFinancial(isMoney: true)} / unit',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  Builder(
+                                    builder: (btnCtx) {
+                                      return IconButton(
+                                        tooltip: 'Payment options',
+                                        icon: const Icon(
+                                          Icons.payment_outlined,
+                                          size: 22,
+                                        ),
+                                        onPressed:
+                                            line == null || item.isLineFullyPaid
+                                            ? null
+                                            : () {
+                                                final box =
+                                                    btnCtx.findRenderObject()
+                                                        as RenderBox?;
+                                                if (box == null) return;
+                                                final o = box.localToGlobal(
+                                                  Offset.zero,
+                                                );
+                                                _showLinePaymentMenuAt(
+                                                  o +
+                                                      Offset(
+                                                        0,
+                                                        box.size.height,
+                                                      ),
+                                                  line,
+                                                  item,
+                                                );
+                                              },
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                  ],
-                ),
-                IconButton(
-                  tooltip: 'Pay this line',
-                  icon: const Icon(Icons.payment_outlined, size: 22),
-                  onPressed: line == null
-                      ? null
-                      : () => _openPayBillForItems([line]),
-                ),
-              ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -1058,59 +1604,99 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     BuildContext context,
     BillingInvoiceDetail invoice,
   ) async {
-    final recurringItems = invoice.invoiceItems.where(
-      (e) => e.isRecurringDaily,
-    );
-    final item = recurringItems.first;
-    final isActive = item.usageSegments.any((e) => e.isActive);
-    final confirmed = await showDialog<bool>(
+    final recurring = invoice.invoiceItems
+        .where((e) => e.isRecurringDaily)
+        .toList();
+    if (recurring.isEmpty) return;
+
+    final active = recurring.where((e) => _isRecurringUsageActive(e)).toList();
+    final idle = recurring.where((e) => !_isRecurringUsageActive(e)).toList();
+
+    final action = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          isActive ? 'Pause recurring item' : 'Resume recurring item',
-        ),
-        content: Text(
-          '${item.serviceName ?? item.serviceId} will be ${isActive ? 'paused' : 'resumed'}.',
+        title: const Text('Recurring daily charges'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '${recurring.length} recurring line(s): '
+                '${active.length} running, ${idle.length} paused.',
+              ),
+              const SizedBox(height: 16),
+              if (active.isNotEmpty) ...[
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(ctx, 'pause_all'),
+                  icon: const Icon(Icons.pause_circle_outline, size: 20),
+                  label: Text('Pause all running (${active.length})'),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (idle.isNotEmpty)
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(ctx, 'resume_all'),
+                  icon: const Icon(Icons.play_circle_outline, size: 20),
+                  label: Text('Resume all paused (${idle.length})'),
+                ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(isActive ? 'Pause' : 'Resume'),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (action == null || !mounted) return;
+
     try {
-      if (isActive) {
-        await _invoiceService.pauseRecurringItem(
-          invoiceId: invoice.id,
-          itemId: item.id,
+      if (action == 'pause_all') {
+        for (final item in active) {
+          await _invoiceService.pauseRecurringItem(
+            invoiceId: invoice.id,
+            itemId: item.id,
+          );
+        }
+        if (!mounted) return;
+        await _loadBillingData();
+        if (!mounted) return;
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(
+            content: Text(
+              active.length == 1
+                  ? 'Recurring line paused'
+                  : 'Paused ${active.length} recurring lines',
+            ),
+          ),
         );
-      } else {
-        await _invoiceService.resumeRecurringItem(
-          invoiceId: invoice.id,
-          itemId: item.id,
+      } else if (action == 'resume_all') {
+        for (final item in idle) {
+          await _invoiceService.resumeRecurringItem(
+            invoiceId: invoice.id,
+            itemId: item.id,
+          );
+        }
+        if (!mounted) return;
+        await _loadBillingData();
+        if (!mounted) return;
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(
+            content: Text(
+              idle.length == 1
+                  ? 'Recurring line resumed'
+                  : 'Resumed ${idle.length} recurring lines',
+            ),
+          ),
         );
       }
-      if (!mounted) return;
-      await _loadBillingData();
-      if (!mounted) return;
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isActive ? 'Recurring item paused' : 'Recurring item resumed',
-          ),
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(content: Text('Unable to update recurring item: $e')),
+        SnackBar(content: Text('Unable to update recurring items: $e')),
       );
     }
   }

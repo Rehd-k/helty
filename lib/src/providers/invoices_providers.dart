@@ -14,75 +14,6 @@ final invoiceServiceProvider = Provider<InvoiceService>((ref) {
 });
 
 // ────────────────────────────────────────────────
-// List of invoices (with optional filters)
-// ────────────────────────────────────────────────
-final invoicesProvider = FutureProvider.family<List<Invoice>, InvoiceFilter>((
-  ref,
-  filter,
-) async {
-  final service = ref.watch(invoiceServiceProvider);
-  return service.getInvoices(
-    patientId: filter.patientId,
-    status: filter.status,
-    query: filter.query,
-    category: filter.category,
-    from: filter.from,
-    to: filter.to,
-    page: filter.page,
-    limit: filter.limit,
-  );
-});
-
-// Simple filter class so we can pass parameters cleanly
-class InvoiceFilter {
-  final String? patientId;
-  final String? status;
-  final String? query;
-  final String? category;
-  final DateTime? from;
-  final DateTime? to;
-  final int page;
-  final int limit;
-
-  const InvoiceFilter({
-    this.patientId,
-    this.status,
-    this.query,
-    this.category,
-    this.from,
-    this.to,
-    this.page = 1,
-    this.limit = 100,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is InvoiceFilter &&
-          runtimeType == other.runtimeType &&
-          patientId == other.patientId &&
-          status == other.status &&
-          query == other.query &&
-          category == other.category &&
-          from == other.from &&
-          to == other.to &&
-          page == other.page &&
-          limit == other.limit;
-
-  @override
-  int get hashCode => Object.hash(
-        patientId,
-        status,
-        query,
-        category,
-        from,
-        to,
-        page,
-        limit,
-      );
-}
-
-// ────────────────────────────────────────────────
 // Single invoice by ID
 // ────────────────────────────────────────────────
 final invoiceProvider = FutureProvider.family<Invoice, String>((ref, id) async {
@@ -143,8 +74,6 @@ class InvoiceNotifier extends StateNotifier<AsyncValue<Invoice?>> {
 
       state = AsyncData(newInvoice);
 
-      // Invalidate lists and single if needed
-      ref.invalidate(invoicesProvider);
       ref.invalidate(invoiceProvider(newInvoice.id));
 
       return newInvoice;
@@ -169,9 +98,7 @@ class InvoiceNotifier extends StateNotifier<AsyncValue<Invoice?>> {
 
       state = AsyncData(updated);
 
-      // Refresh related providers
       ref.invalidate(invoiceProvider(id));
-      ref.invalidate(invoicesProvider);
     } catch (e, st) {
       state = AsyncError(e, st);
       rethrow;
@@ -187,10 +114,10 @@ class InvoiceNotifier extends StateNotifier<AsyncValue<Invoice?>> {
   }) async {
     final service = ref.read(invoiceServiceProvider);
     final existing = await service.getPatientInvoices(patientId);
-    if (existing.isNotEmpty) {
-      final latest = existing.first;
-      final detail = await service.getBillingInvoice(latest.id);
-      ref.invalidate(billingInvoiceProvider(latest.id));
+    final open = _pickOpenBillingInvoice(existing);
+    if (open != null) {
+      final detail = await service.getBillingInvoice(open.id);
+      ref.invalidate(billingInvoiceProvider(open.id));
       return detail;
     }
     final created = await service.createBillingInvoice(
@@ -275,7 +202,6 @@ class InvoiceNotifier extends StateNotifier<AsyncValue<Invoice?>> {
   }) {
     ref.invalidate(billingInvoiceProvider(invoice.id));
     ref.invalidate(patientBillingInvoicesProvider(invoice.patientId));
-    ref.invalidate(invoicesProvider);
     ref.invalidate(invoiceProvider(invoice.id));
     if (includeWallet) {
       ref.invalidate(patientWalletProvider(invoice.patientId));
@@ -289,3 +215,20 @@ final invoiceNotifierProvider =
     StateNotifierProvider<InvoiceNotifier, AsyncValue<Invoice?>>(
       (ref) => InvoiceNotifier(ref),
     );
+
+/// Prefer a non-terminal invoice for attaching new lines; [null] if none.
+Invoice? _pickOpenBillingInvoice(List<Invoice> list) {
+  if (list.isEmpty) return null;
+  bool isOpen(Invoice i) {
+    final s = i.status.toUpperCase();
+    return s != 'PAID' &&
+        s != 'FULLY_PAID' &&
+        s != 'CANCELLED' &&
+        s != 'VOID';
+  }
+
+  final open = list.where(isOpen).toList();
+  if (open.isEmpty) return null;
+  open.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  return open.first;
+}

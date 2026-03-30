@@ -7,8 +7,10 @@ import 'package:helty/src/models/service_model.dart';
 
 import '../../app_router.gr.dart';
 import '../paitients/patient_providers.dart';
+import '../providers/auth_provider.dart';
 import '../services/invoice_service.dart';
 import '../services/transaction_service.dart';
+import '../widgets/receipt_escpos_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // These payment methods require a bank to be selected before paying.
@@ -93,6 +95,7 @@ class PayBill extends ConsumerStatefulWidget {
     required this.total,
     required this.staffId,
     this.invoiceId,
+
     /// When non-empty with [invoiceId], uses `allocate-item-payments` (line allocation).
     /// When null/empty with [invoiceId], uses legacy `POST .../payments` (header payment).
     this.invoiceItemAllocations,
@@ -160,6 +163,7 @@ class PayBillState extends ConsumerState<PayBill> {
 
   bool _confirmed = false;
   bool _isLoading = true;
+  bool _isPrintingReceipt = false;
 
   @override
   void initState() {
@@ -246,8 +250,7 @@ class PayBillState extends ConsumerState<PayBill> {
     final acc = scaled.fold(0.0, (a, b) => a + b);
     var diff = _moneyRound(target - acc);
     if (scaled.isNotEmpty && diff != 0) {
-      scaled[scaled.length - 1] =
-          _moneyRound(scaled.last + diff);
+      scaled[scaled.length - 1] = _moneyRound(scaled.last + diff);
     }
     return List.generate(
       inputs.length,
@@ -311,6 +314,54 @@ class PayBillState extends ConsumerState<PayBill> {
     }
 
     return true;
+  }
+
+  List<Map<String, dynamic>> _receiptItemSnapshots() {
+    return _items.map((s) {
+      final qty = s.qty ?? 1;
+      final lineTotal = s.cost * qty;
+      return {
+        'description': s.name,
+        'quantity': qty,
+        'total': lineTotal.toString(),
+      };
+    }).toList();
+  }
+
+  Map<String, dynamic> _receiptDataForPrinter() {
+    final discount = _originalAmount > _amountToPay
+        ? _originalAmount - _amountToPay
+        : 0.0;
+    final staff = ref.read(authProvider).staff;
+    return ReceiptEscposService.fromPayBillSnapshot(
+      patientName: _patientName,
+      patientId: _patientId,
+      cashierFirst: staff?.firstName ?? '',
+      cashierLast: staff?.lastName ?? '',
+      itemSnapshots: _receiptItemSnapshots(),
+      totalAmount: _amountToPay,
+      discountAmount: discount,
+      amountPaid: _amountToPay,
+    );
+  }
+
+  Future<void> _printReceiptToDefaultPrinter() async {
+    if (_isPrintingReceipt) return;
+    setState(() => _isPrintingReceipt = true);
+    try {
+      await ReceiptEscposService.printReceipt(data: _receiptDataForPrinter());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Receipt sent to default printer')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Print failed: $e')));
+    } finally {
+      if (mounted) setState(() => _isPrintingReceipt = false);
+    }
   }
 
   // --- UI Builders ---
@@ -539,7 +590,8 @@ class PayBillState extends ConsumerState<PayBill> {
 
     try {
       final invId = widget.invoiceId?.trim();
-      final useAllocate = invId != null &&
+      final useAllocate =
+          invId != null &&
           invId.isNotEmpty &&
           widget.invoiceItemAllocations != null &&
           widget.invoiceItemAllocations!.isNotEmpty;
@@ -549,8 +601,7 @@ class PayBillState extends ConsumerState<PayBill> {
         if (allocations.isEmpty) {
           throw Exception('No line allocations to submit');
         }
-        final allocSum =
-            allocations.fold(0.0, (s, e) => s + e.amount);
+        final allocSum = allocations.fold(0.0, (s, e) => s + e.amount);
         if ((allocSum - _amountToPay).abs() > 0.02) {
           throw Exception('Allocation total does not match amount to pay');
         }
@@ -988,40 +1039,44 @@ class PayBillState extends ConsumerState<PayBill> {
                 style: TextStyle(color: Colors.grey[600]),
               ),
               const SizedBox(height: 30),
-              OutlinedButton.icon(
-                onPressed: () {
-                  ref.read(patientProvider.notifier).clearPatient();
-                  context.router.replaceAll([
-                    EnlistPaitientRoute(serviceName: ''),
-                  ]);
-                  setState(() {
-                    _confirmed = false;
-                    _paymentMethod = null;
-                    _selectedBank = null;
-                    _mixedAmounts.clear();
-                    _mixedBanks.clear();
-                  });
-                },
-                icon: const Icon(Icons.print),
-                label: const Text("Print Receipt"),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () {
-                  ref.read(patientProvider.notifier).clearPatient();
-                  context.router.replaceAll([
-                    EnlistPaitientRoute(serviceName: 'inpatient'),
-                  ]);
-                  setState(() {
-                    _confirmed = false;
-                    _paymentMethod = null;
-                    _selectedBank = null;
-                    _mixedAmounts.clear();
-                    _mixedBanks.clear();
-                  });
-                },
-                icon: const Icon(Icons.bed),
-                label: const Text("Process ward payment"),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _isPrintingReceipt
+                        ? null
+                        : _printReceiptToDefaultPrinter,
+                    icon: _isPrintingReceipt
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.print),
+                    label: const Text('Print receipt'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _isPrintingReceipt
+                        ? null
+                        : () {
+                            ref.read(patientProvider.notifier).clearPatient();
+                            Navigator.pop(context);
+                            context.router.replaceAll([
+                              EnlistPaitientRoute(serviceName: ''),
+                            ]);
+                            setState(() {
+                              _confirmed = false;
+                              _paymentMethod = null;
+                              _selectedBank = null;
+                              _mixedAmounts.clear();
+                              _mixedBanks.clear();
+                            });
+                          },
+                    icon: const Icon(Icons.check),
+                    label: const Text('Done'),
+                  ),
+                ],
               ),
             ],
           ),

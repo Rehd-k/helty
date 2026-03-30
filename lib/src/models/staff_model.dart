@@ -1,34 +1,67 @@
 // ignore_for_file: constant_identifier_names
-/// Staff account types (mirrors Prisma AccountType enum).
+/// Staff account types (mirrors backend `AccountType` — department-level).
 ///
+/// Serialized to API as [name] in UPPER_SNAKE (e.g. [billing] → `BILLING`).
 enum AccountType {
-  pharmacy_store,
-  pharmacy_dispensary,
-  pharmacy_head,
-  inpatient_nurse,
-  outpatient_nurse,
-  inpatient_doctor,
-  medical_records,
-  other,
-  frontdesk,
-  consultant,
-  nurse,
-  lab,
-  radiology,
-  accounts,
-  bills,
+  billing,
+  accounting,
   pharmacy,
-  theatere,
-  ong,
-  dialysis,
+  nurse,
+  physician,
+  laboratory,
+  radiology,
   store,
-  dispensary,
+  medical_records,
+  front_desk,
+  ict,
+  cmd,
+  cmac,
+  super_admin,
+
+  /// Unknown / legacy token not mapped to a department.
   staff;
 
-  static AccountType fromString(String? value) => AccountType.values.firstWhere(
-    (e) => e.name.toLowerCase() == value?.toLowerCase(),
-    orElse: () => AccountType.staff,
-  );
+  static AccountType fromString(String? value) {
+    if (value == null || value.trim().isEmpty) return AccountType.staff;
+    final k = value.trim().toLowerCase().replaceAll('-', '_');
+
+    for (final e in AccountType.values) {
+      if (e.name == k) return e;
+    }
+
+    // Legacy API values → current enum
+    switch (k) {
+      case 'bills':
+        return AccountType.billing;
+      case 'accounts':
+        return AccountType.accounting;
+      case 'pharmacy_store':
+      case 'pharmacy_dispensary':
+      case 'pharmacy_head':
+      case 'pharmacy':
+      case 'dispensary':
+        return AccountType.pharmacy;
+      case 'head_nurse':
+      case 'inpatient_nurse':
+      case 'outpatient_nurse':
+      case 'nurse':
+        return AccountType.nurse;
+      case 'consultant':
+      case 'inpatient_doctor':
+        return AccountType.physician;
+      case 'lab':
+        return AccountType.laboratory;
+      case 'frontdesk':
+        return AccountType.front_desk;
+      case 'other':
+      case 'theatere':
+      case 'ong':
+      case 'dialysis':
+        return AccountType.staff;
+      default:
+        return AccountType.staff;
+    }
+  }
 }
 
 /// Maps the Prisma `Staff` model from the backend schema.
@@ -65,25 +98,49 @@ class Staff {
 
   String get fullName => '$firstName $lastName';
 
-  factory Staff.fromJson(Map<String, dynamic> json) => Staff(
-    id: json['id'] as String,
-    staffId: json['staffId'] as String,
-    firstName: json['firstName'] as String,
-    lastName: json['lastName'] as String,
-    role: json['role'] as String,
-    pharmacyRole: json['pharmacyRole'] as String? ?? json['role'] as String,
-    permissions:
-        (json['permissions'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        const [],
-    departmentId: json['departmentId'] as String?,
-    departmentName: json['department']?['name'] as String?,
-    accountType: AccountType.fromString(json['accountType'] as String?),
-    email: json['email'] as String?,
-    phone: json['phone']?.toString(), // API may return int or string
-    isActive: (json['isActive'] as bool?) ?? true,
-  );
+  static String? _optionalString(dynamic v) {
+    if (v == null) return null;
+    if (v is String) return v;
+    return v.toString();
+  }
+
+  static String _requiredString(dynamic v, [String fallback = '']) {
+    final s = _optionalString(v);
+    return (s == null || s.isEmpty) ? fallback : s;
+  }
+
+  factory Staff.fromJson(Map<String, dynamic> json) {
+    final roleFromApi =
+        _optionalString(json['role']) ??
+        _optionalString(json['staffRole']) ??
+        '';
+    final pharmacyRole =
+        _optionalString(json['pharmacyRole']) ??
+        _optionalString(json['staffRole']) ??
+        _optionalString(json['role']);
+
+    return Staff(
+      id: _requiredString(json['id']),
+      staffId: _requiredString(json['staffId']),
+      firstName: _requiredString(json['firstName']),
+      lastName: _requiredString(json['lastName']),
+      role: roleFromApi.isNotEmpty
+          ? roleFromApi
+          : (_optionalString(json['accountType']) ?? ''),
+      pharmacyRole: pharmacyRole,
+      permissions:
+          (json['permissions'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      departmentId: json['departmentId'] as String?,
+      departmentName: json['department']?['name'] as String?,
+      accountType: AccountType.fromString(json['accountType'] as String?),
+      email: json['email'] as String?,
+      phone: json['phone']?.toString(), // API may return int or string
+      isActive: (json['isActive'] as bool?) ?? true,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,

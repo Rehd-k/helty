@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
-import '../../models/staff_model.dart';
+import '../../models/staff_registration_options.dart';
 import '../../providers/auth_provider.dart';
 
 @RoutePage()
@@ -26,18 +26,61 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
-  String _selectedRole = 'NURSE';
-  AccountType _selectedAccountType = AccountType.staff;
+  StaffAccountCategory _selectedCategory = StaffAccountCategory.frontDesk;
+  late StaffRoleOption _selectedRoleOption =
+      kStaffRolesByCategory[_selectedCategory]!.first;
 
-  static const _roles = [
-    'DOCTOR',
-    'NURSE',
-    'PHARMACIST',
-    'LAB_TECHNICIAN',
-    'RECEPTIONIST',
-    'ADMIN',
-    'RADIOLOGIST',
-  ];
+  PageRouteInfo _initialRouteAfterRegister(String accountTypeName, String role) {
+    final at = accountTypeName.toLowerCase();
+    final r = role.toUpperCase();
+
+    switch (at) {
+      case 'front_desk':
+      case 'frontdesk':
+        return const FrontDeskDashboardRoute();
+      case 'billing':
+      case 'bills':
+        return const BillingDashboardRoute();
+      case 'nurse':
+      case 'head_nurse':
+      case 'inpatient_nurse':
+      case 'outpatient_nurse':
+        return const NursesDashboardRoute();
+      case 'admin':
+        return const CMDDashboardRoute();
+      case 'pharmacy':
+      case 'pharmacy_store':
+      case 'pharmacy_head':
+        if (r == 'PHARMACY_DISPENSARY' || at == 'pharmacy_dispensary') {
+          return EnlistPaitientRoute(serviceName: 'Pharmacy');
+        }
+        return const MedicineInventoryRoute();
+      case 'pharmacy_dispensary':
+        return EnlistPaitientRoute(serviceName: 'Pharmacy');
+      case 'physician':
+      case 'consultant':
+      case 'inpatient_doctor':
+        return const DoctorOutpatientListRoute();
+      case 'laboratory':
+      case 'lab':
+        return const LabDashboardRoute();
+      case 'radiology':
+        return const RadiologyDashboardRoute();
+      case 'store':
+        return const StoreDashboardRoute();
+      case 'accounting':
+      case 'accounts':
+      case 'medical_records':
+      case 'ict':
+        return const DashboardRoute();
+      case 'cmd':
+      case 'cmac':
+      case 'super_admin':
+        return const CMDDashboardRoute();
+      default:
+        return const DashboardRoute();
+    }
+  }
 
   @override
   void dispose() {
@@ -59,33 +102,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           staffId: _staffIdCtrl.text.trim(),
           firstName: _firstNameCtrl.text.trim(),
           lastName: _lastNameCtrl.text.trim(),
-          role: _selectedRole,
+          role: _selectedRoleOption.role,
           password: _passwordCtrl.text,
           email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
           phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-          accountType: _selectedAccountType,
+          accountType: _selectedRoleOption.accountType,
         );
     if (ok && mounted) {
       final auth = ref.read(authProvider);
       final accountType = auth.staff?.accountType?.name ?? '';
-
-      PageRouteInfo initialChild;
-      switch (accountType.toLowerCase()) {
-        case 'frontdesk':
-          initialChild = const FrontDeskDashboardRoute();
-          break;
-        case 'bills':
-          initialChild = const BillingDashboardRoute();
-          break;
-        case 'nurse':
-          initialChild = const NursesDashboardRoute();
-          break;
-        case 'admin':
-          initialChild = const CMDDashboardRoute();
-          break;
-        default:
-          initialChild = const DashboardRoute();
-      }
+      final role = auth.staff?.role ?? '';
+      final initialChild = _initialRouteAfterRegister(accountType, role);
 
       context.router.replaceAll([
         HomeRoute(children: [initialChild]),
@@ -204,45 +231,48 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Role
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedRole,
-                    decoration: const InputDecoration(
-                      labelText: 'Role *',
-                      prefixIcon: Icon(Icons.work_outline),
-                    ),
-                    items: _roles
-                        .map(
-                          (r) => DropdownMenuItem(
-                            value: r,
-                            child: Text(r.replaceAll('_', ' ')),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => _selectedRole = v ?? _selectedRole),
-                    validator: (v) => v == null ? 'Select a role' : null,
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Account type
-                  DropdownButtonFormField<AccountType>(
-                    initialValue: _selectedAccountType,
+                  // Account type (department) — drives which roles are listed
+                  DropdownButtonFormField<StaffAccountCategory>(
+                    key: ObjectKey(_selectedCategory),
+                    initialValue: _selectedCategory,
                     decoration: const InputDecoration(
                       labelText: 'Account Type *',
                       prefixIcon: Icon(Icons.manage_accounts_outlined),
                     ),
-                    items: AccountType.values
+                    items: StaffAccountCategory.values
                         .map(
-                          (t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(t.name.toUpperCase()),
-                          ),
+                          (c) =>
+                              DropdownMenuItem(value: c, child: Text(c.label)),
                         )
                         .toList(),
-                    onChanged: (v) => setState(
-                      () => _selectedAccountType = v ?? _selectedAccountType,
+                    onChanged: (c) {
+                      if (c == null) return;
+                      setState(() {
+                        _selectedCategory = c;
+                        _selectedRoleOption = kStaffRolesByCategory[c]!.first;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Role (options depend on account type above)
+                  DropdownButtonFormField<StaffRoleOption>(
+                    key: ObjectKey(_selectedRoleOption),
+                    initialValue: _selectedRoleOption,
+                    decoration: const InputDecoration(
+                      labelText: 'Role *',
+                      prefixIcon: Icon(Icons.work_outline),
                     ),
+                    items: kStaffRolesByCategory[_selectedCategory]!
+                        .map(
+                          (r) =>
+                              DropdownMenuItem(value: r, child: Text(r.label)),
+                        )
+                        .toList(),
+                    onChanged: (r) => setState(
+                      () => _selectedRoleOption = r ?? _selectedRoleOption,
+                    ),
+                    validator: (v) => v == null ? 'Select a role' : null,
                   ),
                   const SizedBox(height: 28),
 

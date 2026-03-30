@@ -279,7 +279,8 @@ class AddInvoiceItemPayload {
     'unitPrice': unitPrice,
     'quantity': quantity,
     'isRecurringDaily': isRecurringDaily,
-    if (startedAt != null) 'startedAt': startedAt!.toUtc().toIso8601String(),
+    if (startedAt != null)
+      'recurringSegmentStartAt': startedAt!.toUtc().toIso8601String(),
   };
 }
 
@@ -296,10 +297,7 @@ class InvoiceItemAllocationInput {
 
 /// Single line allocation in `POST /invoices/:id/allocate-item-payments`.
 class InvoiceItemAllocationDto {
-  InvoiceItemAllocationDto({
-    required this.invoiceItemId,
-    required this.amount,
-  });
+  InvoiceItemAllocationDto({required this.invoiceItemId, required this.amount});
 
   final String invoiceItemId;
   final double amount;
@@ -341,8 +339,7 @@ class AllocateInvoiceItemPaymentsPayload {
     if (notes != null && notes!.isNotEmpty) 'notes': notes,
     if (bankAccountNumber != null && bankAccountNumber!.trim().isNotEmpty)
       'bankAccountNumber': bankAccountNumber,
-    if (billingTransactionId != null &&
-        billingTransactionId!.trim().isNotEmpty)
+    if (billingTransactionId != null && billingTransactionId!.trim().isNotEmpty)
       'billingTransactionId': billingTransactionId,
   };
 }

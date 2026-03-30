@@ -129,8 +129,25 @@ class _InpatientPatientViewScreenState
     final accountType = staff?.accountType?.name.toLowerCase() ?? '';
     final staffId = staff?.id ?? staff?.staffId;
 
-    final isDoctor = role == 'doctor' || role == 'consultant';
-    final isNurse = role == 'nurse' || accountType == 'nurse';
+    final isDoctor = role == 'doctor' ||
+        role == 'consultant' ||
+        role == 'resident' ||
+        role == 'intern' ||
+        role == 'junior_resident' ||
+        role == 'senior_resident' ||
+        role == 'chief_resident' ||
+        role == 'medical_student' ||
+        accountType == 'physician' ||
+        accountType == 'consultant' ||
+        accountType == 'inpatient_doctor';
+    final isNurse = role == 'nurse' ||
+        role == 'head_nurse' ||
+        role == 'inpatient_nurse' ||
+        role == 'outpatient_nurse' ||
+        accountType == 'nurse' ||
+        accountType == 'head_nurse' ||
+        accountType == 'inpatient_nurse' ||
+        accountType == 'outpatient_nurse';
 
     return InpatientViewScope(
       patientId: _patient?.id ?? '',
