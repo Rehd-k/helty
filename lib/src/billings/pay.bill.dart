@@ -11,6 +11,7 @@ import '../providers/auth_provider.dart';
 import '../services/invoice_service.dart';
 import '../services/transaction_service.dart';
 import '../widgets/receipt_escpos_service.dart';
+import '../widgets/receipt_printer_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // These payment methods require a bank to be selected before paying.
@@ -89,6 +90,7 @@ class PayBill extends ConsumerStatefulWidget {
     super.key,
     required this.hasId,
     required this.firstName,
+    required this.lastName,
     required this.patientId,
     required this.isInvoice,
     required this.selectedItems,
@@ -103,6 +105,7 @@ class PayBill extends ConsumerStatefulWidget {
   });
   final bool hasId;
   final String firstName;
+  final String lastName;
   final String patientId;
   final List<ServiceModel> selectedItems;
   final double total;
@@ -131,6 +134,7 @@ class PayBillState extends ConsumerState<PayBill> {
   String? _insurance;
   List<String> charges = [];
   List<ServiceModel> _items = [];
+  List<ServiceModel> _itemsForPrint = [];
   List<String> _discounts = [];
   String? _selectedDiscount;
   final transactionService = TransactionService();
@@ -163,17 +167,22 @@ class PayBillState extends ConsumerState<PayBill> {
 
   bool _confirmed = false;
   bool _isLoading = true;
-  bool _isPrintingReceipt = false;
+  static String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1).toLowerCase();
+  }
 
   @override
   void initState() {
     super.initState();
-    _patientName = widget.firstName;
+    _patientName =
+        '${_capitalize(widget.lastName)} ${_capitalize(widget.firstName)}';
     _patientId = widget.patientId;
     _staffId = widget.staffId;
     _originalAmount = widget.total;
     _amountToPay = _originalAmount;
-    _items = widget.selectedItems;
+    _items = List.of(widget.selectedItems);
+    _itemsForPrint = List.of(widget.selectedItems);
     hasId = widget.hasId;
     _fetchDetails();
     _loadBanks();
@@ -317,7 +326,7 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   List<Map<String, dynamic>> _receiptItemSnapshots() {
-    return _items.map((s) {
+    return _itemsForPrint.map((s) {
       final qty = s.qty ?? 1;
       final lineTotal = s.cost * qty;
       return {
@@ -345,23 +354,8 @@ class PayBillState extends ConsumerState<PayBill> {
     );
   }
 
-  Future<void> _printReceiptToDefaultPrinter() async {
-    if (_isPrintingReceipt) return;
-    setState(() => _isPrintingReceipt = true);
-    try {
-      await ReceiptEscposService.printReceipt(data: _receiptDataForPrinter());
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Receipt sent to default printer')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Print failed: $e')));
-    } finally {
-      if (mounted) setState(() => _isPrintingReceipt = false);
-    }
+  void _openReceiptPrinterPicker() {
+    showReceiptPrinterPickerSheet(context, data: _receiptDataForPrinter());
   }
 
   // --- UI Builders ---
@@ -1019,66 +1013,61 @@ class PayBillState extends ConsumerState<PayBill> {
 
   Widget _buildSuccessView() {
     return Center(
-      child: Card(
-        margin: const EdgeInsets.all(20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 64),
-              const SizedBox(height: 20),
-              const Text(
-                'Payment Confirmed',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Receipt sent to $_patientName',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _isPrintingReceipt
-                        ? null
-                        : _printReceiptToDefaultPrinter,
-                    icon: _isPrintingReceipt
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.print),
-                    label: const Text('Print receipt'),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: _isPrintingReceipt
-                        ? null
-                        : () {
-                            ref.read(patientProvider.notifier).clearPatient();
-                            Navigator.pop(context);
-                            context.router.replaceAll([
-                              EnlistPaitientRoute(serviceName: ''),
-                            ]);
-                            setState(() {
-                              _confirmed = false;
-                              _paymentMethod = null;
-                              _selectedBank = null;
-                              _mixedAmounts.clear();
-                              _mixedBanks.clear();
-                            });
-                          },
-                    icon: const Icon(Icons.check),
-                    label: const Text('Done'),
-                  ),
-                ],
-              ),
-            ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Card(
+          margin: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                const SizedBox(height: 20),
+                const Text(
+                  'Payment Confirmed',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Receipt sent to $_patientName',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 30),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _openReceiptPrinterPicker,
+                      icon: const Icon(Icons.print),
+                      label: const Text('Print receipt'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ref.read(patientProvider.notifier).clearPatient();
+                        Navigator.pop(context);
+                        context.router.replaceAll([
+                          EnlistPaitientRoute(serviceName: ''),
+                        ]);
+                        setState(() {
+                          _confirmed = false;
+                          _paymentMethod = null;
+                          _selectedBank = null;
+                          _mixedAmounts.clear();
+                          _mixedBanks.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.check),
+                      label: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

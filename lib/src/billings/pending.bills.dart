@@ -388,6 +388,7 @@ void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
                   selectedItems: invoice.invoiceItems,
                   patientId: invoice.patientId,
                   firstName: invoice.patient.firstName,
+                  lastName: invoice.patient.surname,
                   total: invoice.total,
                   staffId: staffId,
                   invoiceId: invoice.id,

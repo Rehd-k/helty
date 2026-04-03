@@ -7,20 +7,110 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 
-/// Sends raw bytes (e.g. ESC/POS) to the **Windows default printer** as a RAW job.
-///
-/// Works with drivers that accept RAW passthrough (typical for USB thermal ESC/POS).
-Future<void> sendRawBytesToWindowsDefaultPrinter(List<int> data) async {
+/// Local / connected Windows printer suitable for RAW thermal jobs.
+class WindowsPrinterInfo {
+  const WindowsPrinterInfo({required this.name, required this.isDefault});
+
+  final String name;
+  final bool isDefault;
+}
+
+const int _printerStatusPendingDeletion = 0x00000004;
+const int _printerAttributeWorkOffline = 0x00000400;
+
+/// Printers that are not pending deletion and not marked work-offline.
+Future<List<WindowsPrinterInfo>> listActiveWindowsPrinters() async {
+  if (!Platform.isWindows) return [];
+
+  final defaultName = _readDefaultPrinterName();
+  final flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
+  final pcbNeeded = calloc<Uint32>();
+  final pcReturned = calloc<Uint32>();
+  try {
+    var ok = EnumPrinters(
+      flags,
+      nullptr,
+      2,
+      nullptr,
+      0,
+      pcbNeeded,
+      pcReturned,
+    );
+    if (ok == 0 && GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+      return [];
+    }
+    final needed = pcbNeeded.value;
+    if (needed == 0) return [];
+
+    final pBuf = calloc<Uint8>(needed);
+    try {
+      ok = EnumPrinters(
+        flags,
+        nullptr,
+        2,
+        pBuf,
+        needed,
+        pcbNeeded,
+        pcReturned,
+      );
+      if (ok == 0) return [];
+
+      final count = pcReturned.value;
+      if (count == 0) return [];
+
+      final pFirst = pBuf.cast<PRINTER_INFO_2>();
+      final out = <WindowsPrinterInfo>[];
+
+      for (var i = 0; i < count; i++) {
+        final pi = (pFirst + i).ref;
+        final namePtr = pi.pPrinterName;
+        if (namePtr == nullptr) continue;
+        final name = namePtr.toDartString();
+        if (name.isEmpty) continue;
+
+        if ((pi.Status & _printerStatusPendingDeletion) != 0) continue;
+        if ((pi.Attributes & _printerAttributeWorkOffline) != 0) continue;
+
+        out.add(
+          WindowsPrinterInfo(
+            name: name,
+            isDefault: defaultName != null && name == defaultName,
+          ),
+        );
+      }
+
+      out.sort((a, b) {
+        if (a.isDefault != b.isDefault) {
+          return a.isDefault ? -1 : 1;
+        }
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+
+      return out;
+    } finally {
+      calloc.free(pBuf);
+    }
+  } finally {
+    calloc.free(pcbNeeded);
+    calloc.free(pcReturned);
+  }
+}
+
+/// Sends raw bytes (e.g. ESC/POS) to the named Windows printer as a RAW job.
+Future<void> sendRawBytesToWindowsPrinter(
+  String printerName,
+  List<int> data,
+) async {
   if (!Platform.isWindows) {
     throw UnsupportedError(
-      'Default system printer RAW output is only implemented on Windows.',
+      'Windows printer RAW output is only implemented on Windows.',
     );
   }
   if (data.isEmpty) return;
 
-  final name = _readDefaultPrinterName();
-  if (name == null || name.isEmpty) {
-    throw StateError('No default Windows printer is set.');
+  final name = printerName.trim();
+  if (name.isEmpty) {
+    throw StateError('Printer name is empty.');
   }
 
   final pPrinterName = name.toNativeUtf16();
@@ -77,6 +167,17 @@ Future<void> sendRawBytesToWindowsDefaultPrinter(List<int> data) async {
     if (pDocName != null) calloc.free(pDocName);
     if (pDatatype != null) calloc.free(pDatatype);
   }
+}
+
+/// Sends raw bytes (e.g. ESC/POS) to the **Windows default printer** as a RAW job.
+///
+/// Works with drivers that accept RAW passthrough (typical for USB thermal ESC/POS).
+Future<void> sendRawBytesToWindowsDefaultPrinter(List<int> data) async {
+  final name = _readDefaultPrinterName();
+  if (name == null || name.isEmpty) {
+    throw StateError('No default Windows printer is set.');
+  }
+  await sendRawBytesToWindowsPrinter(name, data);
 }
 
 String? _readDefaultPrinterName() {

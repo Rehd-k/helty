@@ -268,6 +268,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
           clearCart();
           Navigator.of(ctx).pop();
         },
+        lastName: '',
       ),
     );
   }

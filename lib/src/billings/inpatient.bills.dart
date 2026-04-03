@@ -358,6 +358,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         hasId: true,
         patientId: detail.patientId,
         firstName: name,
+        lastName: '',
         selectedItems: models,
         total: total,
         staffId: staff.id,

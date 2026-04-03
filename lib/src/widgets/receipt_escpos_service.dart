@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -5,15 +6,17 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
+import 'package:qr/qr.dart';
 
+import '../helper/date.formatter.dart';
 import 'windows_default_raw_printer.dart';
 
 /// Header lines printed under the logo.
 class ReceiptHospitalHeader {
   const ReceiptHospitalHeader({
-    this.name = 'Helty Hospital',
-    this.address = '',
-    this.phone = '',
+    this.name = 'Ibom Multi-Specialty Hospital',
+    this.address = 'Ikot Ekpene - Uyo Rd, Uyo, Akwa Ibom',
+    this.phone = '0802 181 4674',
     this.email = '',
   });
 
@@ -53,6 +56,49 @@ class ReceiptEscposService {
     return _sanitizeEscPosText(formatted);
   }
 
+  /// Capitalizes the first letter of a string.
+  static String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1).toLowerCase();
+  }
+
+  /// Generates a QR code as a raster image for printers that don't support
+  /// the native ESC/POS QR command.
+  static img.Image? _generateQrImage(String data, {int moduleSize = 4}) {
+    try {
+      final qrCode = QrCode.fromData(
+        data: data,
+        errorCorrectLevel: QrErrorCorrectLevel.L,
+      );
+      final qrImage = QrImage(qrCode);
+      final moduleCount = qrCode.moduleCount;
+      final size = moduleCount * moduleSize;
+      final image = img.Image(width: size, height: size);
+      // Fill white background
+      img.fill(image, color: img.ColorUint8.rgb(255, 255, 255));
+      // Draw QR modules
+      for (var x = 0; x < moduleCount; x++) {
+        for (var y = 0; y < moduleCount; y++) {
+          if (qrImage.isDark(y, x)) {
+            for (var px = 0; px < moduleSize; px++) {
+              for (var py = 0; py < moduleSize; py++) {
+                image.setPixel(
+                  x * moduleSize + px,
+                  y * moduleSize + py,
+                  img.ColorUint8.rgb(0, 0, 0),
+                );
+              }
+            }
+          }
+        }
+      }
+      return image;
+    } catch (e) {
+      log('QR image generation failed: $e');
+      return null;
+    }
+  }
+
   /// Normalizes [TransactionMap] from transactions screen / API.
   static Map<String, dynamic> fromTransactionMap(Map<String, dynamic> t) {
     final services = (t['services'] as List?) ?? [];
@@ -79,10 +125,7 @@ class ReceiptEscposService {
         'firstName': t['patientName']?.toString() ?? '',
         'surname': '',
       },
-      'staff': {
-        'firstName': t['initiator']?.toString() ?? '',
-        'lastName': '',
-      },
+      'staff': {'firstName': t['initiator']?.toString() ?? '', 'lastName': ''},
       'itemSnapshots': itemSnapshots,
     };
   }
@@ -99,8 +142,7 @@ class ReceiptEscposService {
     required double amountPaid,
     String? transactionId,
   }) {
-    final id =
-        transactionId?.trim().isNotEmpty == true
+    final id = transactionId?.trim().isNotEmpty == true
         ? transactionId!.trim()
         : 'PAY-${DateTime.now().millisecondsSinceEpoch}';
     return {
@@ -131,17 +173,74 @@ class ReceiptEscposService {
   static List<dynamic> _itfChars(String digitsOnly) =>
       digitsOnly.split('').toList();
 
+  static img.Image _threshold(img.Image image, int threshold) {
+    final result = img.Image(width: image.width, height: image.height);
+    for (int y = 0; y < image.height; y++) {
+      for (int x = 0; x < image.width; x++) {
+        final pixel = image.getPixel(x, y);
+        final color = pixel.a < 128
+            ? img.ColorUint8.rgb(255, 255, 255) // Transparent -> white
+            : (img.getLuminance(pixel) > threshold
+                  ? img.ColorUint8.rgb(255, 255, 255)
+                  : img.ColorUint8.rgb(0, 0, 0));
+        result.setPixel(x, y, color);
+      }
+    }
+    return result;
+  }
+
   static Future<img.Image?> _loadLogoRaster(String assetPath) async {
     try {
-      final data = await rootBundle.load(assetPath);
-      final decoded = img.decodeImage(data.buffer.asUint8List());
-      if (decoded == null) return null;
-      const maxW = 384;
-      if (decoded.width > maxW) {
-        return img.copyResize(decoded, width: maxW);
+      final ByteData data = await rootBundle.load(assetPath);
+      final Uint8List pngBytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
+      final img.Image? decoded = img.decodeImage(pngBytes);
+      if (decoded == null) {
+        log('Failed to decode logo image from $assetPath');
+        return null;
       }
-      return decoded;
-    } catch (_) {
+
+      // Constrain both width AND height to reasonable thermal printer size
+      const maxW = 300; // 80mm ≈ 384px, but leave margins
+      const maxH = 200; // Prevent huge vertical spacing
+
+      int newWidth = decoded.width;
+      int newHeight = decoded.height;
+
+      // Scale down if any dimension exceeds max
+      double scale = 1.0;
+      if (decoded.width > maxW) {
+        scale = maxW / decoded.width;
+      }
+      if ((decoded.height * scale) > maxH) {
+        scale = maxH / decoded.height;
+      }
+
+      img.Image finalImage;
+      if (scale < 1.0) {
+        newWidth = (decoded.width * scale).round();
+        newHeight = (decoded.height * scale).round();
+        finalImage = img.copyResize(
+          decoded,
+          width: newWidth,
+          height: newHeight,
+        );
+        log(
+          'Logo resized from ${decoded.width}×${decoded.height} to ${finalImage.width}×${finalImage.height}',
+        );
+      } else {
+        finalImage = decoded;
+        log('Logo loaded: ${finalImage.width}×${finalImage.height}');
+      }
+
+      // Convert to black and white for thermal printer
+      final processed = _threshold(img.grayscale(finalImage), 128);
+      log('Logo processed to ${processed.width}×${processed.height} BW');
+      return processed;
+    } catch (e) {
+      log('Error loading logo: $e');
       return null;
     }
   }
@@ -151,10 +250,10 @@ class ReceiptEscposService {
     required Map<String, dynamic> data,
     required ReceiptHospitalHeader header,
     required bool isCopy,
-    String logoAssetPath = 'assets/logo.png',
+    String logoAssetPath = 'assets/imsh.png',
   }) async {
     final profile = await CapabilityProfile.load();
-    final generator = Generator(PaperSize.mm58, profile);
+    final generator = Generator(PaperSize.mm80, profile);
     var bytes = <int>[];
 
     final transaction = Map<String, dynamic>.from(
@@ -162,10 +261,9 @@ class ReceiptEscposService {
     );
     final patient = Map<String, dynamic>.from(data['patient'] as Map? ?? {});
     final staff = Map<String, dynamic>.from(data['staff'] as Map? ?? {});
-    final items =
-        ((data['itemSnapshots'] as List?) ?? [])
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
+    final items = ((data['itemSnapshots'] as List?) ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
 
     final txnId = transaction['transactionID']?.toString() ?? '';
     final barcodeDigits = _barcodeDataFromTxnId(txnId);
@@ -180,8 +278,8 @@ class ReceiptEscposService {
       header.name,
       styles: const PosStyles(
         bold: true,
-        height: PosTextSize.size2,
-        width: PosTextSize.size2,
+        height: PosTextSize.size1,
+        width: PosTextSize.size1,
         align: PosAlign.center,
       ),
     );
@@ -229,14 +327,14 @@ class ReceiptEscposService {
 
     bytes += generator.row([
       PosColumn(text: 'Txn:', width: 3, styles: const PosStyles(bold: true)),
-      PosColumn(
-        text: transaction['transactionID']?.toString() ?? '',
-        width: 9,
-      ),
+      PosColumn(text: transaction['transactionID']?.toString() ?? '', width: 9),
     ]);
     bytes += generator.row([
       PosColumn(text: 'Date:', width: 3, styles: const PosStyles(bold: true)),
-      PosColumn(text: createdAt, width: 9),
+      PosColumn(
+        text: DateFormatter.dateTime(DateTime.parse(createdAt)),
+        width: 9,
+      ),
     ]);
 
     final pFirst = patient['firstName']?.toString() ?? '';
@@ -246,37 +344,31 @@ class ReceiptEscposService {
     bytes += generator.row([
       PosColumn(
         text: 'Patient:',
-        width: 3,
+        width: 4,
         styles: const PosStyles(bold: true),
       ),
-      PosColumn(text: patientLine, width: 9),
+      PosColumn(text: patientLine, width: 8),
     ]);
     bytes += generator.row([
       PosColumn(
         text: 'Cashier:',
-        width: 3,
+        width: 4,
         styles: const PosStyles(bold: true),
       ),
       PosColumn(
         text:
-            '${staff['firstName'] ?? ''} ${staff['lastName'] ?? ''}'.trim(),
-        width: 9,
+            '${_capitalize((staff['firstName'] ?? '').toString())} ${_capitalize((staff['lastName'] ?? '').toString())}'
+                .trim(),
+        width: 8,
       ),
     ]);
+
     bytes += generator.hr();
 
     bytes += generator.row([
-      PosColumn(text: 'Desc', width: 7, styles: const PosStyles(bold: true)),
-      PosColumn(
-        text: 'Qty',
-        width: 1,
-        styles: const PosStyles(bold: true, align: PosAlign.right),
-      ),
-      PosColumn(
-        text: 'Amt',
-        width: 4,
-        styles: const PosStyles(bold: true, align: PosAlign.right),
-      ),
+      PosColumn(text: 'Desc', width: 6, styles: const PosStyles(bold: true)),
+      PosColumn(text: 'Qty', width: 2, styles: const PosStyles(bold: true)),
+      PosColumn(text: 'Amt', width: 4, styles: const PosStyles(bold: true)),
     ]);
 
     for (final item in items) {
@@ -286,17 +378,9 @@ class ReceiptEscposService {
       final totalVal = num.tryParse(totalStr) ?? 0;
 
       bytes += generator.row([
-        PosColumn(text: desc, width: 7),
-        PosColumn(
-          text: qty,
-          width: 1,
-          styles: const PosStyles(align: PosAlign.right),
-        ),
-        PosColumn(
-          text: _formatNaira(totalVal),
-          width: 4,
-          styles: const PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: desc.trim(), width: 6),
+        PosColumn(text: qty, width: 2),
+        PosColumn(text: _formatNaira(totalVal), width: 4),
       ]);
     }
 
@@ -308,11 +392,7 @@ class ReceiptEscposService {
         width: 6,
         styles: const PosStyles(bold: true),
       ),
-      PosColumn(
-        text: _formatNaira(totalAmount + discountAmount),
-        width: 6,
-        styles: const PosStyles(align: PosAlign.right),
-      ),
+      PosColumn(text: _formatNaira(totalAmount + discountAmount), width: 6),
     ]);
     bytes += generator.row([
       PosColumn(
@@ -320,22 +400,14 @@ class ReceiptEscposService {
         width: 6,
         styles: const PosStyles(bold: true),
       ),
-      PosColumn(
-        text: '-${_formatNaira(discountAmount)}',
-        width: 6,
-        styles: const PosStyles(align: PosAlign.right),
-      ),
+      PosColumn(text: '-${_formatNaira(discountAmount)}', width: 6),
     ]);
     bytes += generator.row([
       PosColumn(text: 'Total:', width: 6, styles: const PosStyles(bold: true)),
       PosColumn(
         text: _formatNaira(totalAmount),
         width: 6,
-        styles: const PosStyles(
-          align: PosAlign.right,
-          bold: true,
-          height: PosTextSize.size2,
-        ),
+        styles: const PosStyles(bold: true, height: PosTextSize.size2),
       ),
     ]);
     bytes += generator.row([
@@ -343,20 +415,27 @@ class ReceiptEscposService {
       PosColumn(
         text: _formatNaira(amountPaid),
         width: 6,
-        styles: const PosStyles(align: PosAlign.right, bold: true),
+        styles: const PosStyles(bold: true),
       ),
     ]);
 
     bytes += generator.hr();
     bytes += generator.text(
-      'Thank you for your patronage.',
+      'Thank you.',
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.hr();
-    bytes += generator.qrcode(
-      'https://vesselinc.org',
-      align: PosAlign.center,
-    );
+    // Use image-based QR code (more compatible with 58mm thermal printers)
+    final qrImg = _generateQrImage('https://vesselinc.org', moduleSize: 4);
+    if (qrImg != null) {
+      bytes += generator.image(qrImg, align: PosAlign.center);
+    } else {
+      // Fallback: print URL as text if QR generation fails
+      bytes += generator.text(
+        'https://vesselinc.org',
+        styles: const PosStyles(align: PosAlign.center),
+      );
+    }
     bytes += generator.feed(2);
     bytes += generator.cut();
 
@@ -367,10 +446,13 @@ class ReceiptEscposService {
     required Map<String, dynamic> data,
     ReceiptHospitalHeader header = const ReceiptHospitalHeader(),
     ReceiptPrintSink sink = ReceiptPrintSink.windowsDefault,
+
+    /// When set on Windows, sends the RAW job to this queue instead of the default.
+    String? windowsPrinterName,
     String? printerIp,
     int printerPort = 9100,
     bool isCopy = false,
-    String logoAssetPath = 'assets/logo.png',
+    String logoAssetPath = 'assets/imsh.png',
   }) async {
     final bytes = await buildBytes(
       data: data,
@@ -386,7 +468,12 @@ class ReceiptEscposService {
             'windowsDefault sink requires Windows; use ReceiptPrintSink.network on other platforms.',
           );
         }
-        await sendRawBytesToWindowsDefaultPrinter(bytes);
+        final chosen = windowsPrinterName?.trim();
+        if (chosen != null && chosen.isNotEmpty) {
+          await sendRawBytesToWindowsPrinter(chosen, bytes);
+        } else {
+          await sendRawBytesToWindowsDefaultPrinter(bytes);
+        }
         break;
       case ReceiptPrintSink.network:
         final ip = printerIp?.trim() ?? '';

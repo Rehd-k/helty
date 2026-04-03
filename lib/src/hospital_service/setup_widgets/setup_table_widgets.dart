@@ -74,11 +74,13 @@ class SetupRowGesture extends StatelessWidget {
     required this.child,
     required this.onEdit,
     required this.onDelete,
+    this.menuEnabled = true,
   });
 
   final Widget child;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool menuEnabled;
 
   void _showMenu(BuildContext context, Offset globalPosition) {
     final screenSize = MediaQuery.of(context).size;
@@ -96,12 +98,12 @@ class SetupRowGesture extends StatelessWidget {
       items: const [
         PopupMenuItem(
           value: 'edit',
-          child: Text('Edit (Modifier)', style: TextStyle(fontSize: 13)),
+          child: Text('Edit', style: TextStyle(fontSize: 13)),
         ),
         PopupMenuItem(
           value: 'delete',
           child: Text(
-            'Delete (Supprimer)',
+            'Delete',
             style: TextStyle(fontSize: 13, color: Colors.red),
           ),
         ),
@@ -114,6 +116,7 @@ class SetupRowGesture extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!menuEnabled) return child;
     return GestureDetector(
       onSecondaryTapDown: (d) => _showMenu(context, d.globalPosition),
       onLongPressStart: (d) => _showMenu(context, d.globalPosition),
