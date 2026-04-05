@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:helty/src/models/service_model.dart';
 
@@ -22,13 +24,26 @@ abstract class Invoice with _$Invoice {
     required DateTime createdAt,
     required DateTime updatedAt,
     required List<ServiceModel> invoiceItems,
+    required double totalAmount,
+    required double amountPaid,
+    String? encounterId,
+    Map<String, dynamic>? createdBy,
+    Map<String, dynamic>? count,
   }) = _Invoice;
 
   // Custom getter — now allowed
-  double get total => invoiceItems.fold(
-    0.0,
-    (sum, item) => sum + ((item.qty ?? 1) * item.cost),
-  );
+  double get total => totalAmount > 0
+      ? totalAmount
+      : invoiceItems.fold(
+          0.0,
+          (sum, item) => sum + ((item.qty ?? 1) * item.cost),
+        );
+
+  static double _parseDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
     final patientRaw = json['patient'];
@@ -57,7 +72,7 @@ abstract class Invoice with _$Invoice {
               .map((e) => ServiceModel.fromJson(Map<String, dynamic>.from(e)))
               .toList()
         : <ServiceModel>[];
-
+    log(itemsRaw.toString());
     return _Invoice(
       id: (json['id'] ?? '').toString(),
       patient: Patient.fromJson(patientJson),
@@ -74,6 +89,11 @@ abstract class Invoice with _$Invoice {
           DateTime.tryParse((json['updatedAt'] ?? '').toString()) ??
           DateTime.fromMillisecondsSinceEpoch(0),
       invoiceItems: invoiceItems,
+      totalAmount: _parseDouble(json['totalAmount']),
+      amountPaid: _parseDouble(json['amountPaid']),
+      encounterId: json['encounterId'] as String?,
+      createdBy: json['createdBy'] as Map<String, dynamic>?,
+      count: json['_count'] as Map<String, dynamic>?,
     );
   }
 }

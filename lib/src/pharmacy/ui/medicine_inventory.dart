@@ -922,16 +922,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard(
-                  theme,
-                  'Selling Price',
-                  drug.price != null
-                      ? drug.price!.toFinancial(isMoney: true)
-                      : '—',
-                  '/unit',
-                ),
-              ),
+              Expanded(child: _buildPricesCard(theme, drug.prices)),
             ],
           ),
           const SizedBox(height: 16),
@@ -1018,6 +1009,51 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPricesCard(ThemeData theme, List<DrugPrice>? prices) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Selling Prices',
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          if (prices == null || prices.isEmpty)
+            Text(
+              '—',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: prices.map((price) {
+                final wardName = price.wardName ?? 'Unknown Ward';
+                final priceText = price.price.toFinancial(isMoney: true);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '$wardName: $priceText/unit',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
@@ -1129,7 +1165,8 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       ];
     }
 
-    final locations = _drugLocationQuantities[id] ?? const <DrugLocationQuantity>[];
+    final locations =
+        _drugLocationQuantities[id] ?? const <DrugLocationQuantity>[];
     if (locations.isEmpty) {
       return [
         Text(

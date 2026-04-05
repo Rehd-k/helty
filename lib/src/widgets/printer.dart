@@ -29,7 +29,7 @@ class TransactionReceiptPrinter extends StatefulWidget {
     required this.hospitalAddress,
     required this.hospitalPhone,
     required this.hospitalEmail,
-    this.logoAssetPath = 'assets/logo.png',
+    this.logoAssetPath = 'assets/imsh.png',
   });
 
   @override
@@ -62,9 +62,9 @@ class _TransactionReceiptPrinterState extends State<TransactionReceiptPrinter> {
     } catch (e) {
       debugPrint('Printing error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Print failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Print failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _isPrinting = false);

@@ -137,7 +137,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         firstName: noIdPatient.isNotEmpty
             ? noIdPatient['firstName']
             : patient?.firstName,
-        lastName: patient!.surname,
+        lastName: noIdPatient.isNotEmpty
+            ? noIdPatient['surname']
+            : patient!.surname,
         selectedItems: selectedItems,
         total: totalDue,
         staffId: staffId,

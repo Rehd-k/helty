@@ -426,13 +426,16 @@ class ReceiptEscposService {
     );
     bytes += generator.hr();
     // Use image-based QR code (more compatible with 58mm thermal printers)
-    final qrImg = _generateQrImage('https://vesselinc.org', moduleSize: 4);
+    final qrImg = _generateQrImage(
+      'https://www.vessellabs.org/',
+      moduleSize: 4,
+    );
     if (qrImg != null) {
       bytes += generator.image(qrImg, align: PosAlign.center);
     } else {
       // Fallback: print URL as text if QR generation fails
       bytes += generator.text(
-        'https://vesselinc.org',
+        'https://www.vessellabs.org/',
         styles: const PosStyles(align: PosAlign.center),
       );
     }

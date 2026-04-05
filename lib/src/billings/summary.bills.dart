@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
@@ -15,6 +17,7 @@ class SummaryBills extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    log('Building SummaryBills with invoice total: ${invoice.toString()}');
     final auth = ref.watch(authProvider);
     return Card(
       elevation: 0, // Flat design with border is trendy

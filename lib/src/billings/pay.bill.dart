@@ -8,6 +8,7 @@ import 'package:helty/src/models/service_model.dart';
 import '../../app_router.gr.dart';
 import '../paitients/patient_providers.dart';
 import '../providers/auth_provider.dart';
+import '../services/bank_service.dart';
 import '../services/invoice_service.dart';
 import '../services/transaction_service.dart';
 import '../widgets/receipt_escpos_service.dart';
@@ -138,6 +139,7 @@ class PayBillState extends ConsumerState<PayBill> {
   List<String> _discounts = [];
   String? _selectedDiscount;
   final transactionService = TransactionService();
+  final bankService = BankService();
   final _invoiceService = InvoiceService();
 
   // Payment State
@@ -190,10 +192,10 @@ class PayBillState extends ConsumerState<PayBill> {
 
   Future<void> _loadBanks() async {
     try {
-      final banks = await transactionService.fetchBanks();
+      final banks = await bankService.fetchBanks();
       if (mounted) {
         setState(() {
-          _banks = banks;
+          _banks = banks.data.map((b) => b.name).toList();
           _banksLoading = false;
         });
       }
@@ -275,8 +277,8 @@ class PayBillState extends ConsumerState<PayBill> {
     await Future.delayed(const Duration(milliseconds: 600));
     if (mounted) {
       setState(() {
-        _insurance = 'Acme Health Plan';
-        _discounts = ['None', 'Senior 10%', 'Member 5%', 'Promo 100'];
+        _insurance = '-';
+        _discounts = ['None'];
         _isLoading = false;
       });
     }

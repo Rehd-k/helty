@@ -288,6 +288,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: Icons.add_box_outlined,
               route: WardManagementRoute(),
             ),
+            MenuItem(
+              label: 'Bank Management',
+              icon: Icons.account_balance_outlined,
+              route: BankManagementRoute(),
+            ),
           ],
         ),
       ]);
@@ -345,10 +350,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         Expanded(
-          child: Container(
-            color: const Color(0xFFF1F5F9),
-            child: AutoRouter(),
-          ),
+          child: Container(color: const Color(0xFFF1F5F9), child: AutoRouter()),
         ),
       ],
     );

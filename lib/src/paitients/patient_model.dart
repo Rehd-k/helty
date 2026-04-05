@@ -1,9 +1,5 @@
 /// How [PatientService.fetchPatients] should narrow results by [Patient.status].
-enum PatientListStatusFilter {
-  none,
-  onlyAdmitted,
-  excludeAdmitted,
-}
+enum PatientListStatusFilter { none, onlyAdmitted, excludeAdmitted }
 
 /// True when [status] represents an inpatient admission (matches API spellings).
 bool patientStatusIsAdmitted(String? status) {
@@ -44,6 +40,7 @@ class Patient {
   final DateTime? updatedAt;
   final String? createdBy;
   final String? updatedBy;
+  final String? ward;
 
   /// Inpatient / visit status from the API (e.g. `ADMITED`).
   final String? status;
@@ -94,6 +91,7 @@ class Patient {
     this.lockNames = false,
     this.fromUnregisteredFlow = false,
     this.unregisteredTransactionId,
+    this.ward,
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
@@ -144,6 +142,7 @@ class Patient {
       lockNames: false,
       fromUnregisteredFlow: false,
       unregisteredTransactionId: null,
+      ward: json['ward'] != null ? json['ward'] as String : 'OPD',
     );
   }
 

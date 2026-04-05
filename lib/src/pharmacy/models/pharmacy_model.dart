@@ -332,6 +332,7 @@ class Drug {
   final DateTime? expiryDate;
   final double? price;
   final String? manufacturerName;
+  final List<DrugPrice>? prices;
 
   Drug({
     this.id,
@@ -354,6 +355,7 @@ class Drug {
     this.expiryDate,
     this.price,
     this.manufacturerName,
+    this.prices,
   });
 
   /// Display stock count (from inventory or reorder quantity as fallback).
@@ -399,6 +401,10 @@ class Drug {
     stock: (json['quantity'] is int)
         ? json['quantity'] as int
         : int.tryParse(json['quantity']?.toString() ?? ''),
+    prices: (json['drugPrices'] as List?)
+        ?.whereType<Map<String, dynamic>>()
+        .map(DrugPrice.fromJson)
+        .toList(),
     unit: json['unit']?.toString(),
     expiryDate: json['expiryDate'] != null
         ? DateTime.tryParse(json['expiryDate'].toString())
@@ -428,6 +434,8 @@ class Drug {
     'maxDailyDose': maxDailyDose,
     'reorderLevel': reorderLevel,
     'reorderQuantity': reorderQuantity,
+    if (prices != null && prices!.isNotEmpty)
+      'prices': prices!.map((p) => p.toJson()).toList(),
     if (stock != null) 'stock': stock,
     if (unit != null) 'unit': unit,
     if (expiryDate != null) 'expiryDate': expiryDate!.toIso8601String(),
@@ -436,12 +444,47 @@ class Drug {
   };
 }
 
+class DrugPrice {
+  final String? id;
+  final String wardId;
+  final String? wardName;
+  final double price;
+
+  DrugPrice({
+    this.id,
+    required this.wardId,
+    this.wardName,
+    required this.price,
+  });
+
+  factory DrugPrice.fromJson(Map<String, dynamic> json) => DrugPrice(
+    id: json['id']?.toString(),
+    wardId: json['wardId']?.toString() ?? '',
+    wardName: json['ward'] is Map
+        ? (json['ward'] as Map)['name']?.toString()
+        : json['wardName']?.toString(),
+    price: json['price'] is num
+        ? (json['price'] as num).toDouble()
+        : double.tryParse(json['price']?.toString() ?? '0') ?? 0,
+  );
+
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    'wardId': wardId,
+    if (wardName != null) 'wardName': wardName,
+    'price': price,
+  };
+}
+
 /// Quantity of a specific drug at a specific pharmacy location.
 class DrugLocationQuantity {
   final String locationName;
   final int quantity;
 
-  const DrugLocationQuantity({required this.locationName, required this.quantity});
+  const DrugLocationQuantity({
+    required this.locationName,
+    required this.quantity,
+  });
 
   factory DrugLocationQuantity.fromJson(Map<String, dynamic> json) {
     final location = json['location'];
@@ -449,13 +492,18 @@ class DrugLocationQuantity {
         ? Map<String, dynamic>.from(location)['name']?.toString()
         : null;
     final directName = json['locationName']?.toString();
-    final name = (directName?.trim().isNotEmpty == true
-            ? directName!.trim()
-            : (nestedName?.trim().isNotEmpty == true ? nestedName!.trim() : '—'))
-        .toString();
+    final name =
+        (directName?.trim().isNotEmpty == true
+                ? directName!.trim()
+                : (nestedName?.trim().isNotEmpty == true
+                      ? nestedName!.trim()
+                      : '—'))
+            .toString();
 
     final rawQty = json['quantity'];
-    final qty = rawQty is int ? rawQty : int.tryParse(rawQty?.toString() ?? '') ?? 0;
+    final qty = rawQty is int
+        ? rawQty
+        : int.tryParse(rawQty?.toString() ?? '') ?? 0;
 
     return DrugLocationQuantity(locationName: name, quantity: qty);
   }
@@ -589,6 +637,7 @@ class DrugBatch {
   final DateTime? expiryDate;
   final DateTime? manufacturingDate;
   final int quantityReceived;
+
   /// Remaining (available) quantity for this batch, when backend provides it.
   /// If null, consumers should fall back to [quantityReceived].
   final int? quantityRemaining;

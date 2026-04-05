@@ -11,15 +11,13 @@ Future<void> showReceiptPrinterPickerSheet(
   required Map<String, dynamic> data,
   ReceiptHospitalHeader header = const ReceiptHospitalHeader(),
   bool isCopy = false,
-  String logoAssetPath = 'assets/logo.png',
+  String logoAssetPath = 'assets/imsh.png',
 }) async {
   if (!Platform.isWindows) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          'Thermal receipt printing is only supported on Windows.',
-        ),
+        content: Text('Thermal receipt printing is only supported on Windows.'),
       ),
     );
     return;
@@ -100,9 +98,7 @@ class _ReceiptPrinterPickerBodyState extends State<_ReceiptPrinterPickerBody> {
       );
       if (!mounted) return;
       nav.pop();
-      messenger?.showSnackBar(
-        SnackBar(content: Text('Receipt sent to $name')),
-      );
+      messenger?.showSnackBar(SnackBar(content: Text('Receipt sent to $name')));
     } catch (e) {
       if (!mounted) return;
       messenger?.showSnackBar(SnackBar(content: Text('Print failed: $e')));

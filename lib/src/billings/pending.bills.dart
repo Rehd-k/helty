@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:ui';
 
 import 'package:auto_route/annotations.dart';
@@ -68,7 +69,6 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
         limit: _filter.limit,
         allowIP: _filter.allowIP,
       );
-
       setState(() {
         _invoices = invoices;
       });
@@ -92,7 +92,9 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-
+    log(
+      'Building PendingBillsScreen with ${_invoices.toString()} invoices, selectedInvoice: ${selectedInvoice?.id}, filter: ${_filter.toString()}',
+    );
     return Scaffold(
       body: Column(
         children: [

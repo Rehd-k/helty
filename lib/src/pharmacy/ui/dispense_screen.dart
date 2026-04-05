@@ -3,15 +3,17 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:helty/src/billings/pay.bill.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/invoice.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
-import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/invoice_service.dart';
+
+import '../../paitients/patient_model.dart';
+import '../../paitients/patient_providers.dart';
 
 // -----------------------------------------------------------------------------
 // CART MODEL (uses Drug from pharmacy_model)
@@ -19,8 +21,15 @@ import 'package:helty/src/services/invoice_service.dart';
 class CartItem {
   final Drug drug;
   int quantity;
+  final int maxQuantity;
+  final double unitPrice;
 
-  CartItem({required this.drug, this.quantity = 1});
+  CartItem({
+    required this.drug,
+    required this.quantity,
+    required this.maxQuantity,
+    required this.unitPrice,
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -32,10 +41,10 @@ class DispenseScreen extends ConsumerStatefulWidget {
   final String patientName;
   final String id;
 
-  /// When set, cart lines are posted to this invoice instead of opening PayBill.
+  /// When set, cart lines are posted to this invoice instead of creating/using an open invoice.
   final String? invoiceId;
 
-  /// Used for PayBill when [invoiceId] is null; falls back to signed-in staff.
+  /// Used when [invoiceId] is null; falls back to signed-in staff.
   final String? staffId;
 
   const DispenseScreen({
@@ -55,6 +64,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   String patientId = '';
   String patientName = '';
   String id = '';
+  String ward = '';
 
   final PharmacyApiService _drugService = PharmacyApiService();
   final TextEditingController _searchController = TextEditingController();
@@ -78,13 +88,9 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   String selectedCategory = 'All';
   bool _checkoutBusy = false;
 
-  double get subtotal => cart.fold(
-    0,
-    (sum, item) => sum + ((item.drug.price ?? 0) * item.quantity),
-  );
-  double get vat => subtotal * 0.12;
-  double get discount => 0.00;
-  double get totalAmount => subtotal + vat - discount;
+  double get subtotal =>
+      cart.fold(0, (sum, item) => sum + (item.unitPrice * item.quantity));
+  double get totalAmount => subtotal;
 
   SearchDrugParams _buildSearchParams() {
     final query = _searchController.text.trim();
@@ -138,13 +144,43 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
     });
   }
 
-  void addToCart(Drug drug) {
+  void addToCart(Drug drug, double unitPrice, int maxQuantity) {
+    if (maxQuantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cannot add "${drug.brandName.isNotEmpty ? drug.brandName : drug.genericName}" — out of stock.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       final existingIndex = cart.indexWhere((item) => item.drug.id == drug.id);
       if (existingIndex >= 0) {
-        cart[existingIndex].quantity++;
+        final existing = cart[existingIndex];
+        final nextQty = (existing.quantity + 1).clamp(0, existing.maxQuantity);
+        if (nextQty == existing.quantity) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Cannot add more than available stock (${existing.maxQuantity}).',
+              ),
+            ),
+          );
+        } else {
+          existing.quantity = nextQty;
+        }
       } else {
-        cart.add(CartItem(drug: drug));
+        cart.add(
+          CartItem(
+            drug: drug,
+            quantity: 1,
+            unitPrice: unitPrice,
+            maxQuantity: maxQuantity,
+          ),
+        );
       }
     });
   }
@@ -152,18 +188,52 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   void updateQuantity(Drug drug, int newQuantity) {
     setState(() {
       final index = cart.indexWhere((item) => item.drug.id == drug.id);
-      if (index >= 0) {
-        if (newQuantity <= 0) {
-          cart.removeAt(index);
-        } else {
-          cart[index].quantity = newQuantity;
-        }
+      if (index < 0) return;
+      final item = cart[index];
+      final clampedQuantity = newQuantity.clamp(0, item.maxQuantity);
+      if (clampedQuantity <= 0) {
+        cart.removeAt(index);
+      } else {
+        item.quantity = clampedQuantity;
       }
     });
   }
 
   void clearCart() {
     setState(() => cart.clear());
+  }
+
+  static bool _looksLikeUuid(String s) {
+    final trimmed = s.trim();
+    return RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    ).hasMatch(trimmed);
+  }
+
+  static String? _resolvePatientUuidForInvoice({
+    required Patient? selectedPatient,
+    required String fallbackPatientId,
+  }) {
+    final candidate = selectedPatient?.id?.trim() ?? '';
+    if (_looksLikeUuid(candidate)) return candidate;
+    final fallback = fallbackPatientId.trim();
+    if (_looksLikeUuid(fallback)) return fallback;
+    return null;
+  }
+
+  Invoice? _pickOpenInvoice(List<Invoice> invoices) {
+    if (invoices.isEmpty) return null;
+    final openInvoices = invoices.where((invoice) {
+      final status = invoice.status.toUpperCase();
+      return status != 'PAID' &&
+          status != 'FULLY_PAID' &&
+          status != 'CANCELLED' &&
+          status != 'VOID';
+    }).toList();
+    if (openInvoices.isEmpty) return null;
+    openInvoices.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return openInvoices.first;
   }
 
   @override
@@ -187,11 +257,12 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
 
   Future<void> _checkout() async {
     if (cart.isEmpty || _checkoutBusy) return;
-    final invId = widget.invoiceId?.trim();
-    if (invId != null && invId.isNotEmpty) {
-      setState(() => _checkoutBusy = true);
-      try {
-        final svc = InvoiceService();
+    setState(() => _checkoutBusy = true);
+    try {
+      final svc = InvoiceService();
+      final invId = widget.invoiceId?.trim();
+
+      if (invId != null && invId.isNotEmpty) {
         for (final ci in cart) {
           final did = ci.drug.id?.trim();
           if (did == null || did.isEmpty) {
@@ -203,78 +274,90 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
             invoiceId: invId,
             payload: AddInvoiceItemPayload(
               drugId: did,
-              unitPrice: ci.drug.price ?? 0,
+              unitPrice: ci.unitPrice,
               quantity: ci.quantity,
             ),
           );
         }
-        if (!mounted) return;
-        clearCart();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Medicines added to patient invoice')),
-        );
-      } catch (e) {
-        if (mounted) {
+      } else {
+        final staffId = (widget.staffId?.trim().isNotEmpty == true)
+            ? widget.staffId!.trim()
+            : (ref.read(authProvider).staff?.id ?? '');
+        if (staffId.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not add to invoice: $e')),
+            const SnackBar(
+              content: Text('Sign in required to add items to invoice.'),
+            ),
+          );
+          return;
+        }
+
+        final selectedPatient = ref.read(patientProvider).selectedPatient;
+        final fallbackPatientId = widget.id.trim().isNotEmpty
+            ? widget.id
+            : widget.patientId;
+        final patientUuid = _resolvePatientUuidForInvoice(
+          selectedPatient: selectedPatient,
+          fallbackPatientId: fallbackPatientId,
+        );
+        if (patientUuid == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Cannot add to invoice: patient requires a server UUID.',
+              ),
+            ),
+          );
+          return;
+        }
+
+        final invoices = await svc.getPatientInvoices(patientUuid);
+        final openInvoice = _pickOpenInvoice(invoices);
+        final invoiceId =
+            openInvoice?.id ??
+            (await svc.createBillingInvoice(
+              patientId: patientUuid,
+              staffId: staffId,
+            )).id;
+
+        for (final ci in cart) {
+          final did = ci.drug.id?.trim();
+          if (did == null || did.isEmpty) {
+            throw Exception(
+              'Drug "${ci.drug.brandName}" is missing a server id.',
+            );
+          }
+          await svc.addBillingItem(
+            invoiceId: invoiceId,
+            payload: AddInvoiceItemPayload(
+              drugId: did,
+              unitPrice: ci.unitPrice,
+              quantity: ci.quantity,
+            ),
           );
         }
-      } finally {
-        if (mounted) setState(() => _checkoutBusy = false);
       }
-      return;
-    }
 
-    final staffId = (widget.staffId?.trim().isNotEmpty == true)
-        ? widget.staffId!.trim()
-        : (ref.read(authProvider).staff?.id ?? '');
-    if (staffId.isEmpty) {
+      if (!mounted) return;
+      clearCart();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign in required to take payment')),
+        const SnackBar(content: Text('Medicines added to patient invoice')),
       );
-      return;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not add to invoice: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _checkoutBusy = false);
     }
-
-    final patientPayId = widget.id.trim().isNotEmpty
-        ? widget.id.trim()
-        : widget.patientId;
-    final items = <ServiceModel>[
-      for (final ci in cart)
-        ServiceModel(
-          id: ci.drug.id ?? '',
-          serviceId: ci.drug.id ?? '',
-          name: ci.drug.brandName.isNotEmpty
-              ? ci.drug.brandName
-              : ci.drug.genericName,
-          cost: ci.drug.price ?? 0,
-          qty: ci.quantity,
-          categoryName: 'Pharmacy',
-        ),
-    ];
-
-    if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.transparent,
-      builder: (ctx) => PayBill(
-        hasId: widget.id.trim().isNotEmpty,
-        patientId: patientPayId,
-        firstName: patientName,
-        selectedItems: items,
-        total: totalAmount,
-        staffId: staffId,
-        isInvoice: false,
-        onPaymentComplete: () {
-          clearCart();
-          Navigator.of(ctx).pop();
-        },
-        lastName: '',
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final patientState = ref.watch(patientProvider);
+    final selectedPatient = patientState.selectedPatient;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -292,13 +375,20 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 5, child: _buildLeftPanel(colorScheme)),
+                    Expanded(
+                      flex: 5,
+                      child: _buildLeftPanel(colorScheme, selectedPatient!),
+                    ),
                     const SizedBox(width: 16),
                     Expanded(flex: 4, child: _buildMiddlePanel(colorScheme)),
                     const SizedBox(width: 16),
                     Expanded(
                       flex: 3,
-                      child: _buildRightPanel(colorScheme, theme),
+                      child: _buildRightPanel(
+                        colorScheme,
+                        theme,
+                        selectedPatient,
+                      ),
                     ),
                   ],
                 );
@@ -314,7 +404,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   children: [
                     SizedBox(
                       height: leftH,
-                      child: _buildLeftPanel(colorScheme),
+                      child: _buildLeftPanel(colorScheme, selectedPatient!),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -324,7 +414,11 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                     const SizedBox(height: 16),
                     SizedBox(
                       height: rightH,
-                      child: _buildRightPanel(colorScheme, theme),
+                      child: _buildRightPanel(
+                        colorScheme,
+                        theme,
+                        selectedPatient,
+                      ),
                     ),
                   ],
                 ),
@@ -339,7 +433,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   // ---------------------------------------------------------------------------
   // LEFT PANEL: Search, Categories, Drugs Grid
   // ---------------------------------------------------------------------------
-  Widget _buildLeftPanel(ColorScheme colorScheme) {
+  Widget _buildLeftPanel(ColorScheme colorScheme, Patient selectedPatient) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -461,9 +555,21 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   itemCount: _drugs.length,
                   itemBuilder: (context, index) {
                     final drug = _drugs[index];
-                    final price = drug.price ?? 0;
+
+                    final patientWard = selectedPatient.ward ?? 'OPD';
+                    final wardPrice =
+                        (drug.prices != null && drug.prices!.isNotEmpty)
+                        ? drug.prices!.firstWhere(
+                            (p) => p.wardName == patientWard,
+                            orElse: () => drug.prices!.first,
+                          )
+                        : null;
+                    final price = wardPrice?.price ?? 0;
+                    final availableStock = drug.displayStock;
                     return InkWell(
-                      onTap: () => addToCart(drug),
+                      onTap: availableStock > 0
+                          ? () => addToCart(drug, price, availableStock)
+                          : null,
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -490,7 +596,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                 fontSize: 14,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            // const SizedBox(height: 6),
                             Text(
                               drug.brandName.isNotEmpty
                                   ? drug.brandName
@@ -502,7 +608,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const Spacer(),
+                            // const Spacer(),
                             Text(
                               'Stock: ${drug.displayStock} ${drug.displayUnit}',
                               style: TextStyle(
@@ -624,7 +730,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                     itemBuilder: (context, index) {
                       final item = cart[index];
                       final drug = item.drug;
-                      final lineTotal = (drug.price ?? 0) * item.quantity;
+                      final lineTotal = item.unitPrice * item.quantity;
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -672,6 +778,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                 const SizedBox(width: 8),
                                 QuantityEditor(
                                   quantity: item.quantity,
+                                  maxQuantity: item.maxQuantity,
                                   onChanged: (newQty) =>
                                       updateQuantity(drug, newQty),
                                 ),
@@ -786,7 +893,11 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   // ---------------------------------------------------------------------------
   // RIGHT PANEL: Summary & Payment
   // ---------------------------------------------------------------------------
-  Widget _buildRightPanel(ColorScheme colorScheme, ThemeData theme) {
+  Widget _buildRightPanel(
+    ColorScheme colorScheme,
+    ThemeData theme,
+    Patient selectedPatient,
+  ) {
     return Column(
       children: [
         // Customer Card
@@ -821,7 +932,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '',
+                    selectedPatient.ward ?? 'OPD',
                     style: TextStyle(fontSize: 12, color: colorScheme.primary),
                   ),
                 ],
@@ -855,14 +966,6 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   _buildSummaryRow(
                     'Subtotal',
                     subtotal.toFinancial(isMoney: true),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSummaryRow('VAT (12%)', vat.toFinancial(isMoney: true)),
-                  const SizedBox(height: 12),
-                  _buildSummaryRow(
-                    'Discount',
-                    '-${discount.toFinancial(isMoney: true)}',
-                    color: colorScheme.error,
                   ),
                   const SizedBox(height: 24),
                   // Total (FittedBox to prevent overflow on small width)
@@ -904,13 +1007,13 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                             widget.invoiceId != null &&
                                     widget.invoiceId!.trim().isNotEmpty
                                 ? Icons.receipt_long_outlined
-                                : Icons.payments_outlined,
+                                : Icons.send_and_archive_outlined,
                           ),
                     label: Text(
                       widget.invoiceId != null &&
                               widget.invoiceId!.trim().isNotEmpty
                           ? 'Add to invoice'
-                          : 'Pay',
+                          : 'Send To Bill',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -962,11 +1065,13 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
 // -----------------------------------------------------------------------------
 class QuantityEditor extends StatefulWidget {
   final int quantity;
+  final int maxQuantity;
   final ValueChanged<int> onChanged;
 
   const QuantityEditor({
     super.key,
     required this.quantity,
+    required this.maxQuantity,
     required this.onChanged,
   });
 
@@ -1003,7 +1108,9 @@ class _QuantityEditorState extends State<QuantityEditor> {
   void _commitValue() {
     final parsed = int.tryParse(_controller.text);
     if (parsed != null && parsed >= 0) {
-      widget.onChanged(parsed);
+      final clamped = parsed.clamp(0, widget.maxQuantity);
+      widget.onChanged(clamped);
+      _controller.text = clamped.toString();
     } else {
       // Revert to old valid value if input is invalid
       _controller.text = widget.quantity.toString();

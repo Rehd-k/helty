@@ -66,7 +66,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
         _ => PatientListStatusFilter.none,
       };
       _patientNotifier.setListStatusFilter(filter);
-      _patientNotifier.fetchPatients();
+      // _patientNotifier.fetchPatients();
     });
     getNoIdPateitn();
   }

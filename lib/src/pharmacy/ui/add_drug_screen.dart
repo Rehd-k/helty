@@ -1,5 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import '../../models/ward_models.dart';
+import '../../services/ward_service.dart';
 import '../models/pharmacy_model.dart';
 import '../services/pharmacy_service.dart';
 import '../inputs/morden.form.inpts.dart';
@@ -49,6 +51,12 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
   bool _isRefrigerated = false;
   bool _isHighAlert = false;
 
+  final _wardService = WardService();
+  final _wardPriceController = TextEditingController();
+  List<Ward> _availableWards = [];
+  List<DrugPrice> _priceRows = [];
+  String? _selectedWardId;
+
   @override
   void initState() {
     super.initState();
@@ -60,8 +68,9 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
     _strengthCtrl = TextEditingController(text: d?.strength ?? '');
     _dosageFormCtrl = TextEditingController(text: d?.dosageForm ?? '');
     _routeCtrl = TextEditingController(text: d?.route ?? '');
-    _therapeuticClassCtrl =
-        TextEditingController(text: d?.therapeuticClass ?? '');
+    _therapeuticClassCtrl = TextEditingController(
+      text: d?.therapeuticClass ?? '',
+    );
     _atcCodeCtrl = TextEditingController(text: d?.atcCode ?? '');
     _maxDailyDoseCtrl = TextEditingController(
       text: d?.maxDailyDose != null ? d!.maxDailyDose.toString() : '',
@@ -75,6 +84,10 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
     _isControlled = d?.isControlled ?? false;
     _isRefrigerated = d?.isRefrigerated ?? false;
     _isHighAlert = d?.isHighAlert ?? false;
+    _loadWards();
+    if (d?.prices != null) {
+      _priceRows = List.from(d!.prices!);
+    }
   }
 
   @override
@@ -89,7 +102,62 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
     _maxDailyDoseCtrl.dispose();
     _reorderLevelCtrl.dispose();
     _reorderQtyCtrl.dispose();
+    _wardPriceController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadWards() async {
+    try {
+      final wards = await _wardService.fetchWards();
+      if (!mounted) return;
+      final existingWardIds = _priceRows.map((e) => e.wardId).toSet();
+      setState(() {
+        _availableWards = wards
+            .where((w) => !existingWardIds.contains(w.id))
+            .toList();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load wards: $e')));
+    }
+  }
+
+  void _addWardPrice() {
+    final selectedWardId = _selectedWardId;
+    if (selectedWardId == null || selectedWardId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a ward.')));
+      return;
+    }
+
+    final priceText = _wardPriceController.text.trim();
+    final price = double.tryParse(priceText);
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid price.')),
+      );
+      return;
+    }
+
+    final ward = _availableWards.firstWhere((w) => w.id == selectedWardId);
+    final row = DrugPrice(wardId: ward.id, wardName: ward.name, price: price);
+
+    setState(() {
+      _priceRows.add(row);
+      _availableWards.removeWhere((w) => w.id == ward.id);
+      _selectedWardId = null;
+      _wardPriceController.clear();
+    });
+  }
+
+  void _removeWardPrice(DrugPrice row) {
+    setState(() {
+      _priceRows.remove(row);
+    });
+    _loadWards();
   }
 
   Future<void> _submitForm() async {
@@ -102,8 +170,9 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
         id: widget.existingDrug?.id,
         genericName: _genericNameCtrl.text.trim(),
         brandName: _brandNameCtrl.text.trim(),
-        strength:
-            _strengthCtrl.text.trim().isEmpty ? null : _strengthCtrl.text.trim(),
+        strength: _strengthCtrl.text.trim().isEmpty
+            ? null
+            : _strengthCtrl.text.trim(),
         dosageForm: _dosageFormCtrl.text.trim().isEmpty
             ? null
             : _dosageFormCtrl.text.trim(),
@@ -111,14 +180,16 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
         therapeuticClass: _therapeuticClassCtrl.text.trim().isEmpty
             ? null
             : _therapeuticClassCtrl.text.trim(),
-        atcCode:
-            _atcCodeCtrl.text.trim().isEmpty ? null : _atcCodeCtrl.text.trim(),
+        atcCode: _atcCodeCtrl.text.trim().isEmpty
+            ? null
+            : _atcCodeCtrl.text.trim(),
         isControlled: _isControlled,
         isRefrigerated: _isRefrigerated,
         isHighAlert: _isHighAlert,
         maxDailyDose: double.tryParse(_maxDailyDoseCtrl.text),
         reorderLevel: int.tryParse(_reorderLevelCtrl.text) ?? 0,
         reorderQuantity: int.tryParse(_reorderQtyCtrl.text) ?? 0,
+        prices: _priceRows,
         // Manufacturer ID can be wired when manufacturer selector is added.
         manufacturerId: widget.existingDrug?.manufacturerId,
       );
@@ -292,6 +363,78 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 16),
+                _buildSectionHeader('Ward Pricing', Icons.price_change),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _selectedWardId,
+                        hint: const Text('Select Ward'),
+                        onChanged: (value) =>
+                            setState(() => _selectedWardId = value),
+                        items: _availableWards
+                            .map(
+                              (ward) => DropdownMenuItem<String>(
+                                value: ward.id,
+                                child: Text(ward.name),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ModernTextField(
+                        label: 'Price',
+                        hint: 'Ward-specific price',
+                        controller: _wardPriceController,
+                        keyboardType: TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: _addWardPrice,
+                      child: const Text('Add'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (_priceRows.isNotEmpty)
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Ward Prices',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          ..._priceRows.map(
+                            (row) => ListTile(
+                              dense: true,
+                              title: Text('${row.wardName ?? row.wardId}'),
+                              subtitle: Text(
+                                'NGN ${row.price.toStringAsFixed(2)}',
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => _removeWardPrice(row),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                 const SizedBox(height: 16),
                 _buildSectionHeader('Special Flags', Icons.flag_outlined),
