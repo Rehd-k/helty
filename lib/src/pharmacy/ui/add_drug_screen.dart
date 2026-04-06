@@ -421,7 +421,7 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
                           ..._priceRows.map(
                             (row) => ListTile(
                               dense: true,
-                              title: Text('${row.wardName ?? row.wardId}'),
+                              title: Text(row.wardName ?? row.wardId),
                               subtitle: Text(
                                 'NGN ${row.price.toStringAsFixed(2)}',
                               ),

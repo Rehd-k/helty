@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +9,6 @@ import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../billings/pay.bill.dart';
 import '../../enlist_services/selected.user.dart';
@@ -31,7 +29,6 @@ class RenderServiceScreen extends ConsumerStatefulWidget {
 }
 
 class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
-  Map<String, dynamic> noIdPatient = {};
   final _deptSvc = DepartmentService();
   final _catSvc = ServiceCategoryService();
   final _srvSvc = ServiceService();
@@ -109,13 +106,12 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   void _openPaymentModal(
     BuildContext context,
     Patient? patient,
-    Map<String, dynamic> noIdPatient,
     List<ServiceModel> selectedItems,
     double totalDue,
     String staffId,
   ) {
     // Guard: must have a patient
-    final hasPatient = noIdPatient.isNotEmpty || patient != null;
+    final hasPatient = patient != null;
     if (!hasPatient) {
       _snack('Please select a patient before making a payment.');
       return;
@@ -130,16 +126,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       context: context,
       barrierColor: Colors.transparent,
       builder: (context) => PayBill(
-        hasId: noIdPatient.isEmpty,
-        patientId: noIdPatient.isNotEmpty
-            ? noIdPatient['id']
-            : patient?.patientId,
-        firstName: noIdPatient.isNotEmpty
-            ? noIdPatient['firstName']
-            : patient?.firstName,
-        lastName: noIdPatient.isNotEmpty
-            ? noIdPatient['surname']
-            : patient!.surname,
+        patientId: patient.patientId,
+        firstName: patient.firstName,
+        lastName: patient.surname,
         selectedItems: selectedItems,
         total: totalDue,
         staffId: staffId,
@@ -197,43 +186,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     });
   }
 
-  Future<void> getNoIdPateitn() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString('noIdPatient');
-    if (stored != null && stored.isNotEmpty) {
-      setState(() {
-        noIdPatient = jsonDecode(stored) as Map<String, dynamic>;
-      });
-      return;
-    }
-    final selected = ref.read(patientProvider).selectedPatient;
-    if (selected != null) {
-      setState(() {
-        noIdPatient = {
-          if (selected.id != null && selected.id!.trim().isNotEmpty)
-            'id': selected.id,
-          'patientId': selected.patientId,
-          'firstName': selected.firstName,
-        };
-      });
-    }
-  }
-
-  void unselect() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      noIdPatient = {};
-    });
-    await prefs.remove('noIdPatient');
-    ref.read(patientProvider.notifier).clearPatient();
-  }
-
   @override
   void initState() {
     super.initState();
     _loadMeta();
     _loadServices();
-    getNoIdPateitn();
   }
 
   @override
@@ -293,11 +250,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             // ==========================================
             Expanded(
               flex: 4,
-              child: _buildSelectedServicesPanel(
-                noIdPatient,
-                selectedPatient,
-                auth,
-              ),
+              child: _buildSelectedServicesPanel(selectedPatient, auth),
             ),
           ],
         ),
@@ -703,12 +656,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // =========================================================================
   // RIGHT PANE COMPONENTS
   // =========================================================================
-  Widget _buildSelectedServicesPanel(
-    Map<String, dynamic> noIdPatient,
-    Patient? selectedPatient,
-    AuthState auth,
-  ) {
-    final hasPatient = noIdPatient.isNotEmpty || selectedPatient != null;
+  Widget _buildSelectedServicesPanel(Patient? selectedPatient, AuthState auth) {
+    final hasPatient = selectedPatient != null;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -726,7 +675,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (hasPatient)
-            SelectedPatientCard(noIdPatient: noIdPatient, unselect: unselect)
+            SelectedPatientCard()
           else
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -971,7 +920,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 _footerCheckoutButton(
                   auth: auth,
                   selectedPatient: selectedPatient,
-                  noIdPatient: noIdPatient,
                 ),
               ],
             ),
@@ -987,7 +935,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   Widget _footerCheckoutButton({
     required AuthState auth,
     required Patient? selectedPatient,
-    required Map<String, dynamic> noIdPatient,
   }) {
     final staff = auth.staff;
     if (staff == null) {
@@ -1007,7 +954,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 _openPaymentModal(
                   context,
                   selectedPatient,
-                  noIdPatient,
                   _selectedItems,
                   _totalDue,
                   staff.id,
@@ -1029,10 +975,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     return ElevatedButton(
       onPressed: _selectedItems.isEmpty
           ? null
-          : () => _handleSendToBill(
-              selectedPatient: selectedPatient,
-              noIdPatient: noIdPatient,
-            ),
+          : () => _handleSendToBill(selectedPatient: selectedPatient),
       style: ElevatedButton.styleFrom(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
@@ -1055,15 +998,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
   static String? _resolvePatientUuidForInvoice({
     required Patient? selectedPatient,
-    required Map<String, dynamic> noIdPatient,
   }) {
-    if (noIdPatient.isNotEmpty) {
-      for (final key in ['id', 'patientUuid', 'uuid']) {
-        final v = noIdPatient[key]?.toString().trim() ?? '';
-        if (_looksLikeUuid(v)) return v;
-      }
-      return null;
-    }
     final id = selectedPatient?.id?.trim() ?? '';
     return _looksLikeUuid(id) ? id : null;
   }
@@ -1085,14 +1020,10 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     return open.first;
   }
 
-  Future<void> _handleSendToBill({
-    required Patient? selectedPatient,
-    required Map<String, dynamic> noIdPatient,
-  }) async {
+  Future<void> _handleSendToBill({required Patient? selectedPatient}) async {
     if (_selectedItems.isEmpty) return;
     final patientUuid = _resolvePatientUuidForInvoice(
       selectedPatient: selectedPatient,
-      noIdPatient: noIdPatient,
     );
     if (patientUuid == null) {
       _snack(

@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
@@ -17,7 +15,6 @@ class SummaryBills extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    log('Building SummaryBills with invoice total: ${invoice.toString()}');
     final auth = ref.watch(authProvider);
     return Card(
       elevation: 0, // Flat design with border is trendy
@@ -25,7 +22,7 @@ class SummaryBills extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: Colors.grey.shade200),
       ),
-      color: Colors.white,
+
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -44,7 +41,6 @@ class SummaryBills extends ConsumerWidget {
             // The Grid Widget (Preserving your external widget)
             Container(
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(12),
               ),
               padding: const EdgeInsets.all(12),

@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:helty/src/models/service_model.dart';
 
@@ -72,7 +70,6 @@ abstract class Invoice with _$Invoice {
               .map((e) => ServiceModel.fromJson(Map<String, dynamic>.from(e)))
               .toList()
         : <ServiceModel>[];
-    log(itemsRaw.toString());
     return _Invoice(
       id: (json['id'] ?? '').toString(),
       patient: Patient.fromJson(patientJson),

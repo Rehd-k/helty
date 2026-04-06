@@ -2,17 +2,30 @@ import 'package:flutter/material.dart';
 
 import '../helper/date.formatter.dart';
 
+/// How date chips label their selected day in [FromToDateFilter].
+enum DateFilterLabelStyle {
+  /// e.g. Monday, April 5, 2026
+  full,
+
+  /// e.g. 4/5/2026
+  shortUs,
+}
+
 class FromToDateFilter extends StatefulWidget {
   final Function doRefresh;
   final bool dateFilter;
   final Function(String query, String category, DateTime? from, DateTime? to)
   onFilterChanged;
 
+  /// Display style for From/To date text. Default is [DateFilterLabelStyle.full].
+  final DateFilterLabelStyle labelStyle;
+
   const FromToDateFilter({
     super.key,
     required this.onFilterChanged,
     required this.doRefresh,
     required this.dateFilter,
+    this.labelStyle = DateFilterLabelStyle.full,
   });
 
   @override
@@ -141,13 +154,19 @@ class _PatientsFilterWidgetState extends State<FromToDateFilter> {
           if (widget.dateFilter)
             Row(
               children: [
-                _DateTile(label: 'From', date: _fromDate, onTap: _pickFromDate),
+                _DateTile(
+                  label: 'From',
+                  date: _fromDate,
+                  onTap: _pickFromDate,
+                  labelStyle: widget.labelStyle,
+                ),
                 const SizedBox(width: 12),
                 _DateTile(
                   label: 'To',
                   date: _toDate,
                   isEnabled: _fromDate != null,
                   onTap: _pickToDate,
+                  labelStyle: widget.labelStyle,
                 ),
               ],
             ),
@@ -169,13 +188,24 @@ class _DateTile extends StatelessWidget {
   final DateTime? date;
   final VoidCallback onTap;
   final bool isEnabled;
+  final DateFilterLabelStyle labelStyle;
 
   const _DateTile({
     required this.label,
     required this.date,
     required this.onTap,
     this.isEnabled = true,
+    this.labelStyle = DateFilterLabelStyle.full,
   });
+
+  String _formatDate(DateTime d) {
+    switch (labelStyle) {
+      case DateFilterLabelStyle.shortUs:
+        return DateFormatter.shortNumericUs(d);
+      case DateFilterLabelStyle.full:
+        return DateFormatter.fullDate(d);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +227,7 @@ class _DateTile extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               Text(
-                date != null ? DateFormatter.fullDate(date!) : 'Select Date',
+                date != null ? _formatDate(date!) : 'Select Date',
               ),
               SizedBox(width: 4),
               const Icon(Icons.calendar_today, size: 16, color: Colors.blue),

@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 class ServiceModel {
   ServiceModel({
     required this.id,
@@ -50,8 +48,6 @@ class ServiceModel {
   /// Parses from either a full service object or an API InvoiceItem
   /// (with quantity, priceAtTime, and nested service).
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
-    log('Parsing ServiceModel from JSON: $json');
-
     // 1. Extract sub-objects
     final service = json['service'] as Map<String, dynamic>?;
     final drug = json['drug'] as Map<String, dynamic>?;

@@ -26,12 +26,10 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
   String? _selectedCategory;
   DateTime? _fromDate;
   DateTime? _toDate;
-  Function? doRefresh;
 
   @override
   void initState() {
     super.initState();
-    doRefresh = widget.doRefresh;
     _selectedCategory = widget.searchCategories.first['name'];
     if (widget.dateFilter) {
       // Default date range: start of today to end of today
@@ -124,106 +122,108 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              // Search Bar
-              Expanded(
-                flex: 3,
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (_) => _notifyParent(),
-                  decoration: InputDecoration(
-                    hintText: 'Search...', // French for Search...
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+    return Card(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Search Bar
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (_) => _notifyParent(),
+                    decoration: InputDecoration(
+                      hintText: 'Search...', // French for Search...
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Category Dropdown
-              Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                const SizedBox(width: 12),
+                // Category Dropdown
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _selectedCategory,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
+                    items: widget.searchCategories.map((cat) {
+                      return DropdownMenuItem(
+                        value: cat['name'],
+                        child: Text(cat['value']!),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      setState(() => _selectedCategory = val);
+                      _notifyParent();
+                    },
                   ),
-                  items: widget.searchCategories.map((cat) {
-                    return DropdownMenuItem(
-                      value: cat['name'],
-                      child: Text(cat['value']!),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() => _selectedCategory = val);
-                    _notifyParent();
-                  },
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              if (widget.dateFilter)
-                Row(
-                  children: [
-                    _DateTile(
-                      label: 'From',
-                      date: _fromDate,
-                      onTap: _pickFromDate,
-                    ),
-                    const SizedBox(width: 12),
-                    _DateTile(
-                      label: 'To',
-                      date: _toDate,
-                      isEnabled: _fromDate != null,
-                      onTap: _pickToDate,
-                    ),
-                  ],
-                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                if (widget.dateFilter)
+                  Row(
+                    children: [
+                      _DateTile(
+                        label: 'From',
+                        date: _fromDate,
+                        onTap: _pickFromDate,
+                      ),
+                      const SizedBox(width: 12),
+                      _DateTile(
+                        label: 'To',
+                        date: _toDate,
+                        isEnabled: _fromDate != null,
+                        onTap: _pickToDate,
+                      ),
+                    ],
+                  ),
 
-              const Spacer(),
-              TextButton.icon(
-                onPressed: () {
-                  _resetFilters();
-                  if (doRefresh != null) {
-                    doRefresh!();
-                  }
-                },
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Reset'),
-                style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-              ),
-            ],
-          ),
-        ],
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () {
+                    _resetFilters();
+                    // _resetFilters → _notifyParent → parent onFilterChanged already reloads.
+                    // Calling doRefresh here caused a second identical request.
+                  },
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Reset'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

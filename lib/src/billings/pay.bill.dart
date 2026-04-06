@@ -89,7 +89,6 @@ class BankDropdown extends StatelessWidget {
 class PayBill extends ConsumerStatefulWidget {
   const PayBill({
     super.key,
-    required this.hasId,
     required this.firstName,
     required this.lastName,
     required this.patientId,
@@ -104,7 +103,6 @@ class PayBill extends ConsumerStatefulWidget {
     this.invoiceItemAllocations,
     this.onPaymentComplete,
   });
-  final bool hasId;
   final String firstName;
   final String lastName;
   final String patientId;
@@ -130,7 +128,6 @@ class PayBillState extends ConsumerState<PayBill> {
   late String _patientId;
   late String _staffId;
   late double _originalAmount;
-  late bool hasId;
   double _amountToPay = 0;
   String? _insurance;
   List<String> charges = [];
@@ -185,7 +182,7 @@ class PayBillState extends ConsumerState<PayBill> {
     _amountToPay = _originalAmount;
     _items = List.of(widget.selectedItems);
     _itemsForPrint = List.of(widget.selectedItems);
-    hasId = widget.hasId;
+
     _fetchDetails();
     _loadBanks();
   }
@@ -391,7 +388,6 @@ class PayBillState extends ConsumerState<PayBill> {
 
             return Container(
               decoration: const BoxDecoration(
-                color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               padding: EdgeInsets.only(
@@ -746,7 +742,6 @@ class PayBillState extends ConsumerState<PayBill> {
       children: [
         CircleAvatar(
           radius: 24,
-          backgroundColor: Colors.blue.shade100,
           child: Text(
             _patientName.substring(0, 1),
             style: TextStyle(color: Colors.blue.shade800, fontSize: 20),
@@ -764,16 +759,15 @@ class PayBillState extends ConsumerState<PayBill> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (hasId)
-                Text(
-                  'ID: $_patientId',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                ),
-              if (!hasId)
-                Text(
-                  "ID: No ID",
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                ),
+              Text(
+                'ID: $_patientId',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
+
+              Text(
+                "ID: No ID",
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
             ],
           ),
         ),

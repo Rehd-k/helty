@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:ui';
 
 import 'package:auto_route/annotations.dart';
@@ -41,14 +40,17 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   InvoiceFilter _filter = const InvoiceFilter(limit: 500, allowIP: false);
 
   final InvoiceService _invoiceService = InvoiceService();
-  bool _isLoading = false;
+
+  /// True until [PatientsFilterWidget] applies defaults (post-frame) and load finishes.
+  bool _isLoading = true;
   String? _error;
   List<Invoice> _invoices = const [];
 
   @override
   void initState() {
     super.initState();
-    _loadInvoices();
+    // Do not call _loadInvoices here: [PatientsFilterWidget] notifies once after first
+    // frame with status, category, and date range. An eager load used the wrong _filter.
   }
 
   Future<void> _loadInvoices() async {
@@ -89,12 +91,29 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
     setState(() => selectedInvoice = invoice);
   }
 
+  void _onInvoiceFilterChanged(
+    String query,
+    String category,
+    DateTime? from,
+    DateTime? to,
+  ) {
+    setState(() {
+      _filter = InvoiceFilter(
+        status: 'PENDING',
+        query: query.isEmpty ? null : query,
+        category: category,
+        from: from,
+        to: to,
+        limit: 500,
+        allowIP: false,
+      );
+    });
+    _loadInvoices();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    log(
-      'Building PendingBillsScreen with ${_invoices.toString()} invoices, selectedInvoice: ${selectedInvoice?.id}, filter: ${_filter.toString()}',
-    );
     return Scaffold(
       body: Column(
         children: [
@@ -104,25 +123,8 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
               {'name': 'services', 'value': 'Services'},
               {'name': 'fullName', 'value': 'Patient Name'},
             ],
-            onFilterChanged:
-                (String query, String category, DateTime? from, DateTime? to) {
-                  setState(() {
-                    _filter = InvoiceFilter(
-                      status: 'DRAFT',
-                      query: query.isEmpty ? null : query,
-                      category: category,
-                      from: from,
-                      to: to,
-                      limit: 500,
-                      allowIP: false,
-                    );
-                  });
-
-                  _loadInvoices();
-                },
-            doRefresh: () {
-              _loadInvoices();
-            },
+            onFilterChanged: _onInvoiceFilterChanged,
+            doRefresh: _loadInvoices,
             dateFilter: true,
           ),
           Expanded(
@@ -386,7 +388,6 @@ void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
                 color: Colors.transparent,
                 child: PayBill(
                   isInvoice: true,
-                  hasId: invoice.patientId.isNotEmpty,
                   selectedItems: invoice.invoiceItems,
                   patientId: invoice.patientId,
                   firstName: invoice.patient.firstName,

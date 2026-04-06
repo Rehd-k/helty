@@ -437,6 +437,7 @@ class Drug {
     if (prices != null && prices!.isNotEmpty)
       'prices': prices!.map((p) => p.toJson()).toList(),
     if (stock != null) 'stock': stock,
+    if (stock != null) 'quantity': stock,
     if (unit != null) 'unit': unit,
     if (expiryDate != null) 'expiryDate': expiryDate!.toIso8601String(),
     if (price != null) 'price': price,
@@ -807,6 +808,35 @@ class GoodsReceipt {
     'receivedById': receivedById,
     if (receivedAt != null) 'receivedAt': receivedAt!.toIso8601String(),
     if (notes != null) 'notes': notes,
+  };
+}
+
+/// Single line in POST /stock-transfers body (CreateStockTransferDto.items).
+class StockTransferItemDto {
+  const StockTransferItemDto({required this.batchId, required this.quantity});
+
+  final String batchId;
+  final int quantity;
+
+  Map<String, dynamic> toJson() => {'batchId': batchId, 'quantity': quantity};
+}
+
+/// Request body for creating a stock transfer with multiple batch lines.
+class CreateStockTransferDto {
+  const CreateStockTransferDto({
+    required this.fromLocationId,
+    required this.toLocationId,
+    required this.items,
+  });
+
+  final String fromLocationId;
+  final String toLocationId;
+  final List<StockTransferItemDto> items;
+
+  Map<String, dynamic> toJson() => {
+    'fromLocationId': fromLocationId,
+    'toLocationId': toLocationId,
+    'items': items.map((e) => e.toJson()).toList(),
   };
 }
 

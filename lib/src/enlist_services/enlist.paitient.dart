@@ -163,10 +163,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                     children: [
                       SizedBox(
                         width: double.infinity,
-                        child: SelectedPatientCard(
-                          noIdPatient: data,
-                          unselect: unselect,
-                        ),
+                        child: SelectedPatientCard(),
                       ),
                       SizedBox(
                         width: double.infinity,

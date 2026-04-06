@@ -66,8 +66,10 @@ Widget buildModernGrid(
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               color: index % 2 == 0
-                  ? Colors.white
-                  : Colors.grey.shade50, // Zebra striping
+                  ? Theme.of(context).cardColor.withValues(alpha: 0.5)
+                  : Theme.of(
+                      context,
+                    ).canvasColor.withValues(alpha: 0.05), // Zebra striping
               child: Row(
                 children: [
                   Expanded(

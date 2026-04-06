@@ -5,9 +5,7 @@ import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 import '../paitients/patient_providers.dart';
 
 class SelectedPatientCard extends ConsumerWidget {
-  final Map<String, dynamic>? noIdPatient;
-  final Function? unselect;
-  const SelectedPatientCard({super.key, this.noIdPatient, this.unselect});
+  const SelectedPatientCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -72,13 +70,9 @@ class SelectedPatientCard extends ConsumerWidget {
                                 context,
                               ).primaryColor.withValues(alpha: 0.1),
                               child: Text(
-                                noIdPatient!.isNotEmpty
-                                    ? noIdPatient!['firstName']
-                                          .substring(0, 1)
-                                          .toUpperCase()
-                                    : selectedPatient!.firstName
-                                          .substring(0, 1)
-                                          .toUpperCase(),
+                                selectedPatient!.firstName
+                                    .substring(0, 1)
+                                    .toUpperCase(),
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -117,9 +111,7 @@ class SelectedPatientCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              noIdPatient!.isNotEmpty
-                                  ? noIdPatient!['firstName']
-                                  : selectedPatient!.firstName.capitalize(),
+                              selectedPatient.firstName.capitalize(),
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -131,9 +123,7 @@ class SelectedPatientCard extends ConsumerWidget {
                               children: [
                                 _detailBadge(
                                   Icons.badge_outlined,
-                                  noIdPatient!.isNotEmpty
-                                      ? 'No ID Patient'
-                                      : selectedPatient!.patientId,
+                                  selectedPatient.patientId,
                                 ),
                                 const SizedBox(width: 8),
                                 // _detailBadge(
@@ -149,7 +139,6 @@ class SelectedPatientCard extends ConsumerWidget {
                       // Clear/Remove Action
                       IconButton(
                         onPressed: () async {
-                          unselect!();
                           ref.read(patientProvider.notifier).clearPatient();
                         },
                         style: IconButton.styleFrom(

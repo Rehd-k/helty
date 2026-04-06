@@ -681,11 +681,11 @@ class PharmacyApiService {
     }
   }
 
-  Future<StockTransfer> createStockTransfer(StockTransfer transfer) async {
+  Future<StockTransfer> createStockTransfer(CreateStockTransferDto dto) async {
     try {
       final resp = await _dio.post(
         '$_basePath/stock-transfers',
-        data: transfer.toJson(),
+        data: dto.toJson(),
       );
       return StockTransfer.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {

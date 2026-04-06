@@ -157,6 +157,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                     DateTime? to,
                   ) {
                     setState(() {
+                      _error = null;
                       _query = query;
                       _filterCategory = category;
                       _fromDate = from;

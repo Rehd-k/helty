@@ -1,6 +1,92 @@
 /// How [PatientService.fetchPatients] should narrow results by [Patient.status].
 enum PatientListStatusFilter { none, onlyAdmitted, excludeAdmitted }
 
+/// Optional allergy row from GET /patients/:id when the API includes it.
+class PatientAllergyEntry {
+  const PatientAllergyEntry({required this.name, this.isSevere = false});
+
+  final String name;
+  final bool isSevere;
+
+  factory PatientAllergyEntry.fromDynamic(dynamic e) {
+    if (e is String) {
+      return PatientAllergyEntry(name: e.trim());
+    }
+    if (e is Map) {
+      final m = Map<String, dynamic>.from(e);
+      final name =
+          m['name']?.toString().trim() ??
+          m['allergy']?.toString().trim() ??
+          m['substance']?.toString().trim() ??
+          '';
+      final severe =
+          m['isSevere'] == true ||
+          m['severe'] == true ||
+          m['severity']?.toString().toUpperCase() == 'SEVERE';
+      return PatientAllergyEntry(name: name, isSevere: severe);
+    }
+    return const PatientAllergyEntry(name: '');
+  }
+}
+
+/// Optional prescription / medication history from GET /patients/:id.
+class PatientPrescriptionHistoryEntry {
+  const PatientPrescriptionHistoryEntry({required this.name, this.detail});
+
+  final String name;
+  final String? detail;
+
+  factory PatientPrescriptionHistoryEntry.fromDynamic(dynamic e) {
+    if (e is Map) {
+      final m = Map<String, dynamic>.from(e);
+      final name =
+          m['drugName']?.toString().trim() ??
+          m['name']?.toString().trim() ??
+          m['medication']?.toString().trim() ??
+          '';
+      final detail =
+          m['status']?.toString() ??
+          m['dose']?.toString() ??
+          m['frequency']?.toString();
+      final date =
+          m['createdAt']?.toString() ?? m['date']?.toString() ?? m['orderedAt']?.toString();
+      final parts = <String>[];
+      if (detail != null && detail.isNotEmpty) parts.add(detail);
+      if (date != null && date.isNotEmpty) parts.add(date);
+      return PatientPrescriptionHistoryEntry(
+        name: name,
+        detail: parts.isEmpty ? null : parts.join(' · '),
+      );
+    }
+    return PatientPrescriptionHistoryEntry(name: e.toString());
+  }
+}
+
+List<PatientAllergyEntry> _parsePatientAllergies(dynamic raw) {
+  if (raw is! List) return const [];
+  return raw.map(PatientAllergyEntry.fromDynamic).where((a) => a.name.isNotEmpty).toList();
+}
+
+List<PatientPrescriptionHistoryEntry> _parsePatientPrescriptionHistory(
+  Map<String, dynamic> json,
+) {
+  final candidates = [
+    json['prescriptionHistory'],
+    json['medicationOrders'],
+    json['prescriptions'],
+    json['medicationHistory'],
+  ];
+  for (final raw in candidates) {
+    if (raw is List && raw.isNotEmpty) {
+      return raw
+          .map(PatientPrescriptionHistoryEntry.fromDynamic)
+          .where((h) => h.name.isNotEmpty)
+          .toList();
+    }
+  }
+  return const [];
+}
+
 /// True when [status] represents an inpatient admission (matches API spellings).
 bool patientStatusIsAdmitted(String? status) {
   if (status == null) return false;
@@ -55,6 +141,12 @@ class Patient {
   /// Optional transaction id that originated this registration flow.
   final String? unregisteredTransactionId;
 
+  /// When returned by GET /patients/:id (shape varies by backend).
+  final List<PatientAllergyEntry> allergies;
+
+  /// When returned by GET /patients/:id (e.g. medicationOrders, prescriptions).
+  final List<PatientPrescriptionHistoryEntry> prescriptionHistory;
+
   Patient({
     this.id,
     required this.patientId,
@@ -92,6 +184,8 @@ class Patient {
     this.fromUnregisteredFlow = false,
     this.unregisteredTransactionId,
     this.ward,
+    this.allergies = const [],
+    this.prescriptionHistory = const [],
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
@@ -143,6 +237,8 @@ class Patient {
       fromUnregisteredFlow: false,
       unregisteredTransactionId: null,
       ward: json['ward'] != null ? json['ward'] as String : 'OPD',
+      allergies: _parsePatientAllergies(json['allergies']),
+      prescriptionHistory: _parsePatientPrescriptionHistory(json),
     );
   }
 
@@ -222,6 +318,9 @@ class Patient {
       lockNames: lockNames,
       fromUnregisteredFlow: fromUnregisteredFlow,
       unregisteredTransactionId: unregisteredTransactionId,
+      ward: ward,
+      allergies: allergies,
+      prescriptionHistory: prescriptionHistory,
     );
   }
 }

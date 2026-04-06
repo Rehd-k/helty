@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -92,7 +90,6 @@ List<ChargeItem> _chargesFromBillingDetail(BillingInvoiceDetail? inv) {
   if (inv == null) return [];
   final created = inv.createdAt ?? DateTime.now();
 
-  log('inv.invoiceItems: ${inv.invoiceItems}');
   return [
     for (final item in inv.invoiceItems)
       ChargeItem(
@@ -355,7 +352,6 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       context: context,
       barrierColor: Colors.transparent,
       builder: (ctx) => PayBill(
-        hasId: true,
         patientId: detail.patientId,
         firstName: name,
         lastName: '',

@@ -26,6 +26,57 @@ class DateFormatter {
     return DateFormat('dd MMM yyyy').format(date);
   }
 
+  /// US-style short date: 4/5/2026 (month/day/year, no leading zeros).
+  static String shortNumericUs(DateTime date) {
+    return DateFormat('M/d/yyyy').format(date);
+  }
+
+  /// Human-readable elapsed time from [past] until [now] (e.g. "3 days ago").
+  static String relativeTimeAgo(DateTime past, [DateTime? now]) {
+    final clock = now ?? DateTime.now();
+    if (!past.isBefore(clock)) return 'just now';
+
+    var years = clock.year - past.year;
+    if (clock.month < past.month ||
+        (clock.month == past.month && clock.day < past.day)) {
+      years--;
+    }
+    if (years >= 1) {
+      return years == 1 ? '1 year ago' : '$years years ago';
+    }
+
+    var months = (clock.year - past.year) * 12 + clock.month - past.month;
+    if (clock.day < past.day) months--;
+    if (months >= 1) {
+      return months == 1 ? '1 month ago' : '$months months ago';
+    }
+
+    final days = clock.difference(past).inDays;
+    if (days >= 7) {
+      final w = days ~/ 7;
+      return w == 1 ? '1 week ago' : '$w weeks ago';
+    }
+    if (days >= 1) {
+      return days == 1 ? '1 day ago' : '$days days ago';
+    }
+
+    final hours = clock.difference(past).inHours;
+    if (hours >= 1) {
+      return hours == 1 ? '1 hour ago' : '$hours hours ago';
+    }
+
+    final minutes = clock.difference(past).inMinutes;
+    if (minutes >= 1) {
+      return minutes == 1 ? '1 minute ago' : '$minutes minutes ago';
+    }
+
+    final seconds = clock.difference(past).inSeconds;
+    if (seconds >= 1) {
+      return seconds == 1 ? '1 second ago' : '$seconds seconds ago';
+    }
+    return 'just now';
+  }
+
   /// Helper to parse backend string safely
   /// Returns "N/A" if the date is null or invalid
   static String formatFromBackend(

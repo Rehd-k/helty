@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
@@ -52,19 +54,39 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
 
   bool _isSubmitting = false;
 
+  Timer? _drugSearchDebounce;
+
   @override
   void initState() {
     super.initState();
+    _drugSearchCtrl.addListener(_scheduleDrugSearchReload);
     _loadLocations();
     _loadDrugs();
   }
 
   @override
   void dispose() {
+    _drugSearchDebounce?.cancel();
+    _drugSearchCtrl.removeListener(_scheduleDrugSearchReload);
     _quantityCtrl.dispose();
     _referenceIdCtrl.dispose();
     _drugSearchCtrl.dispose();
     super.dispose();
+  }
+
+  void _scheduleDrugSearchReload() {
+    _drugSearchDebounce?.cancel();
+    _drugSearchDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      setState(() => _drugPageIndex = 1);
+      _loadDrugs();
+    });
+  }
+
+  void _searchDrugsNow() {
+    _drugSearchDebounce?.cancel();
+    setState(() => _drugPageIndex = 1);
+    _loadDrugs();
   }
 
   void _showError(String message) {
@@ -130,6 +152,17 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
 
   Future<void> _loadBatches() async {
     if (_selectedDrug?.id == null) return;
+    final fromId = _fromLocationId;
+    if (fromId == null || fromId.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingBatches = false;
+        _batchesError = null;
+        _batchPage = null;
+        _selectedBatch = null;
+      });
+      return;
+    }
     setState(() {
       _isLoadingBatches = true;
       _batchesError = null;
@@ -140,7 +173,7 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
         pageSize: _pageSize,
         sortBy: 'createdAt',
         sortOrder: SortOrder.desc,
-        filters: {'drugId': _selectedDrug!.id},
+        filters: {'drugId': _selectedDrug!.id, 'toLocationId': fromId},
       );
       final resp = await _apiService.getDrugBatches(q);
       if (!mounted) return;
@@ -221,15 +254,25 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      final items = <StockTransferItemDto>[];
       for (final line in _lines) {
-        final transfer = StockTransfer(
-          fromLocationId: _fromLocationId!,
-          toLocationId: _toLocationId!,
-          drugId: line.drug.id!,
-          quantity: line.quantity,
+        final batchId = line.batch.id;
+        if (batchId == null || batchId.isEmpty) {
+          _showError(
+            'Every line must have a batch id. Remove invalid lines and try again.',
+          );
+          return;
+        }
+        items.add(
+          StockTransferItemDto(batchId: batchId, quantity: line.quantity),
         );
-        await _apiService.createStockTransfer(transfer);
       }
+      final dto = CreateStockTransferDto(
+        fromLocationId: _fromLocationId!,
+        toLocationId: _toLocationId!,
+        items: items,
+      );
+      await _apiService.createStockTransfer(dto);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -257,7 +300,7 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
     return Scaffold(
       body: Column(
         children: [
-          _buildLocationsCard(theme),
+          // _buildLocationsCard(theme),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -272,16 +315,8 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // _buildSectionHeader(
-                          //   'Movement Locations',
-                          //   Icons.route_outlined,
-                          // ),
-                          // _buildLocationsCard(theme),
-                          // const SizedBox(height: 24),
-                          // _buildSectionHeader(
-                          //   'Select Items to Transfer',
-                          //   Icons.medication_outlined,
-                          // ),
+                          _buildLocationsCard(theme),
+
                           Expanded(child: _buildItemsSelector(theme)),
                         ],
                       ),
@@ -301,32 +336,32 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
 
   // --- UI Helpers ---
 
-  // Widget _buildSectionHeader(String title, IconData icon) {
-  //   return Padding(
-  //     padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
-  //     child: Row(
-  //       children: [
-  //         Container(
-  //           padding: const EdgeInsets.all(8),
-  //           decoration: BoxDecoration(
-  //             color: Colors.blue.shade50,
-  //             borderRadius: BorderRadius.circular(8),
-  //           ),
-  //           child: Icon(icon, color: Colors.blue.shade700, size: 20),
-  //         ),
-  //         const SizedBox(width: 12),
-  //         Text(
-  //           title,
-  //           style: TextStyle(
-  //             fontSize: 16,
-  //             fontWeight: FontWeight.bold,
-  //             color: Colors.blue.shade900,
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.blue.shade700, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue.shade900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildModernDropdown({
     required String label,
@@ -346,11 +381,7 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: isDisabled ? Colors.grey : Colors.black87,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<dynamic>(
@@ -359,16 +390,8 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
             onChanged: onChanged,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-              prefixIcon: icon != null
-                  ? Icon(
-                      icon,
-                      color: isDisabled
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                      size: 20,
-                    )
-                  : null,
+              hintStyle: TextStyle(fontSize: 14),
+              prefixIcon: icon != null ? Icon(icon, size: 20) : null,
               filled: true,
               fillColor: isDisabled ? Colors.grey.shade100 : Colors.white,
               contentPadding: const EdgeInsets.symmetric(
@@ -423,73 +446,95 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildModernDropdown(
-              label: 'From (Source)',
-              hint: _locations.isEmpty ? 'No locations' : 'Select Origin',
-              value: _fromLocationId,
-              icon: Icons.store_outlined,
-              items: _locations
-                  .map(
-                    (loc) =>
-                        DropdownMenuItem(value: loc.id, child: Text(loc.name)),
-                  )
-                  .toList(),
-              onChanged: _locations.isEmpty
-                  ? null
-                  : (v) => setState(() => _fromLocationId = v as String?),
+    return Card(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-            ).copyWith(top: 16),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.arrow_forward_rounded,
-                color: theme.colorScheme.primary,
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildModernDropdown(
+                label: 'From (Source)',
+                hint: _locations.isEmpty ? 'No locations' : 'Select Origin',
+                value: _fromLocationId,
+                icon: Icons.store_outlined,
+                items: _locations
+                    .map(
+                      (loc) => DropdownMenuItem(
+                        value: loc.id,
+                        child: Text(loc.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: _locations.isEmpty
+                    ? null
+                    : (v) {
+                        setState(() {
+                          _fromLocationId = v as String?;
+                          if (_toLocationId == _fromLocationId) {
+                            _toLocationId = null;
+                          }
+                          _batchPageIndex = 1;
+                          _selectedBatch = null;
+                        });
+                        if (_selectedDrug != null) {
+                          _loadBatches();
+                        }
+                      },
               ),
             ),
-          ),
-          Expanded(
-            child: _buildModernDropdown(
-              label: 'To (Destination)',
-              hint: _locations.isEmpty ? 'No locations' : 'Select Destination',
-              value: _toLocationId,
-              icon: Icons.local_pharmacy_outlined,
-              items: _locations
-                  .map(
-                    (loc) =>
-                        DropdownMenuItem(value: loc.id, child: Text(loc.name)),
-                  )
-                  .toList(),
-              onChanged: _locations.isEmpty
-                  ? null
-                  : (v) => setState(() => _toLocationId = v as String?),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+              ).copyWith(top: 16),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
             ),
-          ),
-        ],
+            Expanded(
+              child: _buildModernDropdown(
+                label: 'To (Destination)',
+                hint: _locations.isEmpty
+                    ? 'No locations'
+                    : 'Select Destination',
+                value: _toLocationId,
+                icon: Icons.local_pharmacy_outlined,
+                items: _locations
+                    .where(
+                      (loc) =>
+                          _fromLocationId == null || loc.id != _fromLocationId,
+                    )
+                    .map(
+                      (loc) => DropdownMenuItem(
+                        value: loc.id,
+                        child: Text(loc.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: _locations.isEmpty
+                    ? null
+                    : (v) => setState(() => _toLocationId = v as String?),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -512,10 +557,7 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onSubmitted: (_) {
-                setState(() => _drugPageIndex = 1);
-                _loadDrugs();
-              },
+              onSubmitted: (_) => _searchDrugsNow(),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -656,6 +698,14 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
   Widget _buildBatchList(ThemeData theme) {
     if (_selectedDrug == null) {
       return const Center(child: Text('Select a drug to see its batches.'));
+    }
+    if (_fromLocationId == null) {
+      return const Center(
+        child: Text(
+          'Select a source (From) location to list batches stocked there.',
+          textAlign: TextAlign.center,
+        ),
+      );
     }
     if (_isLoadingBatches) {
       return const Center(child: CircularProgressIndicator());
