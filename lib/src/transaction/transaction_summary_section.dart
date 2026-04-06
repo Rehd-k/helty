@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
-import 'package:intl/intl.dart';
 
 /// A scrollable row of summary cards showing transaction financial totals.
-/// Payment-method cards (Cash, Transfer, Cheque, POS) are tappable to filter by that method.
+/// Payment-method cards (Cash, Transfer, POS, Wallet) are tappable to filter by method.
 ///
 /// Usage:
 /// ```dart
@@ -23,7 +22,7 @@ class TransactionSummarySection extends StatelessWidget {
   });
 
   /// Map of financial totals. Expected keys:
-  /// `totalSales`, `totalPaid`, `transfer`, `pos`, `cheque`, `cash`, `grandTotal`, `transactionCount`
+  /// `totalSales`, `totalPaid`, `transfer`, `pos`, `cash`, `wallet`, `grandTotal`, `transactionCount`
   final Map<String, dynamic> totals;
   /// Called when a payment-method card is tapped. Pass null to clear filter (show all).
   final ValueChanged<String?>? onPaymentCardTap;
@@ -35,7 +34,6 @@ class TransactionSummarySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final format = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
     final transactionCount = _int(totals['transactionCount']);
 
     return SingleChildScrollView(
@@ -67,16 +65,16 @@ class TransactionSummarySection extends StatelessWidget {
           const SizedBox(width: 12),
           TransactionSummaryCard(
             title: "POS",
-            amount: format.format(_num(totals['pos'])),
+            amount: _num(totals['pos']).toFinancial(isMoney: true),
             onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('POS') : null,
             isSelected: selectedPaymentMethod == 'POS',
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
-            title: "Cheque",
-            amount: _num(totals['cheque']).toFinancial(isMoney: true),
-            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('Cheque') : null,
-            isSelected: selectedPaymentMethod == 'Cheque',
+            title: "Wallet",
+            amount: _num(totals['wallet']).toFinancial(isMoney: true),
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('Wallet') : null,
+            isSelected: selectedPaymentMethod == 'Wallet',
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(

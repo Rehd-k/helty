@@ -182,7 +182,7 @@ class TransactionService {
 
   /// POST /transaction — creates a draft (active) transaction.
   Future<TransactionModel> createTransaction(CreateTransactionDto dto) async {
-    final resp = await _dio.post('/transaction', data: dto.toJson());
+    final resp = await _dio.post('/invoices/payments', data: dto.toJson());
     return _fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -193,7 +193,7 @@ class TransactionService {
     QuickTransactionDto dto,
   ) async {
     var data = dto.toJson();
-    final resp = await _dio.post('/transaction/quick', data: data);
+    final resp = await _dio.post('/invoices/payments/quick', data: data);
     return _fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -204,13 +204,30 @@ class TransactionService {
     TransactionQuery query,
   ) async {
     final resp = await _dio.get(
-      '/transaction',
+      '/invoices/payments',
       queryParameters: query.toQueryParameters(),
     );
 
     final body = resp.data as Map<String, dynamic>;
 
-    // Support both { data: [...], total: N } and plain list responses.
+    // Invoice-ledger response:
+    // { payments: [...], total, skip, take, ... }
+    if (body['payments'] is List) {
+      final rawPayments = body['payments'] as List;
+      final txns = rawPayments
+          .whereType<Map>()
+          .map((e) => _fromInvoicePaymentJson(Map<String, dynamic>.from(e)))
+          .toList();
+      return PaginatedTransactions(
+        data: txns,
+        total: _toInt(body['total']),
+        skip: _toInt(body['skip']),
+        take: _toInt(body['take']) == 0 ? query.take : _toInt(body['take']),
+      );
+    }
+
+    // Legacy transaction response shape:
+    // { data: [...], total } or plain list
     final rawList = body['data'] is List
         ? body['data'] as List
         : resp.data is List
@@ -230,7 +247,7 @@ class TransactionService {
 
   /// GET /transaction/:id — returns a single transaction with full details.
   Future<TransactionModel> getTransactionById(String id) async {
-    final resp = await _dio.get('/transaction/$id');
+    final resp = await _dio.get('/invoices/payments/$id');
     return _fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -241,7 +258,7 @@ class TransactionService {
     String id,
     Map<String, dynamic> patch,
   ) async {
-    final resp = await _dio.patch('/transaction/$id', data: patch);
+    final resp = await _dio.patch('/invoices/payments/$id', data: patch);
     return _fromJson(resp.data as Map<String, dynamic>);
   }
 
@@ -249,7 +266,7 @@ class TransactionService {
 
   /// DELETE /transaction/:id — soft-deletes or cancels a transaction.
   Future<void> deleteTransaction(String id) async {
-    await _dio.delete('/transaction/$id');
+    await _dio.delete('/invoices/payments/$id');
   }
 
   // ── Banks ─────────────────────────────────────────────────────────────────
@@ -299,7 +316,10 @@ class TransactionService {
   static String _patientName(Map<String, dynamic>? j) {
     if (j == null) return '';
     final first = (j['firstName'] as String?)?.trim() ?? '';
-    final last = (j['surname'] as String?)?.trim() ?? (j['lastName'] as String?)?.trim() ?? '';
+    final last =
+        (j['surname'] as String?)?.trim() ??
+        (j['lastName'] as String?)?.trim() ??
+        '';
     return [first, last].where((s) => s.isNotEmpty).join(' ');
   }
 
@@ -307,7 +327,10 @@ class TransactionService {
   static String _staffName(Map<String, dynamic>? j) {
     if (j == null) return '';
     final first = (j['firstName'] as String?)?.trim() ?? '';
-    final last = (j['lastName'] as String?)?.trim() ?? (j['surname'] as String?)?.trim() ?? '';
+    final last =
+        (j['lastName'] as String?)?.trim() ??
+        (j['surname'] as String?)?.trim() ??
+        '';
     return [first, last].where((s) => s.isNotEmpty).join(' ');
   }
 
@@ -339,13 +362,26 @@ class TransactionService {
 
     final patient = j['patient'] as Map<String, dynamic>?;
     final createdByObj = j['createdBy'] as Map<String, dynamic>?;
+    final invoiceObj = j['invoice'];
+    final invoiceMap = invoiceObj is Map
+        ? Map<String, dynamic>.from(invoiceObj)
+        : null;
+    final invoiceId = (j['invoiceId'] ?? invoiceMap?['id'])?.toString();
 
     return TransactionModel(
       id: j['id'] as String? ?? '',
-      transactionNumber: j['transactionID'] as String? ?? j['transactionNumber'] as String? ?? '',
+      invoiceId: invoiceId,
+      transactionNumber:
+          j['transactionID'] as String? ??
+          j['transactionNumber'] as String? ??
+          '',
       patientId: j['patientId'] as String? ?? '',
       patientName: j['patientName'] as String? ?? _patientName(patient),
-      status: _parseStatus(j['status'] is String ? j['status'] as String : j['status']?.toString() ?? ''),
+      status: _parseStatus(
+        j['status'] is String
+            ? j['status'] as String
+            : j['status']?.toString() ?? '',
+      ),
       totalAmount: _toDouble(j['totalAmount']),
       discountAmount: _toDouble(j['discountAmount']),
       insuranceCovered: _toDouble(j['insuranceCovered']),
@@ -353,7 +389,9 @@ class TransactionService {
       items: items,
       payments: payments,
       createdAt: _toDateTime(j['createdAt']),
-      createdBy: _staffName(createdByObj).isEmpty ? (j['createdById'] as String? ?? '') : _staffName(createdByObj),
+      createdBy: _staffName(createdByObj).isEmpty
+          ? (j['createdById'] as String? ?? '')
+          : _staffName(createdByObj),
       admissionId: j['admissionId'] as String?,
       notes: j['notes'] as String?,
     );
@@ -382,9 +420,12 @@ class TransactionService {
   static PaymentMethod _parsePaymentMethod(String raw) {
     switch (raw.toLowerCase()) {
       case 'pos':
+      case 'card':
         return PaymentMethod.pos;
       case 'transfer':
         return PaymentMethod.transfer;
+      case 'wallet':
+        return PaymentMethod.wallet;
       case 'cheque':
         return PaymentMethod.cheque;
       case 'insurance':
@@ -394,5 +435,98 @@ class TransactionService {
       default:
         return PaymentMethod.cash;
     }
+  }
+
+  /// Adapts invoice-ledger payment rows into [TransactionModel] for existing UI.
+  static TransactionModel _fromInvoicePaymentJson(Map<String, dynamic> j) {
+    final invoiceRaw = j['invoice'];
+    final invoice = invoiceRaw is Map<String, dynamic>
+        ? invoiceRaw
+        : <String, dynamic>{};
+    final receivedByRaw = j['receivedBy'];
+    final createdByRaw = j['createdBy'];
+    final receivedBy = receivedByRaw is Map<String, dynamic>
+        ? receivedByRaw
+        : null;
+    final createdBy = createdByRaw is Map<String, dynamic>
+        ? createdByRaw
+        : null;
+    final bankRaw = j['bank'];
+    final bank = bankRaw is Map<String, dynamic> ? bankRaw : null;
+    final patientRaw = invoice['patient'];
+    final patient = patientRaw is Map<String, dynamic> ? patientRaw : null;
+    final invoiceItemsRaw = invoice['invoiceItems'];
+    final invoiceItems = invoiceItemsRaw is List ? invoiceItemsRaw : const [];
+
+    final methodText = (j['method'] ?? j['source'] ?? 'cash').toString();
+    final amount = _toDouble(j['amount']);
+    final paidAt = _toDateTime(j['paidAt'] ?? j['createdAt']);
+    final who = _staffName(receivedBy) == ''
+        ? _staffName(createdBy)
+        : _staffName(receivedBy);
+    final patientId = (patient?['patientId'] ?? invoice['patientId'] ?? '')
+        .toString();
+    final patientName = _patientName(patient) == ''
+        ? 'Unknown patient'
+        : _patientName(patient);
+    final items = invoiceItems.whereType<Map>().map((raw) {
+      final row = Map<String, dynamic>.from(raw);
+      final serviceRaw = row['service'];
+      final service = serviceRaw is Map<String, dynamic> ? serviceRaw : null;
+      final drugRaw = row['drug'];
+      final drug = drugRaw is Map<String, dynamic> ? drugRaw : null;
+      final description =
+          row['customDescription']?.toString().trim().isNotEmpty == true
+          ? row['customDescription'].toString().trim()
+          : (service?['name']?.toString() ??
+                drug?['genericName']?.toString() ??
+                drug?['brandName']?.toString() ??
+                'Invoice item');
+      final quantity = _toInt(row['quantity']);
+      final unitPrice = _toDouble(row['unitPrice']);
+      final paid = _toDouble(row['amountPaid']);
+      return TransactionItemModel(
+        id: (row['id'] ?? '').toString(),
+        description: description,
+        source: service != null ? 'SERVICE' : (drug != null ? 'DRUG' : 'OTHER'),
+        quantity: quantity == 0 ? 1 : quantity,
+        unitPrice: unitPrice,
+        totalPrice: unitPrice * (quantity == 0 ? 1 : quantity),
+        paidAmount: paid,
+      );
+    }).toList();
+
+    return TransactionModel(
+      id: (j['id'] ?? '').toString(),
+      invoiceId: (j['invoiceId'] ?? invoice['id'])?.toString(),
+      transactionNumber: (invoice['invoiceID'] ?? invoice['id'] ?? '')
+          .toString(),
+      patientId: patientId,
+      patientName: patientName,
+      status: _parseStatus((invoice['status'] ?? 'active').toString()),
+      totalAmount: amount,
+      discountAmount: 0,
+      insuranceCovered: 0,
+      amountPaid: amount,
+      items: items,
+      payments: [
+        TransactionPaymentModel(
+          id: (j['id'] ?? '').toString(),
+          method: _parsePaymentMethod(methodText),
+          amount: amount,
+          reference: j['reference']?.toString(),
+          bankName: bank == null
+              ? null
+              : (bank['name'] ?? bank['bankName'])?.toString(),
+          notes: j['notes']?.toString(),
+          paidAt: paidAt,
+          receivedBy: (j['receivedById'] ?? '').toString(),
+        ),
+      ],
+      createdAt: paidAt,
+      createdBy: who.isEmpty ? (j['receivedById'] ?? '').toString() : who,
+      admissionId: null,
+      notes: j['notes']?.toString(),
+    );
   }
 }

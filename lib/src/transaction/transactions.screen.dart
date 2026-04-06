@@ -440,7 +440,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               DataColumn2(label: Text('Status')),
                             ],
                             fetchData: _fetchTransactions,
-                            idGetter: (txn) => txn['tranId'] as String,
+                            idGetter: (txn) {
+                              final id = txn['id']?.toString();
+                              if (id != null && id.isNotEmpty) return id;
+                              // Fallback for older mapped rows without `id`.
+                              return '${txn['tranId']}_${txn['date']}_${txn['amountPaid']}';
+                            },
                             rowBuilder: (txn) => [
                               DataCell(Text(txn['tranId'] as String)),
                               DataCell(
@@ -449,6 +454,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(txn['patientName'] as String),
+                                    Text(
+                                      txn['patientId'] as String,
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
                                   ],
                                 ),
                               ),

@@ -107,20 +107,25 @@ List<ChargeItem> _chargesFromBillingDetail(BillingInvoiceDetail? inv) {
   ];
 }
 
-class PaymentItem {
-  final String id;
-  final double amount;
-  final DateTime date;
-  final String method;
-  final String receiptNumber;
-
-  PaymentItem({
-    required this.id,
-    required this.amount,
-    required this.date,
-    required this.method,
-    required this.receiptNumber,
+/// Prefer `GET /invoices/:id/payments`; fill gaps from embedded `detail.payments` by id.
+List<BillingInvoicePayment> _mergeInvoicePayments(
+  BillingInvoiceDetail detail,
+  List<BillingInvoicePayment> fromPaymentsEndpoint,
+) {
+  final byId = <String, BillingInvoicePayment>{};
+  for (final p in fromPaymentsEndpoint) {
+    byId[p.id] = p;
+  }
+  for (final p in detail.payments) {
+    byId.putIfAbsent(p.id, () => p);
+  }
+  final list = byId.values.toList();
+  list.sort((a, b) {
+    final ta = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final tb = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return tb.compareTo(ta);
   });
+  return list;
 }
 
 // ==========================================
@@ -150,7 +155,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   final AdmissionService _admissionService = AdmissionService();
   final InvoiceService _invoiceService = InvoiceService();
 
-  final List<PaymentItem> _payments = [];
+  /// From `GET /invoices/:id/payments`, merged with invoice detail (deduped by id).
+  List<BillingInvoicePayment> _mergedInvoicePayments = [];
   BillingInvoiceDetail? _billingDetail;
   BillingWallet? _wallet;
   bool _loading = true;
@@ -178,6 +184,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         _loadError = 'Missing invoice id';
         _billingDetail = null;
         _wallet = null;
+        _mergedInvoicePayments = [];
       });
       return;
     }
@@ -195,9 +202,17 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       } catch (_) {
         wallet = null;
       }
+      List<BillingInvoicePayment> merged;
+      try {
+        final fromApi = await _invoiceService.getInvoicePayments(id);
+        merged = _mergeInvoicePayments(detail, fromApi);
+      } catch (_) {
+        merged = List<BillingInvoicePayment>.from(detail.payments);
+      }
       if (!mounted) return;
       setState(() {
         _billingDetail = detail;
+        _mergedInvoicePayments = merged;
         _wallet = wallet;
         _loading = false;
         _loadError = null;
@@ -208,6 +223,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       setState(() {
         _billingDetail = null;
         _wallet = null;
+        _mergedInvoicePayments = [];
         _loading = false;
         _loadError = e.toString();
       });
@@ -884,7 +900,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     final charges = _chargesFromBillingDetail(inv);
     final totalCharges = inv.totalAmount;
     final totalPayments = inv.amountPaid;
-    final balanceDue = inv.amountDue;
+    final balanceDue = inv.netAmountDue;
 
     return _buildContent(
       context,
@@ -970,7 +986,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               controller: _tabController,
               children: [
                 _buildChargesTab(colorScheme, charges, invoiceDetail),
-                _buildPaymentsTab(colorScheme, invoiceDetail),
+                _buildPaymentsTab(colorScheme),
               ],
             ),
           ),
@@ -1490,25 +1506,17 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     );
   }
 
-  Widget _buildPaymentsTab(
-    ColorScheme colorScheme,
-    BillingInvoiceDetail? invoiceDetail,
-  ) {
-    final detailPayments =
-        invoiceDetail?.payments ?? const <BillingInvoicePayment>[];
-    if (_payments.isEmpty && detailPayments.isEmpty) {
+  Widget _buildPaymentsTab(ColorScheme colorScheme) {
+    final payments = _mergedInvoicePayments;
+    if (payments.isEmpty) {
       return const Center(child: Text('No payments recorded yet.'));
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _payments.length + detailPayments.length,
+      itemCount: payments.length,
       itemBuilder: (context, index) {
-        final hasLegacy = index < _payments.length;
-        final payment = hasLegacy ? _payments[index] : null;
-        final detail = hasLegacy
-            ? null
-            : detailPayments[index - _payments.length];
+        final row = payments[index];
         return Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
@@ -1522,21 +1530,16 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               backgroundColor: Colors.white,
               child: Icon(Icons.check_circle, color: Colors.green),
             ),
-            title: Text(
-              hasLegacy
-                  ? 'Receipt: ${payment!.receiptNumber}'
-                  : 'Invoice payment',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            title: const Text(
+              'Invoice payment',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              hasLegacy
-                  ? '${_formatDate(payment!.date)} • ${payment.method}'
-                  : '${_formatDate(detail!.createdAt ?? DateTime.now())} • ${detail.source}',
+              '${_formatDate(row.createdAt ?? DateTime.now())} • ${row.source}'
+              '${row.reference != null && row.reference!.trim().isNotEmpty ? ' • ${row.reference}' : ''}',
             ),
             trailing: Text(
-              (hasLegacy ? payment!.amount : detail!.amount).toFinancial(
-                isMoney: true,
-              ),
+              row.amount.toFinancial(isMoney: true),
               style: const TextStyle(
                 color: Colors.green,
                 fontWeight: FontWeight.bold,
@@ -1581,7 +1584,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     try {
       await _invoiceService.depositToWallet(
         patientId: patientId,
-        payload: WalletDepositPayload(amount: amount, reference: 'deposit'),
+        payload: WalletDepositPayload(
+          amount: amount,
+          reference: 'deposit',
+          staffId: ref.read(authProvider).staff?.id,
+        ),
       );
       if (!mounted) return;
       await _loadBillingData();

@@ -37,15 +37,6 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
     await prefs.setString('noIdPatient', jsonEncode(res));
   }
 
-  void getNoIdPateitn() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      if (prefs.getString('noIdPatient') != null) {
-        data = jsonDecode(prefs.getString('noIdPatient')!);
-      }
-    });
-  }
-
   void unselect() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -68,7 +59,6 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
       _patientNotifier.setListStatusFilter(filter);
       // _patientNotifier.fetchPatients();
     });
-    getNoIdPateitn();
   }
 
   @override

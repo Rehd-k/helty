@@ -51,7 +51,9 @@ class _SelectUserState extends State<SelectUser> {
         },
       );
 
-      widget.selectNoIdUser!(newUser.data);
+      widget.onPatientSelected(
+        Patient.fromJson(newUser.data as Map<String, dynamic>),
+      );
     } catch (e) {
       ScaffoldMessenger.of(
         context,

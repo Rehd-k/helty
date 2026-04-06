@@ -28,8 +28,13 @@ class InvoiceService {
 
   String _dioMessage(DioException e, String fallback) {
     final payload = e.response?.data;
-    if (payload is Map && payload['message'] != null) {
-      return payload['message'].toString();
+    if (payload is Map) {
+      final msg = payload['message'];
+      if (msg != null) return msg.toString();
+      final err = payload['error'];
+      if (err != null) return err.toString();
+    } else if (payload is String && payload.trim().isNotEmpty) {
+      return payload;
     }
     return e.message ?? fallback;
   }

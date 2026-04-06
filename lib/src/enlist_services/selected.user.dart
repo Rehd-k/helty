@@ -19,7 +19,6 @@ class SelectedPatientCard extends ConsumerWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
@@ -123,7 +122,9 @@ class SelectedPatientCard extends ConsumerWidget {
                               children: [
                                 _detailBadge(
                                   Icons.badge_outlined,
-                                  selectedPatient.patientId,
+                                  selectedPatient.patientId == ''
+                                      ? 'No ID'
+                                      : selectedPatient.patientId,
                                 ),
                                 const SizedBox(width: 8),
                                 // _detailBadge(

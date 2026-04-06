@@ -30,6 +30,7 @@ enum PaymentMethod {
   cash,
   pos,
   transfer,
+  wallet,
   cheque,
   insurance,
   waiver;
@@ -38,6 +39,7 @@ enum PaymentMethod {
     PaymentMethod.cash => 'Cash',
     PaymentMethod.pos => 'POS',
     PaymentMethod.transfer => 'Transfer',
+    PaymentMethod.wallet => 'Wallet',
     PaymentMethod.cheque => 'Cheque',
     PaymentMethod.insurance => 'Insurance',
     PaymentMethod.waiver => 'Waiver',
@@ -128,6 +130,7 @@ class TransactionPaymentModel {
 class TransactionModel {
   const TransactionModel({
     required this.id,
+    this.invoiceId,
     required this.transactionNumber,
     required this.patientId,
     required this.patientName,
@@ -145,6 +148,7 @@ class TransactionModel {
   });
 
   final String id;
+  final String? invoiceId;
   final String transactionNumber; // e.g. TXN-2023-001
   final String patientId;
   final String patientName;
@@ -318,7 +322,12 @@ typedef TransactionMap = Map<String, dynamic>;
 /// Converts a [TransactionModel] from the API into [TransactionMap] for table/totals.
 TransactionMap transactionModelToMap(TransactionModel m) {
   String paymentMethodLabel = '—';
+  String? bankName;
+  String? reference;
   if (m.payments.isNotEmpty) {
+    final latest = m.payments.reduce((a, b) => a.paidAt.isAfter(b.paidAt) ? a : b);
+    bankName = latest.bankName;
+    reference = latest.reference;
     final methods = m.payments.map((p) => p.method.label).toSet();
     paymentMethodLabel =
         methods.length == 1 ? methods.single : 'Mixed';
@@ -338,6 +347,7 @@ TransactionMap transactionModelToMap(TransactionModel m) {
       .toList();
   return {
     'tranId': m.transactionNumber.isNotEmpty ? m.transactionNumber : m.id,
+    'invoiceId': m.invoiceId,
     'patientId': m.patientId,
     'patientName': m.patientName,
     'serviceCount': m.items.length,
@@ -350,6 +360,8 @@ TransactionMap transactionModelToMap(TransactionModel m) {
     'status': m.status.label.toUpperCase().replaceAll(' ', '_'),
     'initiator': m.createdBy,
     'services': services,
+    if (bankName != null && bankName.trim().isNotEmpty) 'bankName': bankName,
+    if (reference != null && reference.trim().isNotEmpty) 'reference': reference,
     'id': m.id,
   };
 }
@@ -362,7 +374,8 @@ Map<String, dynamic> calculateTransactionTotals(List<TransactionMap> list) {
       transfer = 0,
       pos = 0,
       cheque = 0,
-      cash = 0;
+      cash = 0,
+      wallet = 0;
 
   for (final txn in list) {
     totalSales += (txn['amountDue'] as num).toDouble();
@@ -380,6 +393,9 @@ Map<String, dynamic> calculateTransactionTotals(List<TransactionMap> list) {
       case 'Cash':
         cash += (txn['amountPaid'] as num).toDouble();
         break;
+      case 'Wallet':
+        wallet += (txn['amountPaid'] as num).toDouble();
+        break;
       case 'Mixed':
       case '—':
         // Don't attribute to a single method bucket
@@ -394,6 +410,7 @@ Map<String, dynamic> calculateTransactionTotals(List<TransactionMap> list) {
     'pos': pos,
     'cheque': cheque,
     'cash': cash,
+    'wallet': wallet,
     'grandTotal': totalPaid,
     'transactionCount': list.length,
   };

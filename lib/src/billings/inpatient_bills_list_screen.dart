@@ -101,24 +101,24 @@ class _InpatientBillsListScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Select a registered patient before adding a bill.',
-          ),
+          content: Text('Select a registered patient before adding a bill.'),
         ),
       );
       return;
     }
     setState(() => _creatingBill = true);
     try {
-      await ref.read(invoiceNotifierProvider.notifier).getOrCreateBillingInvoice(
+      await ref
+          .read(invoiceNotifierProvider.notifier)
+          .getOrCreateBillingInvoice(
             patientId: uuid,
             staffId: ref.read(authProvider).staff?.id,
           );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not start billing: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not start billing: $e')));
       }
       return;
     } finally {
@@ -196,19 +196,22 @@ class _InpatientBillsListScreenState
               doRefresh: _loadInvoices,
               dateFilter: true,
               onFilterChanged:
-                  (String query, String category, DateTime? from, DateTime? to) {
-                setState(() {
-                  _fromDate = from;
-                  _toDate = to;
-                });
-                _loadInvoices();
-              },
+                  (
+                    String query,
+                    String category,
+                    DateTime? from,
+                    DateTime? to,
+                  ) {
+                    setState(() {
+                      _fromDate = from;
+                      _toDate = to;
+                    });
+                    _loadInvoices();
+                  },
             ),
           ),
           const SizedBox(height: 8),
-          Expanded(
-            child: _buildBody(selectedPatient, colorScheme),
-          ),
+          Expanded(child: _buildBody(selectedPatient, colorScheme)),
         ],
       ),
     );
@@ -267,10 +270,11 @@ class _InpatientBillsListScreenState
       itemBuilder: (context, index) {
         final invoice = invoices[index];
         final patientName =
-            selectedPatient != null &&
-                selectedPatient.patientId == invoice.patientId
-            ? '${selectedPatient.firstName} ${selectedPatient.surname}'
-            : '—';
+            '${invoice.patient.firstName} ${invoice.patient.surname}'
+                .trim()
+                .isEmpty
+            ? '—'
+            : '${invoice.patient.firstName} ${invoice.patient.surname}';
         return _BillCard(
           invoice: invoice,
           patientName: patientName,
@@ -332,7 +336,7 @@ class _BillCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      invoice.patientId,
+                      invoice.patient.patientId,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,

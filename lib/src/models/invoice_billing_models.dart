@@ -1,3 +1,24 @@
+/// When the invoice is linked to a single active billing transaction (`billingLink` on API).
+class BillingInvoiceBillingLink {
+  BillingInvoiceBillingLink({
+    this.linkedTransactionId,
+    this.discountAmount = 0,
+    this.insuranceCovered = 0,
+  });
+
+  final String? linkedTransactionId;
+  final double discountAmount;
+  final double insuranceCovered;
+
+  factory BillingInvoiceBillingLink.fromJson(Map<String, dynamic> json) {
+    return BillingInvoiceBillingLink(
+      linkedTransactionId: _nullableString(json['linkedTransactionId']),
+      discountAmount: _asDouble(json['discountAmount']),
+      insuranceCovered: _asDouble(json['insuranceCovered']),
+    );
+  }
+}
+
 class BillingInvoiceDetail {
   BillingInvoiceDetail({
     required this.id,
@@ -6,12 +27,14 @@ class BillingInvoiceDetail {
     required this.totalAmount,
     required this.amountPaid,
     required this.amountDue,
+    required this.netAmountDue,
     required this.invoiceItems,
     required this.payments,
     this.staffId,
     this.encounterId,
     this.createdAt,
     this.updatedAt,
+    this.billingLink,
   });
 
   final String id;
@@ -20,10 +43,14 @@ class BillingInvoiceDetail {
   final double totalAmount;
   final double amountPaid;
   final double amountDue;
+
+  /// Patient-facing balance when discounts/insurance apply; falls back to [amountDue] if omitted.
+  final double netAmountDue;
   final String? staffId;
   final String? encounterId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final BillingInvoiceBillingLink? billingLink;
   final List<BillingInvoiceItem> invoiceItems;
   final List<BillingInvoicePayment> payments;
 
@@ -31,6 +58,19 @@ class BillingInvoiceDetail {
     final payload = _unwrapMap(json);
     final itemsRaw = payload['invoiceItems'] ?? payload['items'];
     final paymentsRaw = payload['payments'];
+    final amountDue = _asDouble(payload['amountDue']);
+    final netRaw = payload['netAmountDue'];
+    final netAmountDue = netRaw != null
+        ? _asDouble(netRaw)
+        : amountDue;
+
+    BillingInvoiceBillingLink? billingLink;
+    final linkRaw = payload['billingLink'];
+    if (linkRaw is Map) {
+      billingLink = BillingInvoiceBillingLink.fromJson(
+        Map<String, dynamic>.from(linkRaw),
+      );
+    }
 
     return BillingInvoiceDetail(
       id: _asString(payload['id']),
@@ -38,11 +78,13 @@ class BillingInvoiceDetail {
       status: _asString(payload['status'], fallback: 'PENDING'),
       totalAmount: _asDouble(payload['totalAmount']),
       amountPaid: _asDouble(payload['amountPaid']),
-      amountDue: _asDouble(payload['amountDue']),
+      amountDue: amountDue,
+      netAmountDue: netAmountDue,
       staffId: _nullableString(payload['staffId']),
       encounterId: _nullableString(payload['encounterId']),
       createdAt: _asDate(payload['createdAt']),
       updatedAt: _asDate(payload['updatedAt']),
+      billingLink: billingLink,
       invoiceItems: itemsRaw is List
           ? itemsRaw
                 .whereType<Map>()
@@ -348,29 +390,41 @@ class RecordPaymentPayload {
   RecordPaymentPayload({
     required this.amount,
     required this.source,
+    this.method,
     this.reference,
+    this.notes,
+    this.bankAccountNumber,
   });
 
   final double amount;
   final String source;
+  final String? method;
   final String? reference;
+  final String? notes;
+  final String? bankAccountNumber;
 
   Map<String, dynamic> toJson() => {
     'amount': amount,
     'source': source,
+    if (method != null && method!.trim().isNotEmpty) 'method': method,
     if (reference != null && reference!.isNotEmpty) 'reference': reference,
+    if (notes != null) 'notes': notes,
+    if (bankAccountNumber != null && bankAccountNumber!.trim().isNotEmpty)
+      'bankAccountNumber': bankAccountNumber,
   };
 }
 
 class WalletDepositPayload {
-  WalletDepositPayload({required this.amount, this.reference});
+  WalletDepositPayload({required this.amount, this.reference, this.staffId});
 
   final double amount;
   final String? reference;
+  final String? staffId;
 
   Map<String, dynamic> toJson() => {
     'amount': amount,
     if (reference != null && reference!.isNotEmpty) 'reference': reference,
+    if (staffId != null && staffId!.trim().isNotEmpty) 'staffId': staffId,
   };
 }
 

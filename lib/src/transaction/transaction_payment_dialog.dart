@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/invoice_billing_models.dart';
+import 'package:helty/src/services/invoice_service.dart';
 
 import 'transaction_models.dart';
 
@@ -53,7 +55,7 @@ class _MethodEntry {
 /// Dialog for recording / changing payment on a transaction.
 ///
 /// Shows the outstanding total, lets the cashier split the payment across
-/// Cash, POS, Transfer and Cheque.  For every non-cash method the user also
+/// Cash, POS, Transfer and Wallet. For POS/Transfer the user also
 /// selects the bank.  A live "Remaining" counter counts down as amounts are
 /// entered.
 ///
@@ -74,8 +76,10 @@ class ChangePaymentDialog extends StatefulWidget {
 }
 
 class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
+  final InvoiceService _invoiceService = InvoiceService();
   late final double _totalDue;
   late final List<_MethodEntry> _entries;
+  bool _isSubmitting = false;
 
   double get _totalEntered =>
       _entries.fold(0.0, (sum, e) => sum + e.enteredAmount);
@@ -86,16 +90,17 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
   @override
   void initState() {
     super.initState();
-    _totalDue =
-        (widget.transaction['amountDue'] as num).toDouble() -
-        (widget.transaction['discount'] as num).toDouble();
+    final debt = (widget.transaction['debt'] as num?)?.toDouble() ?? 0;
+    final amountDue = (widget.transaction['amountDue'] as num?)?.toDouble() ?? 0;
+    final discount = (widget.transaction['discount'] as num?)?.toDouble() ?? 0;
+    _totalDue = debt > 0 ? debt : (amountDue - discount);
 
     // Default: one entry per available method
     _entries = [
       _MethodEntry(method: PaymentMethod.cash),
       _MethodEntry(method: PaymentMethod.pos),
       _MethodEntry(method: PaymentMethod.transfer),
-      _MethodEntry(method: PaymentMethod.cheque),
+      _MethodEntry(method: PaymentMethod.wallet),
     ];
 
     // Listen for input changes to rebuild the remaining counter
@@ -112,23 +117,98 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
     super.dispose();
   }
 
-  void _submit() {
-    // TODO: connect to TransactionService.recordPayment() for each entry with enteredAmount > 0
-    Navigator.of(context).pop({
-      'payments': _entries
-          .where((e) => e.enteredAmount > 0)
-          .map(
-            (e) => {
-              'method': e.method.name,
-              'amount': e.enteredAmount,
-              if (e.method != PaymentMethod.cash) 'bankName': e.selectedBank,
-              if (e.referenceController.text.isNotEmpty)
-                'reference': e.referenceController.text.trim(),
-            },
-          )
-          .toList(),
-      'totalPaid': _totalEntered,
-    });
+  static String _sourceFor(PaymentMethod method) {
+    switch (method) {
+      case PaymentMethod.pos:
+        return 'CARD';
+      case PaymentMethod.transfer:
+      case PaymentMethod.cheque:
+        return 'TRANSFER';
+      case PaymentMethod.wallet:
+        return 'WALLET';
+      case PaymentMethod.cash:
+      case PaymentMethod.insurance:
+      case PaymentMethod.waiver:
+        return 'CASH';
+    }
+  }
+
+  static String? _methodFor(PaymentMethod method) {
+    switch (method) {
+      case PaymentMethod.pos:
+        return 'CARD';
+      case PaymentMethod.transfer:
+      case PaymentMethod.cheque:
+        return 'TRANSFER';
+      case PaymentMethod.cash:
+        return 'CASH';
+      case PaymentMethod.wallet:
+        return null;
+      case PaymentMethod.insurance:
+      case PaymentMethod.waiver:
+        return 'CASH';
+    }
+  }
+
+  Future<void> _submit() async {
+    final invoiceId = (widget.transaction['invoiceId'] as String?)?.trim();
+    if (invoiceId == null || invoiceId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing invoice link for this transaction')),
+      );
+      return;
+    }
+
+    final entries = _entries.where((e) => e.enteredAmount > 0).toList();
+    for (final e in entries) {
+      final bankRequired =
+          e.method == PaymentMethod.transfer || e.method == PaymentMethod.pos;
+      if (bankRequired && (e.selectedBank == null || e.selectedBank!.isEmpty)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Select bank for ${e.method.label} payment')),
+        );
+        return;
+      }
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      for (final e in entries) {
+        await _invoiceService.recordInvoicePayment(
+          invoiceId: invoiceId,
+          payload: RecordPaymentPayload(
+            amount: e.enteredAmount,
+            source: _sourceFor(e.method),
+            method: _methodFor(e.method),
+            reference: e.referenceController.text.trim().isEmpty
+                ? null
+                : e.referenceController.text.trim(),
+            bankAccountNumber: e.selectedBank,
+          ),
+        );
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop({
+        'payments': entries
+            .map(
+              (e) => {
+                'method': e.method.name,
+                'amount': e.enteredAmount,
+                if (e.method != PaymentMethod.cash) 'bankName': e.selectedBank,
+                if (e.referenceController.text.isNotEmpty)
+                  'reference': e.referenceController.text.trim(),
+              },
+            )
+            .toList(),
+        'totalPaid': _totalEntered,
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Payment failed: $e')),
+      );
+    }
   }
 
   @override
@@ -192,9 +272,11 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
                   ),
                   const SizedBox(width: 12),
                   FilledButton.icon(
-                    onPressed: (_isFullyPaid && !_isOverpaid) ? _submit : null,
+                    onPressed: (_isFullyPaid && !_isOverpaid && !_isSubmitting)
+                        ? _submit
+                        : null,
                     icon: const Icon(Icons.check_circle_outline, size: 18),
-                    label: const Text('Confirm Payment'),
+                    label: Text(_isSubmitting ? 'Processing...' : 'Confirm Payment'),
                   ),
                 ],
               ),
@@ -367,12 +449,14 @@ class _PaymentMethodRow extends StatelessWidget {
   final ColorScheme colorScheme;
   final ValueChanged<String?> onBankChanged;
 
-  bool get _isCash => entry.method == PaymentMethod.cash;
+  bool get _isCash =>
+      entry.method == PaymentMethod.cash || entry.method == PaymentMethod.wallet;
 
   IconData get _icon => switch (entry.method) {
     PaymentMethod.cash => Icons.payments_outlined,
     PaymentMethod.pos => Icons.credit_card_outlined,
     PaymentMethod.transfer => Icons.account_balance_outlined,
+    PaymentMethod.wallet => Icons.account_balance_wallet_outlined,
     PaymentMethod.cheque => Icons.receipt_outlined,
     _ => Icons.payment_outlined,
   };
@@ -419,7 +503,7 @@ class _PaymentMethodRow extends StatelessWidget {
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
             ],
             decoration: InputDecoration(
-              labelText: 'Amount (\$)',
+              labelText: 'Amount',
               prefixIcon: const Icon(Icons.attach_money, size: 18),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -465,7 +549,6 @@ class _PaymentMethodRow extends StatelessWidget {
               controller: entry.referenceController,
               decoration: InputDecoration(
                 labelText: switch (entry.method) {
-                  PaymentMethod.cheque => 'Cheque Number',
                   PaymentMethod.transfer => 'Transfer Reference',
                   PaymentMethod.pos => 'POS Approval Code',
                   _ => 'Reference',

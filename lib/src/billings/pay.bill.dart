@@ -98,8 +98,8 @@ class PayBill extends ConsumerStatefulWidget {
     required this.staffId,
     this.invoiceId,
 
-    /// When non-empty with [invoiceId], uses `allocate-item-payments` (line allocation).
-    /// When null/empty with [invoiceId], uses legacy `POST .../payments` (header payment).
+    /// When non-empty with [invoiceId], uses `POST /invoices/:id/allocate-item-payments`.
+    /// When null/empty with [invoiceId], uses `POST /invoices/:id/payments` (header payment).
     this.invoiceItemAllocations,
     this.onPaymentComplete,
   });
@@ -206,8 +206,9 @@ class PayBillState extends ConsumerState<PayBill> {
     switch (method) {
       case 'cash':
         return 'CASH';
-      case 'transfer':
       case 'pos':
+        return 'CARD';
+      case 'transfer':
       case 'cheque':
         return 'TRANSFER';
       case 'mixed':
@@ -269,16 +270,90 @@ class PayBillState extends ConsumerState<PayBill> {
     );
   }
 
+  /// Best-effort balance from `GET /invoices/:id` when `amountDue` / `netAmountDue` are missing or still zero.
+  double _outstandingFromDetail(
+    BillingInvoiceDetail d,
+    double cartFallback,
+  ) {
+    double tryVal(double x) => _moneyRound(x);
+
+    if (d.netAmountDue > 0.005) return tryVal(d.netAmountDue);
+    if (d.amountDue > 0.005) return tryVal(d.amountDue);
+    final fromTotals = d.totalAmount - d.amountPaid;
+    if (fromTotals > 0.005) return tryVal(fromTotals);
+    final fromLines = d.invoiceItems.fold<double>(
+      0,
+      (s, i) => s + i.lineAmountDue,
+    );
+    if (fromLines > 0.005) return tryVal(fromLines);
+    if (cartFallback > 0.005) return tryVal(cartFallback);
+    return 0;
+  }
+
   Future<void> _fetchDetails() async {
-    // Simulate API delay
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (mounted) {
+    final invId = widget.invoiceId?.trim();
+    if (invId == null || invId.isEmpty) {
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (mounted) {
+        setState(() {
+          _insurance = '-';
+          _discounts = ['None'];
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final detail = await _invoiceService.getBillingInvoice(invId);
+      if (!mounted) return;
+      final outstanding = _outstandingFromDetail(detail, widget.total);
+      final hasAlloc =
+          widget.invoiceItemAllocations != null &&
+          widget.invoiceItemAllocations!.isNotEmpty;
+
+      setState(() {
+        if (hasAlloc) {
+          final t = _moneyRound(widget.total);
+          final cap = outstanding > 0.005 ? outstanding : t;
+          final use = t > cap + 0.02 ? cap : t;
+          _originalAmount = use;
+          _amountToPay = use;
+        } else {
+          final use = outstanding > 0.005
+              ? outstanding
+              : _moneyRound(widget.total);
+          _originalAmount = use;
+          _amountToPay = use;
+        }
+        _insurance = '-';
+        _discounts = ['None'];
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
       setState(() {
         _insurance = '-';
         _discounts = ['None'];
         _isLoading = false;
       });
     }
+  }
+
+  /// Bank name for invoice payment bodies (`bankAccountNumber` / reconciliation).
+  String? _selectedBankForPayment() {
+    if (_paymentMethod == 'mixed') {
+      return _mixedBanks.entries
+          .firstWhere(
+            (e) => e.value != null && e.value!.isNotEmpty,
+            orElse: () => const MapEntry('', null),
+          )
+          .value;
+    }
+    if (_bankRequiredMethods.contains(_paymentMethod)) {
+      return _selectedBank;
+    }
+    return null;
   }
 
   void _applyDiscount(String? discount) {
@@ -521,19 +596,7 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Future<void> _makePayment() async {
-    // Determine bankName for the DTO
-    String? bankName;
-    if (_paymentMethod == 'mixed') {
-      // For mixed, include first non-null bank (backend handles per-method breakdown)
-      bankName = _mixedBanks.entries
-          .firstWhere(
-            (e) => e.value != null && e.value!.isNotEmpty,
-            orElse: () => const MapEntry('', null),
-          )
-          .value;
-    } else if (_bankRequiredMethods.contains(_paymentMethod)) {
-      bankName = _selectedBank;
-    }
+    final bankName = _selectedBankForPayment();
 
     // Build mixedBreakdown with bank info embedded if needed
     Map<String, dynamic>? mixedBreakdownWithBanks;
@@ -606,6 +669,7 @@ class PayBillState extends ConsumerState<PayBill> {
             reference: _paymentMethod == 'mixed'
                 ? 'paybill_mixed'
                 : (_selectedDiscount ?? 'paybill'),
+            bankAccountNumber: bankName,
             allocations: allocations,
           ),
         );
@@ -615,9 +679,11 @@ class PayBillState extends ConsumerState<PayBill> {
           payload: RecordPaymentPayload(
             amount: _amountToPay,
             source: _invoicePaymentSource(_paymentMethod),
+            method: _allocateItemPaymentMethod(_paymentMethod),
             reference: _paymentMethod == 'mixed'
                 ? 'paybill_mixed'
                 : (_selectedDiscount ?? 'paybill'),
+            bankAccountNumber: bankName,
           ),
         );
       } else {

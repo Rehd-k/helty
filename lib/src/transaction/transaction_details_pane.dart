@@ -238,10 +238,17 @@ class _DetailHeader extends StatelessWidget {
             ),
           ),
           Text(
-            'Patient: ${txn['patientName']} (${txn['patientId']})',
+            'Patient: ${txn['patientName']}',
             style: TextStyle(
               fontSize: 13,
               color: colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          Text(
+            'Patient ID: ${txn['patientId']}',
+            style: TextStyle(
+              fontSize: 12,
+              color: colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           Text(

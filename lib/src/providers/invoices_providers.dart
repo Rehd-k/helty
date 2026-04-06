@@ -23,29 +23,32 @@ final invoiceProvider = FutureProvider.family<Invoice, String>((ref, id) async {
 
 final billingInvoiceProvider =
     FutureProvider.family<BillingInvoiceDetail, String>((ref, invoiceId) async {
-  final service = ref.watch(invoiceServiceProvider);
-  return service.getBillingInvoice(invoiceId);
-});
+      final service = ref.watch(invoiceServiceProvider);
+      return service.getBillingInvoice(invoiceId);
+    });
 
 final patientBillingInvoicesProvider =
     FutureProvider.family<List<Invoice>, String>((ref, patientId) async {
-  final service = ref.watch(invoiceServiceProvider);
-  return service.getPatientInvoices(patientId);
-});
+      final service = ref.watch(invoiceServiceProvider);
+      return service.getPatientInvoices(patientId);
+    });
 
-final patientWalletProvider =
-    FutureProvider.family<BillingWallet, String>((ref, patientId) async {
+final patientWalletProvider = FutureProvider.family<BillingWallet, String>((
+  ref,
+  patientId,
+) async {
   final service = ref.watch(invoiceServiceProvider);
   return service.getWallet(patientId);
 });
 
 final walletTransactionsProvider =
-    FutureProvider.family<List<BillingWalletTransaction>, String>(
-  (ref, patientId) async {
-    final service = ref.watch(invoiceServiceProvider);
-    return service.getWalletTransactions(patientId);
-  },
-);
+    FutureProvider.family<List<BillingWalletTransaction>, String>((
+      ref,
+      patientId,
+    ) async {
+      final service = ref.watch(invoiceServiceProvider);
+      return service.getWalletTransactions(patientId);
+    });
 
 // ────────────────────────────────────────────────
 // Notifier for creating / updating invoices
@@ -221,10 +224,7 @@ Invoice? _pickOpenBillingInvoice(List<Invoice> list) {
   if (list.isEmpty) return null;
   bool isOpen(Invoice i) {
     final s = i.status.toUpperCase();
-    return s != 'PAID' &&
-        s != 'FULLY_PAID' &&
-        s != 'CANCELLED' &&
-        s != 'VOID';
+    return s != 'PAID' && s != 'FULLY_PAID' && s != 'CANCELLED' && s != 'VOID';
   }
 
   final open = list.where(isOpen).toList();

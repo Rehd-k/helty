@@ -76,9 +76,11 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
       final search = _searchController.text.trim();
 
       if (search.isNotEmpty) {
-        // Backend accepts both transactionId and patientName – we use same text.
+        // Invoice API: bill number, internal id, or patient name.
         query['transactionId'] = search;
         query['patientName'] = search;
+        query['invoiceId'] = search;
+        query['invoiceID'] = search;
       }
 
       final range = _selectedDateRange;
@@ -87,45 +89,88 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
       final to =
           range?.end ?? DateTime(now.year, now.month, now.day, 23, 59, 59);
 
-      query['fromDate'] = from.toIso8601String();
-      query['toDate'] = to.toIso8601String();
+      query['fromDate'] = from.toUtc().toIso8601String();
+      query['toDate'] = to.toUtc().toIso8601String();
 
       final resp = await _dio.get(
-        '/transaction/unregistered-patients',
+        '/invoices/unregistered-patients',
         queryParameters: query,
       );
 
-      final data = resp.data;
-      final List<dynamic> list;
-      if (data is List) {
-        list = data;
-      } else if (data is Map<String, dynamic> && data['data'] is List) {
-        list = data['data'] as List;
-      } else {
-        list = const [];
-      }
+      if (!mounted) return;
 
-      final patients = list
-          .map(
-            (e) => _UnregisteredPatientTxn.fromJson(
-              Map<String, dynamic>.from(e as Map<String, dynamic>),
-            ),
-          )
-          .toList();
+      final list = _extractUnregisteredList(resp.data);
+      final patients = <_UnregisteredPatientTxn>[];
+      for (final e in list) {
+        if (e is! Map) continue;
+        try {
+          patients.add(
+            _UnregisteredPatientTxn.fromJson(Map<String, dynamic>.from(e)),
+          );
+        } catch (_) {
+          // Skip malformed rows; keep the rest of the table usable.
+        }
+      }
 
       setState(() {
         _patients = patients;
         _selectedPatient = patients.isNotEmpty ? patients.first : null;
       });
-    } catch (e) {
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final msg = _dioErrorMessage(e);
       setState(() {
-        _errorMessage = 'Failed to load unregistered patients';
+        _errorMessage = msg;
+        _patients = [];
+        _selectedPatient = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Failed to load unregistered patients: $e';
+        _patients = [];
+        _selectedPatient = null;
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  static List<dynamic> _extractUnregisteredList(dynamic data) {
+    if (data is List<dynamic>) return data;
+    if (data is Map<String, dynamic>) {
+      const keys = [
+        'data',
+        'items',
+        'invoices',
+        'results',
+        'rows',
+        'unregisteredPatients',
+        'patients',
+      ];
+      for (final k in keys) {
+        final v = data[k];
+        if (v is List<dynamic>) return v;
+      }
+    }
+    return const [];
+  }
+
+  static String _dioErrorMessage(DioException e) {
+    final payload = e.response?.data;
+    if (payload is Map) {
+      final msg = payload['message'];
+      if (msg != null) return msg.toString();
+      final err = payload['error'];
+      if (err != null) return err.toString();
+    } else if (payload is String && payload.trim().isNotEmpty) {
+      return payload;
+    }
+    return e.message ?? 'Failed to load unregistered patients';
   }
 
   @override
@@ -190,7 +235,7 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
               controller: _searchController,
               onSubmitted: (_) => _fetchPatients(),
               decoration: InputDecoration(
-                hintText: "Search Transaction ID or Patient Name...",
+                hintText: "Search bill #, invoice id, or patient name...",
                 hintStyle: TextStyle(
                   fontSize: 13,
                   color: colorScheme.onSurface.withValues(alpha: 0.5),
@@ -290,10 +335,7 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
                 ),
                 Expanded(
                   flex: 2,
-                  child: Text(
-                    "Transaction ID",
-                    style: _headerStyle(colorScheme),
-                  ),
+                  child: Text("Bill #", style: _headerStyle(colorScheme)),
                 ),
                 Expanded(
                   flex: 2,
@@ -331,155 +373,160 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
                       style: TextStyle(color: colorScheme.error, fontSize: 13),
                     ),
                   )
-                : ListView.separated(
-                    itemCount: _patients.length,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      color: colorScheme.outline.withValues(alpha: 0.1),
-                    ),
-                    itemBuilder: (context, index) {
-                      final patient = _patients[index];
-                      final isSelected =
-                          _selectedPatient?.transactionId ==
-                          patient.transactionId;
+                : RefreshIndicator(
+                    onRefresh: _fetchPatients,
+                    child: ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: _patients.length,
+                      separatorBuilder: (context, index) => Divider(
+                        height: 1,
+                        color: colorScheme.outline.withValues(alpha: 0.1),
+                      ),
+                      itemBuilder: (context, index) {
+                        final patient = _patients[index];
+                        final isSelected =
+                            _selectedPatient?.rowKey == patient.rowKey;
 
-                      return InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedPatient = patient;
-                          });
-                        },
-                        child: Container(
-                          color: isSelected
-                              ? colorScheme.primary.withValues(alpha: 0.05)
-                              : Colors.transparent,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              // Name
-                              Expanded(
-                                flex: 3,
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 18,
-                                      backgroundColor: colorScheme.primary
-                                          .withValues(alpha: 0.08),
+                        return InkWell(
+                          key: ValueKey<String>(patient.rowKey),
+                          onTap: () {
+                            setState(() {
+                              _selectedPatient = patient;
+                            });
+                          },
+                          child: Container(
+                            color: isSelected
+                                ? colorScheme.primary.withValues(alpha: 0.05)
+                                : Colors.transparent,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: [
+                                // Name (matches header column 1)
+                                Expanded(
+                                  flex: 3,
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: colorScheme.primary
+                                            .withValues(alpha: 0.08),
+                                        child: Text(
+                                          patient.initials,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          patient.fullName,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: colorScheme.onSurface,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Transaction / bill id (column 2)
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    patient.billLabel,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Phone
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    patient.phoneNumber ?? '-',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Age
+                                Expanded(
+                                  flex: 1,
+                                  child: Text(
+                                    patient.age != null
+                                        ? '${patient.age}'
+                                        : '-',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Date/time
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    DateFormatter.dateTime(patient.dateTime),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Number of Services
+                                Expanded(
+                                  flex: 2,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: colorScheme.outline.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
                                       child: Text(
-                                        patient.initials,
+                                        "${patient.services.length} items",
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          color: colorScheme.primary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            patient.fullName,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              color: colorScheme.onSurface,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            patient.transactionId,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: colorScheme.onSurface
-                                                  .withValues(alpha: 0.5),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Phone
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  patient.phoneNumber ?? '-',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSurface.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Age
-                              Expanded(
-                                flex: 1,
-                                child: Text(
-                                  patient.age != null ? '${patient.age}' : '-',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSurface.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Date/time
-                              Expanded(
-                                flex: 3,
-                                child: Text(
-                                  DateFormatter.dateTime(patient.dateTime),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSurface.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Number of Services
-                              Expanded(
-                                flex: 2,
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: colorScheme.outline.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                      ),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      "${patient.services.length} items",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: colorScheme.onSurface.withValues(
-                                          alpha: 0.7,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.7),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
           ),
 
@@ -643,8 +690,8 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
             child: Row(
               children: [
                 _buildInfoTile(
-                  "Transaction",
-                  patient.transactionId,
+                  "Bill",
+                  patient.billLabel,
                   Icons.receipt_long,
                   colorScheme,
                 ),
@@ -860,8 +907,10 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
   }
 }
 
-/// Model for "newly paid but unregistered" patients coming from
-/// GET /transaction/unregistered-patients.
+/// Row from `GET /invoices/unregistered-patients` (invoice-led billing).
+///
+/// [transactionId] holds the invoice UUID used for registration linkage;
+/// [invoiceDisplayId] is the human-facing bill number when the API sends it.
 class _UnregisteredPatientTxn {
   _UnregisteredPatientTxn({
     required this.transactionId,
@@ -872,9 +921,18 @@ class _UnregisteredPatientTxn {
     this.phoneNumber,
     this.age,
     this.patientId,
+    this.invoiceDisplayId,
+    this.patientNameAsPrinted,
   });
 
+  /// Invoice id (UUID) or legacy transaction id — sent as [Patient.unregisteredTransactionId].
   final String transactionId;
+
+  /// Human-facing bill code (`invoiceID`), when present.
+  final String? invoiceDisplayId;
+
+  /// Full name exactly as returned by the API (`patientName`), when present.
+  final String? patientNameAsPrinted;
   final String surname;
   final String firstName;
   final String? phoneNumber;
@@ -885,63 +943,171 @@ class _UnregisteredPatientTxn {
   /// Optional backend patient identifier (if one already exists).
   final String? patientId;
 
-  String get fullName => "$surname $firstName".trim();
+  String get rowKey {
+    if (transactionId.isNotEmpty) return transactionId;
+    final d = invoiceDisplayId?.trim();
+    if (d != null && d.isNotEmpty) return d;
+    return '${fullName}_${dateTime.millisecondsSinceEpoch}';
+  }
+
+  String get billLabel {
+    final human = invoiceDisplayId?.trim();
+    if (human != null && human.isNotEmpty) return human;
+    final id = transactionId.trim();
+    if (id.length <= 12) return id.isEmpty ? '—' : id;
+    return '${id.substring(0, 8)}…';
+  }
+
+  String get fullName {
+    final printed = patientNameAsPrinted?.trim();
+    if (printed != null && printed.isNotEmpty) return printed;
+    final combined = '$surname $firstName'.trim();
+    if (combined.isNotEmpty) return combined;
+    return '—';
+  }
 
   String get initials {
+    final printed = patientNameAsPrinted?.trim();
+    if (printed != null && printed.isNotEmpty) {
+      final parts = printed.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+      final list = parts.toList();
+      if (list.isEmpty) return '?';
+      if (list.length == 1) {
+        final c = list[0][0].toUpperCase();
+        return c;
+      }
+      return '${list[0][0]}${list[1][0]}'.toUpperCase();
+    }
     final buffer = StringBuffer();
-    if (surname.isNotEmpty) buffer.write(surname[0].toUpperCase());
     if (firstName.isNotEmpty) buffer.write(firstName[0].toUpperCase());
+    if (surname.isNotEmpty) buffer.write(surname[0].toUpperCase());
     return buffer.isEmpty ? '?' : buffer.toString();
   }
 
-  factory _UnregisteredPatientTxn.fromJson(Map<String, dynamic> json) {
-    // patient is now nested
-    final patient = json['patient'] as Map<String, dynamic>?;
+  /// Splits a single `patientName` string into given / family for the registration form.
+  static (String firstName, String surname) _namesFromPatientName(String? raw) {
+    final s = raw?.trim() ?? '';
+    if (s.isEmpty) return ('', '');
+    final parts = s.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.length == 1) return (parts[0], '');
+    final surname = parts.last;
+    final firstName = parts.sublist(0, parts.length - 1).join(' ');
+    return (firstName, surname);
+  }
 
-    // Try to get services from multiple possible shapes
+  static Map<String, dynamic>? _asMap(dynamic v) {
+    if (v is Map<String, dynamic>) return v;
+    if (v is Map) return Map<String, dynamic>.from(v);
+    return null;
+  }
+
+  static String? _serviceLineName(Map<String, dynamic> item) {
+    final custom = item['customDescription']?.toString().trim();
+    if (custom != null && custom.isNotEmpty) return custom;
+    final svc = _asMap(item['service']);
+    final name = (svc?['name'] ?? item['name'] ?? item['serviceName'])
+        ?.toString()
+        .trim();
+    if (name != null && name.isNotEmpty) return name;
+    return null;
+  }
+
+  factory _UnregisteredPatientTxn.fromJson(Map<String, dynamic> json) {
+    final invoice = _asMap(json['invoice']);
+    final root = invoice ?? json;
+
+    final patient = _asMap(json['patient']) ?? _asMap(root['patient']);
+
+    final patientNameSingle =
+        json['patientName']?.toString() ?? root['patientName']?.toString();
+    final printed = patientNameSingle?.trim();
+    final (String splitFirst, String splitSurname) =
+        printed != null && printed.isNotEmpty
+            ? _namesFromPatientName(printed)
+            : ('', '');
+
     final rawServices =
+        (root['invoiceItems'] as List?) ??
+        (root['services'] as List?) ??
         (json['services'] as List?) ??
-        (json['items'] as List?) ?? // if backend later returns items[]
+        (json['items'] as List?) ??
+        (json['invoiceItems'] as List?) ??
         const [];
 
-    final names = rawServices
-        .map(
-          (e) =>
-              (e is Map<String, dynamic>
-                      ? (e['name'] ?? e['serviceName'])
-                      : null)
-                  ?.toString(),
-        )
-        .whereType<String>()
-        .where((s) => s.isNotEmpty)
-        .toList();
+    final names = <String>[];
+    for (final e in rawServices) {
+      if (e is! Map) continue;
+      final m = Map<String, dynamic>.from(e);
+      final n = _serviceLineName(m);
+      if (n != null) names.add(n);
+    }
 
-    // Prefer createdAt; fall back to old datetime field
     final String? dtString =
-        json['createdAt']?.toString() ?? json['datetime']?.toString();
+        json['date']?.toString() ??
+        root['date']?.toString() ??
+        root['createdAt']?.toString() ??
+        root['updatedAt']?.toString() ??
+        json['createdAt']?.toString() ??
+        json['datetime']?.toString();
+
+    final invoiceUuid = root['id']?.toString().trim() ?? '';
+    final legacyTxn =
+        json['transactionID']?.toString() ?? json['transactionId']?.toString();
+    final topInvoiceId =
+        json['invoiceId']?.toString().trim() ?? root['invoiceId']?.toString().trim() ?? '';
+
+    final resolvedId = invoiceUuid.isNotEmpty
+        ? invoiceUuid
+        : (legacyTxn != null && legacyTxn.toString().trim().isNotEmpty
+            ? legacyTxn.toString().trim()
+            : topInvoiceId);
+
+    final displayBill =
+        root['invoiceID']?.toString() ??
+        root['invoiceId']?.toString() ??
+        json['invoiceID']?.toString() ??
+        json['invoiceId']?.toString();
+
+    final displayTrimmed = displayBill?.toString().trim();
+    final displayResolved = (displayTrimmed != null && displayTrimmed.isNotEmpty)
+        ? displayTrimmed
+        : (topInvoiceId.isNotEmpty ? topInvoiceId : null);
+
+    final sn =
+        (patient?['surname'] ?? root['surname'] ?? json['surname'])?.toString() ??
+            '';
+    final fn = (patient?['firstName'] ??
+            patient?['firstname'] ??
+            root['firstName'] ??
+            root['firstname'] ??
+            json['firstname'] ??
+            json['firstName'])
+        ?.toString() ??
+        '';
+
+    final surname = sn.isNotEmpty ? sn : splitSurname;
+    final firstName = fn.isNotEmpty ? fn : splitFirst;
 
     return _UnregisteredPatientTxn(
-      transactionId:
-          json['transactionID']?.toString() ??
-          json['transactionId']?.toString() ??
-          '',
-      surname: (patient?['surname'] ?? json['surname'])?.toString() ?? '',
-      firstName:
-          (patient?['firstName'] ??
-                  patient?['firstname'] ??
-                  json['firstname'] ??
-                  json['firstName'])
-              ?.toString() ??
-          '',
-      phoneNumber: (patient?['phoneNumber'] ?? json['phoneNumber'])?.toString(),
-      age: (json['age'] as num?)
-          ?.toInt(), // will be null with your current payload
+      transactionId: resolvedId,
+      invoiceDisplayId: displayResolved,
+      patientNameAsPrinted:
+          printed != null && printed.isNotEmpty ? printed : null,
+      surname: surname,
+      firstName: firstName,
+      phoneNumber:
+          (patient?['phoneNumber'] ??
+                  root['phoneNumber'] ??
+                  json['phoneNumber'])
+              ?.toString(),
+      age: (patient?['age'] ?? json['age']) is num
+          ? ((patient?['age'] ?? json['age']) as num).toInt()
+          : int.tryParse((patient?['age'] ?? json['age'])?.toString() ?? ''),
       services: names,
       dateTime: dtString != null
           ? DateTime.tryParse(dtString) ?? DateTime.now()
           : DateTime.now(),
-      // prefer explicit patientId, else nested patient.id, else top-level id
-      patientId: patient?['id']?.toString() ?? json['id']?.toString(),
+      patientId: patient?['id']?.toString() ?? json['patientId']?.toString(),
     );
   }
 }

@@ -103,39 +103,96 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
-  void _openPaymentModal(
-    BuildContext context,
+  bool _payAtPosBusy = false;
+
+  /// Creates an invoice with cart lines, then opens [PayBill] with [invoiceId] for invoice-led payment.
+  Future<void> _openPayAtPosWithInvoice(
     Patient? patient,
     List<ServiceModel> selectedItems,
     double totalDue,
     String staffId,
-  ) {
-    // Guard: must have a patient
-    final hasPatient = patient != null;
-    if (!hasPatient) {
+  ) async {
+    if (patient == null) {
       _snack('Please select a patient before making a payment.');
       return;
     }
-    // Guard: total must be > 0
     if (totalDue <= 0) {
       _snack('No items selected or total amount is zero.');
       return;
     }
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.transparent,
-      builder: (context) => PayBill(
-        patientId: patient.patientId,
-        firstName: patient.firstName,
-        lastName: patient.surname,
-        selectedItems: selectedItems,
-        total: totalDue,
-        staffId: staffId,
-        onPaymentComplete: _emptySelection,
-        isInvoice: false,
-      ),
+    final patientUuid = _resolvePatientUuidForInvoice(
+      selectedPatient: patient,
     );
+    if (patientUuid == null) {
+      _snack(
+        'Cannot pay: patient needs a server id (UUID). '
+        'Use a registered patient.',
+      );
+      return;
+    }
+
+    final validLines = <ServiceModel>[];
+    for (final line in selectedItems) {
+      final sid = line.id.trim().isNotEmpty ? line.id : line.serviceId;
+      if (sid.isEmpty) continue;
+      validLines.add(line);
+    }
+    if (validLines.isEmpty) {
+      _snack('No valid service lines to invoice.');
+      return;
+    }
+
+    try {
+      final svc = InvoiceService();
+      final created = await svc.createBillingInvoice(
+        patientId: patientUuid,
+        staffId: staffId,
+      );
+      for (final line in validLines) {
+        final sid = line.id.trim().isNotEmpty ? line.id : line.serviceId;
+        if (sid.isEmpty) continue;
+        await svc.addBillingItem(
+          invoiceId: created.id,
+          payload: AddInvoiceItemPayload(
+            serviceId: sid,
+            unitPrice: line.cost,
+            quantity: line.qty ?? 1,
+            isRecurringDaily: line.isRecurringDaily,
+          ),
+        );
+      }
+      final invoice = await svc.getBillingInvoice(created.id);
+      final outstanding =
+          invoice.netAmountDue > 0
+              ? invoice.netAmountDue
+              : (invoice.amountDue > 0
+                    ? invoice.amountDue
+                    : (invoice.totalAmount - invoice.amountPaid));
+      if (outstanding <= 0) {
+        _snack(
+          'Invoice created but no billable balance found. Please refresh and try again.',
+        );
+        return;
+      }
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        barrierColor: Colors.transparent,
+        builder: (ctx) => PayBill(
+          patientId: patient.patientId,
+          firstName: patient.firstName,
+          lastName: patient.surname,
+          selectedItems: selectedItems,
+          total: outstanding,
+          staffId: staffId,
+          onPaymentComplete: _emptySelection,
+          isInvoice: true,
+          invoiceId: invoice.id,
+        ),
+      );
+    } catch (e) {
+      _snack('Failed to create invoice: $e');
+    }
   }
 
   // Mock Selected Items (The Cart)
@@ -948,16 +1005,20 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
     if (usePayAtPos) {
       return ElevatedButton(
-        onPressed: _selectedItems.isEmpty
+        onPressed: (_selectedItems.isEmpty || _payAtPosBusy)
             ? null
-            : () {
-                _openPaymentModal(
-                  context,
-                  selectedPatient,
-                  _selectedItems,
-                  _totalDue,
-                  staff.id,
-                );
+            : () async {
+                setState(() => _payAtPosBusy = true);
+                try {
+                  await _openPayAtPosWithInvoice(
+                    selectedPatient,
+                    _selectedItems,
+                    _totalDue,
+                    staff.id,
+                  );
+                } finally {
+                  if (mounted) setState(() => _payAtPosBusy = false);
+                }
               },
         style: ElevatedButton.styleFrom(
           elevation: 0,
@@ -965,10 +1026,16 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             borderRadius: BorderRadius.circular(40),
           ),
         ),
-        child: const Text(
-          'Pay',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
+        child: _payAtPosBusy
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Text(
+                'Pay',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
       );
     }
 
