@@ -9,7 +9,17 @@ import '../../app_router.gr.dart';
 
 @RoutePage()
 class NewPatientScreen extends StatefulWidget {
-  const NewPatientScreen({super.key});
+  const NewPatientScreen({
+    super.key,
+    this.use = 'For Register',
+    this.categoryQueries = const [],
+  });
+
+  /// Defines how this screen should fetch and present data.
+  final String use;
+
+  /// Categories forwarded by parent when [use] is not "For Register".
+  final List<String> categoryQueries;
 
   @override
   State<NewPatientScreen> createState() => _WaitingPatientScreenState();
@@ -28,6 +38,15 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
   _UnregisteredPatientTxn? _selectedPatient;
   bool _isLoading = false;
   String? _errorMessage;
+
+  bool get _isRegisterUse => widget.use.trim().toLowerCase() == 'for register';
+
+  String get _endpoint => _isRegisterUse
+      ? '/invoices/unregistered-patients'
+      : '/invoices/by-service-categories';
+
+  String get _primaryButtonLabel =>
+      _isRegisterUse ? 'Register Patient' : 'Open Patient';
 
   @override
   void initState() {
@@ -83,6 +102,17 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
         query['invoiceID'] = search;
       }
 
+      if (!_isRegisterUse) {
+        final categories = widget.categoryQueries
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        if (categories.isNotEmpty) {
+          // Dio serializes list values as repeated query params by default.
+          query['category'] = categories;
+        }
+      }
+
       final range = _selectedDateRange;
       final now = DateTime.now();
       final from = range?.start ?? DateTime(now.year, now.month, now.day);
@@ -92,10 +122,7 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
       query['fromDate'] = from.toUtc().toIso8601String();
       query['toDate'] = to.toUtc().toIso8601String();
 
-      final resp = await _dio.get(
-        '/invoices/unregistered-patients',
-        queryParameters: query,
-      );
+      final resp = await _dio.get(_endpoint, queryParameters: query);
 
       if (!mounted) return;
 
@@ -793,8 +820,8 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text(
-                      "Register Patient",
+                    child: Text(
+                      _primaryButtonLabel,
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,

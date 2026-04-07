@@ -105,6 +105,9 @@ class HeltyDesktopUpdateService {
   /// [updat] must not receive a permanently null latest string (would leave UI stuck on "checking").
   static Future<String?> getLatestVersionForUpdat(String currentVersion) async {
     final v = await fetchLatestVersion();
+    print('v: $v');
+    print('currentVersion: $currentVersion');
+    print('v ?? currentVersion: ${v ?? currentVersion}');
     return v ?? currentVersion;
   }
 

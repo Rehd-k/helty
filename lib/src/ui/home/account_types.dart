@@ -298,6 +298,11 @@ final labMenu = <MenuItem>[
     icon: Icons.add_circle_outline_rounded,
     route: EnlistPaitientRoute(serviceName: 'lab'),
   ),
+  MenuItem(
+    label: 'Invoices by category',
+    icon: Icons.receipt_long_outlined,
+    route: NewPatientRoute(use: 'Laboratory', categoryQueries: const []),
+  ),
 ];
 
 final radiologyMenu = <MenuItem>[
@@ -320,6 +325,14 @@ final radiologyMenu = <MenuItem>[
     label: 'By patient',
     icon: Icons.person_search_rounded,
     route: EnlistPaitientRoute(serviceName: 'Radiology'),
+  ),
+  MenuItem(
+    label: 'Waiting Patients',
+    icon: Icons.receipt_long_outlined,
+    route: NewPatientRoute(
+      use: 'Radiology',
+      categoryQueries: const ['Radiology & Imaging'],
+    ),
   ),
 ];
 

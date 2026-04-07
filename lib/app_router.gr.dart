@@ -2088,18 +2088,74 @@ class NewAppointmentRoute extends _i140.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i83.NewPatientScreen]
-class NewPatientRoute extends _i140.PageRouteInfo<void> {
-  const NewPatientRoute({List<_i140.PageRouteInfo>? children})
-    : super(NewPatientRoute.name, initialChildren: children);
+class NewPatientRoute extends _i140.PageRouteInfo<NewPatientRouteArgs> {
+  NewPatientRoute({
+    _i141.Key? key,
+    String use = 'For Register',
+    List<String> categoryQueries = const [],
+    List<_i140.PageRouteInfo>? children,
+  }) : super(
+         NewPatientRoute.name,
+         args: NewPatientRouteArgs(
+           key: key,
+           use: use,
+           categoryQueries: categoryQueries,
+         ),
+         initialChildren: children,
+       );
 
   static const String name = 'NewPatientRoute';
 
   static _i140.PageInfo page = _i140.PageInfo(
     name,
     builder: (data) {
-      return const _i83.NewPatientScreen();
+      final args = data.argsAs<NewPatientRouteArgs>(
+        orElse: () => const NewPatientRouteArgs(),
+      );
+      return _i83.NewPatientScreen(
+        key: args.key,
+        use: args.use,
+        categoryQueries: args.categoryQueries,
+      );
     },
   );
+}
+
+class NewPatientRouteArgs {
+  const NewPatientRouteArgs({
+    this.key,
+    this.use = 'For Register',
+    this.categoryQueries = const [],
+  });
+
+  final _i141.Key? key;
+
+  final String use;
+
+  final List<String> categoryQueries;
+
+  @override
+  String toString() {
+    return 'NewPatientRouteArgs{key: $key, use: $use, categoryQueries: $categoryQueries}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! NewPatientRouteArgs) return false;
+    return key == other.key &&
+        use == other.use &&
+        const _i144.ListEquality<String>().equals(
+          categoryQueries,
+          other.categoryQueries,
+        );
+  }
+
+  @override
+  int get hashCode =>
+      key.hashCode ^
+      use.hashCode ^
+      const _i144.ListEquality<String>().hash(categoryQueries);
 }
 
 /// generated route for

@@ -33,7 +33,11 @@ class _HeltyDesktopUpdateLayerState extends State<HeltyDesktopUpdateLayer> {
     if (Platform.isWindows) {
       PackageInfo.fromPlatform().then((p) {
         if (mounted) {
-          setState(() => _version = p.version);
+          final build = p.buildNumber.trim();
+          final currentVersion = build.isNotEmpty
+              ? '${p.version}+$build'
+              : p.version;
+          setState(() => _version = currentVersion);
         }
       });
     }
