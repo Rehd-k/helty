@@ -331,6 +331,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     final colors = theme.colorScheme;
     final isEditing = widget.patient != null;
     final isFromUnregistered = widget.patient?.fromUnregisteredFlow ?? false;
+    print('widget.patient: ${widget.patient?.toJson()}');
     return Scaffold(
       backgroundColor: colors.surfaceContainerHighest.withValues(alpha: 0.03),
       appBar: AppBar(
@@ -482,7 +483,10 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         child: ElevatedButton(
                           onPressed: () => _save(widget.patient?.id),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 16.0,
+                              horizontal: 16.0,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),

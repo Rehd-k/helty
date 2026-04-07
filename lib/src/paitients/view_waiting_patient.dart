@@ -909,7 +909,8 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
 
 /// Row from `GET /invoices/unregistered-patients` (invoice-led billing).
 ///
-/// [transactionId] holds the invoice UUID used for registration linkage;
+/// [transactionId] is the invoice identifier (UUID or human `invoiceId` code).
+/// [patientId] is the server patient UUID when present on the row (walk-in / placeholder).
 /// [invoiceDisplayId] is the human-facing bill number when the API sends it.
 class _UnregisteredPatientTxn {
   _UnregisteredPatientTxn({
@@ -925,7 +926,7 @@ class _UnregisteredPatientTxn {
     this.patientNameAsPrinted,
   });
 
-  /// Invoice id (UUID) or legacy transaction id — sent as [Patient.unregisteredTransactionId].
+  /// Invoice id (UUID or bill code) — also sent as [Patient.unregisteredTransactionId] for linkage.
   final String transactionId;
 
   /// Human-facing bill code (`invoiceID`), when present.
@@ -940,10 +941,12 @@ class _UnregisteredPatientTxn {
   final List<String> services;
   final DateTime dateTime;
 
-  /// Optional backend patient identifier (if one already exists).
+  /// Patient UUID from the API row (`patientId`) — prefer over nested `patient.id`.
   final String? patientId;
 
   String get rowKey {
+    final pid = patientId?.trim();
+    if (pid != null && pid.isNotEmpty) return pid;
     if (transactionId.isNotEmpty) return transactionId;
     final d = invoiceDisplayId?.trim();
     if (d != null && d.isNotEmpty) return d;
@@ -1001,6 +1004,15 @@ class _UnregisteredPatientTxn {
     return null;
   }
 
+  /// Row-level `patientId` wins over nested `patient.id` (invoice payloads may nest partial patient).
+  static String? _firstNonEmptyId(dynamic a, dynamic b, dynamic c) {
+    for (final v in [a, b, c]) {
+      final t = v?.toString().trim() ?? '';
+      if (t.isNotEmpty) return t;
+    }
+    return null;
+  }
+
   static String? _serviceLineName(Map<String, dynamic> item) {
     final custom = item['customDescription']?.toString().trim();
     if (custom != null && custom.isNotEmpty) return custom;
@@ -1021,10 +1033,12 @@ class _UnregisteredPatientTxn {
     final patientNameSingle =
         json['patientName']?.toString() ?? root['patientName']?.toString();
     final printed = patientNameSingle?.trim();
-    final (String splitFirst, String splitSurname) =
-        printed != null && printed.isNotEmpty
-            ? _namesFromPatientName(printed)
-            : ('', '');
+    final (
+      String splitFirst,
+      String splitSurname,
+    ) = printed != null && printed.isNotEmpty
+        ? _namesFromPatientName(printed)
+        : ('', '');
 
     final rawServices =
         (root['invoiceItems'] as List?) ??
@@ -1054,13 +1068,15 @@ class _UnregisteredPatientTxn {
     final legacyTxn =
         json['transactionID']?.toString() ?? json['transactionId']?.toString();
     final topInvoiceId =
-        json['invoiceId']?.toString().trim() ?? root['invoiceId']?.toString().trim() ?? '';
+        json['invoiceId']?.toString().trim() ??
+        root['invoiceId']?.toString().trim() ??
+        '';
 
     final resolvedId = invoiceUuid.isNotEmpty
         ? invoiceUuid
         : (legacyTxn != null && legacyTxn.toString().trim().isNotEmpty
-            ? legacyTxn.toString().trim()
-            : topInvoiceId);
+              ? legacyTxn.toString().trim()
+              : topInvoiceId);
 
     final displayBill =
         root['invoiceID']?.toString() ??
@@ -1069,20 +1085,23 @@ class _UnregisteredPatientTxn {
         json['invoiceId']?.toString();
 
     final displayTrimmed = displayBill?.toString().trim();
-    final displayResolved = (displayTrimmed != null && displayTrimmed.isNotEmpty)
+    final displayResolved =
+        (displayTrimmed != null && displayTrimmed.isNotEmpty)
         ? displayTrimmed
         : (topInvoiceId.isNotEmpty ? topInvoiceId : null);
 
     final sn =
-        (patient?['surname'] ?? root['surname'] ?? json['surname'])?.toString() ??
-            '';
-    final fn = (patient?['firstName'] ??
-            patient?['firstname'] ??
-            root['firstName'] ??
-            root['firstname'] ??
-            json['firstname'] ??
-            json['firstName'])
-        ?.toString() ??
+        (patient?['surname'] ?? root['surname'] ?? json['surname'])
+            ?.toString() ??
+        '';
+    final fn =
+        (patient?['firstName'] ??
+                patient?['firstname'] ??
+                root['firstName'] ??
+                root['firstname'] ??
+                json['firstname'] ??
+                json['firstName'])
+            ?.toString() ??
         '';
 
     final surname = sn.isNotEmpty ? sn : splitSurname;
@@ -1091,8 +1110,9 @@ class _UnregisteredPatientTxn {
     return _UnregisteredPatientTxn(
       transactionId: resolvedId,
       invoiceDisplayId: displayResolved,
-      patientNameAsPrinted:
-          printed != null && printed.isNotEmpty ? printed : null,
+      patientNameAsPrinted: printed != null && printed.isNotEmpty
+          ? printed
+          : null,
       surname: surname,
       firstName: firstName,
       phoneNumber:
@@ -1107,7 +1127,11 @@ class _UnregisteredPatientTxn {
       dateTime: dtString != null
           ? DateTime.tryParse(dtString) ?? DateTime.now()
           : DateTime.now(),
-      patientId: patient?['id']?.toString() ?? json['patientId']?.toString(),
+      patientId: _firstNonEmptyId(
+        json['patientId'],
+        root['patientId'],
+        patient?['id'],
+      ),
     );
   }
 }
