@@ -109,6 +109,8 @@ class CreatePatientVitalsDto {
   const CreatePatientVitalsDto({
     this.waitingPatientId,
     this.admissionId,
+    this.invoiceId,
+    this.patientId,
     this.systolic,
     this.diastolic,
     this.temperature,
@@ -125,6 +127,8 @@ class CreatePatientVitalsDto {
 
   final String? waitingPatientId;
   final String? admissionId;
+  final String? invoiceId;
+  final String? patientId;
   final int? systolic;
   final int? diastolic;
   final double? temperature;
@@ -141,6 +145,8 @@ class CreatePatientVitalsDto {
   Map<String, dynamic> toJson() => {
     if (waitingPatientId != null) 'waitingPatientId': waitingPatientId,
     if (admissionId != null) 'admissionId': admissionId,
+    if (invoiceId != null) 'invoiceId': invoiceId,
+    if (patientId != null) 'patientId': patientId,
     if (systolic != null) 'systolic': systolic,
     if (diastolic != null) 'diastolic': diastolic,
     if (temperature != null) 'temperature': temperature,

@@ -1,14 +1,19 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../helper/date.formatter.dart';
+import '../models/patient_vitals_model.dart';
+import '../models/waiting_patient_model.dart';
+import '../providers/module_request_flow_provider.dart';
 import '../services/api_service.dart';
+import '../services/waiting_patient_service.dart';
 import 'patient_model.dart';
 import '../../app_router.gr.dart';
 
 @RoutePage()
-class NewPatientScreen extends StatefulWidget {
+class NewPatientScreen extends ConsumerStatefulWidget {
   const NewPatientScreen({
     super.key,
     this.use = 'For Register',
@@ -22,16 +27,17 @@ class NewPatientScreen extends StatefulWidget {
   final List<String> categoryQueries;
 
   @override
-  State<NewPatientScreen> createState() => _WaitingPatientScreenState();
+  ConsumerState<NewPatientScreen> createState() => _WaitingPatientScreenState();
 }
 
-class _WaitingPatientScreenState extends State<NewPatientScreen> {
+class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
   // Filter States
   final TextEditingController _searchController = TextEditingController();
   DateTimeRange? _selectedDateRange;
 
   // Networking
   final Dio _dio = ApiService().dio;
+  final WaitingPatientService _waitingService = WaitingPatientService();
 
   // Data + UI state
   List<_UnregisteredPatientTxn> _patients = [];
@@ -40,13 +46,20 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
   String? _errorMessage;
 
   bool get _isRegisterUse => widget.use.trim().toLowerCase() == 'for register';
+  bool get _isNursingQueueUse =>
+      widget.use.trim().toLowerCase() == 'nursingqueue';
 
   String get _endpoint => _isRegisterUse
       ? '/invoices/unregistered-patients'
+      : _isNursingQueueUse
+      ? '/waiting-patients'
       : '/invoices/by-service-categories';
 
-  String get _primaryButtonLabel =>
-      _isRegisterUse ? 'Register Patient' : 'Open Patient';
+  String get _primaryButtonLabel => _isRegisterUse
+      ? 'Register Patient'
+      : _isNursingQueueUse
+      ? 'Send to Consulting Room'
+      : 'Open Patient';
 
   @override
   void initState() {
@@ -93,6 +106,11 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
     try {
       final query = <String, dynamic>{};
       final search = _searchController.text.trim();
+      final range = _selectedDateRange;
+      final now = DateTime.now();
+      final from = range?.start ?? DateTime(now.year, now.month, now.day);
+      final to =
+          range?.end ?? DateTime(now.year, now.month, now.day, 23, 59, 59);
 
       if (search.isNotEmpty) {
         // Invoice API: bill number, internal id, or patient name.
@@ -100,6 +118,21 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
         query['patientName'] = search;
         query['invoiceId'] = search;
         query['invoiceID'] = search;
+      }
+
+      if (_isNursingQueueUse) {
+        final queue = await _waitingService.fetchWaitingPatients(
+          WaitingPatientQuery(skip: 0, take: 100, fromDate: from, toDate: to),
+        );
+        if (!mounted) return;
+        final patients = queue.data
+            .map(_UnregisteredPatientTxn.fromWaitingQueue)
+            .toList();
+        setState(() {
+          _patients = patients;
+          _selectedPatient = patients.isNotEmpty ? patients.first : null;
+        });
+        return;
       }
 
       if (!_isRegisterUse) {
@@ -111,23 +144,25 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
           // Dio serializes list values as repeated query params by default.
           query['category'] = categories;
         }
+        // Do not force status here: backend shapes vary; unpaid rows should still
+        // appear so staff can see the queue. "Open Patient" stays gated by [isPaid].
       }
-
-      final range = _selectedDateRange;
-      final now = DateTime.now();
-      final from = range?.start ?? DateTime(now.year, now.month, now.day);
-      final to =
-          range?.end ?? DateTime(now.year, now.month, now.day, 23, 59, 59);
 
       query['fromDate'] = from.toUtc().toIso8601String();
       query['toDate'] = to.toUtc().toIso8601String();
+      // if (!_isNursingQueueUse) {
+      //   query['status'] = 'PAID';
+      // }
 
       final resp = await _dio.get(_endpoint, queryParameters: query);
 
       if (!mounted) return;
 
-      final list = _extractUnregisteredList(resp.data);
-      final patients = <_UnregisteredPatientTxn>[];
+      final raw = resp.data;
+      final list = _extractUnregisteredList(
+        raw is Map ? Map<String, dynamic>.from(raw) : raw,
+      );
+      var patients = <_UnregisteredPatientTxn>[];
       for (final e in list) {
         if (e is! Map) continue;
         try {
@@ -138,7 +173,6 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
           // Skip malformed rows; keep the rest of the table usable.
         }
       }
-
       setState(() {
         _patients = patients;
         _selectedPatient = patients.isNotEmpty ? patients.first : null;
@@ -812,7 +846,11 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: () => _goToRegister(patient),
+                    onPressed:
+                        (_isNursingQueueUse &&
+                            (!patient.isPaid || !patient.hasPatientId))
+                        ? null
+                        : () => _goToRegister(patient),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.primary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -838,6 +876,44 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
   }
 
   void _goToRegister(_UnregisteredPatientTxn patient) {
+    if (_isNursingQueueUse) {
+      _openSendToRoomDialog(patient);
+      return;
+    }
+
+    if (!_isRegisterUse) {
+      final resolvedPatientId = patient.patientId?.trim() ?? '';
+      // if (resolvedPatientId.isEmpty) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(
+      //       content: Text('Cannot open patient because patient ID is missing.'),
+      //     ),
+      //   );
+      //   return;
+      // }
+      final use = widget.use.trim().toLowerCase();
+      final moduleType = use == 'radiology'
+          ? ModuleRequestFlowType.radiology
+          : ModuleRequestFlowType.laboratory;
+      final paidContext = PaidModuleRequestContext(
+        moduleType: moduleType,
+        patientId: resolvedPatientId,
+        invoiceId: patient.transactionId,
+        invoiceDisplayId: patient.billLabel,
+        serviceLines: patient.serviceLines,
+      );
+      ref.read(paidModuleRequestContextProvider.notifier).state = paidContext;
+
+      if (moduleType == ModuleRequestFlowType.radiology) {
+        context.router.push(
+          RadiologyPatientHistoryRoute(patientId: patient.patientId ?? ''),
+        );
+      } else {
+        context.router.push(const LabCreateOrderRoute());
+      }
+      return;
+    }
+
     // Build a minimal Patient model to seed the registration form.
     final String fallbackId = patient.patientId ?? patient.transactionId;
 
@@ -879,6 +955,88 @@ class _WaitingPatientScreenState extends State<NewPatientScreen> {
     );
 
     context.router.push(PatientFormRoute(patient: seededPatient));
+  }
+
+  Future<void> _openSendToRoomDialog(_UnregisteredPatientTxn patient) async {
+    if (!patient.hasPatientId || patient.invoiceUuid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Patient or invoice is missing for queue action.'),
+        ),
+      );
+      return;
+    }
+
+    final rooms = await _waitingService.fetchConsultingRooms();
+    if (!mounted) return;
+    if (rooms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No consulting rooms configured.')),
+      );
+      return;
+    }
+    String selectedRoomId = rooms.first.id;
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Send to consulting room'),
+          content: StatefulBuilder(
+            builder: (context, setModalState) {
+              return DropdownButtonFormField<String>(
+                initialValue: selectedRoomId,
+                items: rooms
+                    .map(
+                      (r) => DropdownMenuItem<String>(
+                        value: r.id,
+                        child: Text(r.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setModalState(() => selectedRoomId = v);
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Consulting room',
+                  border: OutlineInputBorder(),
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+    if (submitted != true) return;
+
+    // Link vitals to invoice first if missing.
+    if (!patient.hasVitals) {
+      await _waitingService.createPatientVitals(
+        CreatePatientVitalsDto(
+          invoiceId: patient.invoiceUuid,
+          patientId: patient.patientId,
+        ),
+      );
+    }
+    await _waitingService.sendInvoiceToRoom(
+      invoiceId: patient.invoiceUuid,
+      consultingRoomId: selectedRoomId,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Patient sent to consulting room.')),
+    );
+    _fetchPatients();
   }
 
   // Utility Widgets
@@ -951,6 +1109,11 @@ class _UnregisteredPatientTxn {
     this.patientId,
     this.invoiceDisplayId,
     this.patientNameAsPrinted,
+    this.invoiceStatus,
+    this.serviceLines = const [],
+    this.rowAppearsPaid = false,
+    this.invoiceUuid = '',
+    this.hasVitals = false,
   });
 
   /// Invoice id (UUID or bill code) — also sent as [Patient.unregisteredTransactionId] for linkage.
@@ -961,6 +1124,13 @@ class _UnregisteredPatientTxn {
 
   /// Full name exactly as returned by the API (`patientName`), when present.
   final String? patientNameAsPrinted;
+  final String? invoiceStatus;
+  final List<PaidInvoiceServiceLine> serviceLines;
+
+  /// True when status/amounts/lines indicate the invoice is paid enough to open.
+  final bool rowAppearsPaid;
+  final String invoiceUuid;
+  final bool hasVitals;
   final String surname;
   final String firstName;
   final String? phoneNumber;
@@ -970,6 +1140,7 @@ class _UnregisteredPatientTxn {
 
   /// Patient UUID from the API row (`patientId`) — prefer over nested `patient.id`.
   final String? patientId;
+  bool get hasPatientId => (patientId ?? '').trim().isNotEmpty;
 
   String get rowKey {
     final pid = patientId?.trim();
@@ -1014,6 +1185,31 @@ class _UnregisteredPatientTxn {
     return buffer.isEmpty ? '?' : buffer.toString();
   }
 
+  bool get isPaid => rowAppearsPaid;
+
+  factory _UnregisteredPatientTxn.fromWaitingQueue(WaitingPatientModel row) {
+    final patient = row.patient;
+    return _UnregisteredPatientTxn(
+      transactionId: row.invoiceId,
+      invoiceDisplayId: row.invoiceDisplayId,
+      patientNameAsPrinted: patient == null
+          ? null
+          : '${patient.firstName} ${patient.surname}'.trim(),
+      invoiceStatus: row.seen ? 'SEEN' : 'PAID',
+      rowAppearsPaid: true,
+      surname: patient?.surname ?? '',
+      firstName: patient?.firstName ?? '',
+      phoneNumber: patient?.phoneNumber,
+      age: null,
+      services: row.consultationNames,
+      dateTime: row.createdAt,
+      patientId: row.patientId,
+      invoiceUuid: row.invoiceId,
+      hasVitals: row.patientVitals?.id.isNotEmpty == true,
+      serviceLines: const [],
+    );
+  }
+
   /// Splits a single `patientName` string into given / family for the registration form.
   static (String firstName, String surname) _namesFromPatientName(String? raw) {
     final s = raw?.trim() ?? '';
@@ -1038,6 +1234,59 @@ class _UnregisteredPatientTxn {
       if (t.isNotEmpty) return t;
     }
     return null;
+  }
+
+  static double? _parseMoney(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().trim());
+  }
+
+  /// Backend list payloads often omit top-level `status`; infer from amounts / lines.
+  static bool _computeAppearsPaid(
+    Map<String, dynamic> root,
+    Map<String, dynamic> json,
+    List<dynamic> rawServices,
+  ) {
+    final status =
+        (root['status'] ??
+                json['status'] ??
+                root['invoiceStatus'] ??
+                json['invoiceStatus'] ??
+                root['paymentStatus'] ??
+                json['paymentStatus'])
+            ?.toString()
+            .trim()
+            .toUpperCase() ??
+        '';
+    if (status == 'PAID' || status == 'FULLY_PAID') return true;
+    if (json['isPaid'] == true || root['isPaid'] == true) return true;
+    if (json['fullyPaid'] == true || root['fullyPaid'] == true) return true;
+
+    final due = _parseMoney(
+      root['amountDue'] ??
+          json['amountDue'] ??
+          root['netAmountDue'] ??
+          json['netAmountDue'] ??
+          root['balanceDue'] ??
+          json['balanceDue'],
+    );
+    if (due != null && due <= 0) return true;
+
+    if (rawServices.isEmpty) return false;
+    for (final e in rawServices) {
+      if (e is! Map) continue;
+      final m = Map<String, dynamic>.from(e);
+      final unit = _parseMoney(m['unitPrice']) ?? 0;
+      final qtyRaw = m['quantity'];
+      final qty = qtyRaw is num
+          ? qtyRaw.toDouble()
+          : (_parseMoney(qtyRaw) ?? 1.0);
+      final lineTotal = unit * qty;
+      final paid = _parseMoney(m['amountPaid']) ?? 0;
+      if (lineTotal > 0 && paid + 1e-6 < lineTotal) return false;
+    }
+    return rawServices.isNotEmpty;
   }
 
   static String? _serviceLineName(Map<String, dynamic> item) {
@@ -1076,11 +1325,44 @@ class _UnregisteredPatientTxn {
         const [];
 
     final names = <String>[];
+    final lines = <PaidInvoiceServiceLine>[];
     for (final e in rawServices) {
       if (e is! Map) continue;
       final m = Map<String, dynamic>.from(e);
       final n = _serviceLineName(m);
       if (n != null) names.add(n);
+      final service = _asMap(m['service']);
+      final itemId = (m['invoiceItemId'] ?? m['id'] ?? '').toString().trim();
+      final serviceIdRaw = (m['serviceId'] ?? service?['id'] ?? '')
+          .toString()
+          .trim();
+      final serviceId = serviceIdRaw.isEmpty ? null : serviceIdRaw;
+      final serviceName =
+          (service?['name'] ?? m['serviceName'] ?? m['name'] ?? '')
+              .toString()
+              .trim();
+      String categoryName = '';
+      final cat = m['category'];
+      if (cat is String) {
+        categoryName = cat.trim();
+      } else if (service != null && service['category'] is Map) {
+        final c = Map<String, dynamic>.from(service['category'] as Map);
+        categoryName = (c['name'] ?? '').toString().trim();
+      } else {
+        categoryName = (m['categoryName'] ?? service?['categoryName'] ?? '')
+            .toString()
+            .trim();
+      }
+      if (itemId.isNotEmpty && serviceName.isNotEmpty) {
+        lines.add(
+          PaidInvoiceServiceLine(
+            invoiceItemId: itemId,
+            serviceId: serviceId,
+            serviceName: serviceName,
+            categoryName: categoryName,
+          ),
+        );
+      }
     }
 
     final String? dtString =
@@ -1134,12 +1416,16 @@ class _UnregisteredPatientTxn {
     final surname = sn.isNotEmpty ? sn : splitSurname;
     final firstName = fn.isNotEmpty ? fn : splitFirst;
 
+    final appearsPaid = _computeAppearsPaid(root, json, rawServices);
+
     return _UnregisteredPatientTxn(
       transactionId: resolvedId,
       invoiceDisplayId: displayResolved,
       patientNameAsPrinted: printed != null && printed.isNotEmpty
           ? printed
           : null,
+      invoiceStatus: (root['status'] ?? json['status'])?.toString(),
+      rowAppearsPaid: appearsPaid,
       surname: surname,
       firstName: firstName,
       phoneNumber:
@@ -1159,6 +1445,9 @@ class _UnregisteredPatientTxn {
         root['patientId'],
         patient?['id'],
       ),
+      serviceLines: lines,
+      invoiceUuid: invoiceUuid,
+      hasVitals: root['vitalsId'] != null || root['vitals'] != null,
     );
   }
 }

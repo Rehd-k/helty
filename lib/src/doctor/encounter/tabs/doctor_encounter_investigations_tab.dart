@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/models/lab_order_model.dart';
 import 'package:helty/src/models/service_model.dart';
+import 'package:helty/src/services/service_category_service.dart';
 import 'package:helty/src/services/lab_order_service.dart';
 import 'package:helty/src/services/service_service.dart';
 
@@ -148,7 +149,8 @@ class _DoctorEncounterInvestigationsTabState
         patientId: patientId!,
         testType: service.name,
         staffId: staffId!,
-        serviceId: service.id,
+        // Use canonical service template id to preserve invoice linkage behavior.
+        serviceId: service.serviceId.isNotEmpty ? service.serviceId : service.id,
         priority: result.priority,
         notes: notes.isEmpty ? null : notes,
       );
@@ -284,15 +286,38 @@ class _OrderLabTestDialog extends StatefulWidget {
 
 class _OrderLabTestDialogState extends State<_OrderLabTestDialog> {
   static const int pageSize = 10;
+  static const _labCategoryNames = <String>{'laboratory', 'laboratory tests'};
 
   final _searchCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _categoryService = ServiceCategoryService();
   final _selected = <ServiceModel>[];
   List<ServiceModel> _searchResults = [];
   bool _searchLoading = false;
   int _page = 0;
   String _priority = 'Routine';
   Timer? _searchDebounce;
+  Set<String>? _labCategoryIds;
+
+  bool _isLabService(ServiceModel s) {
+    final byName = (s.categoryName ?? '').trim().toLowerCase();
+    if (_labCategoryNames.contains(byName)) return true;
+    final cid = s.categoryId?.trim();
+    if (cid != null && cid.isNotEmpty && _labCategoryIds != null) {
+      return _labCategoryIds!.contains(cid);
+    }
+    return false;
+  }
+
+  Future<void> _ensureLabCategoryIds() async {
+    if (_labCategoryIds != null) return;
+    final categories = await _categoryService.fetchCategories();
+    final ids = categories
+        .where((c) => _labCategoryNames.contains(c.name.trim().toLowerCase()))
+        .map((c) => c.id)
+        .toSet();
+    _labCategoryIds = ids;
+  }
 
   @override
   void dispose() {
@@ -304,17 +329,48 @@ class _OrderLabTestDialogState extends State<_OrderLabTestDialog> {
 
   Future<void> _runSearch({int skip = 0, bool append = false}) async {
     setState(() => _searchLoading = true);
-    final list = await widget.serviceService.fetchServices(
-      query: _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim(),
-      skip: skip,
-      take: pageSize,
-    );
+    await _ensureLabCategoryIds();
+    final q = _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim();
+
+    List<ServiceModel> list = const [];
+    if (_labCategoryIds != null && _labCategoryIds!.isNotEmpty) {
+      final batches = await Future.wait(
+        _labCategoryIds!.map(
+          (categoryId) => widget.serviceService.fetchServices(
+            query: q,
+            categoryId: categoryId,
+            skip: skip,
+            take: pageSize,
+          ),
+        ),
+      );
+      final seen = <String>{};
+      final merged = <ServiceModel>[];
+      for (final batch in batches) {
+        for (final s in batch) {
+          final key = s.id.isNotEmpty ? s.id : s.serviceId;
+          if (key.isEmpty || seen.contains(key)) continue;
+          seen.add(key);
+          merged.add(s);
+        }
+      }
+      list = merged;
+    } else {
+      // Fallback for environments where category records are missing.
+      list = await widget.serviceService.fetchServices(
+        query: q,
+        skip: skip,
+        take: pageSize,
+      );
+    }
+
     if (!mounted) return;
+    final filtered = list.where(_isLabService).toList();
     setState(() {
       if (append) {
-        _searchResults = [..._searchResults, ...list];
+        _searchResults = [..._searchResults, ...filtered];
       } else {
-        _searchResults = list;
+        _searchResults = filtered;
       }
       _searchLoading = false;
     });

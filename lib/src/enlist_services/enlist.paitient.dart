@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/providers/module_request_flow_provider.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -160,7 +161,12 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                         height: 56,
                         child: ElevatedButton(
                           onPressed: () {
+                            final moduleFlowNotifier = ref.read(
+                              moduleRequestFlowProvider.notifier,
+                            );
                             if (serviceName == 'Pharmacy') {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
                               final staffId =
                                   ref.read(authProvider).staff?.id ?? '';
                               context.router.push(
@@ -173,26 +179,51 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                                 ),
                               );
                             } else if (serviceName == 'inpatient') {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
                               context.router.push(InpatientBillsListRoute());
                             } else if (serviceName == 'OPD') {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
                               context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'Investigation') {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
                               context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'Dialysis') {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
                               context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'OBGYN') {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
                               context.router.push(
                                 ObstetricsPregnanciesListRoute(),
                               );
                             } else if (serviceName == 'Radiology') {
-                              context.router.push(
-                                RadiologyPatientHistoryRoute(
-                                  patientId: selectedPatient?.id ?? '',
-                                ),
-                              );
+                              moduleFlowNotifier.state =
+                                  const ModuleRequestFlowConfig(
+                                    type: ModuleRequestFlowType.radiology,
+                                    forcedCategoryNames: ['Radiology & Imaging'],
+                                    hideServicePrices: true,
+                                    sendToBillOnly: true,
+                                  );
+                              context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'lab') {
-                              context.router.push(const LabCreateOrderRoute());
+                              moduleFlowNotifier.state =
+                                  const ModuleRequestFlowConfig(
+                                    type: ModuleRequestFlowType.laboratory,
+                                    forcedCategoryNames: [
+                                      'Laboratory',
+                                      'Laboratory Tests',
+                                    ],
+                                    hideServicePrices: true,
+                                    sendToBillOnly: true,
+                                  );
+                              context.router.push(RenderServiceRoute());
                             } else {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
                               context.router.push(RenderServiceRoute());
                             }
                           },

@@ -8,6 +8,7 @@ import 'package:helty/src/lab/services/lab_api_service.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
+import 'package:helty/src/providers/module_request_flow_provider.dart';
 import 'package:helty/src/providers/staff_providers.dart';
 
 @RoutePage()
@@ -31,6 +32,11 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
   bool _searchingDoctors = false;
   String _testSearchQuery = '';
   String? _selectedCategoryId;
+
+  PaidModuleRequestContext? get _paidContext =>
+      ref.read(paidModuleRequestContextProvider);
+  bool get _patientLocked =>
+      _paidContext?.moduleType == ModuleRequestFlowType.laboratory;
 
   @override
   Widget build(BuildContext context) {
@@ -92,10 +98,12 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
                         style: theme.textTheme.titleSmall,
                       ),
                       subtitle: Text(_patient!.patientId),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () => setState(() => _patient = null),
-                      ),
+                      trailing: _patientLocked
+                          ? const Icon(Icons.lock_rounded)
+                          : IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => setState(() => _patient = null),
+                            ),
                     ),
             ),
             const SizedBox(height: 20),
@@ -334,7 +342,8 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
                                                   .onSurfaceVariant,
                                             ),
                                           ),
-                                          trailing: t.price != null
+                                          trailing: (_paidContext == null &&
+                                                  t.price != null)
                                               ? Text(
                                                   t.price!.toStringAsFixed(2),
                                                   style: theme
@@ -500,6 +509,18 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     }
 
     final api = ref.read(labApiServiceProvider);
+    final paidContext = _paidContext;
+    final paidLabLine = paidContext?.serviceLines.firstWhere(
+      (line) {
+        final category = line.categoryName.toLowerCase();
+        return category == 'laboratory' || category == 'laboratory tests';
+      },
+      orElse: () => const PaidInvoiceServiceLine(
+        invoiceItemId: '',
+        serviceName: '',
+        categoryName: '',
+      ),
+    );
     final versionIds = <String>[];
     for (final testId in _selectedTestIds) {
       try {
@@ -528,7 +549,18 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
         patientId: patientId,
         doctorId: _doctor!.id,
         testVersionIds: versionIds,
+        invoiceId: paidContext?.invoiceId,
+        invoiceItemId: paidLabLine != null && paidLabLine.invoiceItemId.isNotEmpty
+            ? paidLabLine.invoiceItemId
+            : null,
+        serviceId: (paidLabLine?.serviceId?.isNotEmpty ?? false)
+            ? paidLabLine!.serviceId
+            : null,
       );
+      if (paidContext != null &&
+          paidContext.moduleType == ModuleRequestFlowType.laboratory) {
+        ref.read(paidModuleRequestContextProvider.notifier).state = null;
+      }
       if (!mounted) return;
       router.replace(LabOrderDetailRoute(orderId: order.id));
     } catch (e) {
@@ -537,6 +569,32 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final paidContext = _paidContext;
+    if (paidContext != null &&
+        paidContext.moduleType == ModuleRequestFlowType.laboratory &&
+        paidContext.patientId.isNotEmpty) {
+      _patient = Patient(
+        id: paidContext.patientId,
+        patientId: paidContext.patientId,
+        cardNo: '',
+        title: '',
+        surname: 'Selected',
+        firstName: 'Patient',
+        dob: DateTime.now(),
+        gender: '',
+        maritalStatus: '',
+        nationality: '',
+        stateOfOrigin: '',
+        lga: '',
+        town: '',
+        permanentAddress: '',
+      );
     }
   }
 }

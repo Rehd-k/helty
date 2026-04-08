@@ -14,6 +14,7 @@ class WaitingPatientQuery {
     this.patientId,
     this.consultingRoomId,
     this.unassignedOnly,
+    this.seen,
     this.skip = 0,
     this.take = 20,
     this.sortBy,
@@ -26,6 +27,7 @@ class WaitingPatientQuery {
   final String? patientId;
   final String? consultingRoomId;
   final bool? unassignedOnly;
+  final bool? seen;
   final int skip;
   final int take;
   final String? sortBy;
@@ -39,6 +41,7 @@ class WaitingPatientQuery {
     if (consultingRoomId != null && consultingRoomId!.isNotEmpty)
       'consultingRoomId': consultingRoomId,
     if (unassignedOnly != null) 'unassignedOnly': unassignedOnly,
+    if (seen != null) 'seen': seen,
     'skip': skip,
     'take': take,
     if (fromDate != null) 'fromDate': fromDate!.toIso8601String(),
@@ -178,11 +181,11 @@ class WaitingPatientService {
     await _dio.delete('/consulting-rooms/$id');
   }
 
-  // ── Waiting patients ────────────────────────────────────────────────────────
-  // GET all / filter: waiting-patients
-  // POST: waiting-patients (add to list)
-  // PATCH: waiting-patients/:id (update)
-  // DELETE: waiting-patients/:id (remove from list)
+  // ── Waiting patients (invoice-backed queue) ────────────────────────────────
+  // GET: waiting-patients
+  // GET: waiting-patients/:invoiceId
+  // POST: waiting-patients/:invoiceId/send-to-room
+  // PATCH: waiting-patients/:invoiceId
 
   /// GET waiting-patients — list/filter waiting patients.
   Future<PaginatedWaitingPatients> fetchWaitingPatients([
@@ -211,23 +214,44 @@ class WaitingPatientService {
     );
   }
 
-  /// POST waiting-patients — add patient to waiting list.
-  Future<WaitingPatientModel> createWaitingPatient({
-    required String patientId,
+  Future<WaitingPatientModel> getWaitingPatientByInvoiceId(
+    String invoiceId,
+  ) async {
+    final resp = await _dio.get('/waiting-patients/$invoiceId');
+    return WaitingPatientModel.fromJson(resp.data as Map<String, dynamic>);
+  }
+
+  Future<WaitingPatientModel> sendInvoiceToRoom({
+    required String invoiceId,
     required String consultingRoomId,
     String? staffId,
   }) async {
     final body = <String, dynamic>{
-      'patientId': patientId,
       'consultingRoomId': consultingRoomId,
       if (staffId != null && staffId.isNotEmpty) 'staffId': staffId,
     };
-
-    final resp = await _dio.post('/waiting-patients', data: body);
+    final resp = await _dio.post(
+      '/waiting-patients/$invoiceId/send-to-room',
+      data: body,
+    );
     return WaitingPatientModel.fromJson(resp.data as Map<String, dynamic>);
   }
 
-  /// PATCH waiting-patients/:id — update patient in waiting list.
+  Future<WaitingPatientModel> updateWaitingPatientAssignment({
+    required String invoiceId,
+    required String consultingRoomId,
+    String? staffId,
+  }) async {
+    final patch = <String, dynamic>{
+      'consultingRoomId': consultingRoomId,
+      if (staffId != null && staffId.isNotEmpty) 'staffId': staffId,
+    };
+    final resp = await _dio.patch('/waiting-patients/$invoiceId', data: patch);
+    return WaitingPatientModel.fromJson(resp.data as Map<String, dynamic>);
+  }
+
+  /// Backward-compatible wrapper for older callers.
+  /// Prefer [updateWaitingPatientAssignment] in new code.
   Future<WaitingPatientModel> updateWaitingPatient(
     String id,
     Map<String, dynamic> patch,
@@ -236,8 +260,18 @@ class WaitingPatientService {
     return WaitingPatientModel.fromJson(resp.data as Map<String, dynamic>);
   }
 
-  /// DELETE waiting-patients/:id — remove patient from waiting list.
-  Future<void> removeWaitingPatient(String id) async {
-    await _dio.delete('/waiting-patients/$id');
-  }
+  // Legacy endpoints (deprecated by backend: may return 410).
+  @Deprecated('Use invoice-backed queue flow endpoints instead.')
+  Future<WaitingPatientModel> createWaitingPatient({
+    required String patientId,
+    required String consultingRoomId,
+    String? staffId,
+  }) => sendInvoiceToRoom(
+    invoiceId: patientId,
+    consultingRoomId: consultingRoomId,
+    staffId: staffId,
+  );
+
+  @Deprecated('Use invoice-backed queue flow endpoints instead.')
+  Future<void> removeWaitingPatient(String id) async {}
 }

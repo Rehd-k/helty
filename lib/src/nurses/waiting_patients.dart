@@ -176,7 +176,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     }
 
     final vitalsDto = CreatePatientVitalsDto(
-      waitingPatientId: waitingPatientId,
+      invoiceId: waitingPatientId,
       systolic: parseInt(_sysCtrl.text),
       diastolic: parseInt(_diaCtrl.text),
       temperature: parseDouble(_tempCtrl.text),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/providers/module_request_flow_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
@@ -31,6 +32,9 @@ class _RadiologyCreateRequestScreenState
       _patientIdCtrl.text = widget.patientId!;
     }
   }
+
+  PaidModuleRequestContext? get _paidContext =>
+      ref.read(paidModuleRequestContextProvider);
 
   final _clinicalNotesCtrl = TextEditingController();
   final _reasonCtrl = TextEditingController();
@@ -73,11 +77,29 @@ class _RadiologyCreateRequestScreenState
     });
 
     try {
+      final paidContext = _paidContext;
+      final paidRadiologyLine = paidContext?.serviceLines.firstWhere(
+        (line) => line.categoryName.toLowerCase() == 'radiology & imaging',
+        orElse: () => const PaidInvoiceServiceLine(
+          invoiceItemId: '',
+          serviceName: '',
+          categoryName: '',
+        ),
+      );
       final body = <String, dynamic>{
         'patientId': patientId,
         'requestedById': staff!.id,
         'scanType': _scanType.apiValue,
         'priority': _priority.apiValue,
+        if (paidContext != null &&
+            paidContext.moduleType == ModuleRequestFlowType.radiology) ...{
+          'invoiceId': paidContext.invoiceId,
+          if (paidRadiologyLine != null &&
+              paidRadiologyLine.invoiceItemId.isNotEmpty)
+            'invoiceItemId': paidRadiologyLine.invoiceItemId,
+          if (paidRadiologyLine?.serviceId?.isNotEmpty ?? false)
+            'serviceId': paidRadiologyLine!.serviceId!,
+        },
         if (_clinicalNotesCtrl.text.trim().isNotEmpty)
           'clinicalNotes': _clinicalNotesCtrl.text.trim(),
         if (_reasonCtrl.text.trim().isNotEmpty)
@@ -87,6 +109,10 @@ class _RadiologyCreateRequestScreenState
       };
 
       final created = await _service.createRequest(body);
+      if (paidContext != null &&
+          paidContext.moduleType == ModuleRequestFlowType.radiology) {
+        ref.read(paidModuleRequestContextProvider.notifier).state = null;
+      }
       if (!mounted) return;
       context.router.replace(
         RadiologyRequestDetailRoute(requestId: created.id),
@@ -145,14 +171,27 @@ class _RadiologyCreateRequestScreenState
                 ),
               TextFormField(
                 controller: _patientIdCtrl,
-                decoration: const InputDecoration(
+                enabled: _paidContext == null,
+                decoration: InputDecoration(
                   labelText: 'Patient ID (UUID)',
-                  hintText: 'Enter or select patient',
-                  border: OutlineInputBorder(),
+                  hintText: _paidContext == null
+                      ? 'Enter or select patient'
+                      : 'Patient fixed from paid invoice',
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null,
               ),
+              if (_paidContext != null) ...[
+                const SizedBox(height: 12),
+                InputChip(
+                  label: Text(
+                    'Paid invoice: ${_paidContext!.invoiceDisplayId}',
+                  ),
+                  avatar: const Icon(Icons.lock_rounded, size: 16),
+                  onDeleted: null,
+                ),
+              ],
               const SizedBox(height: 16),
               DropdownButtonFormField<RadiologyModality>(
                 initialValue: _scanType,

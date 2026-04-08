@@ -14,6 +14,7 @@ import '../../billings/pay.bill.dart';
 import '../../enlist_services/selected.user.dart';
 import '../../models/service_category_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/module_request_flow_provider.dart';
 import '../../services/department_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
@@ -51,6 +52,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   int _skip = 0;
   static const int _take = 10;
   bool _hasMore = true; // becomes false when API returns fewer than _take
+  ModuleRequestFlowConfig _flowConfig = ModuleRequestFlowConfig.defaultBilling;
 
   // Debounce timer for the search bar
   Timer? _debounce;
@@ -68,6 +70,19 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       setState(() {
         _departments = results[0] as List<Department>;
         _categories = results[1] as List<ServiceCategory>;
+        if (_flowConfig.forcedCategoryNames.isNotEmpty) {
+          final forcedIds = _categories
+              .where(
+                (c) => _flowConfig.forcedCategoryNames
+                    .map((e) => e.toLowerCase())
+                    .contains(c.name.toLowerCase()),
+              )
+              .map((e) => e.id)
+              .toSet();
+          if (forcedIds.length == 1) {
+            _selectedCategoryId = forcedIds.first;
+          }
+        }
       });
     } catch (e) {
       _snack('Failed to load filters: $e');
@@ -86,13 +101,22 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         query: _searchQuery.isNotEmpty ? _searchQuery : null,
         categoryId: _selectedCategoryId,
         departmentId: _selectedDepartmentId,
-        skip: _skip,
-        take: _take,
+        skip: _flowConfig.isModuleFlow ? 0 : _skip,
+        take: _flowConfig.isModuleFlow ? 200 : _take,
       );
       if (!mounted) return;
+      var filteredResults = results;
+      if (_flowConfig.forcedCategoryNames.isNotEmpty) {
+        final allowed = _flowConfig.forcedCategoryNames
+            .map((e) => e.toLowerCase())
+            .toSet();
+        filteredResults = results
+            .where((s) => allowed.contains((s.categoryName ?? '').toLowerCase()))
+            .toList();
+      }
       setState(() {
-        _services = results;
-        _hasMore = results.length >= _take;
+        _services = filteredResults;
+        _hasMore = _flowConfig.isModuleFlow ? false : filteredResults.length >= _take;
       });
     } catch (e) {
       _snack('Failed to load services: $e');
@@ -246,6 +270,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   @override
   void initState() {
     super.initState();
+    _flowConfig = ref.read(moduleRequestFlowProvider);
     _loadMeta();
     _loadServices();
   }
@@ -420,7 +445,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
               ),
 
               // Category Dropdown
-              Container(
+              if (!_flowConfig.isModuleFlow)
+                Container(
                 margin: const EdgeInsets.only(left: 8),
                 decoration: BoxDecoration(
                   color: _selectedCategoryId == ''
@@ -481,7 +507,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     _loadServices(resetPage: true);
                   },
                 ),
-              ),
+                ),
             ],
           ),
         ],
@@ -601,14 +627,15 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              item.cost.toFinancial(isMoney: true),
-                              style: TextStyle(
-                                color: Colors.grey.shade800,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                            if (!_flowConfig.hideServicePrices)
+                              Text(
+                                item.cost.toFinancial(isMoney: true),
+                                style: TextStyle(
+                                  color: Colors.grey.shade800,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
                               ),
-                            ),
                             const SizedBox(height: 4),
                             Text(
                               'Click to Add',
@@ -631,6 +658,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
   // ── Pagination bar ────────────────────────────────────────────────────────
   Widget _buildPagination() {
+    if (_flowConfig.isModuleFlow) {
+      return const SizedBox.shrink();
+    }
     final canGoBack = _skip > 0;
     final canGoNext = _hasMore;
     // Show how many items are on the current page and a "more" indicator
@@ -807,8 +837,10 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             child: Row(
               children: [
                 _headerCell('DESCRIPTION', flex: 4),
-                _headerCell('UNIT PRICE', flex: 2),
-                _headerCell('AMOUNT', flex: 2),
+                if (!_flowConfig.hideServicePrices) ...[
+                  _headerCell('UNIT PRICE', flex: 2),
+                  _headerCell('AMOUNT', flex: 2),
+                ],
                 _headerCell('', flex: 1),
               ],
             ),
@@ -899,29 +931,31 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                 ],
                               ),
                             ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                item.cost.toFinancial(isMoney: true),
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 13,
+                            if (!_flowConfig.hideServicePrices) ...[
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  item.cost.toFinancial(isMoney: true),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                (item.cost * (item.qty ?? 1)).toFinancial(
-                                  isMoney: true,
-                                ),
-                                style: TextStyle(
-                                  color: Colors.grey.shade900,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  (item.cost * (item.qty ?? 1)).toFinancial(
+                                    isMoney: true,
+                                  ),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade900,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                             Expanded(
                               flex: 1,
                               child: Align(
@@ -967,13 +1001,14 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     letterSpacing: 1,
                   ),
                 ),
-                Text(
-                  _totalDue.toFinancial(isMoney: true),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: Theme.of(context).primaryColor,
+                if (!_flowConfig.hideServicePrices)
+                  Text(
+                    _totalDue.toFinancial(isMoney: true),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).primaryColor,
+                    ),
                   ),
-                ),
                 _footerCheckoutButton(
                   auth: auth,
                   selectedPatient: selectedPatient,
@@ -1000,8 +1035,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     final admitted =
         selectedPatient != null &&
         patientStatusIsAdmitted(selectedPatient.status);
-    // Inpatient charges attach to the ward invoice; outpatients / walk-ins pay at POS.
-    final usePayAtPos = !admitted;
+    // Module-only flows always send items to invoice without POS payment.
+    final usePayAtPos = !_flowConfig.sendToBillOnly && !admitted;
 
     if (usePayAtPos) {
       return ElevatedButton(
@@ -1047,8 +1082,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
       ),
-      child: const Text(
-        'Send To Bills',
+      child: Text(
+        _flowConfig.isModuleFlow ? 'Send To Bill' : 'Send To Bills',
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     );
@@ -1102,25 +1137,32 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     try {
       final svc = InvoiceService();
       final list = await svc.getPatientInvoices(patientUuid);
-      if (list.isEmpty) {
-        _snack(
-          'No invoice found for this patient. Open Inpatient Bills and start billing there first.',
-        );
-        return;
-      }
-      final invoice = _pickOpenInvoice(list);
-      if (invoice == null) {
-        _snack(
-          'No open invoice for this patient (only paid or closed bills). '
-          'Use Inpatient Bills if a new admission invoice is needed.',
-        );
-        return;
+      String? invoiceId = _pickOpenInvoice(list)?.id;
+      if (invoiceId == null) {
+        if (_flowConfig.sendToBillOnly) {
+          final staffId = ref.read(authProvider).staff?.id ?? '';
+          if (staffId.isEmpty) {
+            _snack('Unable to send to bill: missing logged-in staff.');
+            return;
+          }
+          final created = await svc.createBillingInvoice(
+            patientId: patientUuid,
+            staffId: staffId,
+          );
+          invoiceId = created.id;
+        } else {
+          _snack(
+            'No open invoice for this patient (only paid or closed bills). '
+            'Use Inpatient Bills if a new admission invoice is needed.',
+          );
+          return;
+        }
       }
       for (final line in _selectedItems) {
         final sid = line.id.trim().isNotEmpty ? line.id : line.serviceId;
         if (sid.isEmpty) continue;
         await svc.addBillingItem(
-          invoiceId: invoice.id,
+          invoiceId: invoiceId,
           payload: AddInvoiceItemPayload(
             serviceId: sid,
             unitPrice: line.cost,
@@ -1130,7 +1172,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       }
       if (!mounted) return;
       _emptySelection();
-      _snack('Services added to patient invoice.');
+      _snack(
+        _flowConfig.sendToBillOnly
+            ? 'Services sent to bill successfully.'
+            : 'Services added to patient invoice.',
+      );
     } catch (e) {
       _snack('Failed to add to bill: $e');
     }

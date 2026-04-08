@@ -39,6 +39,11 @@ class _SelectUserState extends State<SelectUser> {
 
   bool _isSearching = false;
 
+  bool get _allowQuickNewPatient =>
+      widget.serviceName == 'OPD' ||
+      widget.serviceName == 'Radiology' ||
+      widget.serviceName == 'lab';
+
   void createNewPatient() async {
     try {
       var newUser = await apiService.dio.post(
@@ -79,10 +84,10 @@ class _SelectUserState extends State<SelectUser> {
         icon: Icons.person_off_outlined,
         title: "Oops, such empty",
         message: "We couldn't find any patient matching '${_searchCtrl.text}'.",
-        buttonText: widget.serviceName == 'OPD'
+        buttonText: _allowQuickNewPatient
             ? "Register New Patient"
             : "Go Back",
-        onPressed: () => widget.serviceName == 'OPD'
+        onPressed: () => _allowQuickNewPatient
             ? context.router.push(PatientFormRoute())
             : context.router.pop(),
       );
@@ -146,7 +151,7 @@ class _SelectUserState extends State<SelectUser> {
                             ),
                           ),
                           const Spacer(),
-                          if (widget.serviceName == 'OPD')
+                          if (_allowQuickNewPatient)
                             ElevatedButton.icon(
                               onPressed: () => showNewPatientInvoiceForm(
                                 context,

@@ -12,7 +12,7 @@ final frontDesk = <MenuItem>[
   MenuItem(
     label: 'View Waiting Patients',
     icon: Icons.add_alarm_outlined,
-    route: NewPatientRoute(),
+    route: NewPatientRoute(use: 'NursingQueue'),
   ),
   MenuItem(
     label: 'Patients',
@@ -294,14 +294,17 @@ final labMenu = <MenuItem>[
   ),
 
   MenuItem(
-    label: 'New order',
+    label: 'New patient',
     icon: Icons.add_circle_outline_rounded,
     route: EnlistPaitientRoute(serviceName: 'lab'),
   ),
   MenuItem(
     label: 'Invoices by category',
     icon: Icons.receipt_long_outlined,
-    route: NewPatientRoute(use: 'Laboratory', categoryQueries: const []),
+    route: NewPatientRoute(
+      use: 'Laboratory',
+      categoryQueries: const ['Laboratory', 'Laboratory Tests'],
+    ),
   ),
 ];
 
@@ -317,13 +320,8 @@ final radiologyMenu = <MenuItem>[
     route: RadiologyWorklistRoute(),
   ),
   MenuItem(
-    label: 'New request',
+    label: 'New patient',
     icon: Icons.add_circle_outline_rounded,
-    route: RadiologyCreateRequestRoute(),
-  ),
-  MenuItem(
-    label: 'By patient',
-    icon: Icons.person_search_rounded,
     route: EnlistPaitientRoute(serviceName: 'Radiology'),
   ),
   MenuItem(

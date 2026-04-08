@@ -6,6 +6,7 @@ import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/models/imaging_order_model.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/services/imaging_order_service.dart';
+import 'package:helty/src/services/service_category_service.dart';
 import 'package:helty/src/services/service_service.dart';
 
 @RoutePage()
@@ -72,7 +73,8 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
       studyName: service.name,
       patientId: patientId!,
       staffId: staffId!,
-      serviceId: service.id,
+      // Prefer canonical template service id for invoice linkage.
+      serviceId: service.serviceId.isNotEmpty ? service.serviceId : service.id,
       area: result.area.isEmpty ? null : result.area,
       contrast: result.contrast,
       urgency: result.urgency,
@@ -86,6 +88,101 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
       ).showSnackBar(const SnackBar(content: Text('Imaging order added')));
       _load();
     }
+  }
+
+  void _showImagingOrderResults(
+    BuildContext context,
+    ImagingOrderModel order,
+    ThemeData theme,
+  ) {
+    final hasResultMap = order.resultValues != null && order.resultValues!.isNotEmpty;
+    final hasSummary = (order.resultSummary ?? '').trim().isNotEmpty;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(order.studyName),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ResultRow(label: 'Status', value: order.status),
+                _ResultRow(label: 'Priority', value: order.urgency ?? 'Routine'),
+                if ((order.area ?? '').isNotEmpty)
+                  _ResultRow(label: 'Area', value: order.area!),
+                _ResultRow(
+                  label: 'Contrast',
+                  value: order.contrast ? 'Yes' : 'No',
+                ),
+                if ((order.notesToRadiologist ?? '').isNotEmpty)
+                  _ResultRow(
+                    label: 'Notes',
+                    value: order.notesToRadiologist!,
+                  ),
+                const SizedBox(height: 16),
+                Text(
+                  'Results',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (hasSummary)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      order.resultSummary!,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                if (hasResultMap)
+                  ...order.resultValues!.entries.map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 140,
+                            child: Text(
+                              e.key,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              e.value?.toString() ?? '—',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (!hasSummary && !hasResultMap)
+                  Text(
+                    'No results yet.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -145,6 +242,7 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                             label: Text(o.status),
                             backgroundColor: theme.colorScheme.primaryContainer,
                           ),
+                          onTap: () => _showImagingOrderResults(context, o, theme),
                         ),
                       );
                     },
@@ -182,10 +280,12 @@ class _OrderImagingDialog extends StatefulWidget {
 
 class _OrderImagingDialogState extends State<_OrderImagingDialog> {
   static const int pageSize = 10;
+  static const _imagingCategoryName = 'radiology & imaging';
 
   final _searchCtrl = TextEditingController();
   final _areaCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _categoryService = ServiceCategoryService();
   ServiceModel? _selected;
   List<ServiceModel> _suggestions = [];
   bool _searchLoading = false;
@@ -193,6 +293,27 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
   bool _contrast = false;
   String _urgency = 'Routine';
   Timer? _searchDebounce;
+  Set<String>? _imagingCategoryIds;
+
+  Future<void> _ensureImagingCategoryIds() async {
+    if (_imagingCategoryIds != null) return;
+    final categories = await _categoryService.fetchCategories();
+    _imagingCategoryIds = categories
+        .where((c) => c.name.trim().toLowerCase() == _imagingCategoryName)
+        .map((c) => c.id)
+        .toSet();
+  }
+
+  bool _isImaging(ServiceModel s) {
+    if ((s.categoryName ?? '').trim().toLowerCase() == _imagingCategoryName) {
+      return true;
+    }
+    final cid = s.categoryId?.trim();
+    return cid != null &&
+        cid.isNotEmpty &&
+        _imagingCategoryIds != null &&
+        _imagingCategoryIds!.contains(cid);
+  }
 
   @override
   void dispose() {
@@ -205,17 +326,45 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
 
   Future<void> _runSearch({int skip = 0, bool append = false}) async {
     setState(() => _searchLoading = true);
-    final list = await widget.serviceService.fetchServices(
-      query: _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim(),
-      skip: skip,
-      take: pageSize,
-    );
+    await _ensureImagingCategoryIds();
+    final q = _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim();
+    List<ServiceModel> list = const [];
+    if (_imagingCategoryIds != null && _imagingCategoryIds!.isNotEmpty) {
+      final batches = await Future.wait(
+        _imagingCategoryIds!.map(
+          (id) => widget.serviceService.fetchServices(
+            query: q,
+            categoryId: id,
+            skip: skip,
+            take: pageSize,
+          ),
+        ),
+      );
+      final seen = <String>{};
+      final merged = <ServiceModel>[];
+      for (final batch in batches) {
+        for (final s in batch) {
+          final key = s.id.isNotEmpty ? s.id : s.serviceId;
+          if (key.isEmpty || seen.contains(key)) continue;
+          seen.add(key);
+          merged.add(s);
+        }
+      }
+      list = merged;
+    } else {
+      list = await widget.serviceService.fetchServices(
+        query: q,
+        skip: skip,
+        take: pageSize,
+      );
+    }
     if (!mounted) return;
+    final filtered = list.where(_isImaging).toList();
     setState(() {
       if (append) {
-        _suggestions = [..._suggestions, ...list];
+        _suggestions = [..._suggestions, ...filtered];
       } else {
-        _suggestions = list;
+        _suggestions = filtered;
       }
       _searchLoading = false;
     });
@@ -424,6 +573,40 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
           child: const Text('Order'),
         ),
       ],
+    );
+  }
+}
+
+class _ResultRow extends StatelessWidget {
+  const _ResultRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -171,6 +171,9 @@ class LabApiService {
     required String patientId,
     required String doctorId,
     required List<String> testVersionIds,
+    String? invoiceId,
+    String? invoiceItemId,
+    String? serviceId,
   }) async {
     if (testVersionIds.isEmpty) {
       throw ArgumentError('At least one test version is required');
@@ -180,6 +183,10 @@ class LabApiService {
       data: {
         'patientId': patientId,
         'doctorId': doctorId,
+        if (invoiceId != null && invoiceId.isNotEmpty) 'invoiceId': invoiceId,
+        if (invoiceItemId != null && invoiceItemId.isNotEmpty)
+          'invoiceItemId': invoiceItemId,
+        if (serviceId != null && serviceId.isNotEmpty) 'serviceId': serviceId,
         'items': testVersionIds.map((id) => {'testVersionId': id}).toList(),
       },
     );
