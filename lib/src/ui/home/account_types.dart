@@ -222,6 +222,11 @@ final doctors = <MenuItem>[
 
 final pharmacy = <MenuItem>[
   MenuItem(
+    label: 'Dashboard',
+    icon: Icons.dashboard_outlined,
+    route: PharmacyDashboardRoute(),
+  ),
+  MenuItem(
     label: 'Medicine Inventory',
     icon: Icons.inventory_2_outlined,
     route: MedicineInventoryRoute(),
@@ -257,13 +262,24 @@ final pharmacy = <MenuItem>[
     icon: Icons.location_on_outlined,
     route: PharmacyLocationRoute(),
   ),
-];
-
-final phamDispense = <MenuItem>[
   MenuItem(
     label: 'Medicine Sales',
     icon: Icons.add_alarm_outlined,
     route: EnlistPaitientRoute(serviceName: 'Pharmacy'),
+  ),
+
+  MenuItem(
+    label: 'Pharmacy Waiting Patient',
+    icon: Icons.add_alarm_outlined,
+    route: WaitingPatientRoute(),
+  ),
+];
+
+final phamDispense = <MenuItem>[
+  MenuItem(
+    label: 'Dashboard',
+    icon: Icons.dashboard_outlined,
+    route: PharmacyDashboardRoute(),
   ),
   MenuItem(
     label: 'Medicine Inventory',
@@ -272,15 +288,45 @@ final phamDispense = <MenuItem>[
   ),
 
   MenuItem(
-    label: 'Pharmacy Waiting Patient',
-    icon: Icons.add_alarm_outlined,
-    route: WaitingPatientRoute(),
+    label: 'Add Supplier',
+    icon: Icons.person_add_alt_1_outlined,
+    route: AddSupplierRoute(),
   ),
-
+  MenuItem(
+    label: 'Add Supply',
+    icon: Icons.add_box_outlined,
+    route: AddBatchRoute(),
+  ),
   MenuItem(
     label: 'Stock Transfer',
     icon: Icons.move_to_inbox_outlined,
     route: StockTransferRoute(),
+  ),
+  MenuItem(
+    label: 'Create Requisition',
+    icon: Icons.receipt_long_outlined,
+    route: CreateRequisitionRoute(),
+  ),
+  MenuItem(
+    label: 'Supply History',
+    icon: Icons.list_alt_outlined,
+    route: SupplyHistoryRoute(),
+  ),
+  MenuItem(
+    label: 'Pharmacy Locations',
+    icon: Icons.location_on_outlined,
+    route: PharmacyLocationRoute(),
+  ),
+  MenuItem(
+    label: 'Medicine Sales',
+    icon: Icons.add_alarm_outlined,
+    route: EnlistPaitientRoute(serviceName: 'Pharmacy'),
+  ),
+
+  MenuItem(
+    label: 'Pharmacy Waiting Patient',
+    icon: Icons.add_alarm_outlined,
+    route: WaitingPatientRoute(),
   ),
 ];
 
@@ -299,7 +345,7 @@ final labMenu = <MenuItem>[
     route: EnlistPaitientRoute(serviceName: 'lab'),
   ),
   MenuItem(
-    label: 'Invoices by category',
+    label: 'Waiting Patients',
     icon: Icons.receipt_long_outlined,
     route: NewPatientRoute(
       use: 'Laboratory',

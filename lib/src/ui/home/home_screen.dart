@@ -62,7 +62,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _sidebarOpen = true;
 
   List<MenuItem> _menuForRole(String role, String accountType) {
-    print(role);
     final common = <MenuItem>[];
     final r = role.toLowerCase();
     final at = accountType.toLowerCase();

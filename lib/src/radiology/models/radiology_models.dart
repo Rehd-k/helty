@@ -1,6 +1,5 @@
 // ignore_for_file: constant_identifier_names
 
-/// Radiology priority (exact API strings).
 enum RadiologyPriority {
   ROUTINE,
   URGENT,
@@ -18,7 +17,6 @@ enum RadiologyPriority {
   }
 }
 
-/// Radiology modality (scan type).
 enum RadiologyModality {
   X_RAY,
   CT,
@@ -40,8 +38,25 @@ enum RadiologyModality {
   }
 }
 
-/// Radiology request status.
-enum RadiologyRequestStatus {
+enum RadiologyOrderStatus {
+  PENDING,
+  ACTIVE,
+  COMPLETED,
+  CANCELLED;
+
+  String get apiValue => name;
+
+  static RadiologyOrderStatus? fromString(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final v = value.toUpperCase().replaceAll(' ', '_');
+    for (final e in RadiologyOrderStatus.values) {
+      if (e.name == v) return e;
+    }
+    return null;
+  }
+}
+
+enum RadiologyOrderItemStatus {
   PENDING,
   SCHEDULED,
   IN_PROGRESS,
@@ -51,17 +66,16 @@ enum RadiologyRequestStatus {
 
   String get apiValue => name;
 
-  static RadiologyRequestStatus? fromString(String? value) {
+  static RadiologyOrderItemStatus? fromString(String? value) {
     if (value == null || value.isEmpty) return null;
     final v = value.toUpperCase().replaceAll(' ', '_');
-    for (final e in RadiologyRequestStatus.values) {
+    for (final e in RadiologyOrderItemStatus.values) {
       if (e.name == v) return e;
     }
     return null;
   }
 }
 
-/// Report severity.
 enum ReportSeverity {
   NORMAL,
   ABNORMAL,
@@ -78,8 +92,6 @@ enum ReportSeverity {
     return null;
   }
 }
-
-// ─── Refs (from API nested objects) ────────────────────────────────────────
 
 class RadiologyPatientRef {
   const RadiologyPatientRef({
@@ -150,25 +162,75 @@ class RadiologyMachineRef {
   }
 }
 
-// ─── RadiologyRequest ──────────────────────────────────────────────────────
-
-class RadiologyRequest {
-  const RadiologyRequest({
+class RadiologyOrder {
+  const RadiologyOrder({
     required this.id,
     required this.patientId,
     required this.requestedById,
-    required this.priority,
-    required this.scanType,
-    required this.status,
+    required this.items,
     this.encounterId,
     this.departmentId,
-    this.clinicalNotes,
-    this.reasonForInvestigation,
-    this.bodyPart,
+    this.status = RadiologyOrderStatus.PENDING,
     this.createdAt,
     this.updatedAt,
     this.patient,
     this.requestedBy,
+  });
+
+  final String id;
+  final String patientId;
+  final String requestedById;
+  final String? encounterId;
+  final String? departmentId;
+  final RadiologyOrderStatus status;
+  final String? createdAt;
+  final String? updatedAt;
+  final List<RadiologyOrderItem> items;
+  final RadiologyPatientRef? patient;
+  final RadiologyStaffRef? requestedBy;
+
+  factory RadiologyOrder.fromJson(Map<String, dynamic> json) {
+    final rawItems = (json['items'] as List<dynamic>?) ?? const [];
+    return RadiologyOrder(
+      id: json['id'] as String? ?? '',
+      patientId: json['patientId'] as String? ?? '',
+      requestedById: json['requestedById'] as String? ?? '',
+      encounterId: json['encounterId'] as String?,
+      departmentId: json['departmentId'] as String?,
+      status: RadiologyOrderStatus.fromString(json['status'] as String?) ??
+          RadiologyOrderStatus.PENDING,
+      createdAt: json['createdAt'] as String?,
+      updatedAt: json['updatedAt'] as String?,
+      items: rawItems
+          .map((e) => RadiologyOrderItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      patient: json['patient'] != null
+          ? RadiologyPatientRef.fromJson(json['patient'] as Map<String, dynamic>)
+          : null,
+      requestedBy: json['requestedBy'] != null
+          ? RadiologyStaffRef.fromJson(
+              json['requestedBy'] as Map<String, dynamic>,
+            )
+          : null,
+    );
+  }
+}
+
+class RadiologyOrderItem {
+  const RadiologyOrderItem({
+    required this.id,
+    required this.orderId,
+    required this.scanType,
+    required this.priority,
+    required this.status,
+    this.bodyPart,
+    this.clinicalNotes,
+    this.reasonForInvestigation,
+    this.invoiceId,
+    this.invoiceItemId,
+    this.serviceId,
+    this.createdAt,
+    this.updatedAt,
     this.schedule,
     this.procedure,
     this.images,
@@ -176,82 +238,71 @@ class RadiologyRequest {
   });
 
   final String id;
-  final String patientId;
-  final String? encounterId;
-  final String requestedById;
-  final String? departmentId;
+  final String orderId;
+  final RadiologyModality scanType;
+  final RadiologyPriority priority;
+  final RadiologyOrderItemStatus status;
+  final String? bodyPart;
   final String? clinicalNotes;
   final String? reasonForInvestigation;
-  final RadiologyPriority priority;
-  final RadiologyModality scanType;
-  final String? bodyPart;
-  final RadiologyRequestStatus status;
+  final String? invoiceId;
+  final String? invoiceItemId;
+  final String? serviceId;
   final String? createdAt;
   final String? updatedAt;
-  final RadiologyPatientRef? patient;
-  final RadiologyStaffRef? requestedBy;
   final RadiologySchedule? schedule;
   final RadiologyProcedure? procedure;
   final List<RadiologyImage>? images;
   final RadiologyStudyReport? report;
 
-  factory RadiologyRequest.fromJson(Map<String, dynamic> json) {
-    return RadiologyRequest(
+  factory RadiologyOrderItem.fromJson(Map<String, dynamic> json) {
+    return RadiologyOrderItem(
       id: json['id'] as String? ?? '',
-      patientId: json['patientId'] as String? ?? '',
-      encounterId: json['encounterId'] as String?,
-      requestedById: json['requestedById'] as String? ?? '',
-      departmentId: json['departmentId'] as String?,
-      clinicalNotes: json['clinicalNotes'] as String?,
-      reasonForInvestigation:
-          json['reasonForInvestigation'] as String?,
-      priority: RadiologyPriority.fromString(json['priority'] as String?) ??
-          RadiologyPriority.ROUTINE,
+      orderId: (json['orderId'] ?? json['radiologyOrderId']) as String? ?? '',
       scanType: RadiologyModality.fromString(json['scanType'] as String?) ??
           RadiologyModality.OTHER,
+      priority: RadiologyPriority.fromString(json['priority'] as String?) ??
+          RadiologyPriority.ROUTINE,
+      status:
+          RadiologyOrderItemStatus.fromString(json['status'] as String?) ??
+              RadiologyOrderItemStatus.PENDING,
       bodyPart: json['bodyPart'] as String?,
-      status: RadiologyRequestStatus.fromString(json['status'] as String?) ??
-          RadiologyRequestStatus.PENDING,
+      clinicalNotes: json['clinicalNotes'] as String?,
+      reasonForInvestigation: json['reasonForInvestigation'] as String?,
+      invoiceId: json['invoiceId'] as String?,
+      invoiceItemId: json['invoiceItemId'] as String?,
+      serviceId: json['serviceId'] as String?,
       createdAt: json['createdAt'] as String?,
       updatedAt: json['updatedAt'] as String?,
-      patient: json['patient'] != null
-          ? RadiologyPatientRef.fromJson(
-              json['patient'] as Map<String, dynamic>)
-          : null,
-      requestedBy: json['requestedBy'] != null
-          ? RadiologyStaffRef.fromJson(
-              json['requestedBy'] as Map<String, dynamic>)
-          : null,
       schedule: json['schedule'] != null
-          ? RadiologySchedule.fromJson(
-              json['schedule'] as Map<String, dynamic>)
+          ? RadiologySchedule.fromJson(json['schedule'] as Map<String, dynamic>)
           : null,
       procedure: json['procedure'] != null
           ? RadiologyProcedure.fromJson(
-              json['procedure'] as Map<String, dynamic>)
+              json['procedure'] as Map<String, dynamic>,
+            )
           : null,
       images: (json['images'] as List<dynamic>?)
-          ?.map((e) =>
-              RadiologyImage.fromJson(e as Map<String, dynamic>))
+          ?.map((e) => RadiologyImage.fromJson(e as Map<String, dynamic>))
           .toList(),
       report: json['report'] != null
-          ? RadiologyStudyReport.fromJson(
-              json['report'] as Map<String, dynamic>)
+          ? RadiologyStudyReport.fromJson(json['report'] as Map<String, dynamic>)
           : null,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'patientId': patientId,
-        'requestedById': requestedById,
-        'priority': priority.apiValue,
+  Map<String, dynamic> toCreateJson() => {
         'scanType': scanType.apiValue,
-        if (encounterId != null) 'encounterId': encounterId,
-        if (departmentId != null) 'departmentId': departmentId,
-        if (clinicalNotes != null) 'clinicalNotes': clinicalNotes,
-        if (reasonForInvestigation != null)
+        if (bodyPart != null && bodyPart!.isNotEmpty) 'bodyPart': bodyPart,
+        'priority': priority.apiValue,
+        if (clinicalNotes != null && clinicalNotes!.isNotEmpty)
+          'clinicalNotes': clinicalNotes,
+        if (reasonForInvestigation != null && reasonForInvestigation!.isNotEmpty)
           'reasonForInvestigation': reasonForInvestigation,
-        if (bodyPart != null) 'bodyPart': bodyPart,
+        if (invoiceId != null && invoiceId!.isNotEmpty) 'invoiceId': invoiceId,
+        if (invoiceItemId != null && invoiceItemId!.isNotEmpty)
+          'invoiceItemId': invoiceItemId,
+        if (serviceId != null && serviceId!.isNotEmpty) 'serviceId': serviceId,
       };
 }
 
@@ -260,7 +311,7 @@ class RadiologyRequest {
 class RadiologySchedule {
   const RadiologySchedule({
     required this.id,
-    required this.radiologyRequestId,
+    required this.orderItemId,
     required this.scheduledAt,
     this.radiographerId,
     this.machineId,
@@ -271,7 +322,7 @@ class RadiologySchedule {
   });
 
   final String id;
-  final String radiologyRequestId;
+  final String orderItemId;
   final String scheduledAt;
   final String? radiographerId;
   final String? machineId;
@@ -283,8 +334,9 @@ class RadiologySchedule {
   factory RadiologySchedule.fromJson(Map<String, dynamic> json) {
     return RadiologySchedule(
       id: json['id'] as String? ?? '',
-      radiologyRequestId:
-          json['radiologyRequestId'] as String? ?? '',
+      orderItemId:
+          (json['orderItemId'] ?? json['radiologyOrderItemId']) as String? ??
+              '',
       scheduledAt: json['scheduledAt'] as String? ?? '',
       radiographerId: json['radiographerId'] as String?,
       machineId: json['machineId'] as String?,
@@ -313,7 +365,7 @@ class RadiologySchedule {
 class RadiologyProcedure {
   const RadiologyProcedure({
     required this.id,
-    required this.radiologyRequestId,
+    required this.orderItemId,
     required this.performedById,
     required this.startTime,
     this.machineId,
@@ -326,7 +378,7 @@ class RadiologyProcedure {
   });
 
   final String id;
-  final String radiologyRequestId;
+  final String orderItemId;
   final String performedById;
   final String? machineId;
   final String startTime;
@@ -340,8 +392,9 @@ class RadiologyProcedure {
   factory RadiologyProcedure.fromJson(Map<String, dynamic> json) {
     return RadiologyProcedure(
       id: json['id'] as String? ?? '',
-      radiologyRequestId:
-          json['radiologyRequestId'] as String? ?? '',
+      orderItemId:
+          (json['orderItemId'] ?? json['radiologyOrderItemId']) as String? ??
+              '',
       performedById: json['performedById'] as String? ?? '',
       machineId: json['machineId'] as String?,
       startTime: json['startTime'] as String? ?? '',
@@ -374,7 +427,7 @@ class RadiologyProcedure {
 class RadiologyImage {
   const RadiologyImage({
     required this.id,
-    required this.radiologyRequestId,
+    required this.orderItemId,
     required this.fileName,
     required this.filePath,
     this.mimeType,
@@ -385,7 +438,7 @@ class RadiologyImage {
   });
 
   final String id;
-  final String radiologyRequestId;
+  final String orderItemId;
   final String fileName;
   final String filePath;
   final String? mimeType;
@@ -397,8 +450,9 @@ class RadiologyImage {
   factory RadiologyImage.fromJson(Map<String, dynamic> json) {
     return RadiologyImage(
       id: json['id'] as String? ?? '',
-      radiologyRequestId:
-          json['radiologyRequestId'] as String? ?? '',
+      orderItemId:
+          (json['orderItemId'] ?? json['radiologyOrderItemId']) as String? ??
+              '',
       fileName: json['fileName'] as String? ?? '',
       filePath: json['filePath'] as String? ?? '',
       mimeType: json['mimeType'] as String?,
@@ -418,7 +472,7 @@ class RadiologyImage {
 class RadiologyStudyReport {
   const RadiologyStudyReport({
     required this.id,
-    required this.radiologyRequestId,
+    required this.orderItemId,
     required this.signedById,
     required this.signedAt,
     this.findings,
@@ -431,7 +485,7 @@ class RadiologyStudyReport {
   });
 
   final String id;
-  final String radiologyRequestId;
+  final String orderItemId;
   final String? findings;
   final String? impression;
   final String? recommendations;
@@ -445,8 +499,9 @@ class RadiologyStudyReport {
   factory RadiologyStudyReport.fromJson(Map<String, dynamic> json) {
     return RadiologyStudyReport(
       id: json['id'] as String? ?? '',
-      radiologyRequestId:
-          json['radiologyRequestId'] as String? ?? '',
+      orderItemId:
+          (json['orderItemId'] ?? json['radiologyOrderItemId']) as String? ??
+              '',
       findings: json['findings'] as String?,
       impression: json['impression'] as String?,
       recommendations: json['recommendations'] as String?,
@@ -503,24 +558,24 @@ class RadiologyMachine {
 
 // ─── List / dashboard responses ────────────────────────────────────────────
 
-class RadiologyRequestsListResponse {
-  const RadiologyRequestsListResponse({
-    required this.requests,
+class RadiologyOrdersListResponse {
+  const RadiologyOrdersListResponse({
+    required this.orders,
     required this.total,
     required this.skip,
     required this.take,
   });
 
-  final List<RadiologyRequest> requests;
+  final List<RadiologyOrder> orders;
   final int total;
   final int skip;
   final int take;
 
-  factory RadiologyRequestsListResponse.fromJson(Map<String, dynamic> json) {
-    final list = json['requests'] as List<dynamic>? ?? [];
-    return RadiologyRequestsListResponse(
-      requests: list
-          .map((e) => RadiologyRequest.fromJson(e as Map<String, dynamic>))
+  factory RadiologyOrdersListResponse.fromJson(Map<String, dynamic> json) {
+    final list = (json['orders'] ?? json['requests']) as List<dynamic>? ?? [];
+    return RadiologyOrdersListResponse(
+      orders: list
+          .map((e) => RadiologyOrder.fromJson(e as Map<String, dynamic>))
           .toList(),
       total: (json['total'] as num?)?.toInt() ?? 0,
       skip: (json['skip'] as num?)?.toInt() ?? 0,
@@ -559,23 +614,23 @@ class RadiologyPatientHistoryResponse {
   const RadiologyPatientHistoryResponse({
     required this.patientId,
     this.patient,
-    this.requests = const [],
+    this.orders = const [],
   });
 
   final String patientId;
   final RadiologyPatientRef? patient;
-  final List<RadiologyRequest> requests;
+  final List<RadiologyOrder> orders;
 
   factory RadiologyPatientHistoryResponse.fromJson(Map<String, dynamic> json) {
-    final list = json['requests'] as List<dynamic>? ?? [];
+    final list = (json['orders'] ?? json['requests']) as List<dynamic>? ?? [];
     return RadiologyPatientHistoryResponse(
       patientId: json['patientId'] as String? ?? '',
       patient: json['patient'] != null
           ? RadiologyPatientRef.fromJson(
               json['patient'] as Map<String, dynamic>)
           : null,
-      requests: list
-          .map((e) => RadiologyRequest.fromJson(e as Map<String, dynamic>))
+      orders: list
+          .map((e) => RadiologyOrder.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }

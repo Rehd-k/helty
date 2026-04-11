@@ -77,6 +77,7 @@ class ChargeItem {
 /// Maps API invoice line items to UI charge buckets: recurring daily first, then lab by category name.
 ChargeCategory _chargeCategoryForBillingItem(BillingInvoiceItem item) {
   if (item.isRecurringDaily) return ChargeCategory.daily;
+  if (item.isDrugLine) return ChargeCategory.pharmacy;
   final name = (item.serviceCategoryName ?? '').trim().toLowerCase();
   if (name == 'laboratory tests' ||
       name == 'laboratory' ||
@@ -95,7 +96,7 @@ List<ChargeItem> _chargesFromBillingDetail(BillingInvoiceDetail? inv) {
       ChargeItem(
         id: '${inv.id}-${item.id}',
         invoiceLineItemId: item.id,
-        description: item.serviceName ?? item.serviceId,
+        description: item.displayLabel,
         amount: item.unitPrice,
         quantity: item.quantity,
         date: created,
@@ -247,6 +248,60 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return b.difference(a).inDays + 1;
   }
 
+  Widget _chargeLineKindBadge(BillingInvoiceItem line, ThemeData theme) {
+    final cs = theme.colorScheme;
+    if (line.isDrugLine) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Chip(
+          avatar: Icon(
+            Icons.medication_outlined,
+            size: 16,
+            color: cs.onSecondaryContainer,
+          ),
+          label: Text(
+            'Pharmacy',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSecondaryContainer,
+            ),
+          ),
+          backgroundColor: cs.secondaryContainer,
+          side: BorderSide.none,
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+        ),
+      );
+    }
+    final cat = line.serviceCategoryName?.trim();
+    final dept = line.serviceDepartmentName?.trim();
+    final label = (cat != null && cat.isNotEmpty)
+        ? cat
+        : (dept != null && dept.isNotEmpty ? dept : null);
+    if (label == null) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Chip(
+        avatar: Icon(
+          Icons.category_outlined,
+          size: 16,
+          color: cs.onPrimaryContainer,
+        ),
+        label: Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: cs.onPrimaryContainer,
+          ),
+        ),
+        backgroundColor: cs.primaryContainer,
+        side: BorderSide.none,
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+      ),
+    );
+  }
+
   /// Active usage segment for recurring lines (`endAt == null`); earliest [startAt] if several.
   BillingUsageSegment? _activeUsageSegment(BillingInvoiceItem item) {
     final withStart = item.usageSegments
@@ -309,13 +364,16 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   }
 
   ServiceModel _billingItemToServiceModel(BillingInvoiceItem item) {
+    final label = item.displayLabel;
     return ServiceModel(
       id: item.id,
-      serviceId: item.serviceId,
-      name: item.serviceName ?? item.serviceId,
+      serviceId: item.serviceId.isNotEmpty ? item.serviceId : (item.drugId ?? item.id),
+      name: label,
       cost: item.unitPrice,
       qty: item.quantity,
-      categoryName: item.serviceCategoryName,
+      categoryName: item.isDrugLine ? 'Pharmacy' : item.serviceCategoryName,
+      departmentName: item.serviceDepartmentName,
+      drugId: item.drugId,
     );
   }
 
@@ -1386,6 +1444,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  if (line != null) ...[
+                                    _chargeLineKindBadge(line, theme),
+                                    const SizedBox(height: 4),
+                                  ],
                                   if (line != null && line.isRecurringDaily)
                                     _recurringDailySubtitle(line, theme)
                                   else
@@ -1393,16 +1455,23 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                       children: [
                                         Text(
                                           _formatDate(item.date),
-                                          style: const TextStyle(fontSize: 12),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
                                         ),
                                         if (item.quantity > 1) ...[
                                           const SizedBox(width: 8),
                                           Text(
                                             'Qty: ${item.quantity}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.blue,
-                                            ),
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .primary,
+                                                ),
                                           ),
                                         ],
                                       ],
@@ -1410,9 +1479,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                   const SizedBox(height: 2),
                                   Text(
                                     'Paid ${item.amountPaid.toFinancial(isMoney: true)} / ${item.displayLineTotal.toFinancial(isMoney: true)}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: theme.colorScheme.onSurfaceVariant,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -1432,7 +1501,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                           fontWeight: FontWeight.w600,
                                           fontSize: 14,
                                           color: item.isLineFullyPaid
-                                              ? Colors.green.shade800
+                                              ? theme.colorScheme.tertiary
                                               : null,
                                         ),
                                       ),
@@ -1450,9 +1519,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                       if (item.quantity > 1)
                                         Text(
                                           '${item.amount.toFinancial(isMoney: true)} / unit',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 10,
-                                            color: Colors.grey,
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                           ),
                                         ),
                                     ],
@@ -1750,7 +1821,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     } on AdmissionDischargeBlockedException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
-        context,
+        this.context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
       final invId = _billingDetail?.id ?? widget.invoiceId;
       if (invId.isNotEmpty) {
@@ -2017,6 +2088,7 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
     if (result == null || !mounted) return;
     final serviceUuid = catalogServiceUuid(service);
     if (serviceUuid.isEmpty) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Service has no valid id — cannot add to invoice'),
@@ -2037,6 +2109,7 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
         ),
       );
       if (mounted) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Added ${service.name} x${result.qty} to bill'),
@@ -2046,6 +2119,7 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
       }
     } catch (e) {
       if (mounted) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to add: $e'),

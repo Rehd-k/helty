@@ -39,20 +39,12 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
       final api = ref.read(labApiServiceProvider);
       final now = DateTime.now();
       final todayFrom = DateTime(now.year, now.month, now.day, 0, 0, 0);
-      final todayTo = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        23,
-        59,
-        59,
-        999,
-      );
+      final todayTo = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       final response = await api.getOrders(
         fromDate: todayFrom,
         toDate: todayTo,
         skip: 0,
-        take: 200,
+        take: 100,
       );
       final Map<LabOrderStatus, int> counts = {
         for (final s in LabOrderStatus.values) s: 0,
@@ -87,7 +79,8 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final staff = ref.watch(currentStaffProvider);
-    final isLabManager = staff?.role.toLowerCase() == 'admin' ||
+    final isLabManager =
+        staff?.role.toLowerCase() == 'admin' ||
         staff?.accountType?.name.toLowerCase() == 'laboratory' ||
         staff?.accountType?.name.toLowerCase() == 'lab';
 
@@ -135,8 +128,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.error_outline_rounded,
-                  color: theme.colorScheme.error),
+              Icon(Icons.error_outline_rounded, color: theme.colorScheme.error),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -146,10 +138,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: _loadSummary,
-                child: const Text('Retry'),
-              ),
+              TextButton(onPressed: _loadSummary, child: const Text('Retry')),
             ],
           ),
         ),
@@ -193,10 +182,8 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
               scrollDirection: Axis.horizontal,
               itemCount: cards.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) => SizedBox(
-                width: 200,
-                child: cards[index],
-              ),
+              itemBuilder: (context, index) =>
+                  SizedBox(width: 200, child: cards[index]),
             ),
           );
         }
@@ -217,11 +204,15 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
   }
 
   Widget _buildAppBar(
-      BuildContext context, ThemeData theme, bool isLabManager) {
+    BuildContext context,
+    ThemeData theme,
+    bool isLabManager,
+  ) {
     return SliverAppBar(
       expandedHeight: 140,
       floating: true,
       pinned: true,
+      automaticallyImplyLeading: false,
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
           'Laboratory',
@@ -269,7 +260,10 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
   }
 
   Widget _buildQuickActions(
-      BuildContext context, ThemeData theme, bool isLabManager) {
+    BuildContext context,
+    ThemeData theme,
+    bool isLabManager,
+  ) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -286,7 +280,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
               child: _ActionChip(
                 icon: Icons.add_circle_outline_rounded,
                 label: 'New order',
-                onTap: () => context.router.push(const LabCreateOrderRoute()),
+                onTap: () => {},
               ),
             ),
             const SizedBox(width: 16),
@@ -324,11 +318,13 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
                   selected: _filterStatus == null,
                   onTap: () => setState(() => _filterStatus = null),
                 ),
-                ...LabOrderStatus.values.map((s) => _StatusChip(
-                      label: _statusLabel(s),
-                      selected: _filterStatus == s,
-                      onTap: () => setState(() => _filterStatus = s),
-                    )),
+                ...LabOrderStatus.values.map(
+                  (s) => _StatusChip(
+                    label: _statusLabel(s),
+                    selected: _filterStatus == s,
+                    onTap: () => setState(() => _filterStatus = s),
+                  ),
+                ),
               ],
             ),
           ],
@@ -395,11 +391,7 @@ class _SummaryCard extends StatelessWidget {
                 color: accent.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                icon,
-                color: accent,
-                size: 26,
-              ),
+              child: Icon(icon, color: accent, size: 26),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -501,9 +493,7 @@ class _StatusChip extends StatelessWidget {
             ? theme.colorScheme.primary
             : theme.colorScheme.outlineVariant,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 }
@@ -562,8 +552,11 @@ class _OrdersList extends ConsumerWidget {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  Icon(Icons.error_outline_rounded,
-                      size: 48, color: Theme.of(context).colorScheme.error),
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     snapshot.error.toString(),
@@ -583,7 +576,8 @@ class _OrdersList extends ConsumerWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant),
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
             ),
             child: const Padding(
               padding: EdgeInsets.all(48),
@@ -678,7 +672,10 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),

@@ -95,7 +95,10 @@ class PatientService {
   }
 
   Future<Patient> updatePatient(Patient p, String? patientId) async {
-    final resp = await _dio.patch('/patients/$patientId', data: p);
+    final resp = await _dio.patch(
+      '/patients/$patientId',
+      data: p.toJson(),
+    );
     return Patient.fromJson(resp.data as Map<String, dynamic>);
   }
 

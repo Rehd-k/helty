@@ -14,39 +14,64 @@ class RadiologyService {
 
   static const String _base = '/radiology';
 
+  String parseBackendError(dynamic data, String fallback) {
+    if (data == null) return fallback;
+    if (data is String && data.trim().isNotEmpty) return data;
+    if (data is! Map) return fallback;
+
+    final message = data['message']?.toString();
+    final errors = data['errors'];
+    if (errors is Map) {
+      final flat = <String>[];
+      errors.forEach((key, value) {
+        if (value is List && value.isNotEmpty) {
+          flat.add('$key: ${value.join(', ')}');
+        } else if (value != null) {
+          flat.add('$key: $value');
+        }
+      });
+      if (flat.isNotEmpty) return flat.join('\n');
+    }
+    if (errors is List && errors.isNotEmpty) {
+      return errors.join('\n');
+    }
+    if (message != null && message.trim().isNotEmpty) return message;
+    return fallback;
+  }
+
   Never _handleError(DioException e) {
     if (e.error is AppException) {
       throw e.error as AppException;
     }
-    final message = e.response?.data is Map
-        ? (e.response!.data['message'] ?? e.message)?.toString()
-        : e.message;
+    final message = parseBackendError(
+      e.response?.data,
+      e.message ?? 'Radiology request failed.',
+    );
     throw UnknownException(
-      message?.toString().isNotEmpty == true
-          ? message!
-          : 'Radiology request failed.',
+      message,
     );
   }
 
-  // ─── Requests ───────────────────────────────────────────────────────────
+  // ─── Orders ─────────────────────────────────────────────────────────────
 
-  Future<RadiologyRequest> createRequest(Map<String, dynamic> body) async {
+  Future<RadiologyOrder> createOrder(Map<String, dynamic> body) async {
     try {
       final resp = await _dio.post<Map<String, dynamic>>(
-        '$_base/requests',
+        '$_base/orders',
         data: body,
       );
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
-      return RadiologyRequest.fromJson(data);
+      return RadiologyOrder.fromJson(data);
     } on DioException catch (e) {
       _handleError(e);
     }
   }
 
-  Future<RadiologyRequestsListResponse> listRequests({
-    RadiologyRequestStatus? status,
+  Future<RadiologyOrdersListResponse> listOrders({
+    RadiologyOrderStatus? status,
     String? patientId,
+    String? encounterId,
     String? fromDate,
     String? toDate,
     RadiologyPriority? priority,
@@ -55,10 +80,12 @@ class RadiologyService {
   }) async {
     try {
       final resp = await _dio.get<Map<String, dynamic>>(
-        '$_base/requests',
+        '$_base/orders',
         queryParameters: {
           if (status != null) 'status': status.apiValue,
           if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
+          if (encounterId != null && encounterId.isNotEmpty)
+            'encounterId': encounterId,
           if (fromDate != null) 'fromDate': fromDate,
           if (toDate != null) 'toDate': toDate,
           if (priority != null) 'priority': priority.apiValue,
@@ -68,21 +95,21 @@ class RadiologyService {
       );
       final data = resp.data;
       if (data == null) {
-        return const RadiologyRequestsListResponse(
-          requests: [],
+        return const RadiologyOrdersListResponse(
+          orders: [],
           total: 0,
           skip: 0,
           take: 20,
         );
       }
-      return RadiologyRequestsListResponse.fromJson(data);
+      return RadiologyOrdersListResponse.fromJson(data);
     } on DioException catch (e) {
       _handleError(e);
     }
   }
 
-  Future<RadiologyRequestsListResponse> getWorklist({
-    RadiologyRequestStatus? status,
+  Future<RadiologyOrdersListResponse> getWorklist({
+    RadiologyOrderStatus? status,
     String? patientId,
     String? fromDate,
     String? toDate,
@@ -105,40 +132,40 @@ class RadiologyService {
       );
       final data = resp.data;
       if (data == null) {
-        return const RadiologyRequestsListResponse(
-          requests: [],
+        return const RadiologyOrdersListResponse(
+          orders: [],
           total: 0,
           skip: 0,
           take: 20,
         );
       }
-      return RadiologyRequestsListResponse.fromJson(data);
+      return RadiologyOrdersListResponse.fromJson(data);
     } on DioException catch (e) {
       _handleError(e);
     }
   }
 
-  Future<RadiologyRequest> getRequest(String id) async {
+  Future<RadiologyOrder> getOrder(String id) async {
     try {
-      final resp = await _dio.get<Map<String, dynamic>>('$_base/requests/$id');
+      final resp = await _dio.get<Map<String, dynamic>>('$_base/orders/$id');
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
-      return RadiologyRequest.fromJson(data);
+      return RadiologyOrder.fromJson(data);
     } on DioException catch (e) {
       _handleError(e);
     }
   }
 
-  Future<RadiologyRequest> updateRequest(
+  Future<RadiologyOrder> updateOrder(
       String id, Map<String, dynamic> body) async {
     try {
       final resp = await _dio.patch<Map<String, dynamic>>(
-        '$_base/requests/$id',
+        '$_base/orders/$id',
         data: body,
       );
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
-      return RadiologyRequest.fromJson(data);
+      return RadiologyOrder.fromJson(data);
     } on DioException catch (e) {
       _handleError(e);
     }
@@ -147,12 +174,12 @@ class RadiologyService {
   // ─── Schedule ───────────────────────────────────────────────────────────
 
   Future<RadiologySchedule> createSchedule(
-    String requestId,
+    String orderItemId,
     Map<String, dynamic> body,
   ) async {
     try {
       final resp = await _dio.post<Map<String, dynamic>>(
-        '$_base/requests/$requestId/schedule',
+        '$_base/order-items/$orderItemId/schedule',
         data: body,
       );
       final data = resp.data;
@@ -164,12 +191,12 @@ class RadiologyService {
   }
 
   Future<RadiologySchedule> updateSchedule(
-    String requestId,
+    String orderItemId,
     Map<String, dynamic> body,
   ) async {
     try {
       final resp = await _dio.patch<Map<String, dynamic>>(
-        '$_base/requests/$requestId/schedule',
+        '$_base/order-items/$orderItemId/schedule',
         data: body,
       );
       final data = resp.data;
@@ -180,10 +207,10 @@ class RadiologyService {
     }
   }
 
-  Future<RadiologySchedule?> getSchedule(String requestId) async {
+  Future<RadiologySchedule?> getSchedule(String orderItemId) async {
     try {
       final resp = await _dio.get<Map<String, dynamic>>(
-        '$_base/requests/$requestId/schedule',
+        '$_base/order-items/$orderItemId/schedule',
       );
       final data = resp.data;
       if (data == null) return null;
@@ -197,12 +224,12 @@ class RadiologyService {
   // ─── Procedure ──────────────────────────────────────────────────────────
 
   Future<RadiologyProcedure> createProcedure(
-    String requestId,
+    String orderItemId,
     Map<String, dynamic> body,
   ) async {
     try {
       final resp = await _dio.post<Map<String, dynamic>>(
-        '$_base/requests/$requestId/procedure',
+        '$_base/order-items/$orderItemId/procedure',
         data: body,
       );
       final data = resp.data;
@@ -214,12 +241,12 @@ class RadiologyService {
   }
 
   Future<RadiologyProcedure> updateProcedure(
-    String requestId,
+    String orderItemId,
     Map<String, dynamic> body,
   ) async {
     try {
       final resp = await _dio.patch<Map<String, dynamic>>(
-        '$_base/requests/$requestId/procedure',
+        '$_base/order-items/$orderItemId/procedure',
         data: body,
       );
       final data = resp.data;
@@ -230,10 +257,10 @@ class RadiologyService {
     }
   }
 
-  Future<RadiologyProcedure?> getProcedure(String requestId) async {
+  Future<RadiologyProcedure?> getProcedure(String orderItemId) async {
     try {
       final resp = await _dio.get<Map<String, dynamic>>(
-        '$_base/requests/$requestId/procedure',
+        '$_base/order-items/$orderItemId/procedure',
       );
       final data = resp.data;
       if (data == null) return null;
@@ -246,7 +273,7 @@ class RadiologyService {
 
   // ─── Images ──────────────────────────────────────────────────────────────
 
-  Future<RadiologyImage> uploadImage(String requestId, File file) async {
+  Future<RadiologyImage> uploadImage(String orderItemId, File file) async {
     try {
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(
@@ -255,7 +282,7 @@ class RadiologyService {
         ),
       });
       final resp = await _dio.post<Map<String, dynamic>>(
-        '$_base/requests/$requestId/images',
+        '$_base/order-items/$orderItemId/images',
         data: formData,
         options: Options(
           contentType: 'multipart/form-data',
@@ -271,10 +298,10 @@ class RadiologyService {
     }
   }
 
-  Future<List<RadiologyImage>> listImages(String requestId) async {
+  Future<List<RadiologyImage>> listImages(String orderItemId) async {
     try {
       final resp = await _dio.get<List<dynamic>>(
-        '$_base/requests/$requestId/images',
+        '$_base/order-items/$orderItemId/images',
       );
       final data = resp.data;
       if (data == null) return [];
@@ -318,12 +345,12 @@ class RadiologyService {
   // ─── Report ─────────────────────────────────────────────────────────────
 
   Future<RadiologyStudyReport> createReport(
-    String requestId,
+    String orderItemId,
     Map<String, dynamic> body,
   ) async {
     try {
       final resp = await _dio.post<Map<String, dynamic>>(
-        '$_base/requests/$requestId/report',
+        '$_base/order-items/$orderItemId/report',
         data: body,
       );
       final data = resp.data;
@@ -335,12 +362,12 @@ class RadiologyService {
   }
 
   Future<RadiologyStudyReport> updateReport(
-    String requestId,
+    String orderItemId,
     Map<String, dynamic> body,
   ) async {
     try {
       final resp = await _dio.patch<Map<String, dynamic>>(
-        '$_base/requests/$requestId/report',
+        '$_base/order-items/$orderItemId/report',
         data: body,
       );
       final data = resp.data;
@@ -351,10 +378,10 @@ class RadiologyService {
     }
   }
 
-  Future<RadiologyStudyReport?> getReport(String requestId) async {
+  Future<RadiologyStudyReport?> getReport(String orderItemId) async {
     try {
       final resp = await _dio.get<Map<String, dynamic>>(
-        '$_base/requests/$requestId/report',
+        '$_base/order-items/$orderItemId/report',
       );
       final data = resp.data;
       if (data == null) return null;

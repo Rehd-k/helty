@@ -198,7 +198,7 @@ class _InpatientProceduresScreenState
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(content: Text('Could not add procedure charge: $e')),
       );
     }

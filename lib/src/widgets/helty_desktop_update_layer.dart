@@ -33,11 +33,10 @@ class _HeltyDesktopUpdateLayerState extends State<HeltyDesktopUpdateLayer> {
     if (Platform.isWindows) {
       PackageInfo.fromPlatform().then((p) {
         if (mounted) {
-          final build = p.buildNumber.trim();
-          final currentVersion = build.isNotEmpty
-              ? '${p.version}+$build'
-              : p.version;
-          setState(() => _version = currentVersion);
+          // `updat` expects semver core (major.minor.patch). Flutter desktop
+          // package versions often include "+build", which can trigger parse
+          // errors and emit a generic update failure even when the API responds.
+          setState(() => _version = p.version.trim());
         }
       });
     }

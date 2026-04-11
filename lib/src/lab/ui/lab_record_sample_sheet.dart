@@ -113,7 +113,7 @@ class _LabRecordSampleSheetState extends ConsumerState<LabRecordSampleSheet> {
                       firstDate: DateTime(2000),
                       lastDate: DateTime.now().add(const Duration(days: 1)),
                     );
-                    if (!mounted || time == null) return;
+                    if (!context.mounted || time == null) return;
                     final t = await showTimePicker(
                       context: context,
                       initialTime: TimeOfDay.fromDateTime(_collectionTime),

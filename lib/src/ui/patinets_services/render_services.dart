@@ -7,8 +7,10 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
+import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
+import 'package:helty/src/paitients/patient_service.dart';
 
 import '../../billings/pay.bill.dart';
 import '../../enlist_services/selected.user.dart';
@@ -19,6 +21,9 @@ import '../../services/department_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
 import '../../services/service_service.dart';
+import '../../services/ward_service.dart';
+import '../../widgets/receipt_escpos_service.dart';
+import '../../widgets/receipt_printer_picker_sheet.dart';
 
 @RoutePage()
 class RenderServiceScreen extends ConsumerStatefulWidget {
@@ -44,7 +49,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   List<ServiceCategory> _categories = [];
   List<ServiceModel> _services = [];
   bool _loading = false;
-
+ 
   // ── filter & pagination state ─────────────────────────────────────────────
   String _searchQuery = '';
   String? _selectedCategoryId; // null = all categories
@@ -128,6 +133,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
   bool _payAtPosBusy = false;
+  bool _depositBusy = false;
 
   /// Creates an invoice with cart lines, then opens [PayBill] with [invoiceId] for invoice-led payment.
   Future<void> _openPayAtPosWithInvoice(
@@ -301,8 +307,41 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
+    final accountType = auth.staff?.accountType?.name.toLowerCase() ?? '';
+    final role = auth.staff?.role.toLowerCase() ?? '';
+    final isBillingUser =
+        accountType == 'billing' ||
+        accountType == 'bills' ||
+        role == 'billing_head' ||
+        role == 'billing_staff' ||
+        role == 'billing';
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        actions: [
+          if (selectedPatient != null) ...[
+            IconButton(
+              tooltip: 'Take deposit',
+              onPressed: _depositBusy
+                  ? null
+                  : () => _openDepositDialog(
+                        selectedPatient: selectedPatient,
+                        auth: auth,
+                        printReceiptForBilling: isBillingUser,
+                      ),
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+            ),
+            IconButton(
+              tooltip: 'Change patient status',
+              onPressed: () => _openStatusDialog(
+                selectedPatient,
+                requireWardWhenAdmitted: isBillingUser,
+              ),
+              icon: const Icon(Icons.manage_accounts_outlined),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Row(
@@ -762,7 +801,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (hasPatient)
-            SelectedPatientCard()
+            const SelectedPatientCard()
           else
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -1182,6 +1221,129 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     }
   }
 
+  Future<void> _openDepositDialog({
+    required Patient selectedPatient,
+    required AuthState auth,
+    required bool printReceiptForBilling,
+  }) async {
+    final amountController = TextEditingController();
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: const Text('Take Deposit'),
+            content: TextField(
+              controller: amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Deposit amount',
+                hintText: 'Enter amount',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: _depositBusy
+                    ? null
+                    : () async {
+                        final amount = double.tryParse(
+                          amountController.text.trim(),
+                        );
+                        if (amount == null || amount <= 0) {
+                          _snack('Enter a valid deposit amount.');
+                          return;
+                        }
+                        final patientUuid = _resolvePatientUuidForInvoice(
+                          selectedPatient: selectedPatient,
+                        );
+                        if (patientUuid == null) {
+                          _snack(
+                            'Cannot deposit: patient needs a server id (UUID).',
+                          );
+                          return;
+                        }
+                        setState(() => _depositBusy = true);
+                        try {
+                          await InvoiceService().depositToWallet(
+                            patientId: patientUuid,
+                            payload: WalletDepositPayload(
+                              amount: amount,
+                              reference: 'deposit',
+                              staffId: auth.staff?.id,
+                            ),
+                          );
+                          if (!mounted) return;
+                          Navigator.of(ctx).pop();
+                          _snack('Deposit recorded successfully.');
+                          if (printReceiptForBilling && mounted) {
+                            final data = ReceiptEscposService.fromPayBillSnapshot(
+                              patientName:
+                                  '${selectedPatient.firstName} ${selectedPatient.surname}'
+                                      .trim(),
+                              patientId: selectedPatient.patientId,
+                              cashierFirst: auth.staff?.firstName ?? '',
+                              cashierLast: auth.staff?.lastName ?? '',
+                              itemSnapshots: [
+                                {
+                                  'description': 'Wallet deposit',
+                                  'quantity': 1,
+                                  'total': amount.toStringAsFixed(2),
+                                },
+                              ],
+                              totalAmount: amount,
+                              discountAmount: 0,
+                              amountPaid: amount,
+                            );
+                            await showReceiptPrinterPickerSheet(
+                              context,
+                              data: data,
+                            );
+                          }
+                        } catch (e) {
+                          _snack('Failed to record deposit: $e');
+                        } finally {
+                          if (mounted) setState(() => _depositBusy = false);
+                        }
+                      },
+                child: _depositBusy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Save Deposit'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      amountController.dispose();
+    }
+  }
+
+  Future<void> _openStatusDialog(
+    Patient selectedPatient, {
+    required bool requireWardWhenAdmitted,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _PatientStatusDialog(
+        patient: selectedPatient,
+        requireWardWhenAdmitted: requireWardWhenAdmitted,
+        patientService: ref.read(patientServiceProvider),
+        onSuccess: (updated) {
+          ref.read(patientProvider.notifier).selectPatient(updated);
+          _snack('Patient status updated to ${updated.status}.');
+        },
+      ),
+    );
+  }
+
   Widget _headerCell(String title, {required int flex}) {
     return Expanded(
       flex: flex,
@@ -1238,6 +1400,299 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+}
+
+class _PatientStatusDialog extends StatefulWidget {
+  const _PatientStatusDialog({
+    required this.patient,
+    required this.requireWardWhenAdmitted,
+    required this.patientService,
+    required this.onSuccess,
+  });
+
+  final Patient patient;
+  final bool requireWardWhenAdmitted;
+  final PatientService patientService;
+  final void Function(Patient updated) onSuccess;
+
+  @override
+  State<_PatientStatusDialog> createState() => _PatientStatusDialogState();
+}
+
+class _PatientStatusDialogState extends State<_PatientStatusDialog> {
+  static const List<String> _statuses = [
+    'ADMITED',
+    'DECEASED',
+    'OUTPATIENT',
+  ];
+
+  final WardService _wardService = WardService();
+
+  late String _selected;
+  List<Ward> _wards = const [];
+  Ward? _selectedWard;
+  List<Bed> _beds = const [];
+  Bed? _selectedBed;
+  bool _loadingWards = false;
+  bool _loadingBeds = false;
+  String? _wardLoadError;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.patient.status ?? 'OUTPATIENT';
+    if (!_statuses.contains(_selected)) {
+      _selected = patientStatusIsAdmitted(widget.patient.status)
+          ? 'ADMITED'
+          : 'OUTPATIENT';
+    }
+    if (widget.requireWardWhenAdmitted && _selected == 'ADMITED') {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadWards());
+    }
+  }
+
+  Future<void> _onStatusRadioChanged(String? value) async {
+    if (value == null) return;
+    setState(() {
+      _selected = value;
+      if (value != 'ADMITED') {
+        _wards = const [];
+        _selectedWard = null;
+        _beds = const [];
+        _selectedBed = null;
+        _wardLoadError = null;
+      }
+    });
+    if (value == 'ADMITED' && widget.requireWardWhenAdmitted) {
+      await _loadWards();
+    }
+  }
+
+  Future<void> _loadWards() async {
+    setState(() {
+      _loadingWards = true;
+      _wardLoadError = null;
+    });
+    try {
+      final list = await _wardService.fetchWards();
+      if (!mounted) return;
+      setState(() {
+        _wards = list;
+        _loadingWards = false;
+        _selectedWard = list.isNotEmpty ? list.first : null;
+        _beds = const [];
+        _selectedBed = null;
+      });
+      if (_selectedWard != null) {
+        await _loadBedsForWard(_selectedWard!.id);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingWards = false;
+        _wardLoadError = e.toString();
+      });
+    }
+  }
+
+  Future<void> _loadBedsForWard(String wardId) async {
+    setState(() {
+      _loadingBeds = true;
+      _selectedBed = null;
+      _beds = const [];
+    });
+    try {
+      final beds = await _wardService.fetchBedsForWard(wardId);
+      if (!mounted) return;
+      final free = beds
+          .where((b) => b.status != BedStatus.occupied)
+          .toList(growable: false);
+      setState(() {
+        _beds = free;
+        _selectedBed = free.isNotEmpty ? free.first : null;
+        _loadingBeds = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingBeds = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load beds: $e')),
+      );
+    }
+  }
+
+  Future<void> _submit() async {
+    if (widget.patient.id == null || widget.patient.id!.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot update status: missing patient id.')),
+      );
+      return;
+    }
+    if (_selected == 'ADMITED' && widget.requireWardWhenAdmitted) {
+      if (_selectedWard == null || _selectedBed == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Select a ward and an available bed before admitting.'),
+          ),
+        );
+        return;
+      }
+    }
+    setState(() => _submitting = true);
+    try {
+      final Patient draft;
+      if (_selected == 'ADMITED' && widget.requireWardWhenAdmitted) {
+        draft = widget.patient.withStatusWardBed(
+          'ADMITED',
+          ward: _selectedWard!.name,
+          wardId: _selectedWard!.id,
+          bedNumber: _selectedBed!.bedNumber,
+          bedId: _selectedBed!.id,
+          admissionDate: DateTime.now(),
+        );
+      } else {
+        draft = widget.patient.withStatus(_selected);
+      }
+      final updated = await widget.patientService.updatePatient(
+        draft,
+        widget.patient.id,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.onSuccess(updated);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update status: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showWardBed =
+        widget.requireWardWhenAdmitted && _selected == 'ADMITED';
+
+    return AlertDialog(
+      title: const Text('Change Patient Status'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ..._statuses.map(
+                (status) => RadioListTile<String>(
+                  value: status,
+                  groupValue: _selected,
+                  title: Text(status),
+                  onChanged: _submitting ? null : _onStatusRadioChanged,
+                ),
+              ),
+              if (showWardBed) ...[
+                const Divider(height: 24),
+                Text(
+                  'Ward & bed (billing admission)',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                if (_loadingWards)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_wardLoadError != null)
+                  Text(
+                    _wardLoadError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 13,
+                    ),
+                  )
+                else ...[
+                  DropdownButtonFormField<Ward>(
+                    value: _selectedWard,
+                    decoration: const InputDecoration(
+                      labelText: 'Ward',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _wards
+                        .map(
+                          (w) => DropdownMenuItem(
+                            value: w,
+                            child: Text(w.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: _submitting || _wards.isEmpty
+                        ? null
+                        : (w) {
+                            if (w == null) return;
+                            setState(() => _selectedWard = w);
+                            _loadBedsForWard(w.id);
+                          },
+                  ),
+                  const SizedBox(height: 12),
+                  if (_loadingBeds)
+                    const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<Bed>(
+                      value: _selectedBed,
+                      decoration: const InputDecoration(
+                        labelText: 'Bed',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _beds
+                          .map(
+                            (b) => DropdownMenuItem(
+                              value: b,
+                              child: Text(b.bedNumber),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _submitting || _beds.isEmpty
+                          ? null
+                          : (b) => setState(() => _selectedBed = b),
+                    ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submitting ? null : _submit,
+          child: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Update'),
+        ),
+      ],
     );
   }
 }

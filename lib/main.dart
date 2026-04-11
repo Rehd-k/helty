@@ -9,6 +9,7 @@ import 'src/helper/theme.dart';
 import 'src/providers/auth_provider.dart';
 import 'src/providers/theme_mode_provider.dart';
 import 'src/services/navigation.service.dart';
+import 'src/widgets/clock_sync_gate.dart';
 import 'src/widgets/helty_desktop_update_layer.dart';
 
 Future<void> main() async {
@@ -23,7 +24,7 @@ Future<void> main() async {
           (ref) => ThemeModeNotifier(initialThemeMode),
         ),
       ],
-      child: const MyApp(),
+      child: const ClockSyncGate(child: MyApp()),
     ),
   );
 

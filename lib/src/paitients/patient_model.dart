@@ -128,6 +128,16 @@ class Patient {
   final String? updatedBy;
   final String? ward;
 
+  /// FK to Ward on the server (Prisma: `wardId` → `ward` relation).
+  final String? wardId;
+
+  final String? bedNumber;
+
+  /// FK to Bed on the server when the API exposes it (Prisma: `bedId` → `bed`).
+  final String? bedId;
+
+  final DateTime? admissionDate;
+
   /// Inpatient / visit status from the API (e.g. `ADMITED`).
   final String? status;
 
@@ -184,11 +194,43 @@ class Patient {
     this.fromUnregisteredFlow = false,
     this.unregisteredTransactionId,
     this.ward,
+    this.wardId,
+    this.bedNumber,
+    this.bedId,
+    this.admissionDate,
     this.allergies = const [],
     this.prescriptionHistory = const [],
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
+    String? firstNonEmptyString(List<dynamic> candidates) {
+      for (final value in candidates) {
+        final text = value?.toString().trim();
+        if (text != null && text.isNotEmpty) return text;
+      }
+      return null;
+    }
+
+    DateTime? firstParsableDate(List<dynamic> candidates) {
+      for (final value in candidates) {
+        final text = value?.toString().trim();
+        if (text == null || text.isEmpty) continue;
+        final parsed = DateTime.tryParse(text);
+        if (parsed != null) return parsed;
+      }
+      return null;
+    }
+
+    final admission =
+        json['admission'] is Map
+            ? Map<String, dynamic>.from(json['admission'] as Map)
+            : null;
+
+    final wardMap =
+        json['ward'] is Map ? Map<String, dynamic>.from(json['ward'] as Map) : null;
+    final bedMap =
+        json['bed'] is Map ? Map<String, dynamic>.from(json['bed'] as Map) : null;
+
     // use nullable casts to avoid runtime type errors when keys are missing
     final String? dobStr = json['dob'] as String?;
     return Patient(
@@ -236,7 +278,43 @@ class Patient {
       lockNames: false,
       fromUnregisteredFlow: false,
       unregisteredTransactionId: null,
-      ward: json['ward'] != null ? json['ward'] as String : 'OPD',
+      ward:
+          firstNonEmptyString([
+            json['ward'] is String ? json['ward'] : null,
+            wardMap?['name'],
+            admission?['ward'],
+            admission?['wardName'],
+          ]) ??
+          'OPD',
+      wardId: () {
+        final top = json['wardId']?.toString().trim();
+        if (top != null && top.isNotEmpty) return top;
+        final nested = wardMap?['id']?.toString().trim();
+        if (nested != null && nested.isNotEmpty) return nested;
+        return admission?['wardId']?.toString().trim();
+      }(),
+      bedNumber: firstNonEmptyString([
+        json['bedNumber'],
+        json['bedNo'],
+        json['bed'] is String ? json['bed'] : null,
+        bedMap?['bedNumber'],
+        admission?['bedNumber'],
+        admission?['bedNo'],
+        admission?['bedPreference'],
+      ]),
+      bedId: () {
+        final top = json['bedId']?.toString().trim();
+        if (top != null && top.isNotEmpty) return top;
+        final nested = bedMap?['id']?.toString().trim();
+        if (nested != null && nested.isNotEmpty) return nested;
+        return admission?['bedId']?.toString().trim();
+      }(),
+      admissionDate: firstParsableDate([
+        json['admissionDate'],
+        json['admittedAt'],
+        admission?['admissionDate'],
+        admission?['createdAt'],
+      ]),
       allergies: _parsePatientAllergies(json['allergies']),
       prescriptionHistory: _parsePatientPrescriptionHistory(json),
     );
@@ -277,7 +355,67 @@ class Patient {
       'updatedBy': updatedBy,
       'fingerprintData': fingerprintData,
       if (status != null) 'status': status,
+      if (wardId != null && wardId!.trim().isNotEmpty) 'wardId': wardId,
+      if (bedId != null && bedId!.trim().isNotEmpty) 'bedId': bedId,
+      if (ward != null) 'ward': ward,
+      if (bedNumber != null) 'bedNumber': bedNumber,
+      if (admissionDate != null) 'admissionDate': admissionDate!.toIso8601String(),
     };
+  }
+
+  /// Returns a copy with [status] and optional inpatient location (for PATCH).
+  Patient withStatusWardBed(
+    String newStatus, {
+    String? ward,
+    String? wardId,
+    String? bedNumber,
+    String? bedId,
+    DateTime? admissionDate,
+  }) {
+    return Patient(
+      id: id,
+      patientId: patientId,
+      cardNo: cardNo,
+      title: title,
+      surname: surname,
+      firstName: firstName,
+      otherName: otherName,
+      dob: dob,
+      gender: gender,
+      maritalStatus: maritalStatus,
+      nationality: nationality,
+      stateOfOrigin: stateOfOrigin,
+      lga: lga,
+      town: town,
+      permanentAddress: permanentAddress,
+      religion: religion,
+      email: email,
+      preferredLanguage: preferredLanguage,
+      phoneNumber: phoneNumber,
+      addressOfResidence: addressOfResidence,
+      profession: profession,
+      nextOfKinName: nextOfKinName,
+      nextOfKinPhone: nextOfKinPhone,
+      nextOfKinAddress: nextOfKinAddress,
+      nextOfKinRelationship: nextOfKinRelationship,
+      hmo: hmo,
+      fingerprintData: fingerprintData,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      createdBy: createdBy,
+      updatedBy: updatedBy,
+      status: newStatus,
+      lockNames: lockNames,
+      fromUnregisteredFlow: fromUnregisteredFlow,
+      unregisteredTransactionId: unregisteredTransactionId,
+      ward: ward ?? this.ward,
+      wardId: wardId ?? this.wardId,
+      bedNumber: bedNumber ?? this.bedNumber,
+      bedId: bedId ?? this.bedId,
+      admissionDate: admissionDate ?? this.admissionDate,
+      allergies: allergies,
+      prescriptionHistory: prescriptionHistory,
+    );
   }
 
   /// Returns a copy with [status] set (for PATCH via [PatientService.updatePatient]).
@@ -319,6 +457,10 @@ class Patient {
       fromUnregisteredFlow: fromUnregisteredFlow,
       unregisteredTransactionId: unregisteredTransactionId,
       ward: ward,
+      wardId: wardId,
+      bedNumber: bedNumber,
+      bedId: bedId,
+      admissionDate: admissionDate,
       allergies: allergies,
       prescriptionHistory: prescriptionHistory,
     );

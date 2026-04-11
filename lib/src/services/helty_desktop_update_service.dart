@@ -34,6 +34,9 @@ class HeltyDesktopUpdateService {
   );
 
   static const _fetchTimeout = Duration(seconds: 30);
+  static final _semverCorePattern = RegExp(r'^\d+\.\d+\.\d+$');
+
+  static String _toSemverCore(String raw) => raw.split('+').first.trim();
 
   /// Latest semver from `GET /helty-desktop/update/latest`, or `null` if **404** (no release yet).
   static Future<String?> fetchLatestVersion() async {
@@ -104,11 +107,29 @@ class HeltyDesktopUpdateService {
 
   /// [updat] must not receive a permanently null latest string (would leave UI stuck on "checking").
   static Future<String?> getLatestVersionForUpdat(String currentVersion) async {
-    final v = await fetchLatestVersion();
-    print('v: $v');
-    print('currentVersion: $currentVersion');
-    print('v ?? currentVersion: ${v ?? currentVersion}');
-    return v ?? currentVersion;
+    try {
+      final latest = await fetchLatestVersion();
+      final currentCore = _toSemverCore(currentVersion);
+      if (!_semverCorePattern.hasMatch(currentCore)) {
+        lastVersionCheckMessage =
+            'Installed app version "$currentVersion" is not a supported semantic version. '
+            'Expected format like 1.0.0.';
+        throw Exception(lastVersionCheckMessage);
+      }
+      if (latest == null) return currentCore;
+      final latestCore = _toSemverCore(latest);
+      if (!_semverCorePattern.hasMatch(latestCore)) {
+        lastVersionCheckMessage =
+            'Update server returned an unsupported version "$latest". '
+            'Expected format like 1.0.0 (optional +build is allowed).';
+        throw Exception(lastVersionCheckMessage);
+      }
+      return latestCore;
+    } catch (e) {
+      lastVersionCheckMessage ??=
+          'Unexpected error while preparing version info: $e';
+      throw Exception(lastVersionCheckMessage);
+    }
   }
 
   static Future<String> getBinaryDownloadUrl(String? latestVersion) async {

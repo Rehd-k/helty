@@ -113,6 +113,7 @@ class AppRouter extends RootStackRouter {
             AutoRoute(page: InpatientHandoverRoute.page),
           ],
         ),
+        AutoRoute(page: PharmacyDashboardRoute.page),
         AutoRoute(page: MedicineInventoryRoute.page),
         AutoRoute(page: AddDrugRoute.page),
         AutoRoute(page: AddSupplierRoute.page),

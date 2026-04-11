@@ -11,7 +11,7 @@ class NursesDashboardScreen extends StatefulWidget {
 }
 
 class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
-  String _timeRange = 'Last 7 Days';
+  String _timeRange = 'Today';
 
   // Mock Data for Staff on Duty
   final List<Map<String, dynamic>> _activeStaff = [

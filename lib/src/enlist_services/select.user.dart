@@ -60,6 +60,7 @@ class _SelectUserState extends State<SelectUser> {
         Patient.fromJson(newUser.data as Map<String, dynamic>),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));

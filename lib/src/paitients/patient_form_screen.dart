@@ -125,7 +125,13 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     );
 
     _countries = List.of(cp.CountryService().getAll())
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((a, b) {
+        final aIsNigeria = _equalsIgnoreCase(a.name, _nigeriaName);
+        final bIsNigeria = _equalsIgnoreCase(b.name, _nigeriaName);
+        if (aIsNigeria && !bIsNigeria) return -1;
+        if (!aIsNigeria && bIsNigeria) return 1;
+        return a.name.compareTo(b.name);
+      });
 
     final nigeriaCountry = sac.StatesAndCapitals.getCountries().firstWhere(
       (country) => _equalsIgnoreCase(country.name, _nigeriaName),
@@ -237,8 +243,10 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           );
           _showSuccessModal(updatedPatient.patientId);
         }
+        if (!mounted) return;
         Navigator.of(context).pop();
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -331,7 +339,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     final colors = theme.colorScheme;
     final isEditing = widget.patient != null;
     final isFromUnregistered = widget.patient?.fromUnregisteredFlow ?? false;
-    print('widget.patient: ${widget.patient?.toJson()}');
     return Scaffold(
       backgroundColor: colors.surfaceContainerHighest.withValues(alpha: 0.03),
       appBar: AppBar(

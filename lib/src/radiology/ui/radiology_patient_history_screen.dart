@@ -104,7 +104,7 @@ class _RadiologyPatientHistoryScreenState
             )
           : _loading && _data == null
               ? const Center(child: CircularProgressIndicator())
-              : _data?.requests.isEmpty ?? true
+              : _data?.orders.isEmpty ?? true
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -116,7 +116,7 @@ class _RadiologyPatientHistoryScreenState
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'No radiology requests for this patient.',
+                            'No radiology orders for this patient.',
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -137,21 +137,25 @@ class _RadiologyPatientHistoryScreenState
                       onRefresh: _load,
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: _data!.requests.length,
+                        itemCount: _data!.orders.length,
                         itemBuilder: (context, index) {
-                          final req = _data!.requests[index];
+                          final order = _data!.orders[index];
+                          final firstItem =
+                              order.items.isNotEmpty ? order.items.first : null;
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
                             child: ListTile(
                               title: Text(
-                                '${req.scanType.name.replaceAll('_', ' ')}${req.bodyPart != null && req.bodyPart!.isNotEmpty ? ' · ${req.bodyPart}' : ''}',
+                                firstItem == null
+                                    ? 'Order with no items'
+                                    : '${firstItem.scanType.name.replaceAll('_', ' ')}${firstItem.bodyPart != null && firstItem.bodyPart!.isNotEmpty ? ' · ${firstItem.bodyPart}' : ''}',
                               ),
                               subtitle: Text(
-                                '${req.status.name.replaceAll('_', ' ')} · ${req.createdAt != null ? DateFormatter.formatFromBackend(req.createdAt, DateFormatter.shortDate) : '—'}',
+                                '${order.status.name.replaceAll('_', ' ')} · ${order.createdAt != null ? DateFormatter.formatFromBackend(order.createdAt, DateFormatter.shortDate) : '—'}',
                               ),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () => context.router.push(
-                                RadiologyRequestDetailRoute(requestId: req.id),
+                                RadiologyRequestDetailRoute(requestId: order.id),
                               ),
                             ),
                           );

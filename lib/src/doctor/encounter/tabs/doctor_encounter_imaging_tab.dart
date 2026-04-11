@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
-import 'package:helty/src/models/imaging_order_model.dart';
 import 'package:helty/src/models/service_model.dart';
-import 'package:helty/src/services/imaging_order_service.dart';
+import 'package:helty/src/radiology/models/radiology_models.dart';
+import 'package:helty/src/radiology/services/radiology_service.dart';
 import 'package:helty/src/services/service_category_service.dart';
 import 'package:helty/src/services/service_service.dart';
 
@@ -20,9 +20,9 @@ class DoctorEncounterImagingTab extends StatefulWidget {
 
 class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
   final _serviceService = ServiceService();
-  final _orderService = ImagingOrderService();
+  final _orderService = RadiologyService();
 
-  List<ImagingOrderModel> _orders = [];
+  List<RadiologyOrder> _orders = [];
   bool _loading = true;
   bool _loadScheduled = false;
 
@@ -46,10 +46,10 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     final scope = EncounterScope.of(context);
     if (scope == null) return;
     setState(() => _loading = true);
-    final list = await _orderService.getByEncounter(scope.encounterId);
+    final list = await _orderService.listOrders(encounterId: scope.encounterId);
     if (!mounted) return;
     setState(() {
-      _orders = list;
+      _orders = list.orders;
       _loading = false;
     });
   }
@@ -68,20 +68,22 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     if (result == null || result.selected == null || !mounted) return;
 
     final service = result.selected!;
-    await _orderService.create(
-      encounterId: scope.encounterId,
-      studyName: service.name,
-      patientId: patientId!,
-      staffId: staffId!,
-      // Prefer canonical template service id for invoice linkage.
-      serviceId: service.serviceId.isNotEmpty ? service.serviceId : service.id,
-      area: result.area.isEmpty ? null : result.area,
-      contrast: result.contrast,
-      urgency: result.urgency,
-      notesToRadiologist: result.notesToRadiologist.isEmpty
-          ? null
-          : result.notesToRadiologist,
-    );
+    await _orderService.createOrder({
+      'encounterId': scope.encounterId,
+      'patientId': patientId!,
+      'requestedById': staffId!,
+      'items': [
+        {
+          'scanType': 'OTHER',
+          'priority': result.urgency.toUpperCase() == 'URGENT'
+              ? 'URGENT'
+              : 'ROUTINE',
+          'bodyPart': result.area,
+          'clinicalNotes': result.notesToRadiologist,
+          'serviceId': service.serviceId.isNotEmpty ? service.serviceId : service.id,
+        }
+      ],
+    });
     if (mounted) {
       ScaffoldMessenger.of(
         context,
@@ -92,15 +94,14 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
 
   void _showImagingOrderResults(
     BuildContext context,
-    ImagingOrderModel order,
+    RadiologyOrder order,
     ThemeData theme,
   ) {
-    final hasResultMap = order.resultValues != null && order.resultValues!.isNotEmpty;
-    final hasSummary = (order.resultSummary ?? '').trim().isNotEmpty;
+    final firstItem = order.items.isNotEmpty ? order.items.first : null;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(order.studyName),
+        title: Text('Order ${order.id.substring(0, 8)}'),
         content: SizedBox(
           width: 440,
           child: SingleChildScrollView(
@@ -108,18 +109,16 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ResultRow(label: 'Status', value: order.status),
-                _ResultRow(label: 'Priority', value: order.urgency ?? 'Routine'),
-                if ((order.area ?? '').isNotEmpty)
-                  _ResultRow(label: 'Area', value: order.area!),
+                _ResultRow(label: 'Status', value: order.status.name),
                 _ResultRow(
-                  label: 'Contrast',
-                  value: order.contrast ? 'Yes' : 'No',
+                  label: 'Items',
+                  value: '${order.items.length}',
                 ),
-                if ((order.notesToRadiologist ?? '').isNotEmpty)
+                if (firstItem != null)
                   _ResultRow(
-                    label: 'Notes',
-                    value: order.notesToRadiologist!,
+                    label: 'First item',
+                    value:
+                        '${firstItem.scanType.name} ${firstItem.bodyPart ?? ''}'.trim(),
                   ),
                 const SizedBox(height: 16),
                 Text(
@@ -129,48 +128,10 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (hasSummary)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      order.resultSummary!,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                if (hasResultMap)
-                  ...order.resultValues!.entries.map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 140,
-                            child: Text(
-                              e.key,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              e.value?.toString() ?? '—',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (!hasSummary && !hasResultMap)
-                  Text(
-                    'No results yet.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
+                Text(
+                  'Open radiology detail screen for full item schedule/procedure/images/report.',
+                  style: theme.textTheme.bodyMedium,
+                ),
               ],
             ),
           ),
@@ -233,13 +194,17 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          title: Text(o.studyName),
+                          title: Text(
+                            o.items.isNotEmpty
+                                ? o.items.first.scanType.name
+                                : 'Order with no items',
+                          ),
                           subtitle: Text(
-                            '${o.urgency ?? "Routine"} • ${o.status}',
+                            '${o.items.length} item(s) • ${o.status.name}',
                             style: theme.textTheme.bodySmall,
                           ),
                           trailing: Chip(
-                            label: Text(o.status),
+                            label: Text(o.status.name),
                             backgroundColor: theme.colorScheme.primaryContainer,
                           ),
                           onTap: () => _showImagingOrderResults(context, o, theme),

@@ -20,7 +20,7 @@ class BillingDashboardScreen extends StatefulWidget {
 }
 
 class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
-  String _selectedPeriod = 'This Month';
+  String _selectedPeriod = 'Today';
   final TextEditingController _searchController = TextEditingController();
   final ApiService apiService = ApiService();
   final BillingAnalyticsService _analytics = BillingAnalyticsService();

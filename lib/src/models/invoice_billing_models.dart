@@ -108,6 +108,18 @@ class BillingInvoiceDetail {
   }
 }
 
+/// Matches pharmacy queue / invoice line display rules for nested `drug`.
+String? _billingDrugDisplayName(Map<String, dynamic>? drug) {
+  if (drug == null) return null;
+  final generic = drug['genericName']?.toString().trim() ?? '';
+  final brand = drug['brandName']?.toString().trim() ?? '';
+  if (generic.isNotEmpty && brand.isNotEmpty && generic != brand) {
+    return '$generic ($brand)';
+  }
+  final s = generic.isNotEmpty ? generic : brand;
+  return s.isEmpty ? null : s;
+}
+
 class BillingInvoiceItem {
   BillingInvoiceItem({
     required this.id,
@@ -121,6 +133,10 @@ class BillingInvoiceItem {
     required this.lineAmountDue,
     this.serviceName,
     this.serviceCategoryName,
+    this.serviceDepartmentName,
+    this.drugId,
+    this.drugDisplayName,
+    this.customDescription,
   });
 
   final String id;
@@ -129,6 +145,19 @@ class BillingInvoiceItem {
 
   /// From nested `service.category.name` when present (used for lab vs other grouping).
   final String? serviceCategoryName;
+
+  /// From nested `service.department.name` when present.
+  final String? serviceDepartmentName;
+
+  /// Catalog drug id when this line is a medication (`drugId` or nested `drug.id`).
+  final String? drugId;
+
+  /// Human-readable drug label from nested `drug` (generic / brand).
+  final String? drugDisplayName;
+
+  /// Optional free-text line description from API.
+  final String? customDescription;
+
   final int quantity;
   final double unitPrice;
   final bool isRecurringDaily;
@@ -143,12 +172,39 @@ class BillingInvoiceItem {
   /// Remaining due on this line for `allocate-item-payments` caps.
   final double lineAmountDue;
 
+  /// Invoice line title for UI and payments (custom → drug → service → id).
+  String get displayLabel {
+    final custom = customDescription?.trim();
+    if (custom != null && custom.isNotEmpty) return custom;
+    final drug = drugDisplayName?.trim();
+    if (drug != null && drug.isNotEmpty) return drug;
+    final svc = serviceName?.trim();
+    if (svc != null && svc.isNotEmpty) return svc;
+    final sid = serviceId.trim();
+    if (sid.isNotEmpty) return sid;
+    return 'Line item';
+  }
+
+  bool get isDrugLine {
+    final d = drugId?.trim() ?? '';
+    if (d.isNotEmpty) return true;
+    final name = drugDisplayName?.trim() ?? '';
+    return name.isNotEmpty;
+  }
+
   factory BillingInvoiceItem.fromJson(Map<String, dynamic> json) {
     final service = json['service'];
     final serviceMap = service is Map
         ? Map<String, dynamic>.from(service)
         : null;
+    final drugRaw = json['drug'];
+    final drugMap = drugRaw is Map
+        ? Map<String, dynamic>.from(drugRaw)
+        : null;
     final category = serviceMap?['category'];
+    final department = serviceMap?['department'];
+    final drugDisplay = _billingDrugDisplayName(drugMap);
+    final drugIdResolved = _nullableString(json['drugId'] ?? drugMap?['id']);
     final segmentsRaw = json['usageSegments'];
     final quantity = _asInt(json['quantity'], fallback: 1);
     final unitPrice = _asDouble(json['unitPrice'] ?? json['priceAtTime']);
@@ -168,6 +224,12 @@ class BillingInvoiceItem {
       serviceCategoryName: category is Map
           ? _nullableString(category['name'])
           : null,
+      serviceDepartmentName: department is Map
+          ? _nullableString(department['name'])
+          : null,
+      drugId: drugIdResolved,
+      drugDisplayName: drugDisplay,
+      customDescription: _nullableString(json['customDescription']),
       quantity: quantity,
       unitPrice: unitPrice,
       isRecurringDaily: _asBool(json['isRecurringDaily']),

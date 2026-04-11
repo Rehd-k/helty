@@ -91,7 +91,6 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   int get _totalPages => _total == 0 ? 1 : (_total / _rowsPerPage).ceil();
 
   Future<void> _loadPage({bool reset = false}) async {
-    print("from: $_fromDate, to: $_toDate");
     if (reset) {
       _currentPage = 0;
     }

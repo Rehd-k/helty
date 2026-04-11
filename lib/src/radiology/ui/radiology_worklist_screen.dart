@@ -18,11 +18,11 @@ class RadiologyWorklistScreen extends ConsumerStatefulWidget {
 }
 
 class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScreen> {
-  List<RadiologyRequest> _requests = [];
+  List<RadiologyOrder> _orders = [];
   int _total = 0;
   bool _loading = true;
   String? _error;
-  RadiologyRequestStatus? _filterStatus;
+  RadiologyOrderStatus? _filterStatus;
   static const int _take = 20;
   int _skip = 0;
 
@@ -40,14 +40,14 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
       _error = null;
     });
     try {
-      final res = await _service.getWorklist(
+      final res = await _service.listOrders(
         status: _filterStatus,
         skip: _skip,
         take: _take,
       );
       if (!mounted) return;
       setState(() {
-        _requests = res.requests;
+        _orders = res.orders;
         _total = res.total;
         _loading = false;
       });
@@ -66,7 +66,7 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
     }
   }
 
-  void _setFilter(RadiologyRequestStatus? status) {
+  void _setFilter(RadiologyOrderStatus? status) {
     setState(() {
       _filterStatus = status;
       _skip = 0;
@@ -130,7 +130,7 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
                   selected: _filterStatus == null,
                   onTap: () => _setFilter(null),
                 ),
-                ...RadiologyRequestStatus.values.map((s) => _StatusChip(
+                ...RadiologyOrderStatus.values.map((s) => _StatusChip(
                       label: _statusLabel(s),
                       selected: _filterStatus == s,
                       onTap: () => _setFilter(s),
@@ -139,9 +139,9 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
             ),
           ),
           Expanded(
-            child: _loading && _requests.isEmpty
+            child: _loading && _orders.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : _requests.isEmpty
+                : _orders.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -168,11 +168,11 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
                         },
                         child: ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _requests.length + 1,
+                          itemCount: _orders.length + 1,
                           itemBuilder: (context, index) {
-                            if (index == _requests.length) {
+                            if (index == _orders.length) {
                               final hasMore =
-                                  _skip + _requests.length < _total;
+                                  _skip + _orders.length < _total;
                               if (!hasMore) return const SizedBox(height: 16);
                               return Padding(
                                 padding: const EdgeInsets.all(8),
@@ -187,11 +187,11 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
                                 ),
                               );
                             }
-                            final req = _requests[index];
-                            return _RequestCard(
-                              request: req,
+                            final order = _orders[index];
+                            return _OrderCard(
+                              order: order,
                               onTap: () => context.router.push(
-                                RadiologyRequestDetailRoute(requestId: req.id),
+                                RadiologyRequestDetailRoute(requestId: order.id),
                               ),
                             );
                           },
@@ -203,19 +203,15 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
     );
   }
 
-  static String _statusLabel(RadiologyRequestStatus s) {
+  static String _statusLabel(RadiologyOrderStatus s) {
     switch (s) {
-      case RadiologyRequestStatus.PENDING:
+      case RadiologyOrderStatus.PENDING:
         return 'Pending';
-      case RadiologyRequestStatus.SCHEDULED:
-        return 'Scheduled';
-      case RadiologyRequestStatus.IN_PROGRESS:
-        return 'In progress';
-      case RadiologyRequestStatus.COMPLETED:
+      case RadiologyOrderStatus.ACTIVE:
+        return 'Active';
+      case RadiologyOrderStatus.COMPLETED:
         return 'Completed';
-      case RadiologyRequestStatus.REPORTED:
-        return 'Reported';
-      case RadiologyRequestStatus.CANCELLED:
+      case RadiologyOrderStatus.CANCELLED:
         return 'Cancelled';
     }
   }
@@ -253,20 +249,21 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _RequestCard extends StatelessWidget {
-  const _RequestCard({
-    required this.request,
+class _OrderCard extends StatelessWidget {
+  const _OrderCard({
+    required this.order,
     required this.onTap,
   });
 
-  final RadiologyRequest request;
+  final RadiologyOrder order;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final statusColor = _statusColor(theme, request.status);
+    final statusColor = _statusColor(theme, order.status);
+    final firstItem = order.items.isNotEmpty ? order.items.first : null;
 
     return Card(
       elevation: 0,
@@ -298,22 +295,30 @@ class _RequestCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${request.scanType.name}${request.bodyPart != null && request.bodyPart!.isNotEmpty ? ' · ${request.bodyPart}' : ''}',
+                      firstItem == null
+                          ? 'Order with no items'
+                          : '${firstItem.scanType.name}${firstItem.bodyPart != null && firstItem.bodyPart!.isNotEmpty ? ' · ${firstItem.bodyPart}' : ''}',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      request.patient?.displayName ?? '—',
+                      order.patient?.displayName ?? '—',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (request.createdAt != null)
+                    Text(
+                      '${order.items.length} item(s)',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.outline,
+                      ),
+                    ),
+                    if (order.createdAt != null)
                       Text(
                         DateFormatter.formatFromBackend(
-                          request.createdAt,
+                          order.createdAt,
                           DateFormatter.shortDate,
                         ),
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -330,7 +335,7 @@ class _RequestCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  request.status.name.replaceAll('_', ' '),
+                  order.status.name.replaceAll('_', ' '),
                   style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: statusColor,
@@ -349,17 +354,15 @@ class _RequestCard extends StatelessWidget {
     );
   }
 
-  static Color _statusColor(ThemeData theme, RadiologyRequestStatus s) {
+  static Color _statusColor(ThemeData theme, RadiologyOrderStatus s) {
     switch (s) {
-      case RadiologyRequestStatus.PENDING:
+      case RadiologyOrderStatus.PENDING:
         return theme.colorScheme.tertiary;
-      case RadiologyRequestStatus.SCHEDULED:
-      case RadiologyRequestStatus.IN_PROGRESS:
+      case RadiologyOrderStatus.ACTIVE:
         return theme.colorScheme.primary;
-      case RadiologyRequestStatus.COMPLETED:
-      case RadiologyRequestStatus.REPORTED:
+      case RadiologyOrderStatus.COMPLETED:
         return theme.colorScheme.primaryContainer;
-      case RadiologyRequestStatus.CANCELLED:
+      case RadiologyOrderStatus.CANCELLED:
         return theme.colorScheme.error;
     }
   }

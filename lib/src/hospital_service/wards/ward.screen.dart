@@ -133,6 +133,7 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
         });
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(isEdit ? 'Ward updated' : 'Ward created')),
       );

@@ -1,9 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/models/imaging_order_model.dart';
+import 'package:helty/src/radiology/models/radiology_models.dart';
+import 'package:helty/src/radiology/services/radiology_service.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
-import 'package:helty/src/services/imaging_order_service.dart';
 
 @RoutePage()
 class InpatientImagingResultsScreen extends StatefulWidget {
@@ -16,9 +16,9 @@ class InpatientImagingResultsScreen extends StatefulWidget {
 
 class _InpatientImagingResultsScreenState
     extends State<InpatientImagingResultsScreen> {
-  final _imagingOrderService = ImagingOrderService();
+  final _imagingOrderService = RadiologyService();
 
-  List<ImagingOrderModel> _orders = [];
+  List<RadiologyOrder> _orders = [];
   bool _loading = true;
 
   @override
@@ -39,10 +39,10 @@ class _InpatientImagingResultsScreenState
     }
     setState(() => _loading = true);
     try {
-      final list = await _imagingOrderService.getByEncounter(encounterId);
+      final list = await _imagingOrderService.listOrders(encounterId: encounterId);
       if (!mounted) return;
       setState(() {
-        _orders = list;
+        _orders = list.orders;
         _loading = false;
       });
     } catch (_) {
@@ -109,15 +109,16 @@ class _InpatientImagingResultsScreenState
 
   DataRow _row(
     BuildContext context,
-    ImagingOrderModel order,
+    RadiologyOrder order,
     bool isDoctor,
   ) {
+    final firstItem = order.items.isNotEmpty ? order.items.first : null;
     return DataRow(
       cells: [
-        DataCell(Text(order.studyName)),
-        DataCell(Text(order.area ?? '-')),
-        DataCell(Text(order.urgency ?? '-')),
-        DataCell(Text(order.status)),
+        DataCell(Text(firstItem?.scanType.name ?? '-')),
+        DataCell(Text(firstItem?.bodyPart ?? '-')),
+        DataCell(Text(firstItem?.priority.name ?? '-')),
+        DataCell(Text(order.status.name)),
         if (isDoctor)
           DataCell(
             TextButton(

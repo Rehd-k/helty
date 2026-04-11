@@ -1,14 +1,13 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app_router.gr.dart';
 import '../helper/date.formatter.dart';
 import 'patient_model.dart';
 import 'patient_providers.dart';
 import 'patient_service.dart';
 import '../widgets/filter.patients.dart';
-import '../widgets/table/reusable_async_table.dart';
 
 @RoutePage()
 class PatientListScreen extends StatefulWidget {
@@ -20,6 +19,7 @@ class PatientListScreen extends StatefulWidget {
 
 class _PatientListScreenState extends State<PatientListScreen> {
   final PatientService _patientService = PatientService();
+  static const int _take = 20;
 
   String _query = '';
   String _filterCategory = 'patientId';
@@ -28,13 +28,39 @@ class _PatientListScreenState extends State<PatientListScreen> {
   String _sortBy = 'surname';
   bool _isAscending = false;
   String? _error;
+  final List<Patient> _patients = <Patient>[];
+  bool _initialLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _skip = 0;
 
-  Future<PagedData<Patient>> _fetchPage(int start, int count) async {
+  @override
+  void initState() {
+    super.initState();
+    _refreshPatients();
+  }
+
+  Future<void> _refreshPatients() async {
+    setState(() {
+      _skip = 0;
+      _patients.clear();
+      _hasMore = true;
+      _initialLoading = true;
+    });
+    await _loadPatientsPage(reset: true);
+  }
+
+  Future<void> _loadPatientsPage({bool reset = false}) async {
+    if (!reset && (_isLoadingMore || !_hasMore)) return;
+    if (!mounted) return;
+    setState(() {
+      if (!reset) _isLoadingMore = true;
+    });
     try {
       final items = await _patientService.fetchPatients(
         query: _query.isEmpty ? null : _query,
-        skip: start,
-        take: count,
+        skip: _skip,
+        take: _take,
         filterCategory: _filterCategory,
         fromDate: _fromDate,
         toDate: _toDate,
@@ -45,10 +71,12 @@ class _PatientListScreenState extends State<PatientListScreen> {
       if (_error != null && mounted) {
         setState(() => _error = null);
       }
-      final totalCount = items.length < count
-          ? start + items.length
-          : start + items.length + 1;
-      return PagedData<Patient>(items: items, totalCount: totalCount);
+      if (!mounted) return;
+      setState(() {
+        _patients.addAll(items);
+        _skip += items.length;
+        _hasMore = items.length == _take;
+      });
     } catch (e) {
       if (mounted) {
         setState(() => _error = e.toString());
@@ -64,37 +92,247 @@ class _PatientListScreenState extends State<PatientListScreen> {
           ),
         );
       }
-      return PagedData<Patient>(items: [], totalCount: 0);
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _initialLoading = false;
+        _isLoadingMore = false;
+      });
     }
   }
 
-  void _handleAction(String action, Patient patient, BuildContext context) {
+  Future<void> _handleAction(String action, Patient patient) async {
+    if (action == 'view') {
+      _showPatientDetailsDialog(patient);
+      return;
+    }
+    if (action == 'edit') {
+      await context.router.push(PatientFormRoute(patient: patient));
+      if (!mounted) return;
+      await _refreshPatients();
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Action $action performed on ${patient.firstName}'),
+      const SnackBar(content: Text('Delete is not available from this view yet.')),
+    );
+  }
+
+  void _showPatientDetailsDialog(Patient patient) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        final admitted = patientStatusIsAdmitted(patient.status);
+        return AlertDialog(
+          title: Text('${patient.surname} ${patient.firstName}'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _detailRow('Patient ID', patient.patientId),
+                  _detailRow('Card No', patient.cardNo),
+                  _detailRow('Title', patient.title),
+                  _detailRow(
+                    'Date of Birth',
+                    DateFormatter.medicalDate(patient.dob),
+                  ),
+                  _detailRow('Gender', patient.gender),
+                  _detailRow('Marital Status', patient.maritalStatus),
+                  _detailRow('Nationality', patient.nationality),
+                  _detailRow('State', patient.stateOfOrigin),
+                  _detailRow('LGA', patient.lga),
+                  _detailRow('Town', patient.town),
+                  _detailRow('Religion', patient.religion ?? '—'),
+                  _detailRow(
+                    'Preferred Language',
+                    patient.preferredLanguage ?? '—',
+                  ),
+                  _detailRow('Profession', patient.profession ?? '—'),
+                  _detailRow('Phone', patient.phoneNumber ?? '—'),
+                  _detailRow('Email', patient.email ?? '—'),
+                  _detailRow('Address', patient.permanentAddress),
+                  _detailRow(
+                    'Address of Residence',
+                    patient.addressOfResidence ?? '—',
+                  ),
+                  const Divider(height: 22),
+                  _detailRow('Next of Kin', patient.nextOfKinName ?? '—'),
+                  _detailRow(
+                    'Next of Kin Phone',
+                    patient.nextOfKinPhone ?? '—',
+                  ),
+                  _detailRow(
+                    'Next of Kin Address',
+                    patient.nextOfKinAddress ?? '—',
+                  ),
+                  _detailRow(
+                    'Relationship',
+                    patient.nextOfKinRelationship ?? '—',
+                  ),
+                  const Divider(height: 22),
+                  _detailRow('HMO', patient.hmo ?? '—'),
+                  _detailRow('Status', patient.status ?? '—'),
+                  _detailRow('Admitted', admitted ? 'Yes' : 'No'),
+                  if (admitted) ...[
+                    _detailRow('Ward', patient.ward ?? '—'),
+                    _detailRow('Bed Number', patient.bedNumber ?? '—'),
+                    _detailRow(
+                      'Admission Date',
+                      patient.admissionDate != null
+                          ? DateFormatter.medicalDate(patient.admissionDate!)
+                          : '—',
+                    ),
+                  ],
+                  const Divider(height: 22),
+                  _detailRow(
+                    'Created At',
+                    patient.createdAt != null
+                        ? DateFormatter.medicalDate(patient.createdAt!)
+                        : '—',
+                  ),
+                  _detailRow('Created By', patient.createdBy ?? '—'),
+                  _detailRow(
+                    'Updated At',
+                    patient.updatedAt != null
+                        ? DateFormatter.medicalDate(patient.updatedAt!)
+                        : '—',
+                  ),
+                  _detailRow('Updated By', patient.updatedBy ?? '—'),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close'),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await _handleAction('edit', patient);
+              },
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Edit Patient'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(value)),
+        ],
       ),
     );
   }
 
-  void _onSortColumn(int columnIndex, bool ascending) {
-    const indexToField = <int, String>{
-      3: 'surname',
-      4: 'firstName',
-      5: 'otherName',
-      7: 'gender',
-      10: 'stateOfOrigin',
-      14: 'createdAt',
-    };
-    final field = indexToField[columnIndex];
-    if (field == null) return;
-    setState(() {
-      if (_sortBy == field) {
-        _isAscending = ascending;
-      } else {
-        _sortBy = field;
-        _isAscending = ascending;
-      }
-    });
+  Widget _buildPatientCard(Patient patient, ColorScheme colorScheme) {
+    final admitted = patientStatusIsAdmitted(patient.status);
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${patient.surname} ${patient.firstName} ${patient.otherName ?? ''}'
+                            .trim(),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ID: ${patient.patientId}  •  Card: ${patient.cardNo}',
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    Chip(
+                      label: Text(patient.status ?? 'UNKNOWN'),
+                      avatar: Icon(
+                        admitted ? Icons.bed : Icons.local_hospital_outlined,
+                        size: 16,
+                      ),
+                    ),
+                    IconButton.filledTonal(
+                      tooltip: 'View patient',
+                      onPressed: () => _handleAction('view', patient),
+                      icon: const Icon(Icons.visibility_outlined),
+                    ),
+                    IconButton.filledTonal(
+                      tooltip: 'Edit patient',
+                      onPressed: () => _handleAction('edit', patient),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 18,
+              runSpacing: 8,
+              children: [
+                Text('DOB: ${DateFormatter.medicalDate(patient.dob)}'),
+                Text('Gender: ${patient.gender}'),
+                Text('Phone: ${patient.phoneNumber ?? '—'}'),
+              ],
+            ),
+            if (admitted) ...[
+              const Divider(height: 20),
+              Wrap(
+                spacing: 18,
+                runSpacing: 8,
+                children: [
+                  Text('Ward: ${patient.ward ?? '—'}'),
+                  Text('Bed: ${patient.bedNumber ?? '—'}'),
+                  Text(
+                    'Admitted: ${patient.admissionDate != null ? DateFormatter.medicalDate(patient.admissionDate!) : '—'}',
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -111,9 +349,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
       floatingActionButton: FloatingActionButton.small(
         tooltip: 'Refresh list',
         child: const Icon(Icons.refresh),
-        onPressed: () {
-          setState(() => _error = null);
-        },
+        onPressed: _refreshPatients,
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -163,9 +399,10 @@ class _PatientListScreenState extends State<PatientListScreen> {
                       _fromDate = from;
                       _toDate = to;
                     });
+                    _refreshPatients();
                   },
               doRefresh: () {
-                setState(() => _error = null);
+                _refreshPatients();
               },
               dateFilter: false,
             ),
@@ -179,139 +416,64 @@ class _PatientListScreenState extends State<PatientListScreen> {
                 elevation: 0,
                 borderRadius: BorderRadius.circular(12),
                 clipBehavior: Clip.antiAlias,
-                child: ReusableAsyncTable<Patient>(
-                  key: ValueKey(
-                    '$_query|$_filterCategory|'
-                    '${_fromDate?.millisecondsSinceEpoch}|${_toDate?.millisecondsSinceEpoch}|'
-                    '$_sortBy|$_isAscending',
-                  ),
-                  rowsPerPage: 20,
-                  fetchData: _fetchPage,
-                  idGetter: (patient) => patient.id ?? '',
-                  onSelectionChanged: (selected) {
-                    if (selected.isEmpty) return;
-                    ProviderScope.containerOf(context, listen: false)
-                        .read(patientProvider.notifier)
-                        .selectPatient(selected.first);
-                  },
-                  columns: [
-                    DataColumn2(
-                      label: const Text('Patient ID'),
-                      size: ColumnSize.L,
-                    ),
-                    DataColumn2(
-                      label: const Text('Card No'),
-                      size: ColumnSize.L,
-                    ),
-                    DataColumn2(label: const Text('Title'), size: ColumnSize.L),
-                    DataColumn2(
-                      label: const Text('Surname'),
-                      size: ColumnSize.L,
-                      onSort: _onSortColumn,
-                    ),
-                    DataColumn2(
-                      label: const Text('First Name'),
-                      size: ColumnSize.L,
-                      onSort: _onSortColumn,
-                    ),
-                    DataColumn2(
-                      label: const Text('Other Name'),
-                      size: ColumnSize.L,
-                      onSort: _onSortColumn,
-                    ),
-                    DataColumn2(label: const Text('DOB'), size: ColumnSize.L),
-                    DataColumn2(
-                      label: const Text('Gender'),
-                      size: ColumnSize.L,
-                      onSort: _onSortColumn,
-                    ),
-                    DataColumn2(
-                      label: const Text('Marital Status'),
-                      size: ColumnSize.L,
-                    ),
-                    DataColumn2(
-                      label: const Text('Nationality'),
-                      size: ColumnSize.L,
-                    ),
-                    DataColumn2(
-                      label: const Text('State'),
-                      size: ColumnSize.L,
-                      onSort: _onSortColumn,
-                    ),
-                    DataColumn2(
-                      label: const Text('Address'),
-                      size: ColumnSize.L,
-                    ),
-                    DataColumn2(
-                      label: const Text('Next of Kin'),
-                      size: ColumnSize.L,
-                    ),
-                    DataColumn2(label: const Text('User'), size: ColumnSize.L),
-                    DataColumn2(
-                      label: const Text('Joined At'),
-                      size: ColumnSize.L,
-                      onSort: _onSortColumn,
-                    ),
-                    DataColumn2(
-                      label: const Text('Updated At'),
-                      size: ColumnSize.L,
-                    ),
-                    const DataColumn2(label: Text('Action'), fixedWidth: 60),
-                  ],
-                  rowBuilder: (patient) {
-                    return [
-                      DataCell(Text(patient.patientId)),
-                      DataCell(Text(patient.cardNo)),
-                      DataCell(Text(patient.title)),
-                      DataCell(Text(patient.surname)),
-                      DataCell(Text(patient.firstName)),
-                      DataCell(Text(patient.otherName ?? '')),
-                      DataCell(Text(DateFormatter.medicalDate(patient.dob))),
-                      DataCell(Text(patient.gender)),
-                      DataCell(Text(patient.maritalStatus)),
-                      DataCell(Text(patient.nationality)),
-                      DataCell(Text(patient.stateOfOrigin)),
-                      DataCell(Text(patient.permanentAddress)),
-                      DataCell(Text(patient.nextOfKinName ?? '')),
-                      DataCell(Text(patient.createdBy ?? '')),
-                      DataCell(
-                        Text(
-                          patient.createdAt != null
-                              ? DateFormatter.medicalDate(patient.createdAt!)
-                              : '—',
-                        ),
-                      ),
-                      DataCell(
-                        Text(
-                          patient.updatedAt != null
-                              ? DateFormatter.medicalDate(patient.updatedAt!)
-                              : '—',
-                        ),
-                      ),
-                      DataCell(
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert),
-                          onSelected: (value) =>
-                              _handleAction(value, patient, context),
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'view',
-                              child: Text('View'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Edit'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ];
-                  },
-                ),
+                child: _initialLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _patients.isEmpty
+                        ? const Center(
+                            child: Text('No patient record found for this filter.'),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            itemCount: _patients.length + 1,
+                            itemBuilder: (context, index) {
+                              if (index == _patients.length) {
+                                if (!_hasMore) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Center(
+                                      child: Text('You have reached the end.'),
+                                    ),
+                                  );
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    8,
+                                    16,
+                                    18,
+                                  ),
+                                  child: FilledButton.icon(
+                                    onPressed:
+                                        _isLoadingMore ? null : _loadPatientsPage,
+                                    icon: _isLoadingMore
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(Icons.expand_more),
+                                    label: Text(
+                                      _isLoadingMore
+                                          ? 'Loading more...'
+                                          : 'Load More',
+                                    ),
+                                  ),
+                                );
+                              }
+                              final patient = _patients[index];
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () {
+                                  ProviderScope.containerOf(context, listen: false)
+                                      .read(patientProvider.notifier)
+                                      .selectPatient(patient);
+                                },
+                                child: _buildPatientCard(patient, colorScheme),
+                              );
+                            },
+                          ),
               ),
             ),
           ),
