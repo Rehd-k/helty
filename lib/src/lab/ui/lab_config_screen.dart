@@ -119,6 +119,19 @@ class _CategoriesTab extends ConsumerWidget {
                 subtitle: cat.description != null
                     ? Text(cat.description!)
                     : null,
+                trailing: PopupMenuButton<String>(
+                  onSelected: (action) {
+                    if (action == 'edit') {
+                      _showEditCategory(context, ref, cat);
+                    } else if (action == 'delete') {
+                      _confirmDeleteCategory(context, ref, cat);
+                    }
+                  },
+                  itemBuilder: (ctx) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
               ),
             );
           },
@@ -184,6 +197,114 @@ class _CategoriesTab extends ConsumerWidget {
               }
             },
             child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditCategory(
+    BuildContext context,
+    WidgetRef ref,
+    LabCategory cat,
+  ) {
+    final nameController = TextEditingController(text: cat.name);
+    final descController = TextEditingController(text: cat.description ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit category'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descController,
+              decoration: const InputDecoration(
+                labelText: 'Description (optional)',
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              try {
+                await ref.read(labApiServiceProvider).updateCategory(
+                      cat.id,
+                      name: name,
+                      description: descController.text.trim().isEmpty
+                          ? null
+                          : descController.text.trim(),
+                    );
+                if (ctx.mounted) Navigator.pop(ctx);
+                ref.invalidate(labCategoriesFutureProvider);
+                ref.invalidate(labTestsFutureProvider);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteCategory(
+    BuildContext context,
+    WidgetRef ref,
+    LabCategory cat,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete category'),
+        content: Text(
+          'Delete "${cat.name}"? Tests in this category may be affected.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () async {
+              try {
+                await ref.read(labApiServiceProvider).deleteCategory(cat.id);
+                if (ctx.mounted) Navigator.pop(ctx);
+                ref.invalidate(labCategoriesFutureProvider);
+                ref.invalidate(labTestsFutureProvider);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -258,6 +379,19 @@ class _TestsTab extends ConsumerWidget {
                 title: Text(test.name),
                 subtitle: Text(
                   '${test.category?.name ?? "—"} · ${test.sampleType}',
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (action) {
+                    if (action == 'edit') {
+                      _showEditTest(context, ref, test);
+                    } else if (action == 'delete') {
+                      _confirmDeleteTest(context, ref, test);
+                    }
+                  },
+                  itemBuilder: (ctx) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
                 ),
               ),
             );
@@ -346,6 +480,143 @@ class _TestsTab extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showEditTest(
+    BuildContext context,
+    WidgetRef ref,
+    LabTest test,
+  ) async {
+    final api = ref.read(labApiServiceProvider);
+    final cats = await api.getCategories(take: 500);
+    if (!context.mounted) return;
+    final nameController = TextEditingController(text: test.name);
+    final sampleController = TextEditingController(text: test.sampleType);
+    LabCategory? selectedCategory;
+    for (final c in cats.data) {
+      if (c.id == test.category?.id) {
+        selectedCategory = c;
+        break;
+      }
+    }
+    selectedCategory ??=
+        cats.data.isNotEmpty ? cats.data.first : null;
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Edit test'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<LabCategory>(
+                  initialValue: selectedCategory,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                  items: cats.data
+                      .map(
+                        (c) => DropdownMenuItem(value: c, child: Text(c.name)),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => selectedCategory = v),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Test name',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: sampleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Sample type',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final sample = sampleController.text.trim();
+                if (name.isEmpty ||
+                    sample.isEmpty ||
+                    selectedCategory == null) {
+                  return;
+                }
+                try {
+                  await api.updateTest(
+                    test.id,
+                    categoryId: selectedCategory!.id,
+                    name: name,
+                    sampleType: sample,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  ref.invalidate(labTestsFutureProvider);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteTest(
+    BuildContext context,
+    WidgetRef ref,
+    LabTest test,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete test'),
+        content: Text(
+          'Delete "${test.name}"? Versions and fields will be removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () async {
+              try {
+                await ref.read(labApiServiceProvider).deleteTest(test.id);
+                if (ctx.mounted) Navigator.pop(ctx);
+                ref.invalidate(labTestsFutureProvider);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }
@@ -792,6 +1063,25 @@ class _FieldsTabState extends ConsumerState<_FieldsTab> {
                                     ).colorScheme.onSurfaceVariant,
                                   ),
                             ),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (action) {
+                                if (action == 'edit') {
+                                  _showEditField(context, ref, f);
+                                } else if (action == 'delete') {
+                                  _confirmDeleteField(context, ref, f);
+                                }
+                              },
+                              itemBuilder: (ctx) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -1017,6 +1307,194 @@ class _FieldsTabState extends ConsumerState<_FieldsTab> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showEditField(
+    BuildContext context,
+    WidgetRef ref,
+    LabTestField field,
+  ) async {
+    if (_selectedVersionId == null) return;
+    final labelController = TextEditingController(text: field.label);
+    final unitController = TextEditingController(text: field.unit ?? '');
+    final refRangeController =
+        TextEditingController(text: field.referenceRange ?? '');
+    final optionsController =
+        TextEditingController(text: field.optionsJson ?? '');
+    final positionController =
+        TextEditingController(text: field.position.toString());
+    LabFieldType selectedType = field.fieldType;
+    bool required = field.required;
+
+    if (!context.mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Edit result field'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: labelController,
+                  decoration: const InputDecoration(labelText: 'Label'),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<LabFieldType>(
+                  initialValue: selectedType,
+                  decoration: const InputDecoration(labelText: 'Field type'),
+                  items: LabFieldType.values
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(t.name.toUpperCase()),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setDialogState(() => selectedType = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: unitController,
+                  decoration: const InputDecoration(
+                    labelText: 'Unit (optional)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: refRangeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reference range (optional)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (selectedType == LabFieldType.dropdown ||
+                    selectedType == LabFieldType.multiselect)
+                  TextField(
+                    controller: optionsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Options (JSON)',
+                    ),
+                    maxLines: 2,
+                  ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: positionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Position (order)',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  title: const Text('Required'),
+                  value: required,
+                  onChanged: (v) => setDialogState(() => required = v ?? false),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final label = labelController.text.trim();
+                if (label.isEmpty) return;
+                final api = ref.read(labApiServiceProvider);
+                String? optionsJson;
+                if (selectedType == LabFieldType.dropdown ||
+                    selectedType == LabFieldType.multiselect) {
+                  final opt = optionsController.text.trim();
+                  if (opt.isNotEmpty) optionsJson = opt;
+                }
+                try {
+                  final position =
+                      int.tryParse(positionController.text.trim()) ??
+                      field.position;
+                  await api.updateTestField(
+                    field.id,
+                    label: label,
+                    fieldType: selectedType.name.toUpperCase(),
+                    unit: unitController.text.trim().isEmpty
+                        ? null
+                        : unitController.text.trim(),
+                    referenceRange: refRangeController.text.trim().isEmpty
+                        ? null
+                        : refRangeController.text.trim(),
+                    required: required,
+                    position: position,
+                    optionsJson: optionsJson,
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  ref.invalidate(labTestsFutureProvider);
+                  _loadFields(ref, _selectedVersionId!);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteField(
+    BuildContext context,
+    WidgetRef ref,
+    LabTestField field,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete field'),
+        content: Text(
+          'Remove "${field.label}" from this version?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () async {
+              try {
+                await ref.read(labApiServiceProvider).deleteTestField(field.id);
+                if (ctx.mounted) Navigator.pop(ctx);
+                ref.invalidate(labTestsFutureProvider);
+                if (_selectedVersionId != null) {
+                  _loadFields(ref, _selectedVersionId!);
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }

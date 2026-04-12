@@ -44,6 +44,27 @@ class LabApiService {
     return LabCategoriesResponse.fromJson(data);
   }
 
+  Future<LabCategory> updateCategory(
+    String id, {
+    String? name,
+    String? description,
+  }) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '$_prefix/categories/$id',
+      data: {
+        if (name != null) 'name': name,
+        if (description != null) 'description': description,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Update category returned no data');
+    return LabCategory.fromJson(data);
+  }
+
+  Future<void> deleteCategory(String id) async {
+    await _dio.delete('$_prefix/categories/$id');
+  }
+
   // ── Tests ───────────────────────────────────────────────────────────────
 
   Future<LabTest> createTest({
@@ -95,6 +116,35 @@ class LabApiService {
     final data = response.data;
     if (data == null) throw StateError('Get test returned no data');
     return LabTest.fromJson(data);
+  }
+
+  Future<LabTest> updateTest(
+    String id, {
+    String? categoryId,
+    String? name,
+    String? sampleType,
+    String? description,
+    double? price,
+    bool? isActive,
+  }) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '$_prefix/tests/$id',
+      data: {
+        if (categoryId != null) 'categoryId': categoryId,
+        if (name != null) 'name': name,
+        if (sampleType != null) 'sampleType': sampleType,
+        if (description != null) 'description': description,
+        if (price != null) 'price': price,
+        if (isActive != null) 'isActive': isActive,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Update test returned no data');
+    return LabTest.fromJson(data);
+  }
+
+  Future<void> deleteTest(String id) async {
+    await _dio.delete('$_prefix/tests/$id');
   }
 
   // ── Test versions ────────────────────────────────────────────────────────
@@ -163,6 +213,39 @@ class LabApiService {
     return list
         .map((e) => LabTestField.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// PATCH `/test-fields/field/:id` avoids clashing with
+  /// `GET /test-fields/:testVersionId`.
+  Future<LabTestField> updateTestField(
+    String fieldId, {
+    String? label,
+    String? fieldType,
+    String? unit,
+    String? referenceRange,
+    bool? required,
+    int? position,
+    String? optionsJson,
+  }) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '$_prefix/test-fields/field/$fieldId',
+      data: {
+        if (label != null) 'label': label,
+        if (fieldType != null) 'fieldType': fieldType,
+        if (unit != null) 'unit': unit,
+        if (referenceRange != null) 'referenceRange': referenceRange,
+        if (required != null) 'required': required,
+        if (position != null) 'position': position,
+        if (optionsJson != null) 'optionsJson': optionsJson,
+      },
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Update field returned no data');
+    return LabTestField.fromJson(data);
+  }
+
+  Future<void> deleteTestField(String fieldId) async {
+    await _dio.delete('$_prefix/test-fields/field/$fieldId');
   }
 
   // ── Orders ───────────────────────────────────────────────────────────────
@@ -279,10 +362,11 @@ class LabApiService {
     );
   }
 
+  /// Each map: `fieldId`, `value`, and optional `hiddenFromReport` (per-result only).
   Future<void> createResultsBatch({
     required String orderItemId,
     required String enteredBy,
-    required List<Map<String, String>> results,
+    required List<Map<String, dynamic>> results,
   }) async {
     await _dio.post(
       '$_prefix/results/batch',

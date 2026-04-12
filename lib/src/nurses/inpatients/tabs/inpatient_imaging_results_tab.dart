@@ -21,6 +21,9 @@ class _InpatientImagingResultsScreenState
   List<RadiologyOrder> _orders = [];
   bool _loading = true;
 
+  /// `false` = all imaging for patient (default). `true` = this encounter only.
+  bool _encounterOnly = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -29,17 +32,29 @@ class _InpatientImagingResultsScreenState
 
   Future<void> _load() async {
     final scope = InpatientViewScope.of(context);
-    final encounterId = scope?.encounterId;
-    if (encounterId == null || encounterId.isEmpty) {
+    final patientId = scope?.patientId;
+    if (patientId == null || patientId.isEmpty) {
       setState(() {
         _orders = const [];
         _loading = false;
       });
       return;
     }
+    final encounterId = scope?.encounterId;
+    final encounterScoped =
+        _encounterOnly && encounterId != null && encounterId.isNotEmpty;
+    if (_encounterOnly && !encounterScoped) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _encounterOnly = false);
+      });
+    }
     setState(() => _loading = true);
     try {
-      final list = await _imagingOrderService.listOrders(encounterId: encounterId);
+      final list = await _imagingOrderService.listOrders(
+        patientId: encounterScoped ? null : patientId,
+        encounterId: encounterScoped ? encounterId : null,
+        take: 100,
+      );
       if (!mounted) return;
       setState(() {
         _orders = list.orders;
@@ -58,9 +73,13 @@ class _InpatientImagingResultsScreenState
   Widget build(BuildContext context) {
     final scope = InpatientViewScope.of(context);
     final isDoctor = scope?.isDoctor ?? false;
+    final hasEncounter =
+        scope?.encounterId != null && scope!.encounterId!.isNotEmpty;
+    final showVisitCol = !_encounterOnly && hasEncounter;
 
     final columns = [
       'Study',
+      if (showVisitCol) 'Visit',
       'Area',
       'Urgency',
       'Status',
@@ -72,37 +91,78 @@ class _InpatientImagingResultsScreenState
       child: SectionCard(
         title: 'Imaging & Radiology',
         subtitle: 'Read-only view of imaging studies',
-        child: _loading
-            ? const Padding(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (hasEncounter) ...[
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text('All patient'),
+                    icon: Icon(Icons.person_outline, size: 16),
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('This encounter'),
+                    icon: Icon(Icons.event_note_outlined, size: 16),
+                  ),
+                ],
+                selected: {_encounterOnly},
+                onSelectionChanged: (s) {
+                  if (s.isEmpty) return;
+                  setState(() => _encounterOnly = s.first);
+                  _load();
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_loading)
+              const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),
               )
-            : _orders.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('No imaging studies for this admission yet.'),
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      columns: columns
-                          .map(
-                            (c) => DataColumn(
-                              label: Text(
-                                c,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      rows: _orders
-                          .map((o) => _row(context, o, isDoctor))
-                          .toList(),
-                    ),
-                  ),
+            else if (_orders.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _encounterOnly
+                      ? 'No imaging studies for this encounter yet.'
+                      : 'No imaging studies for this patient yet.',
+                ),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: columns
+                      .map(
+                        (c) => DataColumn(
+                          label: Text(
+                            c,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  rows: _orders
+                      .map(
+                        (o) => _row(
+                          context,
+                          o,
+                          isDoctor,
+                          showVisitCol: showVisitCol,
+                          admissionEncounterId: scope?.encounterId,
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -110,12 +170,28 @@ class _InpatientImagingResultsScreenState
   DataRow _row(
     BuildContext context,
     RadiologyOrder order,
-    bool isDoctor,
-  ) {
+    bool isDoctor, {
+    required bool showVisitCol,
+    String? admissionEncounterId,
+  }) {
     final firstItem = order.items.isNotEmpty ? order.items.first : null;
+    final onThisAdmission = admissionEncounterId != null &&
+        admissionEncounterId.isNotEmpty &&
+        order.encounterId == admissionEncounterId;
     return DataRow(
       cells: [
-        DataCell(Text(firstItem?.scanType.name ?? '-')),
+        DataCell(Text(firstItem?.scanType.displayLabel ?? '-')),
+        if (showVisitCol)
+          DataCell(
+            Text(
+              onThisAdmission ? 'This admission' : 'Other',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: onThisAdmission
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+            ),
+          ),
         DataCell(Text(firstItem?.bodyPart ?? '-')),
         DataCell(Text(firstItem?.priority.name ?? '-')),
         DataCell(Text(order.status.name)),

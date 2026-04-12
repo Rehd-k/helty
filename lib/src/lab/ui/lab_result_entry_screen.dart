@@ -27,6 +27,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       GlobalKey<LabDynamicResultFormState>();
   List<LabTestField>? _fields;
   Map<String, String> _initialValues = {};
+  final Set<String> _hiddenFieldIds = {};
   bool _loading = true;
   String? _error;
   bool _saving = false;
@@ -70,15 +71,20 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       final fields = await api.getTestFields(_testVersionId!);
       final results = await api.getResults(item.id);
       final initialValues = <String, String>{};
+      final hidden = <String>{};
       for (final r in results) {
         if (r.fieldId.isNotEmpty) {
           initialValues[r.fieldId] = r.value;
+          if (r.hiddenFromReport) hidden.add(r.fieldId);
         }
       }
       if (mounted) {
         setState(() {
           _fields = fields;
           _initialValues = initialValues;
+          _hiddenFieldIds
+            ..clear()
+            ..addAll(hidden);
           _hasExistingResults = results.isNotEmpty;
           _loading = false;
         });
@@ -226,10 +232,51 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
                   key: _formKey,
                   fields: _fields!,
                   initialValues: _initialValues,
+                  hiddenFieldIds: _hiddenFieldIds,
+                  onFieldHidden: (fieldId) {
+                    setState(() => _hiddenFieldIds.add(fieldId));
+                  },
                   onChanged: (_) {},
                 ),
               ),
             ),
+            if (_hiddenFieldIds.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Hidden for this result (not printed)',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _hiddenFieldIds.map((id) {
+                  String label = id;
+                  for (final e in _fields!) {
+                    if (e.id == id) {
+                      label = e.label;
+                      break;
+                    }
+                  }
+                  return ActionChip(
+                    avatar: Icon(
+                      Icons.add_rounded,
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                    label: Text('Show $label'),
+                    onPressed: () {
+                      setState(() => _hiddenFieldIds.remove(id));
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(
@@ -273,16 +320,22 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
     if (!formState.validate()) return;
 
     final values = formState.values;
-    if (values.isEmpty) return;
+    if (_fields == null || _fields!.isEmpty) return;
 
     setState(() {
       _error = null;
       _saving = true;
     });
 
-    final results = values.entries
-        .map((e) => {'fieldId': e.key, 'value': e.value})
-        .toList();
+    final results = <Map<String, dynamic>>[];
+    for (final f in _fields!) {
+      final hidden = _hiddenFieldIds.contains(f.id);
+      results.add({
+        'fieldId': f.id,
+        'value': values[f.id] ?? '',
+        'hiddenFromReport': hidden,
+      });
+    }
 
     final router = context.router;
     try {

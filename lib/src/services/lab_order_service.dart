@@ -8,13 +8,7 @@ class LabOrderService {
 
   final Dio _dio;
 
-  /// GET /lab-orders?encounterId= — list lab orders for an encounter.
-  Future<List<LabOrderModel>> getByEncounter(String encounterId) async {
-    final response = await _dio.get<dynamic>(
-      '/lab-requests',
-      queryParameters: {'encounterId': encounterId},
-    );
-    final raw = response.data;
+  static List<LabOrderModel> _parseList(dynamic raw) {
     if (raw is List) {
       return raw
           .map((e) => LabOrderModel.fromJson(e as Map<String, dynamic>))
@@ -27,6 +21,41 @@ class LabOrderService {
           .toList();
     }
     return [];
+  }
+
+  /// GET /lab-requests — filter by patient or encounter (not both).
+  ///
+  /// [encounterOnly] `false` (default): `patientId` — all lab requests for the patient.
+  /// [encounterOnly] `true`: `encounterId` — this visit only.
+  Future<List<LabOrderModel>> listForScope({
+    required String patientId,
+    String? encounterId,
+    bool encounterOnly = false,
+    int skip = 0,
+    int take = 100,
+  }) async {
+    final qp = <String, dynamic>{'skip': skip, 'take': take};
+    if (encounterOnly) {
+      if (encounterId == null || encounterId.isEmpty) return [];
+      qp['encounterId'] = encounterId;
+    } else {
+      if (patientId.isEmpty) return [];
+      qp['patientId'] = patientId;
+    }
+    final response = await _dio.get<dynamic>(
+      '/lab-requests',
+      queryParameters: qp,
+    );
+    return _parseList(response.data);
+  }
+
+  /// GET /lab-requests?encounterId=
+  Future<List<LabOrderModel>> getByEncounter(String encounterId) {
+    return listForScope(
+      patientId: '',
+      encounterId: encounterId,
+      encounterOnly: true,
+    );
   }
 
   /// POST /lab-requests — create lab order. Returns created order with id from API.

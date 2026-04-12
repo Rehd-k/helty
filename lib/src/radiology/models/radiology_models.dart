@@ -28,6 +28,26 @@ enum RadiologyModality {
 
   String get apiValue => name;
 
+  /// Short label for forms and lists (distinct from [name] / API value).
+  String get displayLabel {
+    switch (this) {
+      case RadiologyModality.X_RAY:
+        return 'X-ray';
+      case RadiologyModality.CT:
+        return 'Computed Tomography (CT)';
+      case RadiologyModality.MRI:
+        return 'Magnetic Resonance Imaging (MRI)';
+      case RadiologyModality.ULTRASOUND:
+        return 'Ultrasound / Sonography';
+      case RadiologyModality.MAMMOGRAPHY:
+        return 'Mammography';
+      case RadiologyModality.FLUOROSCOPY:
+        return 'Fluoroscopy';
+      case RadiologyModality.OTHER:
+        return 'Other';
+    }
+  }
+
   static RadiologyModality? fromString(String? value) {
     if (value == null || value.isEmpty) return null;
     final v = value.toUpperCase().replaceAll(' ', '_');
@@ -224,6 +244,7 @@ class RadiologyOrderItem {
     required this.priority,
     required this.status,
     this.bodyPart,
+    this.contrast,
     this.clinicalNotes,
     this.reasonForInvestigation,
     this.invoiceId,
@@ -243,6 +264,7 @@ class RadiologyOrderItem {
   final RadiologyPriority priority;
   final RadiologyOrderItemStatus status;
   final String? bodyPart;
+  final bool? contrast;
   final String? clinicalNotes;
   final String? reasonForInvestigation;
   final String? invoiceId;
@@ -267,6 +289,7 @@ class RadiologyOrderItem {
           RadiologyOrderItemStatus.fromString(json['status'] as String?) ??
               RadiologyOrderItemStatus.PENDING,
       bodyPart: json['bodyPart'] as String?,
+      contrast: json['contrast'] as bool?,
       clinicalNotes: json['clinicalNotes'] as String?,
       reasonForInvestigation: json['reasonForInvestigation'] as String?,
       invoiceId: json['invoiceId'] as String?,
@@ -295,6 +318,7 @@ class RadiologyOrderItem {
         'scanType': scanType.apiValue,
         if (bodyPart != null && bodyPart!.isNotEmpty) 'bodyPart': bodyPart,
         'priority': priority.apiValue,
+        if (contrast != null) 'contrast': contrast,
         if (clinicalNotes != null && clinicalNotes!.isNotEmpty)
           'clinicalNotes': clinicalNotes,
         if (reasonForInvestigation != null && reasonForInvestigation!.isNotEmpty)

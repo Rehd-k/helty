@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/bank_model.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
 
@@ -32,7 +33,8 @@ class BankDropdown extends StatelessWidget {
     this.isLoading = false,
   });
 
-  final List<String> banks;
+  final List<BankModel> banks;
+  /// Selected bank id (matches [BankModel.id]).
   final String? value;
   final ValueChanged<String?> onChanged;
   final bool isLoading;
@@ -55,7 +57,7 @@ class BankDropdown extends StatelessWidget {
     }
 
     return DropdownButtonFormField<String>(
-      initialValue: value,
+      value: value,
       isExpanded: true,
       decoration: InputDecoration(
         labelText: 'Select Bank',
@@ -71,8 +73,8 @@ class BankDropdown extends StatelessWidget {
       items: banks
           .map(
             (b) => DropdownMenuItem(
-              value: b,
-              child: Text(b, style: const TextStyle(fontSize: 13)),
+              value: b.id,
+              child: Text(b.name, style: const TextStyle(fontSize: 13)),
             ),
           )
           .toList(),
@@ -152,14 +154,14 @@ class PayBillState extends ConsumerState<PayBill> {
   };
 
   // Bank State
-  List<String> _banks = [];
+  List<BankModel> _banks = [];
   bool _banksLoading = true;
 
-  /// Bank selected for POS / Transfer / Cheque (single-method flow).
-  String? _selectedBank;
+  /// Bank id selected for POS / Transfer / Cheque (single-method flow).
+  String? _selectedBankId;
 
-  /// Per-method bank selections used inside the Mixed sheet.
-  final Map<String, String?> _mixedBanks = {};
+  /// Per-method bank ids used inside the Mixed sheet.
+  final Map<String, String?> _mixedBankIds = {};
 
   // Mixed Payment State
   final Map<String, double> _mixedAmounts = {};
@@ -192,7 +194,7 @@ class PayBillState extends ConsumerState<PayBill> {
       final banks = await bankService.fetchBanks();
       if (mounted) {
         setState(() {
-          _banks = banks.data.map((b) => b.name).toList();
+          _banks = banks.data;
           _banksLoading = false;
         });
       }
@@ -340,10 +342,18 @@ class PayBillState extends ConsumerState<PayBill> {
     }
   }
 
-  /// Bank name for invoice payment bodies (`bankAccountNumber` / reconciliation).
-  String? _selectedBankForPayment() {
+  BankModel? _bankById(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final b in _banks) {
+      if (b.id == id) return b;
+    }
+    return null;
+  }
+
+  /// Bank id used for the current payment (single method or first chosen in mixed).
+  String? _selectedBankIdForPayment() {
     if (_paymentMethod == 'mixed') {
-      return _mixedBanks.entries
+      return _mixedBankIds.entries
           .firstWhere(
             (e) => e.value != null && e.value!.isNotEmpty,
             orElse: () => const MapEntry('', null),
@@ -351,10 +361,13 @@ class PayBillState extends ConsumerState<PayBill> {
           .value;
     }
     if (_bankRequiredMethods.contains(_paymentMethod)) {
-      return _selectedBank;
+      return _selectedBankId;
     }
     return null;
   }
+
+  BankModel? _selectedBankForPayment() =>
+      _bankById(_selectedBankIdForPayment());
 
   void _applyDiscount(String? discount) {
     if (discount == null || discount == 'None') {
@@ -384,7 +397,8 @@ class PayBillState extends ConsumerState<PayBill> {
       // All bank-required methods used in mixed must have a bank selected.
       for (final m in _bankRequiredMethods) {
         final amount = _mixedAmounts[m] ?? 0;
-        if (amount > 0 && (_mixedBanks[m] == null || _mixedBanks[m]!.isEmpty)) {
+        if (amount > 0 &&
+            (_mixedBankIds[m] == null || _mixedBankIds[m]!.isEmpty)) {
           return false;
         }
       }
@@ -393,7 +407,7 @@ class PayBillState extends ConsumerState<PayBill> {
 
     // For bank-required single methods, a bank must be chosen.
     if (_bankRequiredMethods.contains(_paymentMethod)) {
-      return _selectedBank != null && _selectedBank!.isNotEmpty;
+      return _selectedBankId != null && _selectedBankId!.isNotEmpty;
     }
 
     return true;
@@ -450,9 +464,9 @@ class PayBillState extends ConsumerState<PayBill> {
               setState(() {});
             }
 
-            void updateMixedBank(String method, String? bank) {
+            void updateMixedBank(String method, String? bankId) {
               setModalState(() {
-                _mixedBanks[method] = bank;
+                _mixedBankIds[method] = bankId;
               });
               setState(() {});
             }
@@ -497,8 +511,8 @@ class PayBillState extends ConsumerState<PayBill> {
                       final needsBank = _bankRequiredMethods.contains(m);
                       final bankChosen =
                           !needsBank ||
-                          (_mixedBanks[m] != null &&
-                              _mixedBanks[m]!.isNotEmpty);
+                          (_mixedBankIds[m] != null &&
+                              _mixedBankIds[m]!.isNotEmpty);
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16.0),
@@ -537,9 +551,9 @@ class PayBillState extends ConsumerState<PayBill> {
                               const SizedBox(height: 8),
                               BankDropdown(
                                 banks: _banks,
-                                value: _mixedBanks[m],
+                                value: _mixedBankIds[m],
                                 isLoading: _banksLoading,
-                                onChanged: (bank) => updateMixedBank(m, bank),
+                                onChanged: (bankId) => updateMixedBank(m, bankId),
                               ),
                             ],
                           ],
@@ -596,7 +610,11 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Future<void> _makePayment() async {
-    final bankName = _selectedBankForPayment();
+    final bank = _selectedBankForPayment();
+    final bankName = bank?.name;
+    final accountNumber = bank?.accountNumber.trim();
+    final bankAccountNumber =
+        accountNumber != null && accountNumber.isNotEmpty ? accountNumber : null;
 
     // Build mixedBreakdown with bank info embedded if needed
     Map<String, dynamic>? mixedBreakdownWithBanks;
@@ -605,9 +623,13 @@ class PayBillState extends ConsumerState<PayBill> {
       for (final m in _methods.where((m) => m != 'mixed')) {
         final amount = _mixedAmounts[m] ?? 0;
         if (amount > 0) {
+          final b = _bankById(_mixedBankIds[m]);
           mixedBreakdownWithBanks[m] = {
             'amount': amount,
-            if (_mixedBanks[m] != null) 'bankName': _mixedBanks[m],
+            if (b != null) 'bankName': b.name,
+            if (b != null &&
+                b.accountNumber.trim().isNotEmpty)
+              'bankAccountNumber': b.accountNumber.trim(),
           };
         }
       }
@@ -669,7 +691,7 @@ class PayBillState extends ConsumerState<PayBill> {
             reference: _paymentMethod == 'mixed'
                 ? 'paybill_mixed'
                 : (_selectedDiscount ?? 'paybill'),
-            bankAccountNumber: bankName,
+            bankAccountNumber: bankAccountNumber,
             allocations: allocations,
           ),
         );
@@ -683,7 +705,7 @@ class PayBillState extends ConsumerState<PayBill> {
             reference: _paymentMethod == 'mixed'
                 ? 'paybill_mixed'
                 : (_selectedDiscount ?? 'paybill'),
-            bankAccountNumber: bankName,
+            bankAccountNumber: bankAccountNumber,
           ),
         );
       } else {
@@ -982,7 +1004,7 @@ class PayBillState extends ConsumerState<PayBill> {
               onTap: () {
                 setState(() {
                   _paymentMethod = m;
-                  _selectedBank = null; // reset bank when method changes
+                  _selectedBankId = null; // reset bank when method changes
                   if (m == 'mixed') _openMixedSheet();
                 });
               },
@@ -1032,11 +1054,11 @@ class PayBillState extends ConsumerState<PayBill> {
           const SizedBox(height: 16),
           BankDropdown(
             banks: _banks,
-            value: _selectedBank,
+            value: _selectedBankId,
             isLoading: _banksLoading,
-            onChanged: (bank) => setState(() => _selectedBank = bank),
+            onChanged: (bankId) => setState(() => _selectedBankId = bankId),
           ),
-          if (_selectedBank == null)
+          if (_selectedBankId == null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
@@ -1118,9 +1140,9 @@ class PayBillState extends ConsumerState<PayBill> {
                         setState(() {
                           _confirmed = false;
                           _paymentMethod = null;
-                          _selectedBank = null;
+                          _selectedBankId = null;
                           _mixedAmounts.clear();
-                          _mixedBanks.clear();
+                          _mixedBankIds.clear();
                         });
                       },
                       icon: const Icon(Icons.check),

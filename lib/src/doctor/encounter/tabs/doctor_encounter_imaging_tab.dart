@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
@@ -26,6 +27,10 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
   bool _loading = true;
   bool _loadScheduled = false;
 
+  /// `false` = all radiology orders for [EncounterScope.patientId] (default).
+  /// `true` = only this [EncounterScope.encounterId].
+  bool _encounterOnly = false;
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +51,11 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     final scope = EncounterScope.of(context);
     if (scope == null) return;
     setState(() => _loading = true);
-    final list = await _orderService.listOrders(encounterId: scope.encounterId);
+    final list = await _orderService.listOrders(
+      patientId: _encounterOnly ? null : scope.patientId,
+      encounterId: _encounterOnly ? scope.encounterId : null,
+      take: 100,
+    );
     if (!mounted) return;
     setState(() {
       _orders = list.orders;
@@ -74,12 +83,11 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
       'requestedById': staffId!,
       'items': [
         {
-          'scanType': 'OTHER',
-          'priority': result.urgency.toUpperCase() == 'URGENT'
-              ? 'URGENT'
-              : 'ROUTINE',
+          'scanType': result.scanType.apiValue,
+          'priority': _urgencyToPriorityApi(result.urgency),
           'bodyPart': result.area,
           'clinicalNotes': result.notesToRadiologist,
+          'contrast': result.contrast,
           'serviceId': service.serviceId.isNotEmpty ? service.serviceId : service.id,
         }
       ],
@@ -109,17 +117,35 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _ResultRow(
+                  label: 'Ordered',
+                  value: DateFormatter.formatFromBackend(
+                    order.createdAt,
+                    DateFormatter.dateTime,
+                  ),
+                ),
+                if (order.encounterId != null &&
+                    order.encounterId!.trim().isNotEmpty)
+                  _ResultRow(label: 'Encounter', value: order.encounterId!),
                 _ResultRow(label: 'Status', value: order.status.name),
                 _ResultRow(
                   label: 'Items',
                   value: '${order.items.length}',
                 ),
-                if (firstItem != null)
+                if (firstItem != null) ...[
                   _ResultRow(
-                    label: 'First item',
-                    value:
-                        '${firstItem.scanType.name} ${firstItem.bodyPart ?? ''}'.trim(),
+                    label: 'Modality',
+                    value: firstItem.scanType.displayLabel,
                   ),
+                  if (firstItem.bodyPart != null &&
+                      firstItem.bodyPart!.trim().isNotEmpty)
+                    _ResultRow(label: 'Area', value: firstItem.bodyPart!),
+                  if (firstItem.contrast != null)
+                    _ResultRow(
+                      label: 'Contrast',
+                      value: firstItem.contrast! ? 'Yes' : 'No',
+                    ),
+                ],
                 const SizedBox(height: 16),
                 Text(
                   'Results',
@@ -166,20 +192,47 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              onPressed: _openOrderModal,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Order Imaging'),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text('All patient'),
+                      icon: Icon(Icons.person_outline, size: 18),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text('This encounter'),
+                      icon: Icon(Icons.event_note_outlined, size: 18),
+                    ),
+                  ],
+                  selected: {_encounterOnly},
+                  onSelectionChanged: (s) {
+                    if (s.isEmpty) return;
+                    setState(() => _encounterOnly = s.first);
+                    _load();
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: _openOrderModal,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Order Imaging'),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Expanded(
             child: _orders.isEmpty
                 ? Center(
                     child: Text(
-                      'No imaging orders. Tap "Order Imaging" to add.',
+                      _encounterOnly
+                          ? 'No imaging orders for this encounter. Tap "Order Imaging" to add.'
+                          : 'No imaging orders on file for this patient. Tap "Order Imaging" to add.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.6,
@@ -191,16 +244,21 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                     itemCount: _orders.length,
                     itemBuilder: (_, i) {
                       final o = _orders[i];
+                      final otherVisit = !_encounterOnly &&
+                          o.encounterId != null &&
+                          o.encounterId!.isNotEmpty &&
+                          o.encounterId != scope.encounterId;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           title: Text(
                             o.items.isNotEmpty
-                                ? o.items.first.scanType.name
+                                ? o.items.first.scanType.displayLabel
                                 : 'Order with no items',
                           ),
                           subtitle: Text(
-                            '${o.items.length} item(s) • ${o.status.name}',
+                            '${otherVisit ? 'Other visit • ' : ''}'
+                            '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.items.length} item(s) • ${o.status.name}',
                             style: theme.textTheme.bodySmall,
                           ),
                           trailing: Chip(
@@ -219,15 +277,28 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
   }
 }
 
+String _urgencyToPriorityApi(String urgency) {
+  switch (urgency) {
+    case 'Urgent':
+      return 'URGENT';
+    case 'STAT':
+      return 'EMERGENCY';
+    default:
+      return 'ROUTINE';
+  }
+}
+
 class _ImagingOrderDialogResult {
   _ImagingOrderDialogResult({
     required this.selected,
+    required this.scanType,
     required this.area,
     required this.contrast,
     required this.urgency,
     required this.notesToRadiologist,
   });
   final ServiceModel? selected;
+  final RadiologyModality scanType;
   final String area;
   final bool contrast;
   final String urgency;
@@ -247,6 +318,7 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
   static const int pageSize = 10;
   static const _imagingCategoryName = 'radiology & imaging';
 
+  final _formKey = GlobalKey<FormState>();
   final _searchCtrl = TextEditingController();
   final _areaCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
@@ -255,7 +327,8 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
   List<ServiceModel> _suggestions = [];
   bool _searchLoading = false;
   int _page = 0;
-  bool _contrast = false;
+  RadiologyModality? _scanType;
+  bool? _contrast;
   String _urgency = 'Routine';
   Timer? _searchDebounce;
   Set<String>? _imagingCategoryIds;
@@ -353,6 +426,34 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
     });
   }
 
+  void _submitOrder() {
+    if (_selected == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a study.')),
+      );
+      return;
+    }
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_contrast == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select whether this study uses contrast.'),
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop(
+      _ImagingOrderDialogResult(
+        selected: _selected,
+        scanType: _scanType!,
+        area: _areaCtrl.text.trim(),
+        contrast: _contrast!,
+        urgency: _urgency,
+        notesToRadiologist: _notesCtrl.text.trim(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -360,13 +461,15 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
       title: const Text('Order Imaging'),
       content: SizedBox(
         width: 440,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               const Text(
-                'Study',
+                'Study *',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -477,25 +580,67 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
                   ),
               ],
               const SizedBox(height: 12),
-              TextField(
-                controller: _areaCtrl,
+              DropdownButtonFormField<RadiologyModality>(
+                value: _scanType,
                 decoration: const InputDecoration(
-                  labelText: 'Area',
-                  hintText: 'e.g. Chest, Abdomen',
+                  labelText: 'Scan type *',
+                  hintText: 'Select modality',
                   border: OutlineInputBorder(),
                 ),
-                onChanged: (_) => setState(() {}),
+                items: RadiologyModality.values
+                    .map(
+                      (m) => DropdownMenuItem(
+                        value: m,
+                        child: Text(m.displayLabel),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => setState(() => _scanType = v),
+                validator: (v) => v == null ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _areaCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Body area / region *',
+                  hintText: 'e.g. Chest, Abdomen, Right knee',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.sentences,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  return null;
+                },
               ),
               const SizedBox(height: 8),
-              CheckboxListTile(
-                value: _contrast,
-                title: const Text('Contrast'),
-                onChanged: (v) => setState(() => _contrast = v ?? false),
+              Text(
+                'Contrast *',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              const SizedBox(height: 4),
+              RadioListTile<bool>(
+                title: const Text('Without contrast'),
+                value: false,
+                groupValue: _contrast,
+                onChanged: (v) => setState(() => _contrast = v),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              RadioListTile<bool>(
+                title: const Text('With contrast'),
+                value: true,
+                groupValue: _contrast,
+                onChanged: (v) => setState(() => _contrast = v),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                initialValue: _urgency,
+                value: _urgency,
                 decoration: const InputDecoration(
-                  labelText: 'Urgency',
+                  labelText: 'Urgency *',
                   border: OutlineInputBorder(),
                 ),
                 items: const [
@@ -506,16 +651,24 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
                 onChanged: (v) => setState(() => _urgency = v ?? _urgency),
               ),
               const SizedBox(height: 8),
-              TextField(
+              TextFormField(
                 controller: _notesCtrl,
-                maxLines: 2,
+                maxLines: 3,
                 decoration: const InputDecoration(
-                  labelText: 'Notes to radiologist',
+                  labelText: 'Clinical notes for radiology *',
+                  hintText: 'Indication, relevant history, questions…',
                   border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
                 ),
+                textCapitalization: TextCapitalization.sentences,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  return null;
+                },
               ),
             ],
           ),
+        ),
         ),
       ),
       actions: [
@@ -524,17 +677,7 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _selected == null
-              ? null
-              : () => Navigator.of(context).pop(
-                  _ImagingOrderDialogResult(
-                    selected: _selected,
-                    area: _areaCtrl.text.trim(),
-                    contrast: _contrast,
-                    urgency: _urgency,
-                    notesToRadiologist: _notesCtrl.text.trim(),
-                  ),
-                ),
+          onPressed: _submitOrder,
           child: const Text('Order'),
         ),
       ],

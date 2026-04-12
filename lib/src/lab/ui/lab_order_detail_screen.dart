@@ -325,6 +325,9 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                 final hasSample = item.sample != null;
                 final fields = item.fields ?? item.testVersion?.fields ?? [];
                 final fieldMap = {for (final f in fields) f.id: f};
+                final reportResults = item.results
+                    .where((r) => !r.hiddenFromReport)
+                    .toList();
                 return pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
@@ -341,9 +344,11 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                         style: const pw.TextStyle(fontSize: 10),
                       ),
                     pw.SizedBox(height: 4),
-                    if (item.results.isEmpty)
+                    if (reportResults.isEmpty)
                       pw.Text(
-                        'No results entered.',
+                        item.results.isEmpty
+                            ? 'No results entered.'
+                            : 'No results on report (all lines hidden for this test).',
                         style: const pw.TextStyle(fontSize: 10),
                       )
                     else
@@ -397,7 +402,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                               ),
                             ],
                           ),
-                          ...item.results.map((r) {
+                          ...reportResults.map((r) {
                             final field = r.field ?? fieldMap[r.fieldId];
                             return pw.TableRow(
                               children: [
@@ -568,7 +573,10 @@ class _OrderItemCard extends StatelessWidget {
     final testName = item.testVersion?.test?.name ?? 'Test';
     final sampleType = item.testVersion?.test?.sampleType ?? '';
     final hasSample = item.sample != null;
-    final hasResults = item.results.isNotEmpty;
+    final reportResults =
+        item.results.where((r) => !r.hiddenFromReport).toList();
+    final hasStoredResults = item.results.isNotEmpty;
+    final hasVisibleReportLines = reportResults.isNotEmpty;
     final fields = item.fields ?? item.testVersion?.fields ?? [];
     final fieldMap = {for (final f in fields) f.id: f};
 
@@ -622,7 +630,7 @@ class _OrderItemCard extends StatelessWidget {
                       color: theme.colorScheme.onPrimaryContainer,
                     ),
                   ),
-                if (hasResults)
+                if (hasStoredResults)
                   Chip(
                     label: const Text('Results'),
                     backgroundColor: theme.colorScheme.tertiaryContainer,
@@ -633,7 +641,7 @@ class _OrderItemCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (hasResults)
+            if (hasVisibleReportLines)
               Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding:
@@ -653,7 +661,7 @@ class _OrderItemCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    ...item.results.map((r) {
+                    ...reportResults.map((r) {
                       final field = r.field ?? fieldMap[r.fieldId];
                       final label = field?.label ?? r.fieldId;
                       final unit = field?.unit;
@@ -705,6 +713,16 @@ class _OrderItemCard extends StatelessWidget {
                     }),
                   ],
                 ),
+              )
+            else if (hasStoredResults)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Results on file; all parameters hidden from this report.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             Wrap(
               spacing: 8,
@@ -727,9 +745,11 @@ class _OrderItemCard extends StatelessWidget {
                         horizontal: 14, vertical: 8),
                     minimumSize: Size.zero,
                   ),
-                  child: Text(hasResults ? 'Edit results' : 'Enter results'),
+                  child: Text(
+                    hasStoredResults ? 'Edit results' : 'Enter results',
+                  ),
                 ),
-                if (hasResults && isHeadOfLab)
+                if (hasVisibleReportLines && isHeadOfLab)
                   FilledButton.tonalIcon(
                     onPressed: () {},
                     style: FilledButton.styleFrom(

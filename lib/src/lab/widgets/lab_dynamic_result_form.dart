@@ -11,11 +11,19 @@ class LabDynamicResultForm extends StatefulWidget {
     required this.fields,
     required this.onChanged,
     this.initialValues = const {},
+    this.hiddenFieldIds = const {},
+    this.onFieldHidden,
     this.autovalidateMode = AutovalidateMode.disabled,
   });
 
   final List<LabTestField> fields;
   final Map<String, String> initialValues;
+
+  /// Field IDs hidden for this result entry only (not removed from template).
+  final Set<String> hiddenFieldIds;
+
+  /// Called when the user taps ✕ to hide a row for this result / print output.
+  final void Function(String fieldId)? onFieldHidden;
   final ValueChanged<Map<String, String>> onChanged;
   final AutovalidateMode autovalidateMode;
 
@@ -53,6 +61,13 @@ class LabDynamicResultFormState extends State<LabDynamicResultForm> {
         }
       }
     }
+    if (oldWidget.fields != widget.fields) {
+      for (final f in widget.fields) {
+        if (!_values.containsKey(f.id) && f.fieldType == LabFieldType.checkbox) {
+          _values[f.id] = 'false';
+        }
+      }
+    }
   }
 
   void _setValue(String fieldId, String value) {
@@ -66,6 +81,7 @@ class LabDynamicResultFormState extends State<LabDynamicResultForm> {
   String? _validate() {
     _errors.clear();
     for (final f in widget.fields) {
+      if (widget.hiddenFieldIds.contains(f.id)) continue;
       final v = (_values[f.id] ?? '').trim();
       if (f.required && v.isEmpty) {
         _errors[f.id] = 'Required';
@@ -99,13 +115,51 @@ class LabDynamicResultFormState extends State<LabDynamicResultForm> {
     final theme = Theme.of(context);
     final sorted = List<LabTestField>.from(widget.fields)
       ..sort((a, b) => a.position.compareTo(b.position));
+    final visible = sorted
+        .where((f) => !widget.hiddenFieldIds.contains(f.id))
+        .toList();
+
+    if (visible.isEmpty) {
+      return Text(
+        'All parameters are hidden for this result. Use the template to add '
+        'them back on a new entry.',
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: sorted.map((field) {
+      children: visible.map((field) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 20),
-          child: _buildField(context, theme, field),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _buildField(context, theme, field)),
+              if (widget.onFieldHidden != null) ...[
+                const SizedBox(width: 4),
+                Tooltip(
+                  message:
+                      'Hide for this result only (not printed; template unchanged)',
+                  child: IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    onPressed: () => widget.onFieldHidden!(field.id),
+                  ),
+                ),
+              ],
+            ],
+          ),
         );
       }).toList(),
     );

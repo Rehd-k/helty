@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/lab_order_model.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/services/service_category_service.dart';
@@ -27,6 +28,10 @@ class _DoctorEncounterInvestigationsTabState
   bool _loading = true;
   bool _loadScheduled = false;
 
+  /// `false` = all lab requests for [EncounterScope.patientId] (default).
+  /// `true` = only this [EncounterScope.encounterId].
+  bool _encounterOnly = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +52,11 @@ class _DoctorEncounterInvestigationsTabState
     final scope = EncounterScope.of(context);
     if (scope == null) return;
     setState(() => _loading = true);
-    final list = await _labOrderService.getByEncounter(scope.encounterId);
+    final list = await _labOrderService.listForScope(
+      patientId: scope.patientId,
+      encounterId: scope.encounterId,
+      encounterOnly: _encounterOnly,
+    );
     if (!mounted) return;
     setState(() {
       _orders = list;
@@ -57,7 +66,9 @@ class _DoctorEncounterInvestigationsTabState
 
   void _showLabOrderResults(
       BuildContext context, LabOrderModel order, ThemeData theme) {
-    final hasResults = order.resultValues != null && order.resultValues!.isNotEmpty;
+    final lines = order.resultLines;
+    final hasLegacyMap =
+        order.resultValues != null && order.resultValues!.isNotEmpty;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -69,10 +80,19 @@ class _DoctorEncounterInvestigationsTabState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _ResultRow(
+                  label: 'Ordered',
+                  value: DateFormatter.formatFromBackend(
+                    order.createdAt,
+                    DateFormatter.dateTime,
+                  ),
+                ),
                 _ResultRow(label: 'Status', value: order.status),
                 _ResultRow(label: 'Priority', value: order.priority ?? 'Routine'),
                 if (order.clinicalNotes != null && order.clinicalNotes!.isNotEmpty)
                   _ResultRow(label: 'Notes', value: order.clinicalNotes!),
+                if (order.encounterId.isNotEmpty)
+                  _ResultRow(label: 'Encounter', value: order.encounterId),
                 const SizedBox(height: 16),
                 Text(
                   'Results',
@@ -81,7 +101,46 @@ class _DoctorEncounterInvestigationsTabState
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (hasResults)
+                if (lines != null && lines.isNotEmpty)
+                  ...lines.map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              line.label,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              line.valueWithUnit,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              line.referenceRange != null &&
+                                      line.referenceRange!.isNotEmpty
+                                  ? 'Ref: ${line.referenceRange}'
+                                  : '',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else if (hasLegacyMap)
                   ...order.resultValues!.entries.map(
                     (e) => Padding(
                       padding: const EdgeInsets.only(bottom: 6),
@@ -183,20 +242,47 @@ class _DoctorEncounterInvestigationsTabState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              onPressed: _openOrderModal,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Order Lab Test'),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text('All patient'),
+                      icon: Icon(Icons.person_outline, size: 18),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text('This encounter'),
+                      icon: Icon(Icons.event_note_outlined, size: 18),
+                    ),
+                  ],
+                  selected: {_encounterOnly},
+                  onSelectionChanged: (s) {
+                    if (s.isEmpty) return;
+                    setState(() => _encounterOnly = s.first);
+                    _load();
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: _openOrderModal,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Order Lab Test'),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Expanded(
             child: _orders.isEmpty
                 ? Center(
                     child: Text(
-                      'No lab orders. Tap "Order Lab Test" to add.',
+                      _encounterOnly
+                          ? 'No lab orders for this encounter. Tap "Order Lab Test" to add.'
+                          : 'No lab orders on file for this patient. Tap "Order Lab Test" to add.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.6,
@@ -208,12 +294,16 @@ class _DoctorEncounterInvestigationsTabState
                     itemCount: _orders.length,
                     itemBuilder: (_, i) {
                       final o = _orders[i];
+                      final otherVisit = !_encounterOnly &&
+                          o.encounterId.isNotEmpty &&
+                          o.encounterId != scope.encounterId;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           title: Text(o.testType),
                           subtitle: Text(
-                            '${o.priority ?? "Routine"} • ${o.status}',
+                            '${otherVisit ? 'Other visit • ' : ''}'
+                            '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.priority ?? "Routine"} • ${o.status}',
                             style: theme.textTheme.bodySmall,
                           ),
                           trailing: Chip(

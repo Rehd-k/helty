@@ -20,6 +20,9 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
   List<LabOrderModel> _orders = [];
   bool _loading = true;
 
+  /// `false` = all labs for patient (default). `true` = this encounter only.
+  bool _encounterOnly = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -28,17 +31,29 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
 
   Future<void> _load() async {
     final scope = InpatientViewScope.of(context);
-    final encounterId = scope?.encounterId;
-    if (encounterId == null || encounterId.isEmpty) {
+    final patientId = scope?.patientId;
+    if (patientId == null || patientId.isEmpty) {
       setState(() {
         _orders = const [];
         _loading = false;
       });
       return;
     }
+    final encounterId = scope?.encounterId;
+    final encounterScoped =
+        _encounterOnly && encounterId != null && encounterId.isNotEmpty;
+    if (_encounterOnly && !encounterScoped) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _encounterOnly = false);
+      });
+    }
     setState(() => _loading = true);
     try {
-      final list = await _labOrderService.getByEncounter(encounterId);
+      final list = await _labOrderService.listForScope(
+        patientId: patientId,
+        encounterId: encounterId,
+        encounterOnly: encounterScoped,
+      );
       if (!mounted) return;
       setState(() {
         _orders = list;
@@ -57,9 +72,13 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
   Widget build(BuildContext context) {
     final scope = InpatientViewScope.of(context);
     final isDoctor = scope?.isDoctor ?? false;
+    final hasEncounter =
+        scope?.encounterId != null && scope!.encounterId!.isNotEmpty;
+    final showVisitCol = !_encounterOnly && hasEncounter;
 
     final columns = [
       'Test',
+      if (showVisitCol) 'Visit',
       'Priority',
       'Status',
       'Result Summary',
@@ -71,17 +90,48 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
       child: SectionCard(
         title: 'Lab Results',
         subtitle: 'Read-only view of investigations',
-        child: _loading
-            ? const Padding(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (hasEncounter) ...[
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text('All patient'),
+                    icon: Icon(Icons.person_outline, size: 16),
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('This encounter'),
+                    icon: Icon(Icons.event_note_outlined, size: 16),
+                  ),
+                ],
+                selected: {_encounterOnly},
+                onSelectionChanged: (s) {
+                  if (s.isEmpty) return;
+                  setState(() => _encounterOnly = s.first);
+                  _load();
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_loading)
+              const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),
               )
-            : _orders.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('No lab results for this admission yet.'),
+            else if (_orders.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _encounterOnly
+                      ? 'No lab results for this encounter yet.'
+                      : 'No lab results for this patient yet.',
+                ),
               )
-            : SingleChildScrollView(
+            else
+              SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
                   columns: columns
@@ -95,25 +145,63 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
                         ),
                       )
                       .toList(),
-                  rows: _orders.map((o) => _row(context, o, isDoctor)).toList(),
+                  rows: _orders
+                      .map(
+                        (o) => _row(
+                          context,
+                          o,
+                          isDoctor,
+                          showVisitCol: showVisitCol,
+                          admissionEncounterId: scope?.encounterId,
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
+          ],
+        ),
       ),
     );
   }
 
-  DataRow _row(BuildContext context, LabOrderModel order, bool isDoctor) {
-    final resultSummary =
-        order.resultValues != null && order.resultValues!.isNotEmpty
+  DataRow _row(
+    BuildContext context,
+    LabOrderModel order,
+    bool isDoctor, {
+    required bool showVisitCol,
+    String? admissionEncounterId,
+  }) {
+    final lines = order.resultLines;
+    final resultSummary = lines != null && lines.isNotEmpty
+        ? lines
+              .take(3)
+              .map((l) => '${l.label}: ${l.valueWithUnit}')
+              .join(' • ')
+        : order.resultValues != null && order.resultValues!.isNotEmpty
         ? order.resultValues!.entries
               .take(3)
               .map((e) => '${e.key}: ${e.value}')
               .join(' • ')
         : '-';
 
+    final onThisAdmission = admissionEncounterId != null &&
+        admissionEncounterId.isNotEmpty &&
+        order.encounterId == admissionEncounterId;
+
     return DataRow(
       cells: [
         DataCell(Text(order.testType)),
+        if (showVisitCol)
+          DataCell(
+            Text(
+              onThisAdmission ? 'This admission' : 'Other',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: onThisAdmission
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+            ),
+          ),
         DataCell(Text(order.priority ?? '-')),
         DataCell(Text(order.status)),
         DataCell(Text(resultSummary)),

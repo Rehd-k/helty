@@ -11,6 +11,10 @@ import 'package:helty/src/services/icd10_service.dart';
 class DoctorEncounterDiagnosisTab extends StatefulWidget {
   const DoctorEncounterDiagnosisTab({super.key});
 
+  /// Stored as [Icd10Model.code] when the doctor enters a narrative diagnosis
+  /// instead of choosing an ICD-10 row.
+  static const String customDiagnosisCode = 'OTHER';
+
   @override
   State<DoctorEncounterDiagnosisTab> createState() =>
       _DoctorEncounterDiagnosisTabState();
@@ -109,7 +113,9 @@ class _DoctorEncounterDiagnosisTabState
     if (scope == null) return;
     if (_primary == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Primary diagnosis (ICD-10) is required')),
+        const SnackBar(
+          content: Text('Primary diagnosis is required (ICD-10 or Other)'),
+        ),
       );
       return;
     }
@@ -189,6 +195,15 @@ class _DoctorEncounterDiagnosisTabState
             ),
             onChanged: (v) => _runSearch(v),
           ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () => _showCustomPrimaryDialog(context),
+              icon: const Icon(Icons.edit_note_outlined, size: 18),
+              label: const Text('Other — custom diagnosis'),
+            ),
+          ),
           if (_primary != null) ...[
             const SizedBox(height: 8),
             ListTile(
@@ -199,7 +214,9 @@ class _DoctorEncounterDiagnosisTabState
                 borderRadius: BorderRadius.circular(12),
               ),
               title: Text(
-                _primary!.code,
+                _primary!.code == DoctorEncounterDiagnosisTab.customDiagnosisCode
+                    ? 'Custom diagnosis'
+                    : _primary!.code,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.primary,
@@ -247,8 +264,10 @@ class _DoctorEncounterDiagnosisTabState
           ..._secondaries.map(
             (e) => ListTile(
               title: Text(
-                '${e.code} — ${e.description}',
-                maxLines: 1,
+                e.code == DoctorEncounterDiagnosisTab.customDiagnosisCode
+                    ? e.description
+                    : '${e.code} — ${e.description}',
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: IconButton(
@@ -260,7 +279,13 @@ class _DoctorEncounterDiagnosisTabState
           OutlinedButton.icon(
             onPressed: () => _showAddSecondary(context),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add secondary diagnosis'),
+            label: const Text('Add secondary diagnosis (ICD-10)'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showCustomSecondaryDialog(context),
+            icon: const Icon(Icons.edit_note_outlined, size: 18),
+            label: const Text('Other — custom secondary'),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
@@ -345,5 +370,116 @@ class _DoctorEncounterDiagnosisTabState
     if (selected != null && mounted) {
       setState(() => _secondaries.add(selected!));
     }
+  }
+
+  Future<void> _showCustomPrimaryDialog(BuildContext context) async {
+    final ctrl = TextEditingController(
+      text: _primary?.code == DoctorEncounterDiagnosisTab.customDiagnosisCode
+          ? _primary!.description
+          : '',
+    );
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Custom primary diagnosis'),
+        content: SizedBox(
+          width: 400,
+          child: TextField(
+            controller: ctrl,
+            maxLines: 4,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Diagnosis (free text)',
+              hintText: 'Describe the diagnosis in your own words',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Use this diagnosis'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      ctrl.dispose();
+      return;
+    }
+    final text = ctrl.text.trim();
+    ctrl.dispose();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a diagnosis description')),
+      );
+      return;
+    }
+    setState(() {
+      _primary = Icd10Model(
+        code: DoctorEncounterDiagnosisTab.customDiagnosisCode,
+        description: text,
+      );
+      _primarySearchCtrl.clear();
+      _searchResults = [];
+    });
+  }
+
+  Future<void> _showCustomSecondaryDialog(BuildContext context) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Custom secondary diagnosis'),
+        content: SizedBox(
+          width: 400,
+          child: TextField(
+            controller: ctrl,
+            maxLines: 3,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Diagnosis (free text)',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      ctrl.dispose();
+      return;
+    }
+    final text = ctrl.text.trim();
+    ctrl.dispose();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a diagnosis description')),
+      );
+      return;
+    }
+    setState(() {
+      _secondaries.add(
+        Icd10Model(
+          code: DoctorEncounterDiagnosisTab.customDiagnosisCode,
+          description: text,
+        ),
+      );
+    });
   }
 }

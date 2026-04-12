@@ -517,6 +517,7 @@ class LabResult {
     required this.value,
     this.field,
     this.enteredBy,
+    this.hiddenFromReport = false,
   });
 
   final String id;
@@ -525,6 +526,10 @@ class LabResult {
   final String value;
   final LabTestField? field;
   final String? enteredBy;
+
+  /// When true, field is omitted from print/PDF and typically not shown on the
+  /// report view for this order item only (template fields are unchanged).
+  final bool hiddenFromReport;
 
   factory LabResult.fromJson(Map<String, dynamic> json) => LabResult(
         id: (json['id'] as String?) ?? '',
@@ -535,6 +540,9 @@ class LabResult {
             ? LabTestField.fromJson(json['field'] as Map<String, dynamic>)
             : null,
         enteredBy: json['enteredBy'] as String?,
+        hiddenFromReport: (json['hiddenFromReport'] as bool?) ??
+            (json['excludeFromPrint'] as bool?) ??
+            false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -543,6 +551,7 @@ class LabResult {
         'fieldId': fieldId,
         'value': value,
         if (field != null) 'field': field!.toJson(),
-        'enteredBy': enteredBy,
+        if (enteredBy != null) 'enteredBy': enteredBy,
+        'hiddenFromReport': hiddenFromReport,
       };
 }
