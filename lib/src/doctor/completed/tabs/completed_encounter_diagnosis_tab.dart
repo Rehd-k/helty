@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
+import 'package:helty/src/models/encounter_model.dart';
 
 @RoutePage()
 class CompletedEncounterDiagnosisTab extends StatelessWidget {
@@ -17,6 +18,15 @@ class CompletedEncounterDiagnosisTab extends StatelessWidget {
     final e = scope.encounter;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
+    var primaryCode = e.primaryIcdCode;
+    var primaryDesc = e.primaryIcdDescription;
+    if ((primaryCode == null || primaryCode.isEmpty) &&
+        (primaryDesc == null || primaryDesc.isEmpty) &&
+        e.linkedDiagnoses.isNotEmpty) {
+      primaryCode = e.linkedDiagnoses.first.primaryIcdCode;
+      primaryDesc = e.linkedDiagnoses.first.primaryIcdDescription;
+    }
 
     List<MapEntry<String, String>> secondary = [];
     if (e.secondaryDiagnosesJson != null && e.secondaryDiagnosesJson!.isNotEmpty) {
@@ -52,31 +62,68 @@ class CompletedEncounterDiagnosisTab extends StatelessWidget {
       } catch (_) {}
     }
 
+    final List<EncounterDiagnosisSnapshot> linkedExtra =
+        e.linkedDiagnoses.length > 1 ? e.linkedDiagnoses.sublist(1) : [];
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (e.primaryIcdCode != null || e.primaryIcdDescription != null) ...[
+          if (primaryCode != null || primaryDesc != null) ...[
             _Section(
               title: 'Primary diagnosis',
               theme: theme,
               colorScheme: colorScheme,
               children: [
-                if (e.primaryIcdCode != null)
+                if (primaryCode != null && primaryCode.isNotEmpty)
                   Text(
-                    e.primaryIcdCode!,
+                    primaryCode,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: colorScheme.primary,
                     ),
                   ),
-                if (e.primaryIcdDescription != null) ...[
-                  if (e.primaryIcdCode != null) const SizedBox(height: 4),
+                if (primaryDesc != null && primaryDesc.isNotEmpty) ...[
+                  if (primaryCode != null && primaryCode.isNotEmpty)
+                    const SizedBox(height: 4),
                   Text(
-                    e.primaryIcdDescription!,
+                    primaryDesc,
                     style: theme.textTheme.bodyLarge,
                   ),
                 ],
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+          if (e.linkedDiagnoses.length > 1) ...[
+            _Section(
+              title: 'Additional diagnosis records',
+              theme: theme,
+              colorScheme: colorScheme,
+              children: [
+                for (final d in linkedExtra)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (d.primaryIcdCode != null &&
+                            d.primaryIcdCode!.isNotEmpty)
+                          Text(
+                            d.primaryIcdCode!,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        if (d.primaryIcdDescription != null &&
+                            d.primaryIcdDescription!.isNotEmpty)
+                          Text(
+                            d.primaryIcdDescription!,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                      ],
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 24),
@@ -135,8 +182,9 @@ class CompletedEncounterDiagnosisTab extends StatelessWidget {
               ],
             ),
           ],
-          if (e.primaryIcdCode == null &&
-              e.primaryIcdDescription == null &&
+          if (primaryCode == null &&
+              primaryDesc == null &&
+              e.linkedDiagnoses.isEmpty &&
               secondary.isEmpty &&
               procedures.isEmpty)
             Center(

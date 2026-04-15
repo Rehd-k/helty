@@ -29,6 +29,17 @@ class CompletedEncounterSummaryTab extends StatelessWidget {
               _Row(label: 'Started', value: DateFormat.yMMMd().add_Hm().format(e.startedAt)),
               if (e.closedAt != null)
                 _Row(label: 'Closed', value: DateFormat.yMMMd().add_Hm().format(e.closedAt!)),
+              if (e.visitAppointment != null)
+                _Row(
+                  label: 'Booked visit',
+                  value: DateFormat.yMMMd()
+                      .add_Hm()
+                      .format(e.visitAppointment!.appointmentDate.toLocal()),
+                ),
+              if (e.visitAppointment == null &&
+                  e.appointmentId != null &&
+                  e.appointmentId!.isNotEmpty)
+                _Row(label: 'Appointment id', value: e.appointmentId!),
               if (e.visitType != null) _Row(label: 'Visit type', value: e.visitType!),
               if (e.insurance != null) _Row(label: 'Insurance', value: e.insurance!),
             ],

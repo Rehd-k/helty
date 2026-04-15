@@ -44,6 +44,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     switch (at) {
       case 'front_desk':
       case 'frontdesk':
+      case 'medical_records':
         return const FrontDeskDashboardRoute();
       case 'billing':
       case 'bills':
@@ -75,7 +76,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return const StoreDashboardRoute();
       case 'accounting':
       case 'accounts':
-      case 'medical_records':
       case 'ict':
         return const DashboardRoute();
       case 'cmd':

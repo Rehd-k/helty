@@ -1,5 +1,22 @@
+import 'package:helty/src/models/appointment_model.dart';
+
+/// One row from `diagnoses[]` on GET /encounters/:id (when not duplicated on flat fields).
+class EncounterDiagnosisSnapshot {
+  const EncounterDiagnosisSnapshot({
+    this.primaryIcdCode,
+    this.primaryIcdDescription,
+    this.secondaryDiagnosesJson,
+  });
+
+  final String? primaryIcdCode;
+  final String? primaryIcdDescription;
+  final String? secondaryDiagnosesJson;
+}
+
 /// Outpatient encounter (visit) linked to Patient and optional Appointment.
 /// Optional documentation fields for History, Examination, and Notes tabs.
+/// Follow-up may be stored as a linked [followUpAppointment] (Prisma) and/or
+/// legacy flat fields on the encounter.
 class EncounterModel {
   const EncounterModel({
     required this.id,
@@ -29,9 +46,13 @@ class EncounterModel {
     this.primaryIcdDescription,
     this.secondaryDiagnosesJson,
     this.proceduresJson,
+    this.followUpAppointmentId,
+    this.followUpAppointment,
     this.followUpDate,
     this.followUpInstructions,
     this.referral,
+    this.visitAppointment,
+    this.linkedDiagnoses = const [],
   });
 
   final String id;
@@ -65,12 +86,25 @@ class EncounterModel {
   final String? primaryIcdDescription;
   final String? secondaryDiagnosesJson;
   final String? proceduresJson;
+  /// FK to `Appointment` used for scheduled follow-up (Prisma).
+  final String? followUpAppointmentId;
+  final Appointment? followUpAppointment;
+  /// Legacy follow-up fields (may still be returned by older APIs).
   final String? followUpDate;
   final String? followUpInstructions;
   final String? referral;
 
+  /// Booking that started this visit (`appointment` on GET /encounters/:id).
+  final Appointment? visitAppointment;
+
+  /// Rows from `diagnoses` when the API returns a list.
+  final List<EncounterDiagnosisSnapshot> linkedDiagnoses;
+
   factory EncounterModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
+
+    DateTime? parseDt(dynamic v) =>
+        v == null ? null : DateTime.tryParse(v.toString());
 
     return EncounterModel(
       id: str(json['id']),
@@ -78,12 +112,9 @@ class EncounterModel {
       appointmentId: json['appointmentId']?.toString(),
       doctorId: str(json['doctorId']),
       status: (json['status']?.toString()) ?? 'open',
-      startedAt: json['startedAt'] != null
-          ? DateTime.tryParse(json['startedAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      closedAt: json['closedAt'] != null
-          ? DateTime.tryParse(json['closedAt'].toString())
-          : null,
+      startedAt: parseDt(json['startedAt'] ?? json['startTime']) ??
+          DateTime.now(),
+      closedAt: parseDt(json['closedAt'] ?? json['endTime']),
       visitType: json['visitType'] as String?,
       insurance: json['insurance'] as String?,
       chiefComplaint: json['chiefComplaint'] as String?,
@@ -106,10 +137,42 @@ class EncounterModel {
       primaryIcdDescription: json['primaryIcdDescription'] as String?,
       secondaryDiagnosesJson: json['secondaryDiagnosesJson'] as String?,
       proceduresJson: json['proceduresJson'] as String?,
+      followUpAppointmentId: json['followUpAppointmentId']?.toString(),
+      followUpAppointment: _parseFollowUpAppointment(json['followUpAppointment']),
       followUpDate: json['followUpDate'] as String?,
       followUpInstructions: json['followUpInstructions'] as String?,
       referral: json['referral'] as String?,
+      visitAppointment: json['appointment'] is Map
+          ? Appointment.fromJson(
+              Map<String, dynamic>.from(json['appointment'] as Map),
+            )
+          : null,
+      linkedDiagnoses: _parseLinkedDiagnoses(json['diagnoses']),
     );
+  }
+
+  static List<EncounterDiagnosisSnapshot> _parseLinkedDiagnoses(dynamic raw) {
+    if (raw is! List<dynamic>) return const [];
+    final out = <EncounterDiagnosisSnapshot>[];
+    for (final e in raw) {
+      if (e is! Map) continue;
+      final m = Map<String, dynamic>.from(e);
+      out.add(
+        EncounterDiagnosisSnapshot(
+          primaryIcdCode: m['primaryIcdCode']?.toString(),
+          primaryIcdDescription: m['primaryIcdDescription']?.toString(),
+          secondaryDiagnosesJson: m['secondaryDiagnosesJson']?.toString(),
+        ),
+      );
+    }
+    return out;
+  }
+
+  static Appointment? _parseFollowUpAppointment(dynamic raw) {
+    if (raw is Map) {
+      return Appointment.fromJson(Map<String, dynamic>.from(raw));
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() => {
@@ -142,6 +205,8 @@ class EncounterModel {
     if (secondaryDiagnosesJson != null)
       'secondaryDiagnosesJson': secondaryDiagnosesJson,
     if (proceduresJson != null) 'proceduresJson': proceduresJson,
+    if (followUpAppointmentId != null)
+      'followUpAppointmentId': followUpAppointmentId,
     if (followUpDate != null) 'followUpDate': followUpDate,
     if (followUpInstructions != null)
       'followUpInstructions': followUpInstructions,
@@ -167,9 +232,13 @@ class EncounterModel {
     String? primaryIcdDescription,
     String? secondaryDiagnosesJson,
     String? proceduresJson,
+    String? followUpAppointmentId,
+    Appointment? followUpAppointment,
     String? followUpDate,
     String? followUpInstructions,
     String? referral,
+    Appointment? visitAppointment,
+    List<EncounterDiagnosisSnapshot>? linkedDiagnoses,
   }) {
     return EncounterModel(
       id: id,
@@ -201,9 +270,15 @@ class EncounterModel {
       secondaryDiagnosesJson:
           secondaryDiagnosesJson ?? this.secondaryDiagnosesJson,
       proceduresJson: proceduresJson ?? this.proceduresJson,
+      followUpAppointmentId:
+          followUpAppointmentId ?? this.followUpAppointmentId,
+      followUpAppointment: followUpAppointment ?? this.followUpAppointment,
       followUpDate: followUpDate ?? this.followUpDate,
       followUpInstructions: followUpInstructions ?? this.followUpInstructions,
       referral: referral ?? this.referral,
+      visitAppointment: visitAppointment ?? this.visitAppointment,
+      linkedDiagnoses: linkedDiagnoses ?? this.linkedDiagnoses,
     );
   }
 }
+

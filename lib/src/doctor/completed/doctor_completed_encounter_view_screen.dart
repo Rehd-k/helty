@@ -147,6 +147,10 @@ class _DoctorCompletedEncounterViewScreenState
           CompletedEncounterExaminationTab(),
           CompletedEncounterNotesTab(),
           CompletedEncounterDiagnosisTab(),
+          CompletedEncounterLabsTab(),
+          CompletedEncounterImagingTab(),
+          CompletedEncounterPrescriptionsTab(),
+          CompletedEncounterAppointmentsTab(),
           CompletedEncounterFollowUpTab(),
         ],
         builder: (context, child) {
@@ -231,6 +235,10 @@ class _DoctorCompletedEncounterViewScreenState
       'Examination',
       'Notes',
       'Diagnosis',
+      'Labs',
+      'Imaging',
+      'Rx',
+      'Appointments',
       'Follow-up',
     ];
     return Container(

@@ -1,20 +1,26 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/services/appointment_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
-class DoctorEncounterFollowUpTab extends StatefulWidget {
+class DoctorEncounterFollowUpTab extends ConsumerStatefulWidget {
   const DoctorEncounterFollowUpTab({super.key});
 
   @override
-  State<DoctorEncounterFollowUpTab> createState() =>
+  ConsumerState<DoctorEncounterFollowUpTab> createState() =>
       _DoctorEncounterFollowUpTabState();
 }
 
-class _DoctorEncounterFollowUpTabState extends State<DoctorEncounterFollowUpTab> {
+class _DoctorEncounterFollowUpTabState
+    extends ConsumerState<DoctorEncounterFollowUpTab> {
   final _encounterService = EncounterService();
+  final _appointmentService = AppointmentService();
   DateTime? _followUpDate;
+  String? _followUpAppointmentId;
   final _instructionsCtrl = TextEditingController();
   final _referralCtrl = TextEditingController();
   bool _loading = false;
@@ -22,8 +28,10 @@ class _DoctorEncounterFollowUpTabState extends State<DoctorEncounterFollowUpTab>
   bool _loadScheduled = false;
 
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    _instructionsCtrl.dispose();
+    _referralCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -37,13 +45,6 @@ class _DoctorEncounterFollowUpTabState extends State<DoctorEncounterFollowUpTab>
     }
   }
 
-  @override
-  void dispose() {
-    _instructionsCtrl.dispose();
-    _referralCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     final scope = EncounterScope.of(context);
     if (scope == null) return;
@@ -51,11 +52,29 @@ class _DoctorEncounterFollowUpTabState extends State<DoctorEncounterFollowUpTab>
       final enc = await _encounterService.getById(scope.encounterId);
       if (!mounted) return;
       if (enc != null) {
-        if (enc.followUpDate != null) {
-          _followUpDate = DateTime.tryParse(enc.followUpDate!);
+        _followUpAppointmentId = enc.followUpAppointmentId;
+        var appt = enc.followUpAppointment;
+        if (appt == null &&
+            enc.followUpAppointmentId != null &&
+            enc.followUpAppointmentId!.isNotEmpty) {
+          try {
+            appt = await _appointmentService.getAppointmentById(
+              enc.followUpAppointmentId!,
+            );
+          } catch (_) {}
         }
-        _instructionsCtrl.text = enc.followUpInstructions ?? '';
-        _referralCtrl.text = enc.referral ?? '';
+        if (appt != null) {
+          _followUpAppointmentId = appt.id;
+          _followUpDate = appt.appointmentDate.toLocal();
+          _instructionsCtrl.text = appt.notes ?? '';
+          _referralCtrl.text = appt.referral ?? '';
+        } else {
+          if (enc.followUpDate != null) {
+            _followUpDate = DateTime.tryParse(enc.followUpDate!);
+          }
+          _instructionsCtrl.text = enc.followUpInstructions ?? '';
+          _referralCtrl.text = enc.referral ?? '';
+        }
       }
       setState(() => _loaded = true);
     } catch (_) {
@@ -66,25 +85,39 @@ class _DoctorEncounterFollowUpTabState extends State<DoctorEncounterFollowUpTab>
   Future<void> _save() async {
     final scope = EncounterScope.of(context);
     if (scope == null) return;
+    final staff = ref.read(currentStaffProvider);
+    final staffId = scope.doctorId ?? staff?.id;
+    final actorId = staff?.id;
+
     setState(() => _loading = true);
     try {
-      await _encounterService.update(scope.encounterId, {
-        'followUpDate': _followUpDate?.toIso8601String(),
-        'followUpInstructions': _instructionsCtrl.text.trim().isEmpty
+      final enc = await _encounterService.saveFollowUp(
+        status: 'SCHEDULED',
+        encounterId: scope.encounterId,
+        patientId: scope.patientId,
+        followUpDate: _followUpDate,
+        notes: _instructionsCtrl.text.trim().isEmpty
             ? null
             : _instructionsCtrl.text.trim(),
-        'referral': _referralCtrl.text.trim().isEmpty ? null : _referralCtrl.text.trim(),
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Follow-up saved')),
+        referral: _referralCtrl.text.trim().isEmpty
+            ? null
+            : _referralCtrl.text.trim(),
+        staffId: staffId,
+        createdById: actorId,
+        followUpAppointmentId: _followUpAppointmentId,
+        updatedById: actorId,
       );
+      if (!mounted) return;
+      _followUpAppointmentId = enc.followUpAppointmentId;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Follow-up saved')));
       setState(() => _loading = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
       setState(() => _loading = false);
     }
   }
@@ -127,7 +160,9 @@ class _DoctorEncounterFollowUpTabState extends State<DoctorEncounterFollowUpTab>
             onTap: () async {
               final date = await showDatePicker(
                 context: context,
-                initialDate: _followUpDate ?? DateTime.now().add(const Duration(days: 7)),
+                initialDate:
+                    _followUpDate ??
+                    DateTime.now().add(const Duration(days: 7)),
                 firstDate: DateTime.now(),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
               );

@@ -164,7 +164,7 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
     try {
       final created = await _appointmentService.createAppointment(
         patientId: _selectedPatient!.id!,
-        doctorId: _selectedDoctor!.id,
+        staffId: _selectedDoctor!.id,
         appointmentDate: dt.toUtc(),
         notes: _notesController.text.trim().isEmpty
             ? null

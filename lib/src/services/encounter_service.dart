@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'api_service.dart';
+import 'appointment_service.dart';
 import '../models/encounter_model.dart';
 
 /// Encounter (OPD visit) CRUD. All methods use the real API.
@@ -21,6 +22,7 @@ class EncounterService {
 
   /// GET /encounters — list encounters.
   /// Query: doctorId, fromDate, toDate, status, skip, take.
+  /// Omit [doctorId] to return encounters for all doctors (e.g. completed list).
   /// Response: { data: Encounter[], total: number } or array.
   Future<List<EncounterModel>> fetchOutpatientEncounters({
     String? doctorId,
@@ -132,6 +134,59 @@ class EncounterService {
     return update(encounterId, {
       'status': 'COMPLETED',
       'closedAt': now.toIso8601String(),
+    });
+  }
+
+  /// Persists follow-up via [Appointment] when a date is set or an existing
+  /// [followUpAppointmentId] is present; otherwise updates legacy encounter fields only.
+  Future<EncounterModel> saveFollowUp({
+    required String status,
+    required String encounterId,
+    required String patientId,
+    DateTime? followUpDate,
+    String? notes,
+    String? referral,
+    String? staffId,
+    String? createdById,
+    String? followUpAppointmentId,
+    String? updatedById,
+  }) async {
+    final apptSvc = AppointmentService();
+
+    if (followUpAppointmentId != null && followUpAppointmentId.isNotEmpty) {
+      await apptSvc.updateAppointment(
+        followUpAppointmentId,
+        appointmentDate: followUpDate,
+        status: 'SCHEDULED',
+        notes: notes,
+        referral: referral,
+        staffId: staffId,
+        updatedById: updatedById,
+      );
+      return await getById(encounterId) ??
+          update(encounterId, {'followUpAppointmentId': followUpAppointmentId});
+    }
+
+    if (followUpDate != null) {
+      final created = await apptSvc.createAppointment(
+        patientId: patientId,
+        appointmentDate: followUpDate,
+        staffId: staffId,
+        status: 'SCHEDULED',
+        notes: notes,
+        referral: referral,
+        createdById: createdById,
+        encounterId: encounterId,
+      );
+      return await getById(encounterId) ??
+          update(encounterId, {'followUpAppointmentId': created.id});
+    }
+
+    return update(encounterId, {
+      'followUpDate': followUpDate?.toIso8601String(),
+      'followUpInstructions': notes,
+      'referral': referral,
+      'status': 'SCHEDULED',
     });
   }
 }

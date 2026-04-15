@@ -408,12 +408,13 @@ class _DoctorEncounterDiagnosisTabState
         ],
       ),
     );
+    final text = ctrl.text.trim();
+    // Dialog route may still be animating; defer dispose until after the field
+    // is detached so the TextField does not touch a disposed controller.
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
     if (ok != true || !mounted) {
-      ctrl.dispose();
       return;
     }
-    final text = ctrl.text.trim();
-    ctrl.dispose();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter a diagnosis description')),
@@ -461,12 +462,11 @@ class _DoctorEncounterDiagnosisTabState
         ],
       ),
     );
+    final text = ctrl.text.trim();
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
     if (ok != true || !mounted) {
-      ctrl.dispose();
       return;
     }
-    final text = ctrl.text.trim();
-    ctrl.dispose();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter a diagnosis description')),

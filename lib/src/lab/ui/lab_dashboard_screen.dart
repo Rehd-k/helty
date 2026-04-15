@@ -96,7 +96,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
                 children: [
                   _buildSummaryRow(theme),
                   const SizedBox(height: 20),
-                  _buildQuickActions(context, theme, isLabManager),
+                  // _buildQuickActions(context, theme, isLabManager),
                   const SizedBox(height: 24),
                   _buildOrdersSection(context, theme),
                 ],

@@ -1,10 +1,28 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
+import 'package:helty/src/models/encounter_model.dart';
 
 @RoutePage()
 class CompletedEncounterFollowUpTab extends StatelessWidget {
   const CompletedEncounterFollowUpTab({super.key});
+
+  static String? _dateLine(EncounterModel e) {
+    final ap = e.followUpAppointment;
+    if (ap != null) {
+      final d = ap.appointmentDate.toLocal();
+      return '${d.day}/${d.month}/${d.year}';
+    }
+    final raw = e.followUpDate;
+    if (raw != null && raw.isNotEmpty) return raw;
+    return null;
+  }
+
+  static String? _instructions(EncounterModel e) =>
+      e.followUpAppointment?.notes ?? e.followUpInstructions;
+
+  static String? _referralLine(EncounterModel e) =>
+      e.followUpAppointment?.referral ?? e.referral;
 
   @override
   Widget build(BuildContext context) {
@@ -16,9 +34,13 @@ class CompletedEncounterFollowUpTab extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final hasFollowUp = (e.followUpDate != null && e.followUpDate!.isNotEmpty) ||
-        (e.followUpInstructions != null && e.followUpInstructions!.isNotEmpty) ||
-        (e.referral != null && e.referral!.isNotEmpty);
+    final dateLine = _dateLine(e);
+    final instructions = _instructions(e);
+    final referral = _referralLine(e);
+
+    final hasFollowUp = (dateLine != null && dateLine.isNotEmpty) ||
+        (instructions != null && instructions.isNotEmpty) ||
+        (referral != null && referral.isNotEmpty);
 
     if (!hasFollowUp) {
       return Center(
@@ -40,27 +62,27 @@ class CompletedEncounterFollowUpTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (e.followUpDate != null && e.followUpDate!.isNotEmpty)
+          if (dateLine != null && dateLine.isNotEmpty)
             _Block(
               title: 'Follow-up date',
-              content: e.followUpDate!,
+              content: dateLine,
               theme: theme,
               colorScheme: colorScheme,
             ),
-          if (e.followUpInstructions != null && e.followUpInstructions!.isNotEmpty) ...[
+          if (instructions != null && instructions.isNotEmpty) ...[
             const SizedBox(height: 20),
             _Block(
               title: 'Follow-up instructions',
-              content: e.followUpInstructions!,
+              content: instructions,
               theme: theme,
               colorScheme: colorScheme,
             ),
           ],
-          if (e.referral != null && e.referral!.isNotEmpty) ...[
+          if (referral != null && referral.isNotEmpty) ...[
             const SizedBox(height: 20),
             _Block(
               title: 'Referral',
-              content: e.referral!,
+              content: referral,
               theme: theme,
               colorScheme: colorScheme,
             ),

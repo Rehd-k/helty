@@ -94,22 +94,37 @@ class AppointmentService {
     }
   }
 
-  /// `POST /appointments` — body keys: adjust to match your `CreateAppointmentDto`
-  /// (e.g. `staffId` instead of `doctorId`, or `date` instead of `appointmentDate`).
+  /// `POST /appointments` — Prisma: `date`, `status`, `notes`, `referral`, `staffId`,
+  /// `createdById`, optional `encounterId` to link this visit’s follow-up.
   Future<Appointment> createAppointment({
     required String patientId,
-    required String doctorId,
     required DateTime appointmentDate,
+    String? staffId,
+    /// Legacy body field — sent as `staffId` if [staffId] is null.
+    String? doctorId,
+    String status = 'SCHEDULED',
     String? notes,
+    String? referral,
+    String? createdById,
+    String? encounterId,
   }) async {
+    final assigned = staffId ?? doctorId;
     try {
       final resp = await _dio.post(
         '/appointments',
         data: {
           'patientId': patientId,
-          'doctorId': doctorId,
+          'date': appointmentDate.toUtc().toIso8601String(),
           'appointmentDate': appointmentDate.toUtc().toIso8601String(),
+          'status': status,
+          if (assigned != null && assigned.isNotEmpty) 'staffId': assigned,
           if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+          if (referral != null && referral.trim().isNotEmpty)
+            'referral': referral.trim(),
+          if (createdById != null && createdById.isNotEmpty)
+            'createdById': createdById,
+          if (encounterId != null && encounterId.isNotEmpty)
+            'encounterId': encounterId,
         },
       );
       final data = resp.data;
@@ -125,17 +140,25 @@ class AppointmentService {
     DateTime? appointmentDate,
     String? status,
     String? notes,
+    String? referral,
+    String? staffId,
     String? doctorId,
+    String? updatedById,
   }) async {
+    final assigned = staffId ?? doctorId;
     try {
       final resp = await _dio.patch(
         '/appointments/$id',
         data: {
-          if (appointmentDate != null)
+          if (appointmentDate != null) ...{
+            'date': appointmentDate.toUtc().toIso8601String(),
             'appointmentDate': appointmentDate.toUtc().toIso8601String(),
+          },
           if (status != null) 'status': status,
           if (notes != null) 'notes': notes,
-          if (doctorId != null) 'doctorId': doctorId,
+          if (referral != null) 'referral': referral,
+          if (assigned != null) 'staffId': assigned,
+          if (updatedById != null) 'updatedById': updatedById,
         },
       );
       return Appointment.fromJson(_asMap(resp.data));

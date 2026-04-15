@@ -158,13 +158,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     if (at == 'medical_records' || r == 'medical_records') {
-      common.addAll([
-        const MenuItem(
-          label: 'Dashboard',
-          icon: Icons.dashboard_outlined,
-          route: DashboardRoute(),
-        ),
-      ]);
+      common.addAll(medicalRecordsMenu);
     }
 
     if (at == 'accounting' || at == 'accounts') {

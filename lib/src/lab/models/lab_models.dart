@@ -480,9 +480,20 @@ class LabSample {
   final String id;
   final String orderItemId;
   final String sampleType;
+  /// Staff user id who collected the sample (API may return this id as a string
+  /// or nested under `collectedBy: { id, firstName, lastName }`).
   final String collectedBy;
   final DateTime collectionTime;
   final String? barcode;
+
+  static String _collectedByIdFromJson(Object? raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw;
+    if (raw is Map<String, dynamic>) {
+      return (raw['id'] as String?) ?? '';
+    }
+    return '';
+  }
 
   factory LabSample.fromJson(Map<String, dynamic> json) {
     final collectionTimeStr = json['collectionTime'] as String?;
@@ -490,7 +501,7 @@ class LabSample {
       id: (json['id'] as String?) ?? '',
       orderItemId: (json['orderItemId'] as String?) ?? '',
       sampleType: (json['sampleType'] as String?) ?? '',
-      collectedBy: (json['collectedBy'] as String?) ?? '',
+      collectedBy: _collectedByIdFromJson(json['collectedBy']),
       collectionTime: collectionTimeStr != null
           ? (DateTime.tryParse(collectionTimeStr) ?? DateTime.now())
           : DateTime.now(),

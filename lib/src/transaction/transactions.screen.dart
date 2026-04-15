@@ -11,6 +11,7 @@ import 'transaction_payment_dialog.dart';
 import 'transaction_summary_section.dart';
 import '../services/transaction_service.dart';
 import '../widgets/receipt_escpos_service.dart';
+import '../widgets/receipt_printer_picker_sheet.dart';
 import '../widgets/table/reusable_async_table.dart';
 
 @RoutePage()
@@ -259,7 +260,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
         ),
         content: Text(
-          'Send receipt for $tid to the default printer?',
+          'Choose a printer to reprint receipt $tid',
           style: TextStyle(
             color: colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 14,
@@ -272,24 +273,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final nav = Navigator.of(dialogContext);
-              final messenger = ScaffoldMessenger.of(context);
-              nav.pop();
+              Navigator.of(dialogContext).pop();
+              if (!mounted) return;
               final data = ReceiptEscposService.fromTransactionMap(transaction);
-              try {
-                await ReceiptEscposService.printReceipt(data: data);
-                if (!mounted) return;
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('Receipt sent to default printer'),
-                  ),
-                );
-              } catch (e) {
-                if (!mounted) return;
-                messenger.showSnackBar(
-                  SnackBar(content: Text('Print failed: $e')),
-                );
-              }
+              await showReceiptPrinterPickerSheet(
+                context,
+                data: data,
+                isCopy: true,
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.primary,
@@ -299,6 +290,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ],
       ),
     );
+  }
+
+  /// Renders [TransactionMap]'s `patientId` only; API shape `{'patientId': value}`.
+  static String _patientIdCell(dynamic patientId) {
+    if (patientId == null) return 'No ID';
+    final s = patientId.toString().trim();
+    return s.isEmpty ? 'No ID' : s;
   }
 
   @override
@@ -453,10 +451,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(txn['patientName'] as String),
+                                    Text(() {
+                                      final n =
+                                          txn['patientName']
+                                              ?.toString()
+                                              .trim() ??
+                                          '';
+                                      return n.isEmpty ? '—' : n;
+                                    }()),
                                     Text(
-                                      txn['patientId'] as String,
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                      _patientIdCell(txn['patientId']),
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
                                     ),
                                   ],
                                 ),

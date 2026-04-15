@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/models/encounter_model.dart';
+import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -34,6 +35,9 @@ class _DoctorCompletedEncountersScreenState
   DateTime? _fromDate = DateTime.now();
   DateTime? _toDate = DateTime.now();
 
+  /// Physicians only: `false` = all completed (no doctorId); `true` = filter by logged-in doctor.
+  bool _physicianShowMineOnly = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,10 +57,27 @@ class _DoctorCompletedEncountersScreenState
     super.dispose();
   }
 
+  /// Same criteria as [HomeScreen] physician menu — toggles "mine only" on completed list.
+  bool _isPhysicianStaff(Staff? staff) {
+    if (staff == null) return false;
+    final at = staff.accountType?.name.toLowerCase() ?? '';
+    final r = staff.role.toLowerCase();
+    return at == 'physician' ||
+        at == 'consultant' ||
+        at == 'inpatient_doctor' ||
+        r == 'doctor' ||
+        r == 'consultant' ||
+        r == 'resident' ||
+        r == 'intern' ||
+        r == 'junior_resident' ||
+        r == 'senior_resident' ||
+        r == 'chief_resident' ||
+        r == 'medical_student';
+  }
+
   Future<void> _loadEncounters() async {
     final staff = ref.read(authProvider).staff;
-    final doctorId = staff?.id ?? staff?.staffId ?? '';
-    if (doctorId.isEmpty) {
+    if (staff == null) {
       setState(() {
         _loading = false;
         _error = 'Not logged in.';
@@ -64,28 +85,27 @@ class _DoctorCompletedEncountersScreenState
       return;
     }
 
+    final physician = _isPhysicianStaff(staff);
+    final String? doctorIdFilter;
+    if (physician && _physicianShowMineOnly) {
+      final id = staff.id.trim();
+      doctorIdFilter = id.isNotEmpty ? id : null;
+    } else {
+      doctorIdFilter = null;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      // Backend may use 'COMPLETED' or 'completed' or 'closed'
-      var list = await _encounterService.fetchOutpatientEncounters(
-        doctorId: doctorId,
+      final list = await _encounterService.fetchOutpatientEncounters(
+        doctorId: doctorIdFilter,
         status: 'COMPLETED',
         take: 200,
         fromDate: _fromDate,
         toDate: _toDate,
       );
-      if (list.isEmpty) {
-        list = await _encounterService.fetchOutpatientEncounters(
-          doctorId: doctorId,
-          status: 'COMPLETED',
-          take: 200,
-          fromDate: _fromDate,
-          toDate: _toDate,
-        );
-      }
       if (!mounted) return;
       list.sort(
         (a, b) =>
@@ -162,6 +182,8 @@ class _DoctorCompletedEncountersScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final staff = ref.watch(authProvider).staff;
+    final showPhysicianScopeToggle = _isPhysicianStaff(staff);
 
     if (_loading && _encounters.isEmpty) {
       return Center(
@@ -235,6 +257,32 @@ class _DoctorCompletedEncountersScreenState
                     color: colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
+                if (showPhysicianScopeToggle) ...[
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment<bool>(
+                          value: false,
+                          label: Text('All'),
+                          icon: Icon(Icons.groups_outlined, size: 18),
+                        ),
+                        ButtonSegment<bool>(
+                          value: true,
+                          label: Text('Mine'),
+                          icon: Icon(Icons.person_outline, size: 18),
+                        ),
+                      ],
+                      selected: {_physicianShowMineOnly},
+                      onSelectionChanged: (s) {
+                        if (s.isEmpty) return;
+                        setState(() => _physicianShowMineOnly = s.first);
+                        _loadEncounters();
+                      },
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -302,8 +350,7 @@ class _DoctorCompletedEncountersScreenState
                       _fromDate = from;
                       _toDate = to;
                     });
-                    // API will be called explicitly via _loadEncounters
-                    // (e.g. pull-to-refresh or Retry button)
+                    _loadEncounters();
                   },
                 ),
               ],

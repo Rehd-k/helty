@@ -48,32 +48,15 @@ final frontDesk = <MenuItem>[
       ),
     ],
   ),
+];
+
+/// Same entries as [frontDesk] plus completed encounters (medical records only).
+final medicalRecordsMenu = <MenuItem>[
+  ...frontDesk,
   MenuItem(
-    label: 'Services',
-    icon: Icons.view_array_outlined,
-    route: ViewServiceRoute(),
-    children: [
-      MenuItem(
-        label: 'View OPD Services',
-        icon: Icons.view_array_outlined,
-        route: ViewServiceRoute(),
-      ),
-      MenuItem(
-        label: 'Add New Service',
-        icon: Icons.view_array_outlined,
-        route: AddServiceRoute(),
-      ),
-      MenuItem(
-        label: 'Add New Category',
-        icon: Icons.view_array_outlined,
-        route: AddCategoryRoute(),
-      ),
-      MenuItem(
-        label: 'Add New Department',
-        icon: Icons.view_array_outlined,
-        route: AddDepartmentRoute(),
-      ),
-    ],
+    label: 'Completed Encounters',
+    icon: Icons.check_circle_outline,
+    route: DoctorCompletedEncountersRoute(),
   ),
 ];
 
