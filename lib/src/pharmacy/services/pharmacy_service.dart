@@ -595,6 +595,23 @@ class PharmacyApiService {
     }
   }
 
+  /// GET /pharmacy/batchespreview-ward-pricing/:drugId — batch + ward pricing preview.
+  Future<Map<String, dynamic>> getBatchesPreviewWardPricing(
+    String drugId,
+  ) async {
+    if (drugId.trim().isEmpty) {
+      throw const ValidationException('Drug id is required.');
+    }
+    try {
+      final resp = await _dio.get(
+        '$_basePath/batches/preview-ward-pricing/${drugId.trim()}',
+      );
+      return _mapFromResponse(resp);
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // GOODS RECEIPTS
   // ═══════════════════════════════════════════════════════════════════════════

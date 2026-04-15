@@ -881,6 +881,7 @@ class _WardFormState extends State<_WardForm> {
   late final TextEditingController _nameController;
   late final TextEditingController _capacityController;
   late final TextEditingController _departmentController;
+  late final TextEditingController _drugPricePercentageController;
   WardType _type = WardType.general;
   bool _isSaving = false;
 
@@ -895,6 +896,9 @@ class _WardFormState extends State<_WardForm> {
     _departmentController = TextEditingController(
       text: initial?.departmentId ?? '',
     );
+    _drugPricePercentageController = TextEditingController(
+      text: initial?.drugPricePercentage?.toString() ?? '',
+    );
     _type = initial?.type ?? WardType.general;
   }
 
@@ -903,6 +907,7 @@ class _WardFormState extends State<_WardForm> {
     _nameController.dispose();
     _capacityController.dispose();
     _departmentController.dispose();
+    _drugPricePercentageController.dispose();
     super.dispose();
   }
 
@@ -924,6 +929,20 @@ class _WardFormState extends State<_WardForm> {
       return;
     }
 
+    final pctRaw = _drugPricePercentageController.text.trim();
+    double? drugPricePercentage;
+    if (pctRaw.isNotEmpty) {
+      drugPricePercentage = double.tryParse(pctRaw.replaceAll(',', '.'));
+      if (drugPricePercentage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Drug price percentage must be a valid number'),
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _isSaving = true;
     });
@@ -937,6 +956,7 @@ class _WardFormState extends State<_WardForm> {
       departmentId: _departmentController.text.trim().isEmpty
           ? null
           : _departmentController.text.trim(),
+      drugPricePercentage: drugPricePercentage,
       createdAt: initial?.createdAt,
       updatedAt: initial?.updatedAt,
       beds: initial?.beds ?? const [],
@@ -995,6 +1015,12 @@ class _WardFormState extends State<_WardForm> {
           SetupTextField(
             label: 'Department ID (optional)',
             controller: _departmentController,
+          ),
+          const SizedBox(height: 12),
+          SetupTextField(
+            label: 'Drug price percentage (optional)',
+            controller: _drugPricePercentageController,
+            isNumber: true,
           ),
           const SizedBox(height: 20),
           Row(

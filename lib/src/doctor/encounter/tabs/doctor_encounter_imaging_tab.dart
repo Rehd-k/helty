@@ -88,8 +88,10 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
           'bodyPart': result.area,
           'clinicalNotes': result.notesToRadiologist,
           'contrast': result.contrast,
-          'serviceId': service.serviceId.isNotEmpty ? service.serviceId : service.id,
-        }
+          'serviceId': service.serviceId.isNotEmpty
+              ? service.serviceId
+              : service.id,
+        },
       ],
     });
     if (mounted) {
@@ -128,10 +130,7 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                     order.encounterId!.trim().isNotEmpty)
                   _ResultRow(label: 'Encounter', value: order.encounterId!),
                 _ResultRow(label: 'Status', value: order.status.name),
-                _ResultRow(
-                  label: 'Items',
-                  value: '${order.items.length}',
-                ),
+                _ResultRow(label: 'Items', value: '${order.items.length}'),
                 if (firstItem != null) ...[
                   _ResultRow(
                     label: 'Modality',
@@ -244,7 +243,8 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                     itemCount: _orders.length,
                     itemBuilder: (_, i) {
                       final o = _orders[i];
-                      final otherVisit = !_encounterOnly &&
+                      final otherVisit =
+                          !_encounterOnly &&
                           o.encounterId != null &&
                           o.encounterId!.isNotEmpty &&
                           o.encounterId != scope.encounterId;
@@ -265,7 +265,8 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                             label: Text(o.status.name),
                             backgroundColor: theme.colorScheme.primaryContainer,
                           ),
-                          onTap: () => _showImagingOrderResults(context, o, theme),
+                          onTap: () =>
+                              _showImagingOrderResults(context, o, theme),
                         ),
                       );
                     },
@@ -428,9 +429,9 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
 
   void _submitOrder() {
     if (_selected == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select a study.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select a study.')));
       return;
     }
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -468,207 +469,211 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-              const Text(
-                'Study *',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              if (_selected != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.5,
+                const Text(
+                  'Study *',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                if (_selected != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _selected!.name,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w500,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _selected!.name,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                      ),
-                      TextButton(
-                        onPressed: _clearSelection,
-                        child: const Text('Change'),
-                      ),
-                    ],
+                        TextButton(
+                          onPressed: _clearSelection,
+                          child: const Text('Change'),
+                        ),
+                      ],
+                    ),
                   ),
+                ] else ...[
+                  TextField(
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Search study (10 at a time)...',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: _searchLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                    onChanged: (v) {
+                      _searchDebounce?.cancel();
+                      _searchDebounce = Timer(
+                        const Duration(milliseconds: 300),
+                        () => _runSearch(skip: 0),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  if (_suggestions.isEmpty && !_searchLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Type to search for a study.',
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          fontSize: 13,
+                        ),
+                      ),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _suggestions.length,
+                        itemBuilder: (_, i) {
+                          final s = _suggestions[i];
+                          return ListTile(
+                            dense: true,
+                            title: Text(s.name),
+                            subtitle: s.departmentName != null
+                                ? Text(
+                                    s.departmentName!,
+                                    style: theme.textTheme.bodySmall,
+                                  )
+                                : null,
+                            onTap: () => _selectService(s),
+                          );
+                        },
+                      ),
+                    ),
+                  if (_suggestions.length >= pageSize)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: TextButton.icon(
+                        onPressed: _searchLoading
+                            ? null
+                            : () {
+                                _page += 1;
+                                _runSearch(
+                                  skip: _page * pageSize,
+                                  append: true,
+                                );
+                              },
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Load more'),
+                      ),
+                    ),
+                ],
+                const SizedBox(height: 12),
+                DropdownButtonFormField<RadiologyModality>(
+                  initialValue: _scanType,
+                  decoration: const InputDecoration(
+                    labelText: 'Scan type *',
+                    hintText: 'Select modality',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: RadiologyModality.values
+                      .map(
+                        (m) => DropdownMenuItem(
+                          value: m,
+                          child: Text(m.displayLabel),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _scanType = v),
+                  validator: (v) => v == null ? 'Required' : null,
                 ),
-              ] else ...[
-                TextField(
-                  controller: _searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Search study (10 at a time)...',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: _searchLoading
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : null,
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _areaCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Body area / region *',
+                    hintText: 'e.g. Chest, Abdomen, Right knee',
+                    border: OutlineInputBorder(),
                   ),
-                  onChanged: (v) {
-                    _searchDebounce?.cancel();
-                    _searchDebounce = Timer(
-                      const Duration(milliseconds: 300),
-                      () => _runSearch(skip: 0),
-                    );
+                  textCapitalization: TextCapitalization.sentences,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    return null;
                   },
                 ),
                 const SizedBox(height: 8),
-                if (_suggestions.isEmpty && !_searchLoading)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      'Type to search for a study.',
-                      style: TextStyle(
-                        fontStyle: FontStyle.italic,
-                        fontSize: 13,
-                      ),
-                    ),
-                  )
-                else
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 200),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: _suggestions.length,
-                      itemBuilder: (_, i) {
-                        final s = _suggestions[i];
-                        return ListTile(
-                          dense: true,
-                          title: Text(s.name),
-                          subtitle: s.departmentName != null
-                              ? Text(
-                                  s.departmentName!,
-                                  style: theme.textTheme.bodySmall,
-                                )
-                              : null,
-                          onTap: () => _selectService(s),
-                        );
-                      },
-                    ),
+                Text(
+                  'Contrast *',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                if (_suggestions.length >= pageSize)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: TextButton.icon(
-                      onPressed: _searchLoading
-                          ? null
-                          : () {
-                              _page += 1;
-                              _runSearch(skip: _page * pageSize, append: true);
-                            },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Load more'),
-                    ),
+                ),
+                const SizedBox(height: 4),
+                RadioListTile<bool>(
+                  title: const Text('Without contrast'),
+                  value: false,
+                  groupValue: _contrast,
+                  onChanged: (v) => setState(() => _contrast = v),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                RadioListTile<bool>(
+                  title: const Text('With contrast'),
+                  value: true,
+                  groupValue: _contrast,
+                  onChanged: (v) => setState(() => _contrast = v),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: _urgency,
+                  decoration: const InputDecoration(
+                    labelText: 'Urgency *',
+                    border: OutlineInputBorder(),
                   ),
+                  items: const [
+                    DropdownMenuItem(value: 'Routine', child: Text('Routine')),
+                    DropdownMenuItem(value: 'Urgent', child: Text('Urgent')),
+                    DropdownMenuItem(value: 'STAT', child: Text('STAT')),
+                  ],
+                  onChanged: (v) => setState(() => _urgency = v ?? _urgency),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Clinical notes for radiology *',
+                    hintText: 'Indication, relevant history, questions…',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    return null;
+                  },
+                ),
               ],
-              const SizedBox(height: 12),
-              DropdownButtonFormField<RadiologyModality>(
-                value: _scanType,
-                decoration: const InputDecoration(
-                  labelText: 'Scan type *',
-                  hintText: 'Select modality',
-                  border: OutlineInputBorder(),
-                ),
-                items: RadiologyModality.values
-                    .map(
-                      (m) => DropdownMenuItem(
-                        value: m,
-                        child: Text(m.displayLabel),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _scanType = v),
-                validator: (v) => v == null ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _areaCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Body area / region *',
-                  hintText: 'e.g. Chest, Abdomen, Right knee',
-                  border: OutlineInputBorder(),
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Contrast *',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              RadioListTile<bool>(
-                title: const Text('Without contrast'),
-                value: false,
-                groupValue: _contrast,
-                onChanged: (v) => setState(() => _contrast = v),
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              RadioListTile<bool>(
-                title: const Text('With contrast'),
-                value: true,
-                groupValue: _contrast,
-                onChanged: (v) => setState(() => _contrast = v),
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _urgency,
-                decoration: const InputDecoration(
-                  labelText: 'Urgency *',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'Routine', child: Text('Routine')),
-                  DropdownMenuItem(value: 'Urgent', child: Text('Urgent')),
-                  DropdownMenuItem(value: 'STAT', child: Text('STAT')),
-                ],
-                onChanged: (v) => setState(() => _urgency = v ?? _urgency),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _notesCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Clinical notes for radiology *',
-                  hintText: 'Indication, relevant history, questions…',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  return null;
-                },
-              ),
-            ],
+            ),
           ),
-        ),
         ),
       ),
       actions: [
@@ -676,10 +681,7 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _submitOrder,
-          child: const Text('Order'),
-        ),
+        FilledButton(onPressed: _submitOrder, child: const Text('Order')),
       ],
     );
   }

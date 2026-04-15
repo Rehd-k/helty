@@ -118,6 +118,10 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AddDrugRoute.page),
         AutoRoute(page: AddSupplierRoute.page),
         AutoRoute(page: AddBatchRoute.page),
+        AutoRoute(
+          path: 'pharmacy/batchespreview-ward-pricing/:id',
+          page: BatchesPreviewWardPricingRoute.page,
+        ),
         AutoRoute(page: StockTransferRoute.page),
         AutoRoute(page: CreateRequisitionRoute.page),
         AutoRoute(page: SupplyHistoryRoute.page),
@@ -175,6 +179,10 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: StoreStockRoute.page),
         AutoRoute(page: StoreMovementsRoute.page),
         AutoRoute(page: StoreAnalyticsRoute.page),
+        AutoRoute(page: HelpCenterRoute.page),
+        AutoRoute(page: SupportTicketDetailRoute.page),
+        AutoRoute(page: StaffChatRoute.page),
+        AutoRoute(page: StaffChatThreadRoute.page),
       ],
     ),
 

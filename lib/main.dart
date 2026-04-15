@@ -11,6 +11,7 @@ import 'src/providers/theme_mode_provider.dart';
 import 'src/services/navigation.service.dart';
 import 'src/widgets/clock_sync_gate.dart';
 import 'src/widgets/helty_desktop_update_layer.dart';
+import 'src/widgets/notifications/app_notification_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,7 +68,11 @@ class _MyAppState extends ConsumerState<MyApp> {
       debugShowCheckedModeBanner: false,
       routerConfig: NavigationService.router.config(),
       builder: (context, child) {
-        return HeltyDesktopUpdateLayer(child: child ?? const SizedBox.shrink());
+        return HeltyDesktopUpdateLayer(
+          child: AppNotificationHost(
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
       },
     );
   }

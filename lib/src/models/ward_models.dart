@@ -192,6 +192,7 @@ class Ward {
     required this.capacity,
     required this.type,
     this.departmentId,
+    this.drugPricePercentage,
     this.createdAt,
     this.updatedAt,
     this.beds = const [],
@@ -203,6 +204,7 @@ class Ward {
   final int capacity;
   final WardType type;
   final String? departmentId;
+  final double? drugPricePercentage;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final List<Bed> beds;
@@ -217,6 +219,12 @@ class Ward {
       capacity: (json['capacity'] as num?)?.toInt() ?? 0,
       type: _wardTypeFromJson(json['type'] as String?),
       departmentId: json['departmentId'] as String?,
+      drugPricePercentage: () {
+        final v = json['drugPricePercentage'];
+        if (v == null) return null;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString());
+      }(),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
@@ -244,5 +252,6 @@ class Ward {
     'capacity': capacity,
     'type': wardTypeToJson(type),
     if (departmentId != null) 'departmentId': departmentId,
+    if (drugPricePercentage != null) 'drugPricePercentage': drugPricePercentage,
   };
 }

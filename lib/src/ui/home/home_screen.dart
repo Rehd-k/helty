@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
+import '../../chat/services/internal_chat_socket.dart';
 import '../../providers/auth_provider.dart';
+import 'desktop_shell_side_panel.dart';
+import 'shell_side_panel_provider.dart';
 import '../../services/helty_desktop_update_service.dart';
 import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
@@ -306,6 +309,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(internalChatSocketProvider);
     final state = ref.watch(authProvider);
     final auth = ref.watch(authProvider);
     final role = auth.staff?.role.toLowerCase() ?? '';
@@ -313,16 +317,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final menuItems = _menuForRole(role, accountType);
     final isMobile = MediaQuery.of(context).size.width < 720;
 
+    void openHelpCenter() {
+      if (isMobile) {
+        context.router.push(const HelpCenterRoute());
+      } else {
+        ref.read(shellSidePanelProvider.notifier).toggle(ShellSidePanelTab.help);
+      }
+    }
+
+    void openStaffChat() {
+      if (isMobile) {
+        context.router.push(const StaffChatRoute());
+      } else {
+        ref.read(shellSidePanelProvider.notifier).toggle(ShellSidePanelTab.chat);
+      }
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
-      body: Column(
+      body: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.none,
         children: [
-          if (Platform.isWindows) _buildTitleBar(context),
-          Expanded(
-            child: isMobile
-                ? _buildMobileLayout(context, menuItems, state)
-                : _buildDesktopLayout(context, menuItems, state),
+          Column(
+            children: [
+              if (Platform.isWindows) _buildTitleBar(context, openHelpCenter, openStaffChat),
+              Expanded(
+                child: isMobile
+                    ? _buildMobileLayout(
+                        context,
+                        menuItems,
+                        state,
+                        openHelpCenter,
+                        openStaffChat,
+                      )
+                    : _buildDesktopLayout(
+                        context,
+                        menuItems,
+                        state,
+                        openHelpCenter,
+                        openStaffChat,
+                      ),
+              ),
+            ],
           ),
+          if (!isMobile) const DesktopShellSidePanel(),
         ],
       ),
     );
@@ -334,6 +373,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     BuildContext context,
     List<MenuItem> menuItems,
     state,
+    VoidCallback openHelpCenter,
+    VoidCallback openStaffChat,
   ) {
     return Row(
       children: [
@@ -349,7 +390,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         Expanded(
-          child: Container(color: const Color(0xFFF1F5F9), child: AutoRouter()),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!Platform.isWindows)
+                _NonWindowsShellActions(
+                  onHelpCenter: openHelpCenter,
+                  onStaffChat: openStaffChat,
+                ),
+              Expanded(
+                child: Container(
+                  color: const Color(0xFFF1F5F9),
+                  child: AutoRouter(),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -361,12 +417,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     BuildContext context,
     List<MenuItem> menuItems,
     state,
+    VoidCallback openHelpCenter,
+    VoidCallback openStaffChat,
   ) {
     return Stack(
       children: [
         Column(
           children: [
-            _MobileTopBar(onMenuTap: () => setState(() => _sidebarOpen = true)),
+            _MobileTopBar(
+              onMenuTap: () => setState(() => _sidebarOpen = true),
+              onHelpCenter: openHelpCenter,
+              onStaffChat: openStaffChat,
+            ),
             const Expanded(child: AutoRouter()),
           ],
         ),
@@ -400,7 +462,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // ── Windows Custom Title Bar ──────────────────────────────────────────────
 
-  Widget _buildTitleBar(BuildContext context) {
+  Widget _buildTitleBar(
+    BuildContext context,
+    VoidCallback openHelpCenter,
+    VoidCallback openStaffChat,
+  ) {
     return WindowTitleBarBox(
       child: Container(
         decoration: const BoxDecoration(
@@ -446,6 +512,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   const SlidingNotificationDropdown(),
                   const _WindowsCheckForUpdatesButton(),
+                  _WindowsShellHelpChatButtons(
+                    onHelpCenter: openHelpCenter,
+                    onStaffChat: openStaffChat,
+                  ),
                   const WindowButtons(),
                 ],
               ),
@@ -487,6 +557,115 @@ class _WindowsCheckForUpdatesButtonState
               size: 18,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WindowsShellHelpChatButtons extends StatelessWidget {
+  const _WindowsShellHelpChatButtons({
+    required this.onHelpCenter,
+    required this.onStaffChat,
+  });
+
+  final VoidCallback onHelpCenter;
+  final VoidCallback onStaffChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _WindowsTitleBarIconAction(
+          tooltip: 'Help Center',
+          icon: Icons.help_outline_rounded,
+          onTap: onHelpCenter,
+        ),
+        const SizedBox(width: 4),
+        _WindowsTitleBarIconAction(
+          tooltip: 'Staff chat',
+          icon: Icons.chat_bubble_outline_rounded,
+          onTap: onStaffChat,
+        ),
+      ],
+    );
+  }
+}
+
+class _WindowsTitleBarIconAction extends StatefulWidget {
+  const _WindowsTitleBarIconAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  State<_WindowsTitleBarIconAction> createState() =>
+      _WindowsTitleBarIconActionState();
+}
+
+class _WindowsTitleBarIconActionState extends State<_WindowsTitleBarIconAction> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: Tooltip(
+        message: widget.tooltip,
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              widget.icon,
+              color: _hover ? _kSidebarAccent : _kSidebarTextMuted,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NonWindowsShellActions extends StatelessWidget {
+  const _NonWindowsShellActions({
+    required this.onHelpCenter,
+    required this.onStaffChat,
+  });
+
+  final VoidCallback onHelpCenter;
+  final VoidCallback onStaffChat;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      child: SizedBox(
+        height: 44,
+        child: Row(
+          children: [
+            const Spacer(),
+            IconButton(
+              tooltip: 'Help Center',
+              icon: const Icon(Icons.help_outline_rounded),
+              onPressed: onHelpCenter,
+            ),
+            IconButton(
+              tooltip: 'Staff chat',
+              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              onPressed: onStaffChat,
+            ),
+          ],
         ),
       ),
     );
@@ -982,8 +1161,14 @@ class _ChildEntryState extends State<_ChildEntry> {
 
 class _MobileTopBar extends StatelessWidget {
   final VoidCallback onMenuTap;
+  final VoidCallback onHelpCenter;
+  final VoidCallback onStaffChat;
 
-  const _MobileTopBar({required this.onMenuTap});
+  const _MobileTopBar({
+    required this.onMenuTap,
+    required this.onHelpCenter,
+    required this.onStaffChat,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1022,6 +1207,14 @@ class _MobileTopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          _IconButton(
+            icon: Icons.help_outline_rounded,
+            onTap: onHelpCenter,
+          ),
+          _IconButton(
+            icon: Icons.chat_bubble_outline_rounded,
+            onTap: onStaffChat,
+          ),
           const SlidingNotificationDropdown(),
           const SizedBox(width: 8),
           _MobileLogoutButton(),

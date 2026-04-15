@@ -34,6 +34,7 @@ class BankDropdown extends StatelessWidget {
   });
 
   final List<BankModel> banks;
+
   /// Selected bank id (matches [BankModel.id]).
   final String? value;
   final ValueChanged<String?> onChanged;
@@ -57,7 +58,7 @@ class BankDropdown extends StatelessWidget {
     }
 
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       decoration: InputDecoration(
         labelText: 'Select Bank',
@@ -273,10 +274,7 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   /// Best-effort balance from `GET /invoices/:id` when `amountDue` / `netAmountDue` are missing or still zero.
-  double _outstandingFromDetail(
-    BillingInvoiceDetail d,
-    double cartFallback,
-  ) {
+  double _outstandingFromDetail(BillingInvoiceDetail d, double cartFallback) {
     double tryVal(double x) => _moneyRound(x);
 
     if (d.netAmountDue > 0.005) return tryVal(d.netAmountDue);
@@ -553,7 +551,8 @@ class PayBillState extends ConsumerState<PayBill> {
                                 banks: _banks,
                                 value: _mixedBankIds[m],
                                 isLoading: _banksLoading,
-                                onChanged: (bankId) => updateMixedBank(m, bankId),
+                                onChanged: (bankId) =>
+                                    updateMixedBank(m, bankId),
                               ),
                             ],
                           ],
@@ -613,8 +612,9 @@ class PayBillState extends ConsumerState<PayBill> {
     final bank = _selectedBankForPayment();
     final bankName = bank?.name;
     final accountNumber = bank?.accountNumber.trim();
-    final bankAccountNumber =
-        accountNumber != null && accountNumber.isNotEmpty ? accountNumber : null;
+    final bankAccountNumber = accountNumber != null && accountNumber.isNotEmpty
+        ? accountNumber
+        : null;
 
     // Build mixedBreakdown with bank info embedded if needed
     Map<String, dynamic>? mixedBreakdownWithBanks;
@@ -627,8 +627,7 @@ class PayBillState extends ConsumerState<PayBill> {
           mixedBreakdownWithBanks[m] = {
             'amount': amount,
             if (b != null) 'bankName': b.name,
-            if (b != null &&
-                b.accountNumber.trim().isNotEmpty)
+            if (b != null && b.accountNumber.trim().isNotEmpty)
               'bankAccountNumber': b.accountNumber.trim(),
           };
         }

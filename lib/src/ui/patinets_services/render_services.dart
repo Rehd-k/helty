@@ -49,7 +49,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   List<ServiceCategory> _categories = [];
   List<ServiceModel> _services = [];
   bool _loading = false;
- 
+
   // ── filter & pagination state ─────────────────────────────────────────────
   String _searchQuery = '';
   String? _selectedCategoryId; // null = all categories
@@ -116,12 +116,16 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             .map((e) => e.toLowerCase())
             .toSet();
         filteredResults = results
-            .where((s) => allowed.contains((s.categoryName ?? '').toLowerCase()))
+            .where(
+              (s) => allowed.contains((s.categoryName ?? '').toLowerCase()),
+            )
             .toList();
       }
       setState(() {
         _services = filteredResults;
-        _hasMore = _flowConfig.isModuleFlow ? false : filteredResults.length >= _take;
+        _hasMore = _flowConfig.isModuleFlow
+            ? false
+            : filteredResults.length >= _take;
       });
     } catch (e) {
       _snack('Failed to load services: $e');
@@ -150,9 +154,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       _snack('No items selected or total amount is zero.');
       return;
     }
-    final patientUuid = _resolvePatientUuidForInvoice(
-      selectedPatient: patient,
-    );
+    final patientUuid = _resolvePatientUuidForInvoice(selectedPatient: patient);
     if (patientUuid == null) {
       _snack(
         'Cannot pay: patient needs a server id (UUID). '
@@ -192,12 +194,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         );
       }
       final invoice = await svc.getBillingInvoice(created.id);
-      final outstanding =
-          invoice.netAmountDue > 0
-              ? invoice.netAmountDue
-              : (invoice.amountDue > 0
-                    ? invoice.amountDue
-                    : (invoice.totalAmount - invoice.amountPaid));
+      final outstanding = invoice.netAmountDue > 0
+          ? invoice.netAmountDue
+          : (invoice.amountDue > 0
+                ? invoice.amountDue
+                : (invoice.totalAmount - invoice.amountPaid));
       if (outstanding <= 0) {
         _snack(
           'Invoice created but no billable balance found. Please refresh and try again.',
@@ -324,10 +325,10 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
               onPressed: _depositBusy
                   ? null
                   : () => _openDepositDialog(
-                        selectedPatient: selectedPatient,
-                        auth: auth,
-                        printReceiptForBilling: isBillingUser,
-                      ),
+                      selectedPatient: selectedPatient,
+                      auth: auth,
+                      printReceiptForBilling: isBillingUser,
+                    ),
               icon: const Icon(Icons.account_balance_wallet_outlined),
             ),
             IconButton(
@@ -486,66 +487,66 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
               // Category Dropdown
               if (!_flowConfig.isModuleFlow)
                 Container(
-                margin: const EdgeInsets.only(left: 8),
-                decoration: BoxDecoration(
-                  color: _selectedCategoryId == ''
-                      ? Colors.blue.shade50
-                      : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: _selectedCategoryId == ''
-                      ? Border.all(color: Colors.blue.shade300)
-                      : null,
-                ),
-                child: PopupMenuButton<String?>(
-                  icon: Icon(
-                    Icons.filter_list,
-                    color: _selectedCategoryId == ""
-                        ? Colors.blue.shade700
-                        : Colors.grey.shade700,
+                  margin: const EdgeInsets.only(left: 8),
+                  decoration: BoxDecoration(
+                    color: _selectedCategoryId == ''
+                        ? Colors.blue.shade50
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: _selectedCategoryId == ''
+                        ? Border.all(color: Colors.blue.shade300)
+                        : null,
                   ),
-                  tooltip: 'Filter by Category',
-                  offset: const Offset(0, 40),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  itemBuilder: (context) => [
-                    // "All Categories" clear option
-                    const PopupMenuItem<String?>(
-                      value: "",
-                      child: Row(
-                        children: [
-                          Icon(Icons.clear, size: 16),
-                          SizedBox(width: 8),
-                          Text('All Categories'),
-                        ],
-                      ),
+                  child: PopupMenuButton<String?>(
+                    icon: Icon(
+                      Icons.filter_list,
+                      color: _selectedCategoryId == ""
+                          ? Colors.blue.shade700
+                          : Colors.grey.shade700,
                     ),
-                    ..._categories.map((category) {
-                      final isCurrent = _selectedCategoryId == category.id;
-                      return PopupMenuItem<String?>(
-                        value: category.id,
+                    tooltip: 'Filter by Category',
+                    offset: const Offset(0, 40),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    itemBuilder: (context) => [
+                      // "All Categories" clear option
+                      const PopupMenuItem<String?>(
+                        value: "",
                         child: Row(
                           children: [
-                            if (isCurrent)
-                              Icon(
-                                Icons.check,
-                                size: 16,
-                                color: Colors.blue.shade600,
-                              )
-                            else
-                              const SizedBox(width: 16),
-                            const SizedBox(width: 8),
-                            Text(category.name),
+                            Icon(Icons.clear, size: 16),
+                            SizedBox(width: 8),
+                            Text('All Categories'),
                           ],
                         ),
-                      );
-                    }),
-                  ],
-                  onSelected: (value) {
-                    setState(() => _selectedCategoryId = value);
-                    _loadServices(resetPage: true);
-                  },
-                ),
+                      ),
+                      ..._categories.map((category) {
+                        final isCurrent = _selectedCategoryId == category.id;
+                        return PopupMenuItem<String?>(
+                          value: category.id,
+                          child: Row(
+                            children: [
+                              if (isCurrent)
+                                Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.blue.shade600,
+                                )
+                              else
+                                const SizedBox(width: 16),
+                              const SizedBox(width: 8),
+                              Text(category.name),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    onSelected: (value) {
+                      setState(() => _selectedCategoryId = value);
+                      _loadServices(resetPage: true);
+                    },
+                  ),
                 ),
             ],
           ),
@@ -1235,7 +1236,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             title: const Text('Take Deposit'),
             content: TextField(
               controller: amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Deposit amount',
                 hintText: 'Enter amount',
@@ -1422,11 +1425,7 @@ class _PatientStatusDialog extends StatefulWidget {
 }
 
 class _PatientStatusDialogState extends State<_PatientStatusDialog> {
-  static const List<String> _statuses = [
-    'ADMITED',
-    'DECEASED',
-    'OUTPATIENT',
-  ];
+  static const List<String> _statuses = ['ADMITED', 'DECEASED', 'OUTPATIENT'];
 
   final WardService _wardService = WardService();
 
@@ -1518,16 +1517,18 @@ class _PatientStatusDialogState extends State<_PatientStatusDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingBeds = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load beds: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load beds: $e')));
     }
   }
 
   Future<void> _submit() async {
     if (widget.patient.id == null || widget.patient.id!.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot update status: missing patient id.')),
+        const SnackBar(
+          content: Text('Cannot update status: missing patient id.'),
+        ),
       );
       return;
     }
@@ -1535,7 +1536,9 @@ class _PatientStatusDialogState extends State<_PatientStatusDialog> {
       if (_selectedWard == null || _selectedBed == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Select a ward and an available bed before admitting.'),
+            content: Text(
+              'Select a ward and an available bed before admitting.',
+            ),
           ),
         );
         return;
@@ -1565,9 +1568,9 @@ class _PatientStatusDialogState extends State<_PatientStatusDialog> {
       widget.onSuccess(updated);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update status: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update status: $e')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -1599,9 +1602,9 @@ class _PatientStatusDialogState extends State<_PatientStatusDialog> {
                 const Divider(height: 24),
                 Text(
                   'Ward & bed (billing admission)',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 if (_loadingWards)
@@ -1619,17 +1622,15 @@ class _PatientStatusDialogState extends State<_PatientStatusDialog> {
                   )
                 else ...[
                   DropdownButtonFormField<Ward>(
-                    value: _selectedWard,
+                    initialValue: _selectedWard,
                     decoration: const InputDecoration(
                       labelText: 'Ward',
                       border: OutlineInputBorder(),
                     ),
                     items: _wards
                         .map(
-                          (w) => DropdownMenuItem(
-                            value: w,
-                            child: Text(w.name),
-                          ),
+                          (w) =>
+                              DropdownMenuItem(value: w, child: Text(w.name)),
                         )
                         .toList(),
                     onChanged: _submitting || _wards.isEmpty
@@ -1654,7 +1655,7 @@ class _PatientStatusDialogState extends State<_PatientStatusDialog> {
                     )
                   else
                     DropdownButtonFormField<Bed>(
-                      value: _selectedBed,
+                      initialValue: _selectedBed,
                       decoration: const InputDecoration(
                         labelText: 'Bed',
                         border: OutlineInputBorder(),

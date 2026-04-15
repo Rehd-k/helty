@@ -125,31 +125,22 @@ class _HeltyDesktopUpdateLayerState extends State<HeltyDesktopUpdateLayer> {
               // `updat` uses `url.split('.').last` as the file extension. URLs like
               // `.../download/latest` yield `.latest`, so the installer is saved with
               // the wrong extension and `url_launcher` fails to open it.
-              getDownloadFileLocation: (latestVersion) =>
-                  updat_file.getDownloadFileLocation(
-                    latestVersion ?? v,
-                    'Helty',
-                    'exe',
-                  ),
+              getDownloadFileLocation: (latestVersion) => updat_file
+                  .getDownloadFileLocation(latestVersion ?? v, 'Helty', 'exe'),
               getLatestVersion: () async {
                 var latestVersion =
                     await HeltyDesktopUpdateService.getLatestVersionForUpdat(v);
-                print('latestVersion: $latestVersion');
-                print('v: $v');
+
                 return latestVersion;
               },
               getBinaryUrl: (String? version) async {
-                print('version: $version');
                 var binaryUrl =
                     await HeltyDesktopUpdateService.getBinaryDownloadUrl(
                       version ?? v,
                     );
-                print('binaryUrl: $binaryUrl');
                 return binaryUrl;
               },
-              // HeltyDesktopUpdateService.getBinaryDownloadUrl,
               callback: (status) {
-                print('status: $status');
                 _maybeShowErrorSnack(status);
                 _previousStatus = status;
               },

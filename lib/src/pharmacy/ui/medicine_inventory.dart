@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:intl/intl.dart';
 
@@ -854,6 +855,15 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
               IconButton(
                 icon: const Icon(Icons.edit, color: Colors.grey),
                 onPressed: () => _showEditMedicineModal(context, theme, drug),
+              ),
+              IconButton(
+                icon: const Icon(Icons.sell_outlined, color: Colors.grey),
+                tooltip: 'Batch & ward pricing preview',
+                onPressed: drug.id == null || drug.id!.trim().isEmpty
+                    ? null
+                    : () => context.router.push(
+                          BatchesPreviewWardPricingRoute(id: drug.id!),
+                        ),
               ),
             ],
           ),

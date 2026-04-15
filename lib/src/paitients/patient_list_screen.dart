@@ -25,8 +25,8 @@ class _PatientListScreenState extends State<PatientListScreen> {
   String _filterCategory = 'patientId';
   DateTime? _fromDate;
   DateTime? _toDate;
-  String _sortBy = 'surname';
-  bool _isAscending = false;
+  final String _sortBy = 'surname';
+  final bool _isAscending = false;
   String? _error;
   final List<Patient> _patients = <Patient>[];
   bool _initialLoading = true;
@@ -113,7 +113,9 @@ class _PatientListScreenState extends State<PatientListScreen> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Delete is not available from this view yet.')),
+      const SnackBar(
+        content: Text('Delete is not available from this view yet.'),
+      ),
     );
   }
 
@@ -419,61 +421,57 @@ class _PatientListScreenState extends State<PatientListScreen> {
                 child: _initialLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _patients.isEmpty
-                        ? const Center(
-                            child: Text('No patient record found for this filter.'),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            itemCount: _patients.length + 1,
-                            itemBuilder: (context, index) {
-                              if (index == _patients.length) {
-                                if (!_hasMore) {
-                                  return const Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: Center(
-                                      child: Text('You have reached the end.'),
-                                    ),
-                                  );
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    16,
-                                    8,
-                                    16,
-                                    18,
-                                  ),
-                                  child: FilledButton.icon(
-                                    onPressed:
-                                        _isLoadingMore ? null : _loadPatientsPage,
-                                    icon: _isLoadingMore
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Icon(Icons.expand_more),
-                                    label: Text(
-                                      _isLoadingMore
-                                          ? 'Loading more...'
-                                          : 'Load More',
-                                    ),
-                                  ),
-                                );
-                              }
-                              final patient = _patients[index];
-                              return InkWell(
-                                borderRadius: BorderRadius.circular(14),
-                                onTap: () {
-                                  ProviderScope.containerOf(context, listen: false)
-                                      .read(patientProvider.notifier)
-                                      .selectPatient(patient);
-                                },
-                                child: _buildPatientCard(patient, colorScheme),
+                    ? const Center(
+                        child: Text('No patient record found for this filter.'),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        itemCount: _patients.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == _patients.length) {
+                            if (!_hasMore) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Center(
+                                  child: Text('You have reached the end.'),
+                                ),
                               );
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+                              child: FilledButton.icon(
+                                onPressed: _isLoadingMore
+                                    ? null
+                                    : _loadPatientsPage,
+                                icon: _isLoadingMore
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.expand_more),
+                                label: Text(
+                                  _isLoadingMore
+                                      ? 'Loading more...'
+                                      : 'Load More',
+                                ),
+                              ),
+                            );
+                          }
+                          final patient = _patients[index];
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () {
+                              ProviderScope.containerOf(context, listen: false)
+                                  .read(patientProvider.notifier)
+                                  .selectPatient(patient);
                             },
-                          ),
+                            child: _buildPatientCard(patient, colorScheme),
+                          );
+                        },
+                      ),
               ),
             ),
           ),

@@ -75,18 +75,6 @@ class WindowButtons extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(width: 8),
-        InkWell(
-          onTap: () {},
-          child: Tooltip(
-            message: 'Help Center',
-            child: Icon(
-              Icons.help_outline_outlined,
-              color: dividerColor,
-              size: 16,
-            ),
-          ),
-        ),
         MinimizeWindowButton(colors: buttonColors),
         MaximizeWindowButton(colors: buttonColors),
         CloseWindowButton(colors: closeButtonColors),
