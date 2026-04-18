@@ -12,7 +12,7 @@ final frontDesk = <MenuItem>[
   MenuItem(
     label: 'View Waiting Patients',
     icon: Icons.add_alarm_outlined,
-    route: NewPatientRoute(use: 'NursingQueue'),
+    route: NewPatientRoute(use: 'For Register'),
   ),
   MenuItem(
     label: 'Patients',
@@ -86,11 +86,11 @@ final bills = <MenuItem>[
     icon: Icons.add_box_outlined,
     route: SystemSetupRoute(),
   ),
-  MenuItem(
-    label: 'Debt/Insurance Payment',
-    icon: Icons.personal_injury_outlined,
-    route: NotAvailableRoute(),
-  ),
+  // MenuItem(
+  //   label: 'Debt/Insurance Payment',
+  //   icon: Icons.personal_injury_outlined,
+  //   route: NotAvailableRoute(),
+  // ),
   MenuItem(
     label: 'Transaction',
     icon: Icons.list_outlined,

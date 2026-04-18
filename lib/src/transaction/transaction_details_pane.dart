@@ -13,7 +13,9 @@ class TransactionDetailsPane extends StatelessWidget {
     required this.transaction,
     required this.onReprint,
     required this.onChangeMethod,
+    required this.onChangeTransactionDate,
     required this.onRefund,
+    this.showChangeDateAndRefund = true,
   });
 
   /// The transaction to display. Pass `null` to show the empty state.
@@ -21,7 +23,9 @@ class TransactionDetailsPane extends StatelessWidget {
 
   final VoidCallback onReprint;
   final VoidCallback onChangeMethod;
+  final VoidCallback onChangeTransactionDate;
   final VoidCallback onRefund;
+  final bool showChangeDateAndRefund;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +40,9 @@ class TransactionDetailsPane extends StatelessWidget {
       colorScheme: colorScheme,
       onReprint: onReprint,
       onChangeMethod: onChangeMethod,
+      onChangeTransactionDate: onChangeTransactionDate,
       onRefund: onRefund,
+      showChangeDateAndRefund: showChangeDateAndRefund,
     );
   }
 }
@@ -91,14 +97,18 @@ class _DetailContent extends StatelessWidget {
     required this.colorScheme,
     required this.onReprint,
     required this.onChangeMethod,
+    required this.onChangeTransactionDate,
     required this.onRefund,
+    required this.showChangeDateAndRefund,
   });
 
   final Map<String, dynamic> txn;
   final ColorScheme colorScheme;
   final VoidCallback onReprint;
   final VoidCallback onChangeMethod;
+  final VoidCallback onChangeTransactionDate;
   final VoidCallback onRefund;
+  final bool showChangeDateAndRefund;
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +166,9 @@ class _DetailContent extends StatelessWidget {
             colorScheme: colorScheme,
             onReprint: onReprint,
             onChangeMethod: onChangeMethod,
+            onChangeTransactionDate: onChangeTransactionDate,
             onRefund: onRefund,
+            showChangeDateAndRefund: showChangeDateAndRefund,
           ),
         ],
       ),
@@ -604,13 +616,17 @@ class _ActionButtons extends StatelessWidget {
     required this.colorScheme,
     required this.onReprint,
     required this.onChangeMethod,
+    required this.onChangeTransactionDate,
     required this.onRefund,
+    required this.showChangeDateAndRefund,
   });
 
   final ColorScheme colorScheme;
   final VoidCallback onReprint;
   final VoidCallback onChangeMethod;
+  final VoidCallback onChangeTransactionDate;
   final VoidCallback onRefund;
+  final bool showChangeDateAndRefund;
 
   @override
   Widget build(BuildContext context) {
@@ -643,18 +659,28 @@ class _ActionButtons extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           ),
-          OutlinedButton.icon(
-            onPressed: onRefund,
-            icon: const Icon(Icons.undo, size: 14, color: Colors.red),
-            label: const Text(
-              'Refund',
-              style: TextStyle(fontSize: 12, color: Colors.red),
+          if (showChangeDateAndRefund) ...[
+            OutlinedButton.icon(
+              onPressed: onChangeTransactionDate,
+              icon: const Icon(Icons.event, size: 14),
+              label: const Text('Change date', style: TextStyle(fontSize: 12)),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
             ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+            OutlinedButton.icon(
+              onPressed: onRefund,
+              icon: const Icon(Icons.undo, size: 14, color: Colors.red),
+              label: const Text(
+                'Refund',
+                style: TextStyle(fontSize: 12, color: Colors.red),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

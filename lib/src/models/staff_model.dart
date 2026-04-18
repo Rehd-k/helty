@@ -187,3 +187,28 @@ class Staff {
     isActive: isActive ?? this.isActive,
   );
 }
+
+/// Billing analytics dashboard, transaction change-date, and refund actions.
+///
+/// Allowed: [AccountType.super_admin], role `super_admin`, `billing_head`,
+/// `account_head`.
+bool staffCanAccessPrivilegedBillingStrings(
+  String role,
+  String accountTypeApiValue,
+) {
+  final at = AccountType.fromString(accountTypeApiValue);
+  if (at == AccountType.super_admin) return true;
+  final r = role.trim().toLowerCase().replaceAll('-', '_');
+  if (r == 'super_admin') return true;
+  if (r == 'billing_head') return true;
+  if (r == 'account_head') return true;
+  return false;
+}
+
+bool staffCanAccessPrivilegedBilling(Staff? staff) {
+  if (staff == null) return false;
+  return staffCanAccessPrivilegedBillingStrings(
+    staff.role,
+    staff.accountType?.name ?? '',
+  );
+}

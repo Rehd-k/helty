@@ -158,7 +158,7 @@ class PayBillState extends ConsumerState<PayBill> {
   List<BankModel> _banks = [];
   bool _banksLoading = true;
 
-  /// Bank id selected for POS / Transfer / Cheque (single-method flow).
+  /// Bank id selected for Card / Transfer / Cheque (single-method flow).
   String? _selectedBankId;
 
   /// Per-method bank ids used inside the Mixed sheet.
@@ -1048,7 +1048,7 @@ class PayBillState extends ConsumerState<PayBill> {
           }).toList(),
         ),
 
-        // ── Bank dropdown (shown for POS / Transfer / Cheque) ──────────────
+        // ── Bank dropdown (shown for Card / Transfer / Cheque) ──────────────
         if (needsBank) ...[
           const SizedBox(height: 16),
           BankDropdown(

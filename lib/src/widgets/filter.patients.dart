@@ -148,11 +148,14 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
                     decoration: InputDecoration(
                       hintText: 'Search...', // French for Search...
                       prefixIcon: const Icon(Icons.search, size: 20),
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.09),
+                      filled: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      filled: true,
                     ),
                   ),
                 ),
@@ -163,6 +166,9 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
                   child: DropdownButtonFormField<String>(
                     initialValue: _selectedCategory,
                     decoration: InputDecoration(
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.09),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                       ),

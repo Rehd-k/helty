@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 
 /// A scrollable row of summary cards showing transaction financial totals.
-/// Payment-method cards (Cash, Transfer, POS, Wallet) are tappable to filter by method.
+/// Payment-method cards (Cash, Transfer, Card, Wallet) are tappable to filter by method.
 ///
 /// Usage:
 /// ```dart
@@ -22,7 +22,7 @@ class TransactionSummarySection extends StatelessWidget {
   });
 
   /// Map of financial totals. Expected keys:
-  /// `totalSales`, `totalPaid`, `transfer`, `pos`, `cash`, `wallet`, `grandTotal`, `transactionCount`
+  /// `totalSales`, `totalPaid`, `transfer`, `card`, `cash`, `wallet`, `grandTotal`, `transactionCount`
   final Map<String, dynamic> totals;
   /// Called when a payment-method card is tapped. Pass null to clear filter (show all).
   final ValueChanged<String?>? onPaymentCardTap;
@@ -64,10 +64,11 @@ class TransactionSummarySection extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(
-            title: "POS",
-            amount: _num(totals['pos']).toFinancial(isMoney: true),
-            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('POS') : null,
-            isSelected: selectedPaymentMethod == 'POS',
+            title: "Card",
+            amount: _num(totals['card'] ?? totals['pos'])
+                .toFinancial(isMoney: true),
+            onTap: onPaymentCardTap != null ? () => onPaymentCardTap!('Card') : null,
+            isSelected: selectedPaymentMethod == 'Card',
           ),
           const SizedBox(width: 12),
           TransactionSummaryCard(

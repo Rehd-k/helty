@@ -536,21 +536,47 @@ class LabResult {
   final String fieldId;
   final String value;
   final LabTestField? field;
+  /// Staff id who entered the result (API may send [enteredById] only or nested [enteredBy]).
   final String? enteredBy;
 
   /// When true, field is omitted from print/PDF and typically not shown on the
   /// report view for this order item only (template fields are unchanged).
   final bool hiddenFromReport;
 
+  static String? _enteredByStaffIdFromJson(Map<String, dynamic> json) {
+    final direct = json['enteredById']?.toString().trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+    final raw = json['enteredBy'];
+    if (raw == null) return null;
+    if (raw is String) {
+      final s = raw.trim();
+      return s.isEmpty ? null : s;
+    }
+    if (raw is Map) {
+      final id = raw['id']?.toString().trim();
+      if (id != null && id.isNotEmpty) return id;
+    }
+    return null;
+  }
+
+  static String _valueToString(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw;
+    if (raw is num || raw is bool) return raw.toString();
+    if (raw is Map) return jsonEncode(raw);
+    if (raw is List) return jsonEncode(raw);
+    return raw.toString();
+  }
+
   factory LabResult.fromJson(Map<String, dynamic> json) => LabResult(
         id: (json['id'] as String?) ?? '',
         orderItemId: (json['orderItemId'] as String?) ?? '',
         fieldId: (json['fieldId'] as String?) ?? '',
-        value: (json['value'] as Object?).toString(),
+        value: _valueToString(json['value']),
         field: json['field'] != null
             ? LabTestField.fromJson(json['field'] as Map<String, dynamic>)
             : null,
-        enteredBy: json['enteredBy'] as String?,
+        enteredBy: _enteredByStaffIdFromJson(json),
         hiddenFromReport: (json['hiddenFromReport'] as bool?) ??
             (json['excludeFromPrint'] as bool?) ??
             false,

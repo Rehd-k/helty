@@ -252,7 +252,7 @@ class LabApiService {
 
   Future<LabOrder> createOrder({
     required String patientId,
-    required String doctorId,
+    String? doctorId,
     required List<String> testVersionIds,
     String? invoiceId,
     String? invoiceItemId,
@@ -265,7 +265,7 @@ class LabApiService {
       '$_prefix/orders',
       data: {
         'patientId': patientId,
-        'doctorId': doctorId,
+        if (doctorId != null && doctorId.isNotEmpty) 'doctorId': doctorId,
         if (invoiceId != null && invoiceId.isNotEmpty) 'invoiceId': invoiceId,
         if (invoiceItemId != null && invoiceItemId.isNotEmpty)
           'invoiceItemId': invoiceItemId,

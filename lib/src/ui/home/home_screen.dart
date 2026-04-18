@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
 import '../../chat/services/internal_chat_socket.dart';
+import '../../models/staff_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/module_request_flow_provider.dart';
 import 'desktop_shell_side_panel.dart';
 import 'shell_side_panel_provider.dart';
 import '../../services/helty_desktop_update_service.dart';
@@ -64,10 +66,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _sidebarOpen = true;
 
-  List<MenuItem> _menuForRole(String role, String accountType) {
+  List<MenuItem> _menuForRole(Staff? staff, String role, String accountType) {
     final common = <MenuItem>[];
     final r = role.toLowerCase();
     final at = accountType.toLowerCase();
+    final canBillingDash = staffCanAccessPrivilegedBilling(staff);
 
     final isFrontDesk =
         at == 'front_desk' ||
@@ -85,7 +88,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         r == 'billing_head' ||
         r == 'billing_staff';
     if (isBilling) {
-      common.addAll(bills);
+      common.addAll(
+        canBillingDash
+            ? bills
+            : bills
+                  .where((m) => m.route is! BillingDashboardRoute)
+                  .toList(),
+      );
     }
 
     final isNurse =
@@ -168,6 +177,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           icon: Icons.dashboard_outlined,
           route: DashboardRoute(),
         ),
+        if (canBillingDash)
+          const MenuItem(
+            label: 'Billing Dashboard',
+            icon: Icons.dashboard_customize_outlined,
+            route: BillingDashboardRoute(),
+          ),
       ]);
     }
 
@@ -177,6 +192,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         at == 'super_admin' ||
         r == 'super_admin') {
       common.addAll([
+        if (canBillingDash)
+          const MenuItem(
+            label: 'Billing Dashboard',
+            icon: Icons.dashboard_customize_outlined,
+            route: BillingDashboardRoute(),
+          ),
         MenuItem(
           label: 'CMD Panel',
           icon: Icons.dashboard_customize_outlined,
@@ -306,9 +327,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.watch(internalChatSocketProvider);
     final state = ref.watch(authProvider);
     final auth = ref.watch(authProvider);
-    final role = auth.staff?.role.toLowerCase() ?? '';
-    final accountType = auth.staff?.accountType?.name.toLowerCase() ?? '';
-    final menuItems = _menuForRole(role, accountType);
+    final staff = auth.staff;
+    final role = staff?.role.toLowerCase() ?? '';
+    final accountType = staff?.accountType?.name.toLowerCase() ?? '';
+    final menuItems = _menuForRole(staff, role, accountType);
     final isMobile = MediaQuery.of(context).size.width < 720;
 
     void openHelpCenter() {
@@ -1256,6 +1278,13 @@ class _IconButtonState extends State<_IconButton> {
 // Logout buttons
 // ---------------------------------------------------------------------------
 
+void _logoutToLoginReplacingStack(BuildContext context) {
+  ProviderScope.containerOf(context, listen: false)
+      .read(paidModuleRequestContextProvider.notifier)
+      .state = null;
+  context.router.replaceAll([LoginRoute()]);
+}
+
 class _IconLogoutButton extends StatefulWidget {
   @override
   State<_IconLogoutButton> createState() => _IconLogoutButtonState();
@@ -1270,7 +1299,7 @@ class _IconLogoutButtonState extends State<_IconLogoutButton> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
-        onTap: () => context.router.replaceAll([LoginRoute()]),
+        onTap: () => _logoutToLoginReplacingStack(context),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.all(10),
@@ -1308,7 +1337,7 @@ class _FullLogoutButtonState extends State<_FullLogoutButton> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
-        onTap: () => context.router.replaceAll([LoginRoute()]),
+        onTap: () => _logoutToLoginReplacingStack(context),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1364,7 +1393,7 @@ class _TitleBarLogoutButtonState extends State<_TitleBarLogoutButton> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: InkWell(
-        onTap: () => context.router.replaceAll([LoginRoute()]),
+        onTap: () => _logoutToLoginReplacingStack(context),
         borderRadius: BorderRadius.circular(6),
         child: Padding(
           padding: const EdgeInsets.all(8),
@@ -1393,7 +1422,7 @@ class _MobileLogoutButtonState extends State<_MobileLogoutButton> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
-        onTap: () => context.router.replaceAll([LoginRoute()]),
+        onTap: () => _logoutToLoginReplacingStack(context),
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Icon(

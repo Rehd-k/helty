@@ -103,6 +103,7 @@ class TransactionQuery {
     this.patientName,
     this.phoneNumber,
     this.createdById,
+    this.initiatedBy,
     this.status,
     this.paymentMethod,
     this.fromDate,
@@ -119,8 +120,10 @@ class TransactionQuery {
   final String? patientName;
   final String? phoneNumber;
   final String? createdById;
+
+  /// Ledger filter: staff `receivedById` from `staffSummary`.
+  final String? initiatedBy;
   final String? status; // e.g. 'PAID', 'ACTIVE', 'PARTIALLY_PAID', ...
-  /// Filter by payment method (e.g. 'CASH', 'TRANSFER', 'CHEQUE', 'POS'). Backend may support this param.
   final String? paymentMethod;
   final DateTime? fromDate;
   final DateTime? toDate;
@@ -128,6 +131,14 @@ class TransactionQuery {
   final int take;
   final String? sortBy; // e.g. 'createdAt', 'amountDue', ...
   final String sortOrder; // 'asc' | 'desc'
+
+  /// Maps UI payment labels to backend enum strings.
+  static String? paymentMethodForApi(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final u = raw.trim().toUpperCase();
+    if (u == 'CARD') return 'CARD';
+    return u;
+  }
 
   Map<String, dynamic> toQueryParameters() => {
     if (search != null && search!.isNotEmpty) 'q': search,
@@ -140,9 +151,11 @@ class TransactionQuery {
       'phoneNumber': phoneNumber,
     if (createdById != null && createdById!.isNotEmpty)
       'createdById': createdById,
+    if (initiatedBy != null && initiatedBy!.isNotEmpty)
+      'initiatedBy': initiatedBy,
     if (status != null && status!.isNotEmpty) 'status': status,
     if (paymentMethod != null && paymentMethod!.isNotEmpty)
-      'paymentMethod': paymentMethod,
+      'paymentMethod': paymentMethodForApi(paymentMethod),
     if (fromDate != null) 'fromDate': fromDate!.toIso8601String(),
     if (toDate != null) 'toDate': toDate!.toIso8601String(),
     'skip': skip,
@@ -159,12 +172,14 @@ class PaginatedTransactions {
     required this.total,
     required this.skip,
     required this.take,
+    this.staffSummary = const [],
   });
 
   final List<TransactionModel> data;
   final int total;
   final int skip;
   final int take;
+  final List<StaffSummaryEntry> staffSummary;
 
   bool get hasMore => skip + data.length < total;
   int get currentPage => (skip ~/ take) + 1;
@@ -223,6 +238,7 @@ class TransactionService {
         total: _toInt(body['total']),
         skip: _toInt(body['skip']),
         take: _toInt(body['take']) == 0 ? query.take : _toInt(body['take']),
+        staffSummary: _parseStaffSummary(body['staffSummary']),
       );
     }
 
@@ -242,6 +258,7 @@ class TransactionService {
       total: total,
       skip: query.skip,
       take: query.take,
+      staffSummary: _parseStaffSummary(body['staffSummary']),
     );
   }
 
@@ -262,6 +279,18 @@ class TransactionService {
     return _fromJson(resp.data as Map<String, dynamic>);
   }
 
+  /// PATCH `/invoices/payments/:paymentId` — updates ledger payment timestamp.
+  Future<TransactionModel> updatePaymentPaidAt(
+    String paymentId,
+    DateTime paidAt,
+  ) async {
+    final resp = await _dio.patch(
+      '/invoices/payments/$paymentId',
+      data: {'paidAt': paidAt.toIso8601String()},
+    );
+    return _fromJson(resp.data as Map<String, dynamic>);
+  }
+
   // ── Delete ────────────────────────────────────────────────────────────────
 
   /// DELETE /transaction/:id — soft-deletes or cancels a transaction.
@@ -271,7 +300,7 @@ class TransactionService {
 
   // ── Banks ─────────────────────────────────────────────────────────────────
 
-  /// GET /banks — returns a list of bank names available for POS / Transfer / Cheque.
+  /// GET /banks — returns a list of bank names available for Card / Transfer / Cheque.
   Future<List<String>> fetchBanks() async {
     final resp = await _dio.get('/banks');
     final data = resp.data;
@@ -303,6 +332,17 @@ class TransactionService {
     if (v is num) return v.toInt();
     if (v is String) return int.tryParse(v) ?? 0;
     return 0;
+  }
+
+  static List<StaffSummaryEntry> _parseStaffSummary(dynamic raw) {
+    if (raw is! List) return const [];
+    final out = <StaffSummaryEntry>[];
+    for (final e in raw) {
+      if (e is! Map) continue;
+      final entry = StaffSummaryEntry.tryParse(Map<String, dynamic>.from(e));
+      if (entry != null) out.add(entry);
+    }
+    return out;
   }
 
   static DateTime _toDateTime(dynamic v) {
@@ -419,9 +459,8 @@ class TransactionService {
 
   static PaymentMethod _parsePaymentMethod(String raw) {
     switch (raw.toLowerCase()) {
-      case 'pos':
       case 'card':
-        return PaymentMethod.pos;
+        return PaymentMethod.card;
       case 'transfer':
         return PaymentMethod.transfer;
       case 'wallet':
@@ -464,8 +503,7 @@ class TransactionService {
     final who = _staffName(receivedBy) == ''
         ? _staffName(createdBy)
         : _staffName(receivedBy);
-    final patientId = (patient?['patientId'] ?? invoice['patientId'] ?? '')
-        .toString();
+    final patientId = (patient?['patientId'] ?? '').toString();
     final patientName = _patientName(patient) == ''
         ? 'Unknown patient'
         : _patientName(patient);

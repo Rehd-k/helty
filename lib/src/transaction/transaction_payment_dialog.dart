@@ -55,7 +55,7 @@ class _MethodEntry {
 /// Dialog for recording / changing payment on a transaction.
 ///
 /// Shows the outstanding total, lets the cashier split the payment across
-/// Cash, POS, Transfer and Wallet. For POS/Transfer the user also
+/// Cash, Card, Transfer and Wallet. For Card/Transfer the user also
 /// selects the bank.  A live "Remaining" counter counts down as amounts are
 /// entered.
 ///
@@ -91,14 +91,15 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
   void initState() {
     super.initState();
     final debt = (widget.transaction['debt'] as num?)?.toDouble() ?? 0;
-    final amountDue = (widget.transaction['amountDue'] as num?)?.toDouble() ?? 0;
+    final amountDue =
+        (widget.transaction['amountDue'] as num?)?.toDouble() ?? 0;
     final discount = (widget.transaction['discount'] as num?)?.toDouble() ?? 0;
     _totalDue = debt > 0 ? debt : (amountDue - discount);
 
     // Default: one entry per available method
     _entries = [
       _MethodEntry(method: PaymentMethod.cash),
-      _MethodEntry(method: PaymentMethod.pos),
+      _MethodEntry(method: PaymentMethod.card),
       _MethodEntry(method: PaymentMethod.transfer),
       _MethodEntry(method: PaymentMethod.wallet),
     ];
@@ -119,7 +120,7 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
 
   static String _sourceFor(PaymentMethod method) {
     switch (method) {
-      case PaymentMethod.pos:
+      case PaymentMethod.card:
         return 'CARD';
       case PaymentMethod.transfer:
       case PaymentMethod.cheque:
@@ -135,7 +136,7 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
 
   static String? _methodFor(PaymentMethod method) {
     switch (method) {
-      case PaymentMethod.pos:
+      case PaymentMethod.card:
         return 'CARD';
       case PaymentMethod.transfer:
       case PaymentMethod.cheque:
@@ -154,7 +155,9 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
     final invoiceId = (widget.transaction['invoiceId'] as String?)?.trim();
     if (invoiceId == null || invoiceId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Missing invoice link for this transaction')),
+        const SnackBar(
+          content: Text('Missing invoice link for this transaction'),
+        ),
       );
       return;
     }
@@ -162,7 +165,7 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
     final entries = _entries.where((e) => e.enteredAmount > 0).toList();
     for (final e in entries) {
       final bankRequired =
-          e.method == PaymentMethod.transfer || e.method == PaymentMethod.pos;
+          e.method == PaymentMethod.transfer || e.method == PaymentMethod.card;
       if (bankRequired && (e.selectedBank == null || e.selectedBank!.isEmpty)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Select bank for ${e.method.label} payment')),
@@ -205,9 +208,9 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
     }
   }
 
@@ -276,7 +279,9 @@ class _ChangePaymentDialogState extends State<ChangePaymentDialog> {
                         ? _submit
                         : null,
                     icon: const Icon(Icons.check_circle_outline, size: 18),
-                    label: Text(_isSubmitting ? 'Processing...' : 'Confirm Payment'),
+                    label: Text(
+                      _isSubmitting ? 'Processing...' : 'Confirm Payment',
+                    ),
                   ),
                 ],
               ),
@@ -450,11 +455,12 @@ class _PaymentMethodRow extends StatelessWidget {
   final ValueChanged<String?> onBankChanged;
 
   bool get _isCash =>
-      entry.method == PaymentMethod.cash || entry.method == PaymentMethod.wallet;
+      entry.method == PaymentMethod.cash ||
+      entry.method == PaymentMethod.wallet;
 
   IconData get _icon => switch (entry.method) {
     PaymentMethod.cash => Icons.payments_outlined,
-    PaymentMethod.pos => Icons.credit_card_outlined,
+    PaymentMethod.card => Icons.credit_card_outlined,
     PaymentMethod.transfer => Icons.account_balance_outlined,
     PaymentMethod.wallet => Icons.account_balance_wallet_outlined,
     PaymentMethod.cheque => Icons.receipt_outlined,
@@ -544,13 +550,13 @@ class _PaymentMethodRow extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // ── Reference (cheque number / transfer ref / POS approval code)
+            // ── Reference (cheque number / transfer ref / card approval code)
             TextField(
               controller: entry.referenceController,
               decoration: InputDecoration(
                 labelText: switch (entry.method) {
                   PaymentMethod.transfer => 'Transfer Reference',
-                  PaymentMethod.pos => 'POS Approval Code',
+                  PaymentMethod.card => 'Card approval code',
                   _ => 'Reference',
                 },
                 prefixIcon: const Icon(Icons.tag, size: 18),

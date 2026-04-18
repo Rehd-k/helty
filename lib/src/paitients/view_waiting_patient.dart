@@ -17,7 +17,7 @@ class NewPatientScreen extends ConsumerStatefulWidget {
   const NewPatientScreen({
     super.key,
     this.use = 'For Register',
-    this.categoryQueries = const [],
+    this.categoryQueries = const ['Laboratory', 'Laboratory Tests'],
   });
 
   /// Defines how this screen should fetch and present data.
@@ -901,6 +901,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
         invoiceId: patient.transactionId,
         invoiceDisplayId: patient.billLabel,
         serviceLines: patient.serviceLines,
+        invoiceStaffId: patient.invoiceStaffId,
       );
       ref.read(paidModuleRequestContextProvider.notifier).state = paidContext;
 
@@ -1114,6 +1115,7 @@ class _UnregisteredPatientTxn {
     this.rowAppearsPaid = false,
     this.invoiceUuid = '',
     this.hasVitals = false,
+    this.invoiceStaffId,
   });
 
   /// Invoice id (UUID or bill code) — also sent as [Patient.unregisteredTransactionId] for linkage.
@@ -1131,6 +1133,8 @@ class _UnregisteredPatientTxn {
   final bool rowAppearsPaid;
   final String invoiceUuid;
   final bool hasVitals;
+  /// Invoice requesting / billing staff id when returned by the API.
+  final String? invoiceStaffId;
   final String surname;
   final String firstName;
   final String? phoneNumber;
@@ -1207,6 +1211,7 @@ class _UnregisteredPatientTxn {
       invoiceUuid: row.invoiceId,
       hasVitals: row.patientVitals?.id.isNotEmpty == true,
       serviceLines: const [],
+      invoiceStaffId: null,
     );
   }
 
@@ -1287,6 +1292,21 @@ class _UnregisteredPatientTxn {
       if (lineTotal > 0 && paid + 1e-6 < lineTotal) return false;
     }
     return rawServices.isNotEmpty;
+  }
+
+  static String? _parseInvoiceStaffId(
+    Map<String, dynamic> root,
+    Map<String, dynamic> json,
+  ) {
+    final staff = _asMap(root['staff']) ?? _asMap(json['staff']);
+    final fromNested = staff?['id']?.toString().trim();
+    if (fromNested != null && fromNested.isNotEmpty) return fromNested;
+    for (final key in ['staffId', 'createdById', 'createdByStaffId']) {
+      final v = root[key] ?? json[key];
+      final s = v?.toString().trim();
+      if (s != null && s.isNotEmpty) return s;
+    }
+    return null;
   }
 
   static String? _serviceLineName(Map<String, dynamic> item) {
@@ -1418,6 +1438,8 @@ class _UnregisteredPatientTxn {
 
     final appearsPaid = _computeAppearsPaid(root, json, rawServices);
 
+    final invoiceStaffId = _parseInvoiceStaffId(root, json);
+
     return _UnregisteredPatientTxn(
       transactionId: resolvedId,
       invoiceDisplayId: displayResolved,
@@ -1448,6 +1470,7 @@ class _UnregisteredPatientTxn {
       serviceLines: lines,
       invoiceUuid: invoiceUuid,
       hasVitals: root['vitalsId'] != null || root['vitals'] != null,
+      invoiceStaffId: invoiceStaffId,
     );
   }
 }

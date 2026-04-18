@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:data_table_2/data_table_2.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
@@ -9,20 +10,22 @@ import 'transaction_filters_panel.dart';
 import 'transaction_models.dart';
 import 'transaction_payment_dialog.dart';
 import 'transaction_summary_section.dart';
+import '../models/staff_model.dart';
+import '../providers/auth_provider.dart';
 import '../services/transaction_service.dart';
 import '../widgets/receipt_escpos_service.dart';
 import '../widgets/receipt_printer_picker_sheet.dart';
 import '../widgets/table/reusable_async_table.dart';
 
 @RoutePage()
-class TransactionsScreen extends StatefulWidget {
+class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
 
   @override
-  State<TransactionsScreen> createState() => _TransactionsScreenState();
+  ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
-class _TransactionsScreenState extends State<TransactionsScreen> {
+class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   final TransactionService _transactionService = TransactionService();
   final TextEditingController _searchController = TextEditingController();
 
@@ -32,27 +35,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   DateTime? _dateTo;
   TransactionStatus? _status;
   bool _myTransactionsOnly = false;
-  String? _createdById;
+  /// Staff filter: `receivedById` from API `staffSummary` (query param `initiatedBy`).
+  String? _initiatedById;
   String?
-  _selectedPaymentMethod; // 'Cash', 'Transfer', 'Cheque', 'POS', or null
+  _selectedPaymentMethod; // 'Cash', 'Transfer', 'Cheque', 'Card', or null
   bool _isFiltersOpen = false;
 
   // ─── Fetched data (one page for totals + table client-side pagination) ─────
   static const int _fetchPageSize = 500;
   List<TransactionMap> _transactionMaps = [];
+  List<StaffSummaryEntry> _staffSummaryOptions = [];
   int _totalCount = 0;
   bool _loading = false;
   String? _loadError;
+  int _tableDataGeneration = 0;
 
   // ─── Selection state ───────────────────────────────────────────────────────
   Map<String, dynamic>? _selectedTransaction;
-
-  // ─── User list for filter panel (could come from API) ─────────────────────
-  final List<String> _userOptions = [
-    'Sarah Jenkins',
-    'Michael Chen',
-    'Alan Grant',
-  ];
 
   @override
   void initState() {
@@ -72,7 +71,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       fromDate: _dateFrom,
       toDate: _dateTo,
       status: _status?.label.toUpperCase().replaceAll(' ', '_'),
-      createdById: _myTransactionsOnly ? _createdById : null,
+      initiatedBy: _initiatedById?.trim().isNotEmpty == true
+          ? _initiatedById!.trim()
+          : null,
       paymentMethod:
           _selectedPaymentMethod != null && _selectedPaymentMethod!.isNotEmpty
           ? _selectedPaymentMethod!.toUpperCase()
@@ -82,6 +83,31 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       sortBy: 'createdAt',
       sortOrder: 'desc',
     );
+  }
+
+  void _rebindSelectedTransaction() {
+    final prev = _selectedTransaction;
+    if (prev == null) return;
+    final pid = prev['id']?.toString();
+    final tid = prev['tranId']?.toString();
+    Map<String, dynamic>? found;
+    if (pid != null && pid.isNotEmpty) {
+      for (final t in _transactionMaps) {
+        if (t['id']?.toString() == pid) {
+          found = t;
+          break;
+        }
+      }
+    }
+    if (found == null && tid != null && tid.isNotEmpty) {
+      for (final t in _transactionMaps) {
+        if (t['tranId']?.toString() == tid) {
+          found = t;
+          break;
+        }
+      }
+    }
+    _selectedTransaction = found;
   }
 
   Future<void> _loadTransactions() async {
@@ -98,6 +124,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       setState(() {
         _transactionMaps = result.data.map(transactionModelToMap).toList();
         _totalCount = result.total;
+        _staffSummaryOptions = result.staffSummary;
+        if (_initiatedById != null &&
+            !_staffSummaryOptions.any((e) => e.receivedById == _initiatedById)) {
+          _initiatedById = null;
+        }
+        _tableDataGeneration++;
+        _rebindSelectedTransaction();
         _loading = false;
       });
     } catch (e) {
@@ -107,6 +140,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         _loading = false;
         _transactionMaps = [];
         _totalCount = 0;
+        _staffSummaryOptions = [];
+        _tableDataGeneration++;
+        _selectedTransaction = null;
       });
     }
   }
@@ -116,14 +152,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     required DateTime? dateTo,
     required TransactionStatus? status,
     required bool myTransactionsOnly,
-    required String? selectedUserId,
+    required String? selectedInitiatedById,
   }) {
     setState(() {
       _dateFrom = dateFrom;
       _dateTo = dateTo;
       _status = status;
       _myTransactionsOnly = myTransactionsOnly;
-      _createdById = selectedUserId;
+      _initiatedById = selectedInitiatedById;
       _isFiltersOpen = false;
     });
     _loadTransactions();
@@ -137,7 +173,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _dateTo = null;
       _status = null;
       _myTransactionsOnly = false;
-      _createdById = null;
+      _initiatedById = null;
       _selectedPaymentMethod = null;
       _isFiltersOpen = false;
     });
@@ -179,6 +215,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         _openPaymentDialog(transaction);
         break;
       case 'refund':
+        if (!staffCanAccessPrivilegedBilling(ref.read(authProvider).staff)) {
+          return;
+        }
         _showSimpleModal(
           'Make a Refund (Le remboursement)',
           'Initiate a partial or full refund for ${transaction['tranId']}.',
@@ -204,6 +243,64 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         _loadTransactions();
       }
     });
+  }
+
+  Future<void> _openChangeTransactionDateDialog(
+    Map<String, dynamic> transaction,
+  ) async {
+    if (!staffCanAccessPrivilegedBilling(ref.read(authProvider).staff)) {
+      return;
+    }
+    final paymentId = transaction['id']?.toString().trim() ?? '';
+    if (paymentId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot change date: missing payment id.'),
+        ),
+      );
+      return;
+    }
+    final iso = transaction['createdAtIso']?.toString();
+    final initial =
+        (iso != null && iso.isNotEmpty ? DateTime.tryParse(iso) : null) ??
+        DateTime.now();
+
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (!mounted || date == null) return;
+
+    final tod = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (!mounted || tod == null) return;
+
+    final combined = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      tod.hour,
+      tod.minute,
+    );
+
+    try {
+      await _transactionService.updatePaymentPaidAt(paymentId, combined);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Transaction date updated.')),
+      );
+      await _loadTransactions();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update date: $e')),
+      );
+    }
   }
 
   void _showSimpleModal(String title, String message) {
@@ -302,6 +399,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final canPrivilegedBilling = staffCanAccessPrivilegedBilling(
+      ref.watch(authProvider).staff,
+    );
     final totals = calculateTransactionTotals(_transactionMaps);
 
     return Scaffold(
@@ -422,7 +522,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           flex: 2,
                           child: ReusableAsyncTable<TransactionMap>(
                             key: ValueKey(
-                              '$_searchQuery$_dateFrom$_dateTo$_status$_selectedPaymentMethod',
+                              '$_searchQuery$_dateFrom$_dateTo$_status$_selectedPaymentMethod$_initiatedById$_tableDataGeneration',
                             ),
                             columns: const [
                               DataColumn2(label: Text('Transaction ID')),
@@ -532,38 +632,39 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             ],
                             onRowTap: (txn) =>
                                 setState(() => _selectedTransaction = txn),
-                            contextMenuBuilder: (txn) => const [
-                              PopupMenuItem(
+                            contextMenuBuilder: (txn) => [
+                              const PopupMenuItem(
                                 value: 'details',
                                 child: Text(
                                   'Show Details',
                                   style: TextStyle(fontSize: 13),
                                 ),
                               ),
-                              PopupMenuItem(
+                              const PopupMenuItem(
                                 value: 'reprint',
                                 child: Text(
                                   'Reprint Receipt',
                                   style: TextStyle(fontSize: 13),
                                 ),
                               ),
-                              PopupMenuItem(
+                              const PopupMenuItem(
                                 value: 'change_method',
                                 child: Text(
                                   'Change Payment Method',
                                   style: TextStyle(fontSize: 13),
                                 ),
                               ),
-                              PopupMenuItem(
-                                value: 'refund',
-                                child: Text(
-                                  'Make a Refund',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.red,
+                              if (canPrivilegedBilling)
+                                const PopupMenuItem(
+                                  value: 'refund',
+                                  child: Text(
+                                    'Make a Refund',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.red,
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                             onContextMenuSelected: (txn, action) =>
                                 _handleContextMenuAction(action as String, txn),
@@ -573,6 +674,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         Expanded(
                           child: TransactionDetailsPane(
                             transaction: _selectedTransaction,
+                            showChangeDateAndRefund: canPrivilegedBilling,
                             onReprint: _selectedTransaction != null
                                 ? () => _handleContextMenuAction(
                                     'reprint',
@@ -582,6 +684,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             onChangeMethod: _selectedTransaction != null
                                 ? () =>
                                       _openPaymentDialog(_selectedTransaction!)
+                                : () {},
+                            onChangeTransactionDate: _selectedTransaction != null
+                                ? () => _openChangeTransactionDateDialog(
+                                    _selectedTransaction!,
+                                  )
                                 : () {},
                             onRefund: _selectedTransaction != null
                                 ? () => _handleContextMenuAction(
@@ -648,16 +755,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           myTransactionsOnly: _myTransactionsOnly,
                           onMyTransactionsOnlyChanged: (v) =>
                               setState(() => _myTransactionsOnly = v),
-                          selectedUserId: _createdById,
-                          userOptions: _userOptions,
-                          onUserChanged: (v) =>
-                              setState(() => _createdById = v),
+                          selectedInitiatedById: _initiatedById,
+                          staffOptions: _staffSummaryOptions,
+                          onInitiatedByChanged: (v) =>
+                              setState(() => _initiatedById = v),
                           onApply: () => _applyFiltersFromPanel(
                             dateFrom: _dateFrom,
                             dateTo: _dateTo,
                             status: _status,
                             myTransactionsOnly: _myTransactionsOnly,
-                            selectedUserId: _createdById,
+                            selectedInitiatedById: _initiatedById,
                           ),
                           onReset: _resetFilters,
                         ),

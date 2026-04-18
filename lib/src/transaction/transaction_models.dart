@@ -28,7 +28,7 @@ enum TransactionStatus {
 
 enum PaymentMethod {
   cash,
-  pos,
+  card,
   transfer,
   wallet,
   cheque,
@@ -37,7 +37,7 @@ enum PaymentMethod {
 
   String get label => switch (this) {
     PaymentMethod.cash => 'Cash',
-    PaymentMethod.pos => 'POS',
+    PaymentMethod.card => 'Card',
     PaymentMethod.transfer => 'Transfer',
     PaymentMethod.wallet => 'Wallet',
     PaymentMethod.cheque => 'Cheque',
@@ -120,7 +120,7 @@ class TransactionPaymentModel {
   final PaymentMethod method;
   final double amount;
   final String? reference;
-  final String? bankName; // populated for POS / Transfer / Cheque
+  final String? bankName; // populated for Card / Transfer / Cheque
   final String? notes;
   final DateTime paidAt;
   final String receivedBy;
@@ -319,31 +319,89 @@ List<TransactionMap> applyTransactionFilter(
 /// Alias for readability
 typedef TransactionMap = Map<String, dynamic>;
 
+/// Staff aggregate row from GET `/invoices/payments` `staffSummary`.
+class StaffSummaryEntry {
+  const StaffSummaryEntry({
+    required this.receivedById,
+    required this.firstName,
+    required this.lastName,
+    required this.paymentCount,
+  });
+
+  final String receivedById;
+  final String firstName;
+  final String lastName;
+  final int paymentCount;
+
+  /// `lastName, firstName (paymentCount)` for filter dropdown labels.
+  String get dropdownLabel {
+    final ln = lastName.trim();
+    final fn = firstName.trim();
+    final name = () {
+      if (ln.isNotEmpty && fn.isNotEmpty) return '$ln, $fn';
+      if (ln.isNotEmpty) return ln;
+      if (fn.isNotEmpty) return fn;
+      return receivedById;
+    }();
+    return '$name ($paymentCount)';
+  }
+
+  static StaffSummaryEntry? tryParse(Map<String, dynamic> m) {
+    final id = m['receivedById']?.toString().trim() ?? '';
+    if (id.isEmpty) return null;
+    final staffRaw = m['staff'];
+    var fn = '';
+    var ln = '';
+    if (staffRaw is Map) {
+      final sm = Map<String, dynamic>.from(staffRaw);
+      fn = sm['firstName']?.toString().trim() ?? '';
+      ln =
+          sm['lastName']?.toString().trim() ??
+          sm['surname']?.toString().trim() ??
+          '';
+    }
+    final pc = m['paymentCount'];
+    final count = pc is num
+        ? pc.toInt()
+        : (pc is String ? int.tryParse(pc) ?? 0 : 0);
+    return StaffSummaryEntry(
+      receivedById: id,
+      firstName: fn,
+      lastName: ln,
+      paymentCount: count,
+    );
+  }
+}
+
 /// Converts a [TransactionModel] from the API into [TransactionMap] for table/totals.
 TransactionMap transactionModelToMap(TransactionModel m) {
   String paymentMethodLabel = '—';
   String? bankName;
   String? reference;
+  var displayAt = m.createdAt;
   if (m.payments.isNotEmpty) {
-    final latest = m.payments.reduce((a, b) => a.paidAt.isAfter(b.paidAt) ? a : b);
+    final latest = m.payments.reduce(
+      (a, b) => a.paidAt.isAfter(b.paidAt) ? a : b,
+    );
     bankName = latest.bankName;
     reference = latest.reference;
+    displayAt = latest.paidAt;
     final methods = m.payments.map((p) => p.method.label).toSet();
-    paymentMethodLabel =
-        methods.length == 1 ? methods.single : 'Mixed';
+    paymentMethodLabel = methods.length == 1 ? methods.single : 'Mixed';
   }
-  final dateStr =
-      DateFormat('MMM d, y h:mm a').format(m.createdAt);
+  final dateStr = DateFormat('MMM d, y h:mm a').format(displayAt);
   final services = m.items
-      .map((i) => {
-            'id': i.id,
-            'name': i.description,
-            'source': i.source,
-            'quantity': i.quantity,
-            'cost': i.unitPrice,
-            'totalPrice': i.totalPrice,
-            'paid': i.paidAmount,
-          })
+      .map(
+        (i) => {
+          'id': i.id,
+          'name': i.description,
+          'source': i.source,
+          'quantity': i.quantity,
+          'cost': i.unitPrice,
+          'totalPrice': i.totalPrice,
+          'paid': i.paidAmount,
+        },
+      )
       .toList();
   return {
     'tranId': m.transactionNumber.isNotEmpty ? m.transactionNumber : m.id,
@@ -355,13 +413,17 @@ TransactionMap transactionModelToMap(TransactionModel m) {
     'amountPaid': m.amountPaid,
     'paymentMethod': paymentMethodLabel,
     'discount': m.discountAmount,
+
+    /// Machine-readable time for receipts; aligned with latest payment [paidAt] when present.
+    'createdAtIso': displayAt.toIso8601String(),
     'date': dateStr,
     'debt': m.balance,
     'status': m.status.label.toUpperCase().replaceAll(' ', '_'),
     'initiator': m.createdBy,
     'services': services,
     if (bankName != null && bankName.trim().isNotEmpty) 'bankName': bankName,
-    if (reference != null && reference.trim().isNotEmpty) 'reference': reference,
+    if (reference != null && reference.trim().isNotEmpty)
+      'reference': reference,
     'id': m.id,
   };
 }
@@ -372,7 +434,7 @@ Map<String, dynamic> calculateTransactionTotals(List<TransactionMap> list) {
   double totalSales = 0,
       totalPaid = 0,
       transfer = 0,
-      pos = 0,
+      card = 0,
       cheque = 0,
       cash = 0,
       wallet = 0;
@@ -384,8 +446,9 @@ Map<String, dynamic> calculateTransactionTotals(List<TransactionMap> list) {
       case 'Transfer':
         transfer += (txn['amountPaid'] as num).toDouble();
         break;
-      case 'POS':
-        pos += (txn['amountPaid'] as num).toDouble();
+      case 'Card':
+      case 'CARD':
+        card += (txn['amountPaid'] as num).toDouble();
         break;
       case 'Cheque':
         cheque += (txn['amountPaid'] as num).toDouble();
@@ -407,7 +470,7 @@ Map<String, dynamic> calculateTransactionTotals(List<TransactionMap> list) {
     'totalSales': totalSales,
     'totalPaid': totalPaid,
     'transfer': transfer,
-    'pos': pos,
+    'card': card,
     'cheque': cheque,
     'cash': cash,
     'wallet': wallet,
@@ -415,324 +478,3 @@ Map<String, dynamic> calculateTransactionTotals(List<TransactionMap> list) {
     'transactionCount': list.length,
   };
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MOCK DATA
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// In-memory mock transactions used during UI development.
-/// Replace with a real API call via [TransactionRepository] when ready.
-final List<TransactionMap> kMockTransactions = [
-  {
-    'tranId': 'TXN-2023-001',
-    'patientId': 'PT-8021',
-    'patientName': 'James Miller',
-    'serviceCount': 5,
-    'amountDue': 650.00,
-    'amountPaid': 650.00,
-    'paymentMethod': 'POS',
-    'discount': 0.00,
-    'date': 'Oct 24, 2023 08:45 AM',
-    'debt': 0.00,
-    'status': 'PAID',
-    'initiator': 'Sarah Jenkins',
-    'bankName': 'First Bank',
-    'reference': 'POS-REF-4421',
-    'services': [
-      {
-        'id': 'SVC-001',
-        'name': 'General Consultation',
-        'source': 'CONSULTATION',
-        'cost': 150.00,
-        'paid': 150.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-002',
-        'name': 'Complete Blood Count (CBC)',
-        'source': 'LAB',
-        'cost': 85.00,
-        'paid': 85.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-003',
-        'name': 'Urinalysis',
-        'source': 'LAB',
-        'cost': 60.00,
-        'paid': 60.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-004',
-        'name': 'Chest X-Ray',
-        'source': 'RADIOLOGY',
-        'cost': 155.00,
-        'paid': 155.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-005',
-        'name': 'Paracetamol 500mg (x20)',
-        'source': 'PHARMACY',
-        'cost': 200.00,
-        'paid': 200.00,
-        'quantity': 20,
-      },
-    ],
-  },
-  {
-    'tranId': 'TXN-2023-002',
-    'patientId': 'PT-8022',
-    'patientName': 'Emma Rodriguez',
-    'serviceCount': 3,
-    'amountDue': 380.00,
-    'amountPaid': 200.00,
-    'paymentMethod': 'Cash',
-    'discount': 20.00,
-    'date': 'Oct 24, 2023 09:15 AM',
-    'debt': 160.00,
-    'status': 'PARTIALLY_PAID',
-    'initiator': 'Michael Chen',
-    'services': [
-      {
-        'id': 'SVC-006',
-        'name': 'Emergency Care',
-        'source': 'CONSULTATION',
-        'cost': 150.00,
-        'paid': 100.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-007',
-        'name': 'Wound Dressing',
-        'source': 'OTHER',
-        'cost': 80.00,
-        'paid': 60.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-008',
-        'name': 'Tetanus Injection',
-        'source': 'PHARMACY',
-        'cost': 150.00,
-        'paid': 40.00,
-        'quantity': 1,
-      },
-    ],
-  },
-  {
-    'tranId': 'TXN-2023-003',
-    'patientId': 'PT-8023',
-    'patientName': 'David Kim',
-    'serviceCount': 5,
-    'amountDue': 1120.00,
-    'amountPaid': 1120.00,
-    'paymentMethod': 'Transfer',
-    'discount': 0.00,
-    'date': 'Oct 24, 2023 10:30 AM',
-    'debt': 0.00,
-    'status': 'PAID',
-    'initiator': 'Sarah Jenkins',
-    'bankName': 'GTBank',
-    'reference': 'TRF-9921-GTB',
-    'services': [
-      {
-        'id': 'SVC-009',
-        'name': 'Cardiology Consult',
-        'source': 'CONSULTATION',
-        'cost': 250.00,
-        'paid': 250.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-010',
-        'name': 'ECG / EKG',
-        'source': 'OTHER',
-        'cost': 120.00,
-        'paid': 120.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-011',
-        'name': 'Echocardiogram',
-        'source': 'RADIOLOGY',
-        'cost': 350.00,
-        'paid': 350.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-012',
-        'name': 'Lipid Profile',
-        'source': 'LAB',
-        'cost': 200.00,
-        'paid': 200.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-013',
-        'name': 'Blood Pressure Monitoring (24h)',
-        'source': 'OTHER',
-        'cost': 200.00,
-        'paid': 200.00,
-        'quantity': 1,
-      },
-    ],
-  },
-  {
-    'tranId': 'TXN-2023-004',
-    'patientId': 'PT-8024',
-    'patientName': 'Sarah Connor',
-    'serviceCount': 6,
-    'amountDue': 810.00,
-    'amountPaid': 810.00,
-    'paymentMethod': 'Cheque',
-    'discount': 50.00,
-    'date': 'Oct 23, 2023 14:20 PM',
-    'debt': 0.00,
-    'status': 'PAID',
-    'initiator': 'Alan Grant',
-    'bankName': 'Zenith Bank',
-    'reference': 'CHQ-00142',
-    'services': [
-      {
-        'id': 'SVC-014',
-        'name': 'Specialist Consult (Ortho)',
-        'source': 'CONSULTATION',
-        'cost': 200.00,
-        'paid': 200.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-015',
-        'name': 'X-Ray (Left Arm)',
-        'source': 'RADIOLOGY',
-        'cost': 110.00,
-        'paid': 110.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-016',
-        'name': 'Cast Application',
-        'source': 'OTHER',
-        'cost': 180.00,
-        'paid': 180.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-017',
-        'name': 'Anti-inflammatory Medication',
-        'source': 'PHARMACY',
-        'cost': 120.00,
-        'paid': 120.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-018',
-        'name': 'Physiotherapy Session (x2)',
-        'source': 'OTHER',
-        'cost': 100.00,
-        'paid': 100.00,
-        'quantity': 2,
-      },
-      {
-        'id': 'SVC-019',
-        'name': 'Surgical Gloves & Consumables',
-        'source': 'OTHER',
-        'cost': 100.00,
-        'paid': 100.00,
-        'quantity': 1,
-      },
-    ],
-  },
-  {
-    'tranId': 'TXN-2023-005',
-    'patientId': 'PT-8025',
-    'patientName': 'Aisha Bello',
-    'serviceCount': 4,
-    'amountDue': 490.00,
-    'amountPaid': 0.00,
-    'paymentMethod': 'Pending',
-    'discount': 0.00,
-    'date': 'Oct 23, 2023 11:05 AM',
-    'debt': 490.00,
-    'status': 'ACTIVE',
-    'initiator': 'Sarah Jenkins',
-    'services': [
-      {
-        'id': 'SVC-020',
-        'name': 'Ante-natal Consultation',
-        'source': 'CONSULTATION',
-        'cost': 120.00,
-        'paid': 0.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-021',
-        'name': 'Obstetric Ultrasound',
-        'source': 'RADIOLOGY',
-        'cost': 180.00,
-        'paid': 0.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-022',
-        'name': 'Haemogram (FBC)',
-        'source': 'LAB',
-        'cost': 90.00,
-        'paid': 0.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-023',
-        'name': 'Iron Supplement (x30)',
-        'source': 'PHARMACY',
-        'cost': 100.00,
-        'paid': 0.00,
-        'quantity': 30,
-      },
-    ],
-  },
-  {
-    'tranId': 'TXN-2023-006',
-    'patientId': 'PT-8026',
-    'patientName': 'Taiwo Adeyemi',
-    'serviceCount': 3,
-    'amountDue': 320.00,
-    'amountPaid': 320.00,
-    'paymentMethod': 'POS',
-    'discount': 0.00,
-    'date': 'Oct 22, 2023 16:00 PM',
-    'debt': 0.00,
-    'status': 'PAID',
-    'initiator': 'Michael Chen',
-    'bankName': 'UBA',
-    'reference': 'POS-REF-5519',
-    'services': [
-      {
-        'id': 'SVC-024',
-        'name': 'ENT Consultation',
-        'source': 'CONSULTATION',
-        'cost': 150.00,
-        'paid': 150.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-025',
-        'name': 'Audiometry Test',
-        'source': 'OTHER',
-        'cost': 90.00,
-        'paid': 90.00,
-        'quantity': 1,
-      },
-      {
-        'id': 'SVC-026',
-        'name': 'Ear Drops (10ml)',
-        'source': 'PHARMACY',
-        'cost': 80.00,
-        'paid': 80.00,
-        'quantity': 1,
-      },
-    ],
-  },
-];

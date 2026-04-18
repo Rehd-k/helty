@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
+import '../../models/staff_model.dart';
 import '../../models/staff_registration_options.dart';
 import '../../providers/auth_provider.dart';
 
@@ -40,7 +41,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         return const FrontDeskDashboardRoute();
       case 'billing':
       case 'bills':
-        return const BillingDashboardRoute();
+        return staffCanAccessPrivilegedBillingStrings(role, accountTypeName)
+            ? const BillingDashboardRoute()
+            : const PendingBillsRoute();
       case 'nurse':
       case 'head_nurse':
       case 'inpatient_nurse':

@@ -1075,7 +1075,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     final admitted =
         selectedPatient != null &&
         patientStatusIsAdmitted(selectedPatient.status);
-    // Module-only flows always send items to invoice without POS payment.
+    // Module-only flows always send items to invoice without Card payment.
     final usePayAtPos = !_flowConfig.sendToBillOnly && !admitted;
 
     if (usePayAtPos) {

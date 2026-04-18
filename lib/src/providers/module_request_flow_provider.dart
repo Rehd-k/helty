@@ -44,6 +44,7 @@ class PaidModuleRequestContext {
     required this.invoiceId,
     required this.invoiceDisplayId,
     required this.serviceLines,
+    this.invoiceStaffId,
   });
 
   final ModuleRequestFlowType moduleType;
@@ -51,6 +52,8 @@ class PaidModuleRequestContext {
   final String invoiceId;
   final String invoiceDisplayId;
   final List<PaidInvoiceServiceLine> serviceLines;
+  /// Staff on the invoice (requesting doctor); optional for external patients.
+  final String? invoiceStaffId;
 }
 
 final moduleRequestFlowProvider = StateProvider<ModuleRequestFlowConfig>(

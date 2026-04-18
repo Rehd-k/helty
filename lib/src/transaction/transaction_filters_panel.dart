@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'transaction_models.dart' show TransactionStatus;
+import 'transaction_models.dart' show StaffSummaryEntry, TransactionStatus;
 
 /// Slide-in filters panel for the Transactions screen.
 /// Date from/to use inline date pickers (no full-screen range modal).
@@ -17,9 +17,9 @@ class TransactionFiltersPanel extends StatelessWidget {
     required this.onStatusChanged,
     required this.myTransactionsOnly,
     required this.onMyTransactionsOnlyChanged,
-    required this.selectedUserId,
-    required this.userOptions,
-    required this.onUserChanged,
+    required this.selectedInitiatedById,
+    required this.staffOptions,
+    required this.onInitiatedByChanged,
     required this.onApply,
     required this.onReset,
   });
@@ -33,9 +33,9 @@ class TransactionFiltersPanel extends StatelessWidget {
   final ValueChanged<TransactionStatus?> onStatusChanged;
   final bool myTransactionsOnly;
   final ValueChanged<bool> onMyTransactionsOnlyChanged;
-  final String? selectedUserId;
-  final List<String> userOptions;
-  final ValueChanged<String?> onUserChanged;
+  final String? selectedInitiatedById;
+  final List<StaffSummaryEntry> staffOptions;
+  final ValueChanged<String?> onInitiatedByChanged;
   final VoidCallback onApply;
   final VoidCallback onReset;
 
@@ -61,9 +61,9 @@ class TransactionFiltersPanel extends StatelessWidget {
           _buildStatusDropdown(context),
           const SizedBox(height: 16),
           _buildMyTransactionsSwitch(context),
-          if (userOptions.isNotEmpty) ...[
+          if (staffOptions.isNotEmpty) ...[
             const SizedBox(height: 16),
-            _buildUserDropdown(context),
+            _buildStaffDropdown(context),
           ],
           const SizedBox(height: 24),
           Row(
@@ -223,15 +223,16 @@ class TransactionFiltersPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildUserDropdown(BuildContext context) {
+  Widget _buildStaffDropdown(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text('User', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const SizedBox(height: 4),
-        DropdownButtonFormField<String>(
-          initialValue: selectedUserId,
+        DropdownButtonFormField<String?>(
+          key: ValueKey<String?>(selectedInitiatedById),
+          initialValue: selectedInitiatedById,
           decoration: InputDecoration(
             filled: true,
             fillColor: theme.cardColor,
@@ -243,18 +244,21 @@ class TransactionFiltersPanel extends StatelessWidget {
           ),
           isExpanded: true,
           items: [
-            const DropdownMenuItem<String>(
+            const DropdownMenuItem<String?>(
               value: null,
               child: Text('All Users'),
             ),
-            ...userOptions.map(
-              (u) => DropdownMenuItem<String>(
-                value: u,
-                child: Text(u, overflow: TextOverflow.ellipsis),
+            ...staffOptions.map(
+              (e) => DropdownMenuItem<String?>(
+                value: e.receivedById,
+                child: Text(
+                  e.dropdownLabel,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ],
-          onChanged: onUserChanged,
+          onChanged: onInitiatedByChanged,
         ),
       ],
     );

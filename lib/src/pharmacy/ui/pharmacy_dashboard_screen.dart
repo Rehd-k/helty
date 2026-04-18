@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/pharmacy_dashboard_model.dart';
+import '../models/pharmacy_model.dart';
 import '../services/pharmacy_dashboard_service.dart';
+import '../services/pharmacy_service.dart';
 
 enum _DatePreset { today, last7Days, last30Days, thisMonth }
 
@@ -31,7 +33,9 @@ class PharmacyDashboardScreen extends StatefulWidget {
 
 class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   final PharmacyDashboardService _service = PharmacyDashboardService();
-  final List<String> _stores = const ['Main Pharmacy', 'Branch Pharmacy'];
+  final PharmacyApiService _pharmacyApi = PharmacyApiService();
+  List<PharmacyLocation> _storeLocations = [];
+  String? _selectedStoreId;
   final List<String> _payerTypes = const [
     'All',
     'Cash',
@@ -41,7 +45,6 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   ];
 
   _DatePreset _selectedPreset = _DatePreset.last30Days;
-  String _selectedStore = 'Main Pharmacy';
   String _selectedPayer = 'All';
   bool _isLoading = true;
   String? _error;
@@ -51,7 +54,68 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDashboard();
+    _bootstrap();
+  }
+
+  /// Loads pharmacy store locations first, selects the first store by default, then fetches dashboard data.
+  Future<void> _bootstrap() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      await _loadStores();
+      await _fetchDashboard();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadStores() async {
+    final resp = await _pharmacyApi.getPharmacyLocations(
+      const PharmacyQueryParams(pageSize: 200),
+    );
+    final stores = resp.items
+        .where(
+          (l) =>
+              l.type == PharmacyLocationType.STORE &&
+              l.isActive &&
+              l.id != null &&
+              l.id!.trim().isNotEmpty,
+        )
+        .toList();
+    if (!mounted) return;
+    setState(() {
+      _storeLocations = stores;
+      if (_storeLocations.isEmpty) {
+        _selectedStoreId = null;
+      } else if (_selectedStoreId == null ||
+          !_storeLocations.any((s) => s.id == _selectedStoreId)) {
+        _selectedStoreId = _storeLocations.first.id;
+      }
+    });
+  }
+
+  Future<void> _fetchDashboard() async {
+    final range = _resolveDateRange(_selectedPreset);
+    final query = PharmacyDashboardQuery(
+      fromDate: range.$1,
+      toDate: range.$2,
+      storeId: _selectedStoreId,
+      payerType: _selectedPayer,
+    );
+
+    final data = await _service.getDashboardData(query);
+    if (!mounted) return;
+    setState(() {
+      _dashboard = data;
+      _lastUpdated = DateTime.now();
+    });
   }
 
   Future<void> _loadDashboard() async {
@@ -61,20 +125,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     });
 
     try {
-      final range = _resolveDateRange(_selectedPreset);
-      final query = PharmacyDashboardQuery(
-        fromDate: range.$1,
-        toDate: range.$2,
-        storeId: _selectedStore,
-        payerType: _selectedPayer,
-      );
-
-      final data = await _service.getDashboardData(query);
-      if (!mounted) return;
-      setState(() {
-        _dashboard = data;
-        _lastUpdated = DateTime.now();
-      });
+      await _fetchDashboard();
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());
@@ -188,7 +239,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadDashboard,
+          onRefresh: _bootstrap,
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
@@ -299,14 +350,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
               },
             ),
           ),
-          _compactDropdown(
-            value: _selectedStore,
-            items: _stores,
-            onChanged: (v) {
-              setState(() => _selectedStore = v);
-              _loadDashboard();
-            },
-          ),
+          _storeDropdown(theme),
           _compactDropdown(
             value: _selectedPayer,
             items: _payerTypes,
@@ -330,6 +374,63 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             label: Text(_isLoading ? 'Refreshing...' : 'Refresh'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _storeDropdown(ThemeData theme) {
+    if (_storeLocations.isEmpty) {
+      return Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.centerLeft,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
+        ),
+        child: Text(
+          'No stores',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: const Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    final validIds = _storeLocations.map((s) => s.id!).toList();
+    final dropdownValue =
+        _selectedStoreId != null && validIds.contains(_selectedStoreId)
+            ? _selectedStoreId
+            : validIds.first;
+
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: DropdownButton<String>(
+        value: dropdownValue,
+        underline: const SizedBox.shrink(),
+        borderRadius: BorderRadius.circular(12),
+        items: _storeLocations
+            .map(
+              (loc) => DropdownMenuItem<String>(
+                value: loc.id!,
+                child: Text(loc.name),
+              ),
+            )
+            .toList(),
+        onChanged: (v) {
+          if (v != null) {
+            setState(() => _selectedStoreId = v);
+            _loadDashboard();
+          }
+        },
       ),
     );
   }

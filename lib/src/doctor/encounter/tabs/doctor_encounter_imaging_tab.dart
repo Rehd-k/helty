@@ -643,7 +643,7 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _urgency,
+                  initialValue: _urgency,
                   decoration: const InputDecoration(
                     labelText: 'Urgency *',
                     border: OutlineInputBorder(),

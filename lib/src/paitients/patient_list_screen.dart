@@ -350,8 +350,8 @@ class _PatientListScreenState extends State<PatientListScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.small(
         tooltip: 'Refresh list',
-        child: const Icon(Icons.refresh),
         onPressed: _refreshPatients,
+        child: const Icon(Icons.refresh),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

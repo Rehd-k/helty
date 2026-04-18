@@ -2,24 +2,29 @@ import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/billing_analytics_models.dart';
+import 'package:helty/src/models/staff_model.dart';
+import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/api_service.dart';
 import 'package:helty/src/services/billing_analytics_service.dart';
 
 import 'patient_invoice.dart';
 
 @RoutePage()
-class BillingDashboardScreen extends StatefulWidget {
+class BillingDashboardScreen extends ConsumerStatefulWidget {
   const BillingDashboardScreen({super.key});
 
   @override
-  State<BillingDashboardScreen> createState() => _BillingDashboardScreenState();
+  ConsumerState<BillingDashboardScreen> createState() =>
+      _BillingDashboardScreenState();
 }
 
-class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
+class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen> {
   String _selectedPeriod = 'Today';
   final TextEditingController _searchController = TextEditingController();
   final ApiService apiService = ApiService();
@@ -44,7 +49,14 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDashboard());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!staffCanAccessPrivilegedBilling(ref.read(authProvider).staff)) {
+        context.router.replace(const PendingBillsRoute());
+        return;
+      }
+      _loadDashboard();
+    });
   }
 
   Future<void> _loadDashboard() async {
@@ -242,6 +254,12 @@ class _BillingDashboardScreenState extends State<BillingDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!staffCanAccessPrivilegedBilling(ref.watch(authProvider).staff)) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final colorScheme = Theme.of(context).colorScheme;
 
     // Failed first load (or no cached data): show error — not the loading branch.

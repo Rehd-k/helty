@@ -62,6 +62,19 @@ class ReceiptEscposService {
     return s[0].toUpperCase() + s.substring(1).toLowerCase();
   }
 
+  /// Parses [transactionModelToMap]'s ISO string or legacy display [date] (`MMM d, y h:mm a`).
+  static DateTime? _parseReceiptCreatedAt(String raw) {
+    final s = raw.trim();
+    if (s.isEmpty) return null;
+    try {
+      return DateTime.parse(s);
+    } catch (_) {}
+    try {
+      return DateFormat('MMM d, y h:mm a').parse(s);
+    } catch (_) {}
+    return null;
+  }
+
   /// Generates a QR code as a raster image for printers that don't support
   /// the native ESC/POS QR command.
   static img.Image? _generateQrImage(String data, {int moduleSize = 4}) {
@@ -119,7 +132,11 @@ class ReceiptEscposService {
         'totalAmount': t['amountDue'] ?? 0,
         'discountAmount': t['discount'] ?? 0,
         'amountPaid': t['amountPaid'] ?? 0,
-        'createdAt': t['date']?.toString() ?? '',
+        'createdAt':
+            t['createdAtIso']?.toString() ??
+            t['createdAt']?.toString() ??
+            t['date']?.toString() ??
+            '',
       },
       'patient': {
         'firstName': t['patientName']?.toString() ?? '',
@@ -323,7 +340,11 @@ class ReceiptEscposService {
     final num totalAmount = (transaction['totalAmount'] ?? 0) as num;
     final num discountAmount = (transaction['discountAmount'] ?? 0) as num;
     final num amountPaid = (transaction['amountPaid'] ?? 0) as num;
-    final createdAt = transaction['createdAt']?.toString() ?? '';
+    final createdRaw = transaction['createdAt']?.toString() ?? '';
+    final createdDt = _parseReceiptCreatedAt(createdRaw);
+    final dateLine = createdDt != null
+        ? DateFormatter.dateTime(createdDt)
+        : (createdRaw.isNotEmpty ? _sanitizeEscPosText(createdRaw) : '—');
 
     bytes += generator.row([
       PosColumn(text: 'Txn:', width: 3, styles: const PosStyles(bold: true)),
@@ -332,7 +353,7 @@ class ReceiptEscposService {
     bytes += generator.row([
       PosColumn(text: 'Date:', width: 3, styles: const PosStyles(bold: true)),
       PosColumn(
-        text: DateFormatter.dateTime(DateTime.parse(createdAt)),
+        text: dateLine,
         width: 9,
       ),
     ]);
