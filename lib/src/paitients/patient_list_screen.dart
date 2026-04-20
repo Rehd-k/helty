@@ -174,7 +174,14 @@ class _PatientListScreenState extends State<PatientListScreen> {
                     patient.nextOfKinRelationship ?? '—',
                   ),
                   const Divider(height: 22),
-                  _detailRow('HMO', patient.hmo ?? '—'),
+                  _detailRow(
+                    'HMO',
+                    patient.hmoProvider != null
+                        ? '${patient.hmoProvider!.name}'
+                              '${patient.hmoProvider!.code != null && patient.hmoProvider!.code!.isNotEmpty ? ' (${patient.hmoProvider!.code})' : ''}'
+                              '${patient.hmo != null && patient.hmo!.isNotEmpty ? ' · code: ${patient.hmo}' : ''}'
+                        : (patient.hmo ?? '—'),
+                  ),
                   _detailRow('Status', patient.status ?? '—'),
                   _detailRow('Admitted', admitted ? 'Yes' : 'No'),
                   if (admitted) ...[

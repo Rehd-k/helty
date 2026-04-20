@@ -2,9 +2,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/services/service_service.dart';
 
+import '../../auth/hospital_service_permissions.dart';
 import '../../models/service_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/filter.patients.dart';
 import '../../widgets/table/reusable_async_table.dart';
 import 'add_category_screen.dart';
@@ -12,14 +15,14 @@ import 'add_department_screen.dart';
 import 'add_service_screen.dart';
 
 @RoutePage()
-class ViewServiceScreen extends StatefulWidget {
+class ViewServiceScreen extends ConsumerStatefulWidget {
   const ViewServiceScreen({super.key});
 
   @override
   ViewServiceScreenState createState() => ViewServiceScreenState();
 }
 
-class ViewServiceScreenState extends State<ViewServiceScreen> {
+class ViewServiceScreenState extends ConsumerState<ViewServiceScreen> {
   final serviceService = ServiceService();
 
   Future<PagedData<ServiceModel>> fetchServices(int start, int count) async {
@@ -42,6 +45,10 @@ class ViewServiceScreenState extends State<ViewServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canManageServices = canManageHospitalServices(
+      ref.watch(authProvider).staff,
+    );
+
     return Scaffold(
       body: Column(
         children: [
@@ -115,27 +122,25 @@ class ViewServiceScreenState extends State<ViewServiceScreen> {
           shape: const CircleBorder(),
         ),
         children: [
-          FloatingActionButton.small(
-            tooltip: 'New Service',
-
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                // Add this shape property
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(25.0),
+          if (canManageServices)
+            FloatingActionButton.small(
+              tooltip: 'New Service',
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(25.0),
+                    ),
                   ),
-                ),
-                // This ensures the content doesn't overflow the rounded corners
-                clipBehavior: Clip.antiAliasWithSaveLayer,
-                builder: (BuildContext buildContext) {
-                  return const AddServiceScreen();
-                },
-              );
-            },
-            child: const Icon(Icons.medical_services_outlined),
-          ),
+                  clipBehavior: Clip.antiAliasWithSaveLayer,
+                  builder: (BuildContext buildContext) {
+                    return const AddServiceScreen();
+                  },
+                );
+              },
+              child: const Icon(Icons.medical_services_outlined),
+            ),
           FloatingActionButton.small(
             tooltip: 'New Category',
 

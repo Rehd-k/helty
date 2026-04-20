@@ -54,9 +54,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
         _error = e.toString();
         _loading = false;
       });
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(_error!)),
-      );
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(_error!)));
     }
   }
 
@@ -64,7 +64,8 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
     if (h.subtitle != null && h.subtitle!.trim().isNotEmpty) {
       return h.subtitle!;
     }
-    final template = h.subtitleTemplate ??
+    final template =
+        h.subtitleTemplate ??
         "Welcome back, {name}. Here's what's happening today.";
     final name = h.userDisplayName.trim().isNotEmpty
         ? h.userDisplayName.trim()
@@ -119,6 +120,117 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
     }
     if (maxV <= 0) return 100;
     return (maxV * 1.15).ceilToDouble().clamp(1, double.infinity);
+  }
+
+  /// When [timeRange] is Today, combine hourly (or sub-day) points into 4-hour buckets
+  /// (00–04, 04–08, …) so the x-axis shows 00:00, 04:00, 08:00, … instead of hourly ticks.
+  NurseAdmissionsDischargesSeries _admissionsSeriesForChart(
+    NurseDashboardOverview overview,
+  ) {
+    final series = overview.admissionsDischargesSeries;
+    if (_timeRange != 'Today') return series;
+
+    final aggregated = _aggregateAdmissionsToFourHourBuckets(series.points);
+    if (aggregated == null) return series;
+
+    return NurseAdmissionsDischargesSeries(points: aggregated, meta: null);
+  }
+
+  /// Returns `null` if the series should be shown as-is (already bucketed or unknown shape).
+  List<NurseAdmissionDischargePoint>? _aggregateAdmissionsToFourHourBuckets(
+    List<NurseAdmissionDischargePoint> points,
+  ) {
+    if (points.length < 4) return null;
+
+    final parsedHours = [
+      for (final p in points) _tryParseHourFromLabel(p.label),
+    ];
+    final allHoursKnown = parsedHours.every((h) => h != null);
+
+    if (allHoursKnown) {
+      final admissions = List<double>.filled(6, 0);
+      final discharges = List<double>.filled(6, 0);
+      for (var i = 0; i < points.length; i++) {
+        final h = parsedHours[i]!;
+        final b = (h ~/ 4).clamp(0, 5);
+        admissions[b] += points[i].admissions;
+        discharges[b] += points[i].discharges;
+      }
+      return [
+        for (var b = 0; b < 6; b++)
+          NurseAdmissionDischargePoint(
+            label: _fourHourBucketLabel(b),
+            admissions: admissions[b],
+            discharges: discharges[b],
+          ),
+      ];
+    }
+
+    // Assume points are consecutive hours starting at midnight (e.g. 24 hourly samples).
+    if (points.length % 4 != 0) return null;
+
+    final out = <NurseAdmissionDischargePoint>[];
+    for (var start = 0; start < points.length; start += 4) {
+      var a = 0.0;
+      var d = 0.0;
+      for (var i = start; i < start + 4; i++) {
+        a += points[i].admissions;
+        d += points[i].discharges;
+      }
+      out.add(
+        NurseAdmissionDischargePoint(
+          label: _fourHourBucketLabel(start ~/ 4),
+          admissions: a,
+          discharges: d,
+        ),
+      );
+    }
+    return out;
+  }
+
+  static final RegExp _label24h =
+      RegExp(r'^(\d{1,2})(?::(\d{2}))?$');
+  static final RegExp _label12h = RegExp(
+    r'^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$',
+    caseSensitive: false,
+  );
+
+  /// Parses hour 0–23 from common dashboard labels; returns null if unknown.
+  int? _tryParseHourFromLabel(String label) {
+    final s = label.trim();
+    if (s.isEmpty) return null;
+
+    final m24 = _label24h.firstMatch(s);
+    if (m24 != null) {
+      final h = int.tryParse(m24.group(1)!);
+      final min = int.tryParse(m24.group(2) ?? '0') ?? 0;
+      if (h != null && h >= 0 && h <= 23 && min >= 0 && min < 60) return h;
+    }
+
+    final m12 = _label12h.firstMatch(s);
+    if (m12 != null) {
+      var h = int.tryParse(m12.group(1)!);
+      if (h == null) return null;
+      final isPm = (m12.group(3)!.toUpperCase() == 'PM');
+      if (h == 12) {
+        h = isPm ? 12 : 0;
+      } else if (isPm) {
+        h += 12;
+      }
+      if (h >= 0 && h <= 23) return h;
+    }
+
+    if (RegExp(r'^\d{1,2}$').hasMatch(s)) {
+      final h = int.tryParse(s);
+      if (h != null && h >= 0 && h <= 23) return h;
+    }
+
+    return null;
+  }
+
+  String _fourHourBucketLabel(int bucketIndex) {
+    final h = bucketIndex * 4;
+    return '${h.toString().padLeft(2, '0')}:00';
   }
 
   double _niceInterval(double maxY) {
@@ -182,10 +294,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                _error ?? 'No dashboard data',
-                textAlign: TextAlign.center,
-              ),
+              Text(_error ?? 'No dashboard data', textAlign: TextAlign.center),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: _load,
@@ -231,8 +340,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                             _resolvedSubtitle(header),
                             style: TextStyle(
                               fontSize: 14,
-                              color: colorScheme.onSurface
-                                  .withValues(alpha: 0.6),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
                             ),
                           ),
                         ],
@@ -244,8 +354,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: colorScheme.outline
-                                    .withValues(alpha: 0.3),
+                                color: colorScheme.outline.withValues(
+                                  alpha: 0.3,
+                                ),
                               ),
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -286,8 +397,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                           const SizedBox(width: 16),
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor:
-                                colorScheme.primary.withValues(alpha: 0.1),
+                            backgroundColor: colorScheme.primary.withValues(
+                              alpha: 0.1,
+                            ),
                             child: Icon(
                               Icons.person,
                               color: colorScheme.primary,
@@ -367,8 +479,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                                 color: colorScheme.surface,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: colorScheme.outline
-                                      .withValues(alpha: 0.2),
+                                  color: colorScheme.outline.withValues(
+                                    alpha: 0.2,
+                                  ),
                                 ),
                               ),
                               child: Column(
@@ -388,15 +501,6 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
                                               color: colorScheme.onSurface,
-                                            ),
-                                          ),
-                                          Text(
-                                            'Les admissions',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontStyle: FontStyle.italic,
-                                              color: colorScheme.onSurface
-                                                  .withValues(alpha: 0.5),
                                             ),
                                           ),
                                         ],
@@ -420,7 +524,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                                   Expanded(
                                     child: _buildPatientInfluxChart(
                                       colorScheme,
-                                      data.admissionsDischargesSeries,
+                                      _admissionsSeriesForChart(data),
                                     ),
                                   ),
                                 ],
@@ -434,8 +538,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                                 color: colorScheme.surface,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: colorScheme.outline
-                                      .withValues(alpha: 0.2),
+                                  color: colorScheme.outline.withValues(
+                                    alpha: 0.2,
+                                  ),
                                 ),
                               ),
                               child: Column(
@@ -473,8 +578,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                                 color: colorScheme.surface,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: colorScheme.outline
-                                      .withValues(alpha: 0.2),
+                                  color: colorScheme.outline.withValues(
+                                    alpha: 0.2,
+                                  ),
                                 ),
                               ),
                               child: Column(
@@ -522,10 +628,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                                         padding: const EdgeInsets.only(
                                           bottom: 16.0,
                                         ),
-                                        child: _staffRow(
-                                          staff,
-                                          colorScheme,
-                                        ),
+                                        child: _staffRow(staff, colorScheme),
                                       ),
                                     ),
                                   const SizedBox(height: 8),
@@ -580,8 +683,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                                       'No critical alerts',
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: Colors.red[700]
-                                            ?.withValues(alpha: 0.8),
+                                        color: Colors.red[700]?.withValues(
+                                          alpha: 0.8,
+                                        ),
                                       ),
                                     )
                                   else
@@ -746,8 +850,9 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                       children: [
                         CircularProgressIndicator(
                           value: progressValue,
-                          backgroundColor:
-                              colorScheme.outline.withValues(alpha: 0.1),
+                          backgroundColor: colorScheme.outline.withValues(
+                            alpha: 0.1,
+                          ),
                           color: color,
                           strokeWidth: 4,
                         ),
@@ -911,9 +1016,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
       return Center(
         child: Text(
           'No admissions or discharge data for this period',
-          style: TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
+          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
         ),
       );
     }
@@ -1042,9 +1145,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
       return Center(
         child: Text(
           'No department load data',
-          style: TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
+          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
         ),
       );
     }

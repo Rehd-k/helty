@@ -5,6 +5,7 @@
 enum AccountType {
   billing,
   accounting,
+  hmo,
   pharmacy,
   nurse,
   physician,
@@ -35,6 +36,9 @@ enum AccountType {
         return AccountType.billing;
       case 'accounts':
         return AccountType.accounting;
+      case 'hmo':
+      case 'hmo_desk':
+        return AccountType.hmo;
       case 'pharmacy_store':
       case 'pharmacy_dispensary':
       case 'pharmacy_head':

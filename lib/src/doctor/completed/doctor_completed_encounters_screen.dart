@@ -32,8 +32,9 @@ class _DoctorCompletedEncountersScreenState
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   DateTime? _filterDate;
-  DateTime? _fromDate = DateTime.now();
-  DateTime? _toDate = DateTime.now();
+  /// Must match [FromToDateFilter] defaults (start/end of calendar day).
+  DateTime? _fromDate;
+  DateTime? _toDate;
 
   /// Physicians only: `false` = all completed (no doctorId); `true` = filter by logged-in doctor.
   bool _physicianShowMineOnly = false;
@@ -41,6 +42,9 @@ class _DoctorCompletedEncountersScreenState
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
     _searchCtrl.addListener(() {
       final q = _searchCtrl.text.trim();
       if (q != _searchQuery) {
@@ -48,7 +52,10 @@ class _DoctorCompletedEncountersScreenState
         _filterDisplayed();
       }
     });
-    _loadEncounters();
+    // Do not call [_loadEncounters] here: [FromToDateFilter] mounts on first
+    // build and notifies via post-frame callback. Previously the loading gate
+    // hid the filter until after the first fetch, so that notify fired twice
+    // and reloaded the list (infinite “loading” / duplicate fetches).
   }
 
   @override
@@ -126,15 +133,25 @@ class _DoctorCompletedEncountersScreenState
   }
 
   Future<void> _loadPatientsForEncounters(List<EncounterModel> list) async {
+    final ids = <String>{};
     for (final e in list) {
-      if (_patientCache.containsKey(e.patientId)) continue;
+      if (!_patientCache.containsKey(e.patientId)) {
+        ids.add(e.patientId);
+      }
+    }
+    if (ids.isEmpty) return;
+    final updates = <String, Patient>{};
+    for (final id in ids) {
       try {
-        final p = await _patientService.getPatientById(e.patientId);
-        if (!mounted) return;
-        setState(() => _patientCache[e.patientId] = p);
+        final p = await _patientService.getPatientById(id);
+        updates[id] = p;
       } catch (_) {
         // skip failed patient load
       }
+      if (!mounted) return;
+    }
+    if (updates.isNotEmpty && mounted) {
+      setState(() => _patientCache.addAll(updates));
     }
   }
 
@@ -182,275 +199,285 @@ class _DoctorCompletedEncountersScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final staff = ref.watch(authProvider).staff;
+    final staff = ref.watch(authProvider.select((s) => s.staff));
     final showPhysicianScopeToggle = _isPhysicianStaff(staff);
-
-    if (_loading && _encounters.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              'Loading completed encounters…',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_error != null && _encounters.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: colorScheme.error),
-              const SizedBox(height: 16),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.error,
-                ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _loadEncounters,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
 
     final filtered = _filteredEncounters;
 
-    return RefreshIndicator(
-      onRefresh: _loadEncounters,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(24),
+    Widget listSliver() {
+      if (_loading && _encounters.isEmpty) {
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                CircularProgressIndicator(color: colorScheme.primary),
+                const SizedBox(height: 16),
                 Text(
-                  'Completed Encounters',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'View past encounter details. Tap a row to open.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  'Loading completed encounters…',
+                  style: theme.textTheme.bodyLarge?.copyWith(
                     color: colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
-                ),
-                if (showPhysicianScopeToggle) ...[
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment<bool>(
-                          value: false,
-                          label: Text('All'),
-                          icon: Icon(Icons.groups_outlined, size: 18),
-                        ),
-                        ButtonSegment<bool>(
-                          value: true,
-                          label: Text('Mine'),
-                          icon: Icon(Icons.person_outline, size: 18),
-                        ),
-                      ],
-                      selected: {_physicianShowMineOnly},
-                      onSelectionChanged: (s) {
-                        if (s.isEmpty) return;
-                        setState(() => _physicianShowMineOnly = s.first);
-                        _loadEncounters();
-                      },
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: _searchCtrl,
-                        decoration: InputDecoration(
-                          hintText:
-                              'Search by patient name, ID, or chief complaint',
-                          prefixIcon: Icon(
-                            Icons.search,
-                            size: 20,
-                            color: colorScheme.onSurface.withValues(alpha: 0.6),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    TextButton.icon(
-                      onPressed: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _filterDate ?? DateTime.now(),
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now(),
-                        );
-                        if (date != null && mounted) {
-                          setState(() => _filterDate = date);
-                        }
-                      },
-                      icon: const Icon(Icons.calendar_today, size: 18),
-                      label: Text(
-                        _filterDate != null
-                            ? DateFormat.yMMMd().format(_filterDate!)
-                            : 'Filter by date',
-                      ),
-                    ),
-                    if (_filterDate != null) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () => setState(() => _filterDate = null),
-                        icon: const Icon(Icons.clear),
-                        tooltip: 'Clear date filter',
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 12),
-                FromToDateFilter(
-                  // Only update the selected range; do not auto-call the API
-                  doRefresh: () {},
-                  dateFilter: true,
-                  onFilterChanged: (
-                    String query,
-                    String category,
-                    DateTime? from,
-                    DateTime? to,
-                  ) {
-                    setState(() {
-                      _fromDate = from;
-                      _toDate = to;
-                    });
-                    _loadEncounters();
-                  },
                 ),
               ],
             ),
           ),
-          if (filtered.isEmpty)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 64,
-                      color: colorScheme.onSurface.withValues(alpha: 0.3),
+        );
+      }
+      if (_error != null && _encounters.isEmpty) {
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.error,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _encounters.isEmpty
-                          ? 'No completed encounters yet.'
-                          : 'No matches for search or date filter.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: _loadEncounters,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Retry'),
+                  ),
+                ],
               ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                itemCount: filtered.length,
-                itemBuilder: (context, index) {
-                  final e = filtered[index];
-                  final patient = _patientCache[e.patientId];
-                  final name = patient != null
-                      ? '${patient.title} ${patient.firstName} ${patient.surname}'
-                      : 'Patient ${e.patientId}';
-                  final closed = e.closedAt ?? e.startedAt;
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+            ),
+          ),
+        );
+      }
+      if (filtered.isEmpty) {
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  size: 64,
+                  color: colorScheme.onSurface.withValues(alpha: 0.3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _encounters.isEmpty
+                      ? 'No completed encounters yet.'
+                      : 'No matches for search or date filter.',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return SliverPadding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final e = filtered[index];
+              final patient = _patientCache[e.patientId];
+              final name = patient != null
+                  ? '${patient.title} ${patient.firstName} ${patient.surname}'
+                  : 'Patient ${e.patientId}';
+              final closed = e.closedAt ?? e.startedAt;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  leading: CircleAvatar(
+                    backgroundColor: colorScheme.primaryContainer,
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
                       ),
-                      leading: CircleAvatar(
-                        backgroundColor: colorScheme.primaryContainer,
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: TextStyle(
-                            color: colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
+                    ),
+                  ),
+                  title: Text(
+                    name.trim(),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(
+                        e.chiefComplaint?.isNotEmpty == true
+                            ? e.chiefComplaint!
+                            : 'No chief complaint recorded',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.8),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${DateFormat.yMMMd().format(closed)} • ${e.primaryIcdDescription ?? e.status}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
-                      title: Text(
-                        name.trim(),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Text(
-                            e.chiefComplaint?.isNotEmpty == true
-                                ? e.chiefComplaint!
-                                : 'No chief complaint recorded',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.8,
-                              ),
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                    ],
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => _openEncounter(e),
+                ),
+              );
+            },
+            childCount: filtered.length,
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadEncounters,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Completed Encounters',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'View past encounter details. Tap a row to open.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  if (showPhysicianScopeToggle) ...[
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment<bool>(
+                            value: false,
+                            label: Text('All'),
+                            icon: Icon(Icons.groups_outlined, size: 18),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${DateFormat.yMMMd().format(closed)} • ${e.primaryIcdDescription ?? e.status}',
-                            style: theme.textTheme.bodySmall?.copyWith(
+                          ButtonSegment<bool>(
+                            value: true,
+                            label: Text('Mine'),
+                            icon: Icon(Icons.person_outline, size: 18),
+                          ),
+                        ],
+                        selected: {_physicianShowMineOnly},
+                        onSelectionChanged: (s) {
+                          if (s.isEmpty) return;
+                          setState(() => _physicianShowMineOnly = s.first);
+                          _loadEncounters();
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: _searchCtrl,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Search by patient name, ID, or chief complaint',
+                            prefixIcon: Icon(
+                              Icons.search,
+                              size: 20,
                               color: colorScheme.onSurface.withValues(
                                 alpha: 0.6,
                               ),
                             ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            isDense: true,
                           ),
-                        ],
+                        ),
                       ),
-                      trailing: Icon(
-                        Icons.chevron_right,
-                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      const SizedBox(width: 12),
+                      TextButton.icon(
+                        onPressed: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: _filterDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                          );
+                          if (date != null && mounted) {
+                            setState(() => _filterDate = date);
+                          }
+                        },
+                        icon: const Icon(Icons.calendar_today, size: 18),
+                        label: Text(
+                          _filterDate != null
+                              ? DateFormat.yMMMd().format(_filterDate!)
+                              : 'Filter by date',
+                        ),
                       ),
-                      onTap: () => _openEncounter(e),
-                    ),
-                  );
-                },
+                      if (_filterDate != null) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () => setState(() => _filterDate = null),
+                          icon: const Icon(Icons.clear),
+                          tooltip: 'Clear date filter',
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  FromToDateFilter(
+                    doRefresh: () {},
+                    dateFilter: true,
+                    onFilterChanged: (
+                      String query,
+                      String category,
+                      DateTime? from,
+                      DateTime? to,
+                    ) {
+                      setState(() {
+                        _fromDate = from;
+                        _toDate = to;
+                      });
+                      _loadEncounters();
+                    },
+                  ),
+                ],
               ),
             ),
+          ),
+          listSliver(),
         ],
       ),
     );

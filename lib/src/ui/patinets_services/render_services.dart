@@ -7,9 +7,11 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
+import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
+import 'package:helty/src/paitients/patient.state.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 
 import '../../billings/pay.bill.dart';
@@ -17,6 +19,7 @@ import '../../enlist_services/selected.user.dart';
 import '../../models/service_category_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/module_request_flow_provider.dart';
+import '../../services/hmo_service.dart';
 import '../../services/department_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
@@ -139,6 +142,93 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   bool _payAtPosBusy = false;
   bool _depositBusy = false;
 
+  /// When HMO desk + patient has [Patient.hmoId], map catalog service id → patient co-pay.
+  Map<String, double> _hmoPatientPaysByServiceId = {};
+  String? _hmoPricesLoadedFor;
+
+  bool get _useHmoPatientPricing {
+    final staff = ref.read(authProvider).staff;
+    final flow = ref.read(moduleRequestFlowProvider);
+    final patient = ref.read(patientProvider).selectedPatient;
+    final hid = patient?.hmoId?.trim();
+    if (hid == null || hid.isEmpty) return false;
+    return staff?.accountType == AccountType.hmo ||
+        flow.type == ModuleRequestFlowType.hmo;
+  }
+
+  double _effectiveUnitPrice(ServiceModel item) {
+    final sid = item.id.trim().isNotEmpty ? item.id.trim() : item.serviceId.trim();
+    if (sid.isNotEmpty) {
+      final p = _hmoPatientPaysByServiceId[sid];
+      if (p != null) return p;
+    }
+    return item.cost;
+  }
+
+  Future<void> _refreshHmoPricingIfNeeded() async {
+    if (!_useHmoPatientPricing) {
+      if (_hmoPatientPaysByServiceId.isNotEmpty || _hmoPricesLoadedFor != null) {
+        if (mounted) {
+          setState(() {
+            _hmoPatientPaysByServiceId = {};
+            _hmoPricesLoadedFor = null;
+          });
+        }
+      }
+      return;
+    }
+    final patient = ref.read(patientProvider).selectedPatient;
+    final hid = patient?.hmoId?.trim() ?? '';
+    if (hid.isEmpty) return;
+    if (_hmoPricesLoadedFor == hid && _hmoPatientPaysByServiceId.isNotEmpty) {
+      return;
+    }
+    try {
+      final detail = await HmoService().getById(hid);
+      final map = <String, double>{};
+      for (final row in detail.servicePrices) {
+        final sid = row.serviceId.trim();
+        if (sid.isNotEmpty) map[sid] = row.patientPays;
+        final nested = row.service?.id.trim() ?? '';
+        if (nested.isNotEmpty) map[nested] = row.patientPays;
+      }
+      if (!mounted) return;
+      setState(() {
+        _hmoPatientPaysByServiceId = map;
+        _hmoPricesLoadedFor = hid;
+        final previous = List<ServiceModel>.from(_selectedItems);
+        _selectedItems
+          ..clear()
+          ..addAll(
+            previous.map((line) {
+              final sid = line.id.trim().isNotEmpty ? line.id : line.serviceId;
+              final p = map[sid];
+              if (p == null) return line;
+              return ServiceModel(
+                id: line.id,
+                serviceId: line.serviceId,
+                name: line.name,
+                description: line.description,
+                categoryId: line.categoryId,
+                categoryName: line.categoryName,
+                departmentId: line.departmentId,
+                departmentName: line.departmentName,
+                cost: p,
+                qty: line.qty,
+                isRecurringDaily: line.isRecurringDaily,
+              );
+            }),
+          );
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _hmoPatientPaysByServiceId = {};
+        _hmoPricesLoadedFor = null;
+      });
+    }
+  }
+
   /// Creates an invoice with cart lines, then opens [PayBill] with [invoiceId] for invoice-led payment.
   Future<void> _openPayAtPosWithInvoice(
     Patient? patient,
@@ -254,7 +344,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             categoryName: item.categoryName,
             departmentId: item.departmentId,
             departmentName: item.departmentName,
-            cost: item.cost,
+            cost: _effectiveUnitPrice(item),
             qty: 1,
           ),
         );
@@ -280,6 +370,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     _flowConfig = ref.read(moduleRequestFlowProvider);
     _loadMeta();
     _loadServices();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshHmoPricingIfNeeded();
+    });
   }
 
   @override
@@ -307,15 +400,25 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final selectedPatient = ref.watch(patientProvider).selectedPatient;
+    final patientState = ref.watch(patientProvider);
+    final selectedPatient = patientState.selectedPatient;
+    ref.listen<PatientState>(patientProvider, (prev, next) {
+      final a = prev?.selectedPatient?.id;
+      final b = next.selectedPatient?.id;
+      if (a != b) {
+        Future.microtask(_refreshHmoPricingIfNeeded);
+      }
+    });
     final accountType = auth.staff?.accountType?.name.toLowerCase() ?? '';
     final role = auth.staff?.role.toLowerCase() ?? '';
     final isBillingUser =
         accountType == 'billing' ||
         accountType == 'bills' ||
+        accountType == 'hmo' ||
         role == 'billing_head' ||
         role == 'billing_staff' ||
-        role == 'billing';
+        role == 'billing' ||
+        role == 'hmo_staff';
     return Scaffold(
       appBar: AppBar(
         actions: [

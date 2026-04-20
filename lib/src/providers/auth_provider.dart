@@ -52,10 +52,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // ── Login ──────────────────────────────────────────────────────────────────
 
-  Future<bool> login({required String email, required String password}) async {
+  Future<bool> login({
+    required String emailOrPhone,
+    required String password,
+  }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final response = await _repo.login(email: email, password: password);
+      final response = await _repo.login(
+        emailOrPhone: emailOrPhone,
+        password: password,
+      );
 
       state = state.copyWith(staff: response.staff, isLoading: false);
       return true;

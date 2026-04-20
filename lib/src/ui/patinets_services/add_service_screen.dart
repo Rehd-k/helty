@@ -1,21 +1,24 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/services/service_service.dart';
 
+import '../../auth/hospital_service_permissions.dart';
 import '../../models/service_category_model.dart';
 import '../../models/service_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/department_service.dart';
 import '../../services/service_category_service.dart';
 
 @RoutePage()
-class AddServiceScreen extends StatefulWidget {
+class AddServiceScreen extends ConsumerStatefulWidget {
   const AddServiceScreen({super.key});
 
   @override
-  AddServiceScreenState createState() => AddServiceScreenState();
+  ConsumerState<AddServiceScreen> createState() => AddServiceScreenState();
 }
 
-class AddServiceScreenState extends State<AddServiceScreen> {
+class AddServiceScreenState extends ConsumerState<AddServiceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
@@ -45,6 +48,16 @@ class AddServiceScreenState extends State<AddServiceScreen> {
   }
 
   Future<void> _save() async {
+    if (!canManageHospitalServices(ref.read(authProvider).staff)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your role cannot create services. Ask a billing head or administrator.',
+          ),
+        ),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     // ensure dropdowns selected
     if (_selectedCategoryId == null || _selectedDepartmentId == null) {
@@ -94,6 +107,8 @@ class AddServiceScreenState extends State<AddServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final allowed = canManageHospitalServices(ref.watch(authProvider).staff);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add service'),
@@ -101,96 +116,123 @@ class AddServiceScreenState extends State<AddServiceScreen> {
           IconButton(onPressed: getVlaues, icon: Icon(Icons.refresh_outlined)),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Name is required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _costCtrl,
-                decoration: const InputDecoration(labelText: 'Cost'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Cost required';
-                  if (double.tryParse(v) == null) return 'Enter valid number';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // category dropdown
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCategoryId,
-                items: categories
-                    .map(
-                      (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
-                    )
-                    .toList(),
-                decoration: const InputDecoration(labelText: 'Category'),
-                onChanged: (v) => setState(() {
-                  _selectedCategoryId = v;
-                }),
-              ),
-              // loading: () => const SizedBox(
-              //   height: 48,
-              //   child: Center(child: CircularProgressIndicator()),
-              // ),
-              // error: (e, _) => Text('Failed to load categories'),
-              // ),
-              const SizedBox(height: 12),
-              // department dropdown
-              DropdownButtonFormField<String>(
-                initialValue: _selectedDepartmentId,
-                items: departments
-                    .map(
-                      (d) => DropdownMenuItem(value: d.id, child: Text(d.name)),
-                    )
-                    .toList(),
-                decoration: const InputDecoration(labelText: 'Department'),
-                onChanged: (v) => setState(() {
-                  _selectedDepartmentId = v;
-                }),
-              ),
-
-              // loading: () => const SizedBox(
-              //   height: 48,
-              //   child: Center(child: CircularProgressIndicator()),
-              // ),
-              // error: (e, _) => Text('Failed to load departments'),
-              const SizedBox(height: 24),
-              Center(
-                child: FilledButton(
-                  onPressed: _isSaving ? null : _save,
-                  child: _isSaving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save'),
+      body: !allowed
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Your role cannot create or edit hospital services. '
+                  'Ask a billing head or administrator.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: _nameCtrl,
+                      decoration: const InputDecoration(labelText: 'Name'),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Name is required'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _descCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _costCtrl,
+                      decoration: const InputDecoration(labelText: 'Cost'),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty)
+                          return 'Cost required';
+                        if (double.tryParse(v) == null)
+                          return 'Enter valid number';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // category dropdown
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedCategoryId,
+                      items: categories
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Text(c.name),
+                            ),
+                          )
+                          .toList(),
+                      decoration: const InputDecoration(labelText: 'Category'),
+                      onChanged: (v) => setState(() {
+                        _selectedCategoryId = v;
+                      }),
+                    ),
+                    // loading: () => const SizedBox(
+                    //   height: 48,
+                    //   child: Center(child: CircularProgressIndicator()),
+                    // ),
+                    // error: (e, _) => Text('Failed to load categories'),
+                    // ),
+                    const SizedBox(height: 12),
+                    // department dropdown
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedDepartmentId,
+                      items: departments
+                          .map(
+                            (d) => DropdownMenuItem(
+                              value: d.id,
+                              child: Text(d.name),
+                            ),
+                          )
+                          .toList(),
+                      decoration: const InputDecoration(
+                        labelText: 'Department',
+                      ),
+                      onChanged: (v) => setState(() {
+                        _selectedDepartmentId = v;
+                      }),
+                    ),
+
+                    // loading: () => const SizedBox(
+                    //   height: 48,
+                    //   child: Center(child: CircularProgressIndicator()),
+                    // ),
+                    // error: (e, _) => Text('Failed to load departments'),
+                    const SizedBox(height: 24),
+                    Center(
+                      child: FilledButton(
+                        onPressed: _isSaving ? null : _save,
+                        child: _isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Save'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 }

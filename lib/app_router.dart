@@ -187,6 +187,11 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: SupportTicketDetailRoute.page),
         AutoRoute(page: StaffChatRoute.page),
         AutoRoute(page: StaffChatThreadRoute.page),
+        // HMO
+        AutoRoute(page: HmoListRoute.page),
+        AutoRoute(page: HmoDetailRoute.page),
+        AutoRoute(page: HmoFormRoute.page),
+        AutoRoute(page: HmoServicePricingRoute.page),
       ],
     ),
 

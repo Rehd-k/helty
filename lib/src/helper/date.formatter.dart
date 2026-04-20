@@ -91,4 +91,46 @@ class DateFormatter {
       return 'Invalid Date';
     }
   }
+
+  /// Age for bedside display: years if 1y+, months if under 1y, weeks/days for newborns.
+  static String patientAgeFromDob(DateTime dob, [DateTime? now]) {
+    final clock = now ?? DateTime.now();
+    if (dob.isAfter(clock)) return '0 d';
+
+    var years = clock.year - dob.year;
+    if (clock.month < dob.month ||
+        (clock.month == dob.month && clock.day < dob.day)) {
+      years--;
+    }
+    if (years >= 1) {
+      return years == 1 ? '1 yr' : '$years yrs';
+    }
+
+    var months = (clock.year - dob.year) * 12 + clock.month - dob.month;
+    if (clock.day < dob.day) months--;
+    if (months >= 1) {
+      return months == 1 ? '1 mo' : '$months mo';
+    }
+
+    final startDay = DateTime(dob.year, dob.month, dob.day);
+    final today = DateTime(clock.year, clock.month, clock.day);
+    final days = today.difference(startDay).inDays;
+    if (days >= 7) {
+      final w = days ~/ 7;
+      return w == 1 ? '1 wk' : '$w wks';
+    }
+    return days <= 0 ? '0 d' : '$days d';
+  }
+
+  /// Calendar days from [admissionDate] to today (same calendar day → 0).
+  static int calendarDaysSince(DateTime admissionInstant, [DateTime? now]) {
+    final clock = now ?? DateTime.now();
+    final a = DateTime(
+      admissionInstant.year,
+      admissionInstant.month,
+      admissionInstant.day,
+    );
+    final n = DateTime(clock.year, clock.month, clock.day);
+    return n.difference(a).inDays;
+  }
 }

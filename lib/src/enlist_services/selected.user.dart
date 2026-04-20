@@ -11,6 +11,9 @@ class SelectedPatientCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final patientState = ref.watch(patientProvider);
     final selectedPatient = patientState.selectedPatient;
+    if (selectedPatient == null) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
@@ -69,7 +72,9 @@ class SelectedPatientCard extends ConsumerWidget {
                                 context,
                               ).primaryColor.withValues(alpha: 0.1),
                               child: Text(
-                                selectedPatient!.firstName
+                                (selectedPatient.firstName.isNotEmpty
+                                        ? selectedPatient.firstName
+                                        : '?')
                                     .substring(0, 1)
                                     .toUpperCase(),
                                 style: TextStyle(

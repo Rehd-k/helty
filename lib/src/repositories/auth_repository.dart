@@ -11,10 +11,13 @@ class AuthRepository {
   final AuthService _authService;
 
   Future<AuthResponse> login({
-    required String email,
+    required String emailOrPhone,
     required String password,
   }) async {
-    final response = await _authService.login(email: email, password: password);
+    final response = await _authService.login(
+      emailOrPhone: emailOrPhone,
+      password: password,
+    );
 
     await _persist(response);
     return response;

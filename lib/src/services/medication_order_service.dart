@@ -38,6 +38,7 @@ class MedicationOrderService {
     String? dose,
     String? frequency,
     String? duration,
+    int? quantity,
     String? route,
     String? specialInstructions,
   }) async {
@@ -50,6 +51,7 @@ class MedicationOrderService {
       if (dose != null && dose.isNotEmpty) 'dose': dose,
       if (frequency != null && frequency.isNotEmpty) 'frequency': frequency,
       if (duration != null && duration.isNotEmpty) 'duration': duration,
+      if (quantity != null && quantity > 0) 'quantity': quantity,
       if (route != null && route.isNotEmpty) 'route': route,
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,
@@ -62,6 +64,43 @@ class MedicationOrderService {
     if (data == null) {
       throw StateError('Create medication order returned no data');
     }
+    return MedicationOrderModel.fromJson(data);
+  }
+
+  /// PATCH `/medication-orders/:id` — swap drug on an existing order (when API supports it).
+  Future<MedicationOrderModel> update({
+    required String id,
+    String? drugId,
+    String? drugName,
+    String? dose,
+    String? frequency,
+    String? duration,
+    int? quantity,
+    String? route,
+    String? specialInstructions,
+  }) async {
+    final body = <String, dynamic>{
+      if (drugId != null && drugId.isNotEmpty) 'drugId': drugId,
+      if (drugName != null && drugName.isNotEmpty) 'drugName': drugName,
+      if (dose != null && dose.isNotEmpty) 'dose': dose,
+      if (frequency != null && frequency.isNotEmpty) 'frequency': frequency,
+      if (duration != null && duration.isNotEmpty) 'duration': duration,
+      if (quantity != null && quantity > 0) 'quantity': quantity,
+      if (route != null && route.isNotEmpty) 'route': route,
+      if (specialInstructions != null && specialInstructions.isNotEmpty)
+        'specialInstructions': specialInstructions,
+    };
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/medication-orders/$id',
+      data: body,
+    );
+    final raw = response.data;
+    if (raw == null) {
+      throw StateError('Update medication order returned no data');
+    }
+    final Map<String, dynamic> data = raw['data'] is Map<String, dynamic>
+        ? raw['data'] as Map<String, dynamic>
+        : raw;
     return MedicationOrderModel.fromJson(data);
   }
 }

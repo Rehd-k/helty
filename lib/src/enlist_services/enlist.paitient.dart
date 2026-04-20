@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/module_request_flow_provider.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
@@ -164,6 +165,13 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                             final moduleFlowNotifier = ref.read(
                               moduleRequestFlowProvider.notifier,
                             );
+                            final defaultOrHmo =
+                                ref.read(authProvider).staff?.accountType ==
+                                        AccountType.hmo
+                                    ? const ModuleRequestFlowConfig(
+                                        type: ModuleRequestFlowType.hmo,
+                                      )
+                                    : ModuleRequestFlowConfig.defaultBilling;
                             if (serviceName == 'Pharmacy') {
                               moduleFlowNotifier.state =
                                   ModuleRequestFlowConfig.defaultBilling;
@@ -179,20 +187,16 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                                 ),
                               );
                             } else if (serviceName == 'inpatient') {
-                              moduleFlowNotifier.state =
-                                  ModuleRequestFlowConfig.defaultBilling;
+                              moduleFlowNotifier.state = defaultOrHmo;
                               context.router.push(InpatientBillsListRoute());
                             } else if (serviceName == 'OPD') {
-                              moduleFlowNotifier.state =
-                                  ModuleRequestFlowConfig.defaultBilling;
+                              moduleFlowNotifier.state = defaultOrHmo;
                               context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'Investigation') {
-                              moduleFlowNotifier.state =
-                                  ModuleRequestFlowConfig.defaultBilling;
+                              moduleFlowNotifier.state = defaultOrHmo;
                               context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'Dialysis') {
-                              moduleFlowNotifier.state =
-                                  ModuleRequestFlowConfig.defaultBilling;
+                              moduleFlowNotifier.state = defaultOrHmo;
                               context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'OBGYN') {
                               moduleFlowNotifier.state =
@@ -222,8 +226,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                                   );
                               context.router.push(RenderServiceRoute());
                             } else {
-                              moduleFlowNotifier.state =
-                                  ModuleRequestFlowConfig.defaultBilling;
+                              moduleFlowNotifier.state = defaultOrHmo;
                               context.router.push(RenderServiceRoute());
                             }
                           },

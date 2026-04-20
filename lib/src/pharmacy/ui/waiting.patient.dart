@@ -8,10 +8,12 @@ import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
+import 'package:helty/src/services/medication_order_service.dart';
 import 'package:helty/src/widgets/date.filter.dart';
 
 import '../models/pharmacy_queue_models.dart';
 import '../services/pharmacy_queue_service.dart';
+import '../widgets/substitute_medication_dialog.dart';
 
 // -----------------------------------------------------------------------------
 // MAIN UI – Pharmacy prescription queue (drugs sent on patients' behalf)
@@ -46,6 +48,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   final PatientService _patientService = PatientService();
   final PharmacyApiService _pharmacyApi = PharmacyApiService();
   final InvoiceService _invoiceService = InvoiceService();
+  final MedicationOrderService _medicationOrderService = MedicationOrderService();
 
   Patient? _detailPatient;
   bool _patientLoading = false;
@@ -346,11 +349,209 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       ).showSnackBar(SnackBar(content: Text('Dispensed ${med.name}')));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Dispense failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Dispense failed: $e')));
       }
     }
+  }
+
+  double _unitPriceFromDrug(Drug d) {
+    final p = d.price;
+    if (p != null && p > 0) return p;
+    final prices = d.prices;
+    if (prices != null && prices.isNotEmpty) return prices.first.price;
+    return 0.0;
+  }
+
+  Future<void> _openSubstituteDialog(
+    QueueOrder order,
+    PrescribedMedication med,
+  ) async {
+    final selected = await showSubstituteMedicationDialog(
+      context,
+      currentLine: med,
+      pharmacyApi: _pharmacyApi,
+    );
+    if (selected == null || !mounted) return;
+    await _substituteMedication(order, med, selected);
+  }
+
+  Future<void> _substituteMedication(
+    QueueOrder order,
+    PrescribedMedication med,
+    Drug selected,
+  ) async {
+    final newDrugId = selected.id;
+    if (newDrugId == null || newDrugId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selected drug has no id')),
+        );
+      }
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text('Replacing line…')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final fullDrug = await _pharmacyApi.getDrugById(newDrugId);
+      final unitPrice = _unitPriceFromDrug(fullDrug);
+
+      await _queueService.substituteInvoiceDrugItem(
+        order.id,
+        med.id,
+        {
+          'drugId': newDrugId,
+          'unitPrice': unitPrice,
+          'quantity': med.quantity,
+        },
+      );
+
+      final moId = med.medicationOrderId;
+      if (moId != null && moId.isNotEmpty) {
+        try {
+          await _medicationOrderService.update(
+            id: moId,
+            drugId: newDrugId,
+            drugName: selected.brandName,
+          );
+        } catch (_) {
+          // Clinical chart may lag; invoice line is already substituted.
+        }
+      }
+
+      final updated = await _queueService.getInvoiceDrug(order.id);
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      setState(() {
+        final idx = _orders.indexWhere((o) => o.id == order.id);
+        if (idx >= 0) _orders[idx] = updated;
+        if (_selectedOrder?.id == order.id) _selectedOrder = updated;
+      });
+      await _enrichSelectedOrder(updated);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Substituted with ${selected.brandName}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not substitute: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildMedicationTrailingActions(
+    QueueOrder order,
+    PrescribedMedication med,
+  ) {
+    if (med.isDispensed || med.settled) {
+      return IconButton(
+        onPressed: null,
+        icon: const Icon(Icons.check, size: 20),
+        tooltip: 'Dispensed',
+        style: IconButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }
+
+    final unpaid = !invoiceStatusIsPaid(order.invoiceStatus);
+    final oos = !_medHasStock(med);
+    final hasDrug = med.drugId != null && med.drugId!.isNotEmpty;
+
+    if (oos) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (unpaid)
+            IconButton(
+              onPressed: null,
+              icon: const Icon(Icons.lock_outline, size: 20),
+              tooltip: 'Invoice must be paid before dispense',
+              style: IconButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          IconButton(
+            onPressed: null,
+            icon: const Icon(Icons.block, size: 20),
+            tooltip: 'Out of stock',
+            style: IconButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          if (hasDrug)
+            IconButton(
+              onPressed: () => _openSubstituteDialog(order, med),
+              icon: const Icon(Icons.sync_alt, size: 18),
+              tooltip: 'Suggest alternative',
+              style: IconButton.styleFrom(
+                foregroundColor: Colors.orange,
+                visualDensity: VisualDensity.compact,
+              ),
+            )
+          else
+            IconButton(
+              onPressed: null,
+              icon: const Icon(Icons.link_off, size: 20),
+              tooltip: 'No drug id for this line',
+              style: IconButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+        ],
+      );
+    }
+
+    if (unpaid) {
+      return IconButton(
+        onPressed: null,
+        icon: const Icon(Icons.lock_outline, size: 20),
+        tooltip: 'Invoice must be paid before dispense',
+        style: IconButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }
+
+    if (!hasDrug) {
+      return IconButton(
+        onPressed: null,
+        icon: const Icon(Icons.link_off, size: 20),
+        tooltip: 'No drug id for this line',
+        style: IconButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }
+
+    return IconButton.filled(
+      onPressed: () => _dispenseMedication(order, med),
+      icon: const Icon(Icons.vaccines, size: 20),
+      tooltip: 'Dispense',
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.greenAccent.shade400,
+        foregroundColor: Colors.black87,
+        visualDensity: VisualDensity.compact,
+      ),
+    );
   }
 
   PharmacyQueuePatient _sidebarPatient(QueueOrder order) {
@@ -1008,79 +1209,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              if (med.isDispensed || med.settled)
-                                IconButton(
-                                  onPressed: null,
-                                  icon: const Icon(Icons.check, size: 20),
-                                  tooltip: 'Dispensed',
-                                  style: IconButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                )
-                              else if (!invoiceStatusIsPaid(
-                                order.invoiceStatus,
-                              ))
-                                IconButton(
-                                  onPressed: null,
-                                  icon: const Icon(
-                                    Icons.lock_outline,
-                                    size: 20,
-                                  ),
-                                  tooltip:
-                                      'Invoice must be paid before dispense',
-                                  style: IconButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                )
-                              else if (!_medHasStock(med))
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      onPressed: null,
-                                      icon: const Icon(Icons.block, size: 20),
-                                      tooltip: 'Out of stock',
-                                      style: IconButton.styleFrom(
-                                        visualDensity: VisualDensity.compact,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () {},
-                                      icon: const Icon(
-                                        Icons.sync_alt,
-                                        size: 18,
-                                      ),
-                                      tooltip: 'Suggest alternative',
-                                      style: IconButton.styleFrom(
-                                        foregroundColor: Colors.orange,
-                                        visualDensity: VisualDensity.compact,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              else if (med.drugId == null ||
-                                  med.drugId!.isEmpty)
-                                IconButton(
-                                  onPressed: null,
-                                  icon: const Icon(Icons.link_off, size: 20),
-                                  tooltip: 'No drug id for this line',
-                                  style: IconButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                )
-                              else
-                                IconButton.filled(
-                                  onPressed: () =>
-                                      _dispenseMedication(order, med),
-                                  icon: const Icon(Icons.vaccines, size: 20),
-                                  tooltip: 'Dispense',
-                                  style: IconButton.styleFrom(
-                                    backgroundColor:
-                                        Colors.greenAccent.shade400,
-                                    foregroundColor: Colors.black87,
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                ),
+                              _buildMedicationTrailingActions(order, med),
                             ],
                           ),
                         ],

@@ -5,6 +5,7 @@ import 'staff_model.dart';
 enum StaffAccountCategory {
   billing,
   account,
+  hmo,
   pharmacy,
   nurse,
   physician,
@@ -23,6 +24,7 @@ extension StaffAccountCategoryLabels on StaffAccountCategory {
   String get label => switch (this) {
     StaffAccountCategory.billing => 'Billing',
     StaffAccountCategory.account => 'Account',
+    StaffAccountCategory.hmo => 'HMO',
     StaffAccountCategory.pharmacy => 'Pharmacy',
     StaffAccountCategory.nurse => 'Nurse',
     StaffAccountCategory.physician => 'Physician',
@@ -77,6 +79,13 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
       label: 'Accounting staff',
       accountType: AccountType.accounting,
       role: 'ACCOUNTING_STAFF',
+    ),
+  ],
+  StaffAccountCategory.hmo: [
+    const StaffRoleOption(
+      label: 'HMO Desk',
+      accountType: AccountType.hmo,
+      role: 'HMO_STAFF',
     ),
   ],
   StaffAccountCategory.pharmacy: [

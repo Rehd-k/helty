@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum ModuleRequestFlowType { defaultBilling, radiology, laboratory }
+enum ModuleRequestFlowType { defaultBilling, radiology, laboratory, hmo }
 
 class ModuleRequestFlowConfig {
   const ModuleRequestFlowConfig({
@@ -15,7 +15,9 @@ class ModuleRequestFlowConfig {
   final bool hideServicePrices;
   final bool sendToBillOnly;
 
-  bool get isModuleFlow => type != ModuleRequestFlowType.defaultBilling;
+  bool get isModuleFlow =>
+      type != ModuleRequestFlowType.defaultBilling &&
+      type != ModuleRequestFlowType.hmo;
 
   static const defaultBilling = ModuleRequestFlowConfig(
     type: ModuleRequestFlowType.defaultBilling,

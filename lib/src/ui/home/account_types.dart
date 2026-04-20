@@ -98,6 +98,35 @@ final bills = <MenuItem>[
   ),
 ];
 
+/// HMO desk — same enlist → render-service workflow as billing (narrower than [bills]).
+final hmoDeskMenu = <MenuItem>[
+  MenuItem(
+    label: 'Dashboard',
+    icon: Icons.dashboard_customize_outlined,
+    route: BillingDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Pending Transaction',
+    icon: Icons.pending_actions_outlined,
+    route: PendingBillsRoute(),
+  ),
+  MenuItem(
+    label: 'Render Service',
+    icon: Icons.dataset_outlined,
+    route: EnlistPaitientRoute(serviceName: 'OPD'),
+  ),
+  MenuItem(
+    label: 'Process Ward Payment',
+    icon: Icons.access_time_filled_outlined,
+    route: EnlistPaitientRoute(serviceName: 'inpatient'),
+  ),
+  MenuItem(
+    label: 'Transaction',
+    icon: Icons.list_outlined,
+    route: TransactionsRoute(),
+  ),
+];
+
 final nurses = <MenuItem>[
   MenuItem(
     label: 'Dashboard',

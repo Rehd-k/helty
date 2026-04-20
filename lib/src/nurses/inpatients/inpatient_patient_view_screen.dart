@@ -10,6 +10,7 @@ import 'package:helty/src/providers/auth_provider.dart';
 import '../../helper/date.formatter.dart';
 import '../../../app_router.gr.dart';
 import '../../models/admission_model.dart';
+import '../../models/medication_order_model.dart';
 import '../../models/invoice.dart';
 import '../../services/admission_service.dart';
 import '../../services/invoice_service.dart';
@@ -89,6 +90,20 @@ class _InpatientPatientViewScreenState
     }
   }
 
+  /// Same identity labels as [PatientHeaderCard] / [_buildPatientHeader].
+  ({String name, String hospNo})? _patientIdentityLabels() {
+    final patient = _patient;
+    if (patient == null) return null;
+    final nameParts = <String>[
+      if (patient.title.trim().isNotEmpty) patient.title.trim(),
+      patient.firstName.trim(),
+      patient.surname.trim(),
+    ].where((s) => s.isNotEmpty).toList();
+    final name = nameParts.isEmpty ? 'Unknown patient' : nameParts.join(' ');
+    final hospNo = patient.patientId.isNotEmpty ? patient.patientId : '—';
+    return (name: name, hospNo: hospNo);
+  }
+
   Future<void> _loadPatient() async {
     setState(() {
       _loadingPatient = true;
@@ -149,10 +164,16 @@ class _InpatientPatientViewScreenState
         accountType == 'inpatient_nurse' ||
         accountType == 'outpatient_nurse';
 
+    final identity = _patientIdentityLabels();
+
     return InpatientViewScope(
       patientId: _patient?.id ?? '',
       admissionId: widget.admissionId,
-      encounterId: null, // can be wired when backend exposes mapping
+      encounterId: _admission?.encounterId,
+      embeddedMedicationOrders: _admission?.encounterMedicationOrders ??
+          const <MedicationOrderModel>[],
+      patientDisplayName: identity?.name,
+      hospitalNumber: identity?.hospNo,
       staffId: staffId,
       role: role,
       accountType: accountType,
@@ -435,34 +456,55 @@ class _InpatientPatientViewScreenState
       );
     }
 
-    final name = '${patient.title} ${patient.firstName} ${patient.surname}';
+    final nameParts = <String>[
+      if (patient.title.trim().isNotEmpty) patient.title.trim(),
+      patient.firstName.trim(),
+      patient.surname.trim(),
+    ].where((s) => s.isNotEmpty).toList();
+    final name = nameParts.isEmpty ? 'Unknown patient' : nameParts.join(' ');
 
-    final ageYears = DateTime.now().year - patient.dob.year;
-    final ageGender = '$ageYears yrs, ${patient.gender}';
+    final ageLabel = DateFormatter.patientAgeFromDob(patient.dob);
+    final genderLabel =
+        patient.gender.trim().isEmpty ? '—' : patient.gender.trim();
+    final ageGender = '$ageLabel, $genderLabel';
 
-    final hospitalNumber = patient.patientId;
+    final hospitalNumber =
+        patient.patientId.isNotEmpty ? patient.patientId : '—';
 
-    final ward = admission.ward ?? '—';
-    final bed = admission.bedPreference ?? '—';
-    final doctor = admission.attendingDoctorId ?? '—';
-    final diagnosis = admission.reason ?? '—';
+    final ward = _wardDisplay(admission);
+    final bed = admission.bedPreference?.trim().isNotEmpty == true
+        ? admission.bedPreference!
+        : '—';
+    final doctor = _attendingDoctorDisplay(admission);
+    final diagnosis = _diagnosisDisplay(admission);
 
-    final admissionDateStr = admission.createdAt != null
-        ? DateFormatter.fullDate(admission.createdAt!)
+    final admissionInstant = admission.displayAdmissionInstant;
+    final admissionDateStr = admissionInstant != null
+        ? DateFormatter.fullDate(admissionInstant)
         : '—';
 
-    final allergies = admission.specialInstructions?.split("") ?? const [];
-    final codeStatus = admission.status == 'Active'
+    String? lengthOfStay;
+    if (admissionInstant != null) {
+      final d = DateFormatter.calendarDaysSince(admissionInstant);
+      lengthOfStay = d == 1 ? '1 day' : '$d days';
+    }
+
+    final allergies = patient.allergies
+        .map((a) => a.name.trim())
+        .where((n) => n.isNotEmpty)
+        .toList();
+
+    final st = admission.status.toUpperCase();
+    final codeStatus = (st == 'ACTIVE' || st == 'ADMITTED')
         ? 'Full Code'
-        : 'Partial Code';
-    final riskFlags =
-        // admission.status == 'Active'
-        //     ? const []
-        // :
-        const ['Risk of infection'];
+        : (admission.status.isNotEmpty ? admission.status : '—');
+
+    final riskFlags = <String>[
+      if (admission.isolationRequired) 'Isolation required',
+    ];
 
     return PatientHeaderCard(
-      patientName: name.trim(),
+      patientName: name,
       ageGender: ageGender,
       hospitalNumber: hospitalNumber,
       ward: ward,
@@ -470,10 +512,38 @@ class _InpatientPatientViewScreenState
       attendingDoctor: doctor,
       diagnosis: diagnosis,
       admissionDate: admissionDateStr,
+      lengthOfStay: lengthOfStay,
       allergies: allergies,
       codeStatus: codeStatus,
       riskFlags: riskFlags,
     );
+  }
+
+  String _wardDisplay(AdmissionModel a) {
+    final w = a.ward?.trim();
+    if (w != null && w.isNotEmpty) return w;
+    final n = a.wardEntity?['name']?.toString().trim();
+    if (n != null && n.isNotEmpty) return n;
+    return '—';
+  }
+
+  String _attendingDoctorDisplay(AdmissionModel a) {
+    final display = a.attendingDoctor?.displayName ?? '';
+    if (display.isNotEmpty) return display;
+    return '—';
+  }
+
+  String _diagnosisDisplay(AdmissionModel a) {
+    for (final s in [
+      a.primaryDiagnosis,
+      a.provisionalDiagnosis,
+      a.admissionReason,
+      a.reason,
+    ]) {
+      final t = s?.trim();
+      if (t != null && t.isNotEmpty) return t;
+    }
+    return '—';
   }
 
   Widget _buildTabsStrip(BuildContext context, TabsRouter tabsRouter) {

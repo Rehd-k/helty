@@ -13,6 +13,7 @@ import '../services/department_service.dart';
 import '../services/service_category_service.dart';
 import '../services/service_service.dart';
 import '../services/staff_service.dart';
+import '../auth/hospital_service_permissions.dart';
 import '../providers/auth_provider.dart';
 import 'setup_widgets/setup_form_widgets.dart';
 import 'setup_widgets/setup_table_widgets.dart';
@@ -28,17 +29,6 @@ String _fmtDate(dynamic raw) {
   } catch (_) {
     return raw.toString();
   }
-}
-
-/// Edit/delete hospital services (context menu & update flow) for these roles only.
-bool _canManageHospitalServices(Staff? staff) {
-  if (staff == null) return false;
-  final r = staff.role.trim().toLowerCase().replaceAll('-', '_');
-  if (r == 'super_admin' || r == 'billing_head' || r == 'accounting_head') {
-    return true;
-  }
-  if (staff.accountType == AccountType.super_admin) return true;
-  return false;
 }
 
 // ── tab enum ─────────────────────────────────────────────────────────────────
@@ -242,10 +232,9 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
   // ─── Services ─────────────────────────────────────────────────────────────
 
   Future<void> _saveService() async {
-    if (_editingSrvId != null &&
-        !_canManageHospitalServices(ref.read(authProvider).staff)) {
+    if (!canManageHospitalServices(ref.read(authProvider).staff)) {
       _snack(
-        'Only billing, accounting, or super admin staff can edit services.',
+        'Only billing head, accounting head, or super admin can add or edit services.',
       );
       return;
     }
@@ -283,9 +272,9 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
   }
 
   Future<void> _deleteService(String id) async {
-    if (!_canManageHospitalServices(ref.read(authProvider).staff)) {
+    if (!canManageHospitalServices(ref.read(authProvider).staff)) {
       _snack(
-        'Only billing, accounting, or super admin staff can delete services.',
+        'Only billing head, accounting head, or super admin can delete services.',
       );
       return;
     }
@@ -355,7 +344,7 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final canManageServices = _canManageHospitalServices(
+    final canManageServices = canManageHospitalServices(
       ref.watch(authProvider).staff,
     );
 
@@ -695,11 +684,13 @@ class _ServiceForm extends StatelessWidget {
         OutlinedButton(onPressed: onCancel, child: const Text('Cancel Edit')),
         const SizedBox(height: 8),
       ],
-      if (isEditing && !canManageServices)
+      if (!canManageServices)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
-            'Updates require billing head, accounting head, or super admin.',
+            isEditing
+                ? 'Updates require billing head, accounting head, or super admin.'
+                : 'Adding services requires billing head, accounting head, or super admin.',
             style: TextStyle(
               fontSize: 12,
               color: Theme.of(context).colorScheme.error,
@@ -708,7 +699,7 @@ class _ServiceForm extends StatelessWidget {
         ),
       SetupSubmitButton(
         label: isEditing ? 'Update Service' : 'Add Service',
-        onPressed: (isEditing && !canManageServices) ? null : onSave,
+        onPressed: !canManageServices ? null : onSave,
       ),
     ],
   );

@@ -98,6 +98,46 @@ class Bed {
   };
 }
 
+int _calendarDaysSinceAdmission(DateTime admission) {
+  final now = DateTime.now();
+  final a = DateTime(admission.year, admission.month, admission.day);
+  final n = DateTime(now.year, now.month, now.day);
+  return n.difference(a).inDays;
+}
+
+DateTime? _parseAdmissionDate(Map<String, dynamic> json) {
+  const keys = ['admissionDateTime', 'admissionDate', 'admittedAt'];
+  for (final k in keys) {
+    final v = json[k];
+    if (v != null) {
+      final d = DateTime.tryParse(v.toString());
+      if (d != null) return d;
+    }
+  }
+  return null;
+}
+
+int _daysAdmittedFromJson(Map<String, dynamic> json) {
+  if (json.containsKey('daysAdmitted') && json['daysAdmitted'] != null) {
+    final v = json['daysAdmitted'];
+    if (v is num) return v.toInt();
+    return int.tryParse('$v') ?? 0;
+  }
+  if (json.containsKey('lengthOfStay') && json['lengthOfStay'] != null) {
+    final v = json['lengthOfStay'];
+    if (v is num) return v.toInt();
+    return int.tryParse('$v') ?? 0;
+  }
+  if (json.containsKey('los') && json['los'] != null) {
+    final v = json['los'];
+    if (v is num) return v.toInt();
+    return int.tryParse('$v') ?? 0;
+  }
+  final ad = _parseAdmissionDate(json);
+  if (ad != null) return _calendarDaysSinceAdmission(ad);
+  return 0;
+}
+
 class InpatientCensus {
   InpatientCensus({
     required this.id,
@@ -108,6 +148,7 @@ class InpatientCensus {
     required this.bedLabel,
     required this.diagnosis,
     required this.daysAdmitted,
+    this.encounterId,
   });
 
   final String id;
@@ -118,6 +159,9 @@ class InpatientCensus {
   final String bedLabel;
   final String diagnosis;
   final int daysAdmitted;
+
+  /// Linked encounter for this admission, when returned by the ward API.
+  final String? encounterId;
 
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -162,12 +206,13 @@ class InpatientCensus {
         json['reason'] ??
         '';
 
-    final daysRaw =
-        json['daysAdmitted'] ?? json['lengthOfStay'] ?? json['los'] ?? 0;
+    final encounterRaw = json['encounter'];
+    String? encounterId;
+    if (encounterRaw is Map<String, dynamic>) {
+      encounterId = encounterRaw['id']?.toString();
+    }
 
-    final days = daysRaw is num
-        ? daysRaw.toInt()
-        : int.tryParse('$daysRaw') ?? 0;
+    final days = _daysAdmittedFromJson(json);
 
     return InpatientCensus(
       id: json['id']?.toString() ?? '',
@@ -181,6 +226,7 @@ class InpatientCensus {
       bedLabel: bedLabel.toString(),
       diagnosis: diagnosis.toString(),
       daysAdmitted: days,
+      encounterId: encounterId,
     );
   }
 }

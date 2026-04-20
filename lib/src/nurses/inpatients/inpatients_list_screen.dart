@@ -1,18 +1,38 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/models/ward_models.dart';
+import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_service.dart';
 
 @RoutePage()
-class InpatientsListScreen extends StatefulWidget {
+class InpatientsListScreen extends ConsumerStatefulWidget {
   const InpatientsListScreen({super.key});
 
   @override
-  State<InpatientsListScreen> createState() => _InpatientsListScreenState();
+  ConsumerState<InpatientsListScreen> createState() =>
+      _InpatientsListScreenState();
 }
 
-class _InpatientsListScreenState extends State<InpatientsListScreen> {
+bool _staffIsDoctor(Staff? staff) {
+  final role = staff?.role.toLowerCase() ?? '';
+  final accountType = staff?.accountType?.name.toLowerCase() ?? '';
+  return role == 'doctor' ||
+      role == 'consultant' ||
+      role == 'resident' ||
+      role == 'intern' ||
+      role == 'junior_resident' ||
+      role == 'senior_resident' ||
+      role == 'chief_resident' ||
+      role == 'medical_student' ||
+      accountType == 'physician' ||
+      accountType == 'consultant' ||
+      accountType == 'inpatient_doctor';
+}
+
+class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
   final _wardService = WardService();
   final _searchController = TextEditingController();
 
@@ -127,9 +147,22 @@ class _InpatientsListScreenState extends State<InpatientsListScreen> {
     );
   }
 
+  void _openEncounter(InpatientCensus row) {
+    final encounterId = row.encounterId;
+    if (encounterId == null || encounterId.isEmpty) return;
+    if (row.patientId.isEmpty) return;
+    context.router.push(
+      DoctorEncounterViewRoute(
+        encounterId: encounterId,
+        patientId: row.patientId,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDoctor = _staffIsDoctor(ref.watch(authProvider).staff);
 
     final totalCount = _filteredRows.length;
 
@@ -442,14 +475,41 @@ class _InpatientsListScreenState extends State<InpatientsListScreen> {
                                             flex: 2,
                                             child: Align(
                                               alignment: Alignment.centerRight,
-                                              child: OutlinedButton.icon(
-                                                onPressed: () =>
-                                                    _openInpatientView(row),
-                                                icon: const Icon(
-                                                  Icons.open_in_new,
-                                                  size: 16,
-                                                ),
-                                                label: const Text('Open view'),
+                                              child: Wrap(
+                                                alignment: WrapAlignment.end,
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: [
+                                                  if (isDoctor &&
+                                                      row.encounterId != null &&
+                                                      row.encounterId!
+                                                          .isNotEmpty)
+                                                    OutlinedButton.icon(
+                                                      onPressed: () =>
+                                                          _openEncounter(row),
+                                                      icon: const Icon(
+                                                        Icons
+                                                            .medical_information_outlined,
+                                                        size: 16,
+                                                      ),
+                                                      label: const Text(
+                                                        'Encounter',
+                                                      ),
+                                                    ),
+                                                  OutlinedButton.icon(
+                                                    onPressed: () =>
+                                                        _openInpatientView(
+                                                          row,
+                                                        ),
+                                                    icon: const Icon(
+                                                      Icons.open_in_new,
+                                                      size: 16,
+                                                    ),
+                                                    label: const Text(
+                                                      'Open view',
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ),

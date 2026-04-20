@@ -1,3 +1,5 @@
+import '../models/hmo_models.dart';
+
 /// How [PatientService.fetchPatients] should narrow results by [Patient.status].
 enum PatientListStatusFilter { none, onlyAdmitted, excludeAdmitted }
 
@@ -121,6 +123,13 @@ class Patient {
   final String? nextOfKinAddress;
   final String? nextOfKinRelationship;
   final String? hmo;
+
+  /// FK to HMO plan (`GET /hmos`).
+  final String? hmoId;
+
+  /// Nested provider when API includes it on patient responses.
+  final HmoProviderSummary? hmoProvider;
+
   final String? fingerprintData;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -184,6 +193,8 @@ class Patient {
     this.nextOfKinAddress,
     this.nextOfKinRelationship,
     this.hmo,
+    this.hmoId,
+    this.hmoProvider,
     this.fingerprintData,
     this.createdAt,
     this.updatedAt,
@@ -259,7 +270,17 @@ class Patient {
       nextOfKinPhone: json['nextOfKinPhone'] as String?,
       nextOfKinAddress: json['nextOfKinAddress'] as String?,
       nextOfKinRelationship: json['nextOfKinRelationship'] as String?,
-      hmo: json['hmo'] as String? ?? 'No HMO',
+      hmo: () {
+        final t = json['hmo']?.toString().trim();
+        if (t == null || t.isEmpty || t == 'No HMO') return null;
+        return t;
+      }(),
+      hmoId: json['hmoId']?.toString(),
+      hmoProvider: json['hmoProvider'] is Map<String, dynamic>
+          ? HmoProviderSummary.fromJson(
+              Map<String, dynamic>.from(json['hmoProvider'] as Map),
+            )
+          : null,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
@@ -347,7 +368,8 @@ class Patient {
       'nextOfKinPhone': nextOfKinPhone,
       'nextOfKinAddress': nextOfKinAddress,
       'nextOfKinRelationship': nextOfKinRelationship,
-      'hmo': hmo,
+      if (hmoId != null && hmoId!.trim().isNotEmpty) 'hmoId': hmoId!.trim(),
+      if (hmo != null && hmo!.trim().isNotEmpty) 'hmo': hmo!.trim(),
       'createdAt': createdAt
           ?.toIso8601String(), // or remove if server sets this
       'createdBy': createdBy, // consider removing if server owns this
@@ -399,6 +421,8 @@ class Patient {
       nextOfKinAddress: nextOfKinAddress,
       nextOfKinRelationship: nextOfKinRelationship,
       hmo: hmo,
+      hmoId: hmoId,
+      hmoProvider: hmoProvider,
       fingerprintData: fingerprintData,
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -447,6 +471,8 @@ class Patient {
       nextOfKinAddress: nextOfKinAddress,
       nextOfKinRelationship: nextOfKinRelationship,
       hmo: hmo,
+      hmoId: hmoId,
+      hmoProvider: hmoProvider,
       fingerprintData: fingerprintData,
       createdAt: createdAt,
       updatedAt: updatedAt,

@@ -13,12 +13,12 @@ class AuthService {
 
   /// POST /auth/login  →  { accessToken, refreshToken?, staff }
   Future<AuthResponse> login({
-    required String email,
+    required String emailOrPhone,
     required String password,
   }) async {
     final resp = await _dio.post(
       '/auth/login',
-      data: {'email': email, 'password': password},
+      data: {'emailOrPhone': emailOrPhone, 'password': password},
     );
     return AuthResponse.fromJson(resp.data as Map<String, dynamic>);
   }
@@ -78,7 +78,7 @@ class AuthService {
     if (staffJson != null) {
       final trimmedEmail = email?.trim() ?? '';
       if (trimmedEmail.isNotEmpty) {
-        return login(email: trimmedEmail, password: password);
+        return login(emailOrPhone: trimmedEmail, password: password);
       }
       throw DioException(
         requestOptions: resp.requestOptions,

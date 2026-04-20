@@ -44,6 +44,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         return staffCanAccessPrivilegedBillingStrings(role, accountTypeName)
             ? const BillingDashboardRoute()
             : const PendingBillsRoute();
+      case 'hmo':
+        return EnlistPaitientRoute(serviceName: 'OPD');
       case 'nurse':
       case 'head_nurse':
       case 'inpatient_nurse':

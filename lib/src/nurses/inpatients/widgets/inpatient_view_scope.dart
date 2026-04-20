@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/medication_order_model.dart';
+
 /// Provides inpatient view context to tab content.
 ///
 /// Exposes patient/admission identifiers as well as high-level role flags for
@@ -11,6 +13,9 @@ class InpatientViewScope extends InheritedWidget {
     required this.patientId,
     this.admissionId,
     this.encounterId,
+    this.embeddedMedicationOrders = const [],
+    this.patientDisplayName,
+    this.hospitalNumber,
     this.staffId,
     this.role,
     this.accountType,
@@ -22,8 +27,17 @@ class InpatientViewScope extends InheritedWidget {
   final String patientId;
   final String? admissionId;
 
+  /// Display name from patient record (title, first, surname), when loaded.
+  final String? patientDisplayName;
+
+  /// Hospital / MRN-style identifier (`patient.patientId`), when loaded.
+  final String? hospitalNumber;
+
   /// Optional encounter backing this admission, when available.
   final String? encounterId;
+
+  /// Orders included on the admission payload (e.g. under `encounter.medicationOrders`).
+  final List<MedicationOrderModel> embeddedMedicationOrders;
 
   /// Currently logged-in staff identifiers.
   final String? staffId;
@@ -42,6 +56,8 @@ class InpatientViewScope extends InheritedWidget {
       patientId != old.patientId ||
       admissionId != old.admissionId ||
       encounterId != old.encounterId ||
+      patientDisplayName != old.patientDisplayName ||
+      hospitalNumber != old.hospitalNumber ||
       staffId != old.staffId ||
       role != old.role ||
       accountType != old.accountType ||

@@ -43,6 +43,13 @@ abstract class IPharmacyQueueService {
 
   /// Delete a specific item from an invoice-drug order.
   Future<QueueOrder> deleteInvoiceDrugItem(String id, String itemId);
+
+  /// Replace a line with another drug in one request (`POST /invoice-drugs/:id/items/:itemId/substitute`).
+  Future<QueueOrder> substituteInvoiceDrugItem(
+    String id,
+    String itemId,
+    Map<String, dynamic> payload,
+  );
 }
 
 /// API implementation for invoice-drugs endpoints.
@@ -151,6 +158,25 @@ class PharmacyQueueApiService implements IPharmacyQueueService {
     }
   }
 
+  @override
+  Future<QueueOrder> substituteInvoiceDrugItem(
+    String id,
+    String itemId,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/invoice-drugs/$id/items/$itemId/substitute',
+        data: payload,
+      );
+      return QueueOrder.fromJson(_unwrapOrderPayload(response.data));
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to substitute invoice drug item: ${_errorMessage(e)}',
+      );
+    }
+  }
+
   List<dynamic> _extractList(dynamic data) {
     if (data is List<dynamic>) return data;
     if (data is Map<String, dynamic>) {
@@ -239,6 +265,15 @@ class MockPharmacyQueueService implements IPharmacyQueueService {
 
   @override
   Future<QueueOrder> deleteInvoiceDrugItem(String id, String itemId) async {
+    return getInvoiceDrug(id);
+  }
+
+  @override
+  Future<QueueOrder> substituteInvoiceDrugItem(
+    String id,
+    String itemId,
+    Map<String, dynamic> payload,
+  ) async {
     return getInvoiceDrug(id);
   }
 

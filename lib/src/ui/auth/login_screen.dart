@@ -14,6 +14,22 @@ import '../../services/title_bar.dart';
 // const _kSidebarAccent = Color(0xFF6366F1); // indigo-500
 const _kSidebarTextMuted = Color(0xFF64748B); // slate-500
 
+final _kEmailReg = RegExp(
+  r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
+);
+
+bool _isValidEmailOrPhone(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return false;
+  if (s.contains('@')) {
+    return _kEmailReg.hasMatch(s);
+  }
+  final digits = s.startsWith('+')
+      ? s.substring(1).replaceAll(RegExp(r'\D'), '')
+      : s.replaceAll(RegExp(r'\D'), '');
+  return digits.length >= 10 && digits.length <= 15;
+}
+
 @RoutePage()
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key, @QueryParam() this.redirectTo});
@@ -27,13 +43,13 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
+  final _emailOrPhoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _emailOrPhoneCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
@@ -52,6 +68,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return staffCanAccessPrivilegedBillingStrings(role, accountType)
             ? const BillingDashboardRoute()
             : const PendingBillsRoute();
+      case 'hmo':
+        return EnlistPaitientRoute(serviceName: 'OPD');
       case 'nurse':
       case 'head_nurse':
       case 'inpatient_nurse':
@@ -96,7 +114,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     final ok = await ref
         .read(authProvider.notifier)
-        .login(email: _emailCtrl.text.trim(), password: _passwordCtrl.text);
+        .login(
+          emailOrPhone: _emailOrPhoneCtrl.text.trim(),
+          password: _passwordCtrl.text,
+        );
     if (ok && mounted) {
       // Replace entire stack so the user can't go back to login.
       final auth = ref.read(authProvider);
@@ -269,24 +290,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                               const SizedBox(height: 36),
 
-                              // Email
+                              // Email or phone
                               TextFormField(
-                                controller: _emailCtrl,
-                                keyboardType: TextInputType.emailAddress,
+                                controller: _emailOrPhoneCtrl,
+                                keyboardType: TextInputType.text,
+                                autocorrect: false,
                                 textInputAction: TextInputAction.next,
                                 decoration: const InputDecoration(
-                                  labelText: 'Email address',
-                                  prefixIcon: Icon(Icons.email_outlined),
+                                  labelText: 'Email or phone',
+                                  hintText: 'you@imsh.org or 080...',
+                                  prefixIcon: Icon(Icons.person_outline),
                                 ),
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
-                                    return 'Email is required';
+                                    return 'Email or phone is required';
                                   }
-                                  final emailReg = RegExp(
-                                    r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
-                                  );
-                                  if (!emailReg.hasMatch(v.trim())) {
-                                    return 'Enter a valid email';
+                                  if (!_isValidEmailOrPhone(v)) {
+                                    return 'Enter a valid email or phone number';
                                   }
                                   return null;
                                 },

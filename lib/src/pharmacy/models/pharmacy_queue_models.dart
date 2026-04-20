@@ -14,6 +14,8 @@ class PrescribedMedication {
   bool isDispensed;
   final String? drugId;
   final bool settled;
+  /// When the API links an invoice line to a clinical order (optional).
+  final String? medicationOrderId;
 
   PrescribedMedication({
     required this.id,
@@ -26,6 +28,7 @@ class PrescribedMedication {
     this.isDispensed = false,
     this.drugId,
     this.settled = false,
+    this.medicationOrderId,
   });
 
   /// Enough stock to dispense the prescribed line quantity.
@@ -43,6 +46,7 @@ class PrescribedMedication {
       isDispensed: json['isDispensed'] as bool? ?? false,
       drugId: json['drugId'] as String?,
       settled: json['settled'] as bool? ?? false,
+      medicationOrderId: json['medicationOrderId']?.toString(),
     );
   }
 
@@ -61,6 +65,11 @@ class PrescribedMedication {
       if (form != null && form.isNotEmpty) form,
     ].join(' · ');
 
+    final moRaw = json['medicationOrderId'] ?? json['medicationOrder'];
+    final medicationOrderId = moRaw is Map
+        ? moRaw['id']?.toString()
+        : moRaw?.toString();
+
     return PrescribedMedication(
       id: json['id']?.toString() ?? '',
       name: name,
@@ -71,6 +80,10 @@ class PrescribedMedication {
       stockAvailable: 0,
       drugId: drugId?.isNotEmpty == true ? drugId : null,
       settled: json['settled'] as bool? ?? false,
+      medicationOrderId:
+          medicationOrderId != null && medicationOrderId.isNotEmpty
+          ? medicationOrderId
+          : null,
     );
   }
 
@@ -106,6 +119,7 @@ class PrescribedMedication {
     'isDispensed': isDispensed,
     if (drugId != null) 'drugId': drugId,
     'settled': settled,
+    if (medicationOrderId != null) 'medicationOrderId': medicationOrderId,
   };
 }
 

@@ -9,6 +9,8 @@ class PatientHeaderCard extends StatelessWidget {
   final String attendingDoctor;
   final String diagnosis;
   final String admissionDate;
+  /// Calendar days since admission (e.g. "4 days"), or null to hide the row.
+  final String? lengthOfStay;
   final List<String> allergies;
   final String codeStatus; // e.g. Full Code / DNR
   final List<String> riskFlags; // e.g. Fall Risk, Isolation
@@ -23,6 +25,7 @@ class PatientHeaderCard extends StatelessWidget {
     required this.attendingDoctor,
     required this.diagnosis,
     required this.admissionDate,
+    this.lengthOfStay,
     required this.allergies,
     required this.codeStatus,
     required this.riskFlags,
@@ -125,6 +128,12 @@ class PatientHeaderCard extends StatelessWidget {
                   label: 'Admission Date',
                   value: admissionDate,
                 ),
+                if (lengthOfStay != null && lengthOfStay!.trim().isNotEmpty)
+                  _infoRow(
+                    context,
+                    label: 'Length of stay',
+                    value: lengthOfStay!,
+                  ),
               ],
             ),
           ),

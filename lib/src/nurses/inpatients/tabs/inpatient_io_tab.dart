@@ -1,6 +1,11 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/models/intake_output_record_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/services/intake_output_service.dart';
 
 @RoutePage()
 class InpatientIOScreen extends StatefulWidget {
@@ -11,9 +16,315 @@ class InpatientIOScreen extends StatefulWidget {
 }
 
 class _InpatientIOScreenState extends State<InpatientIOScreen> {
+  final _service = IntakeOutputService();
+  List<IntakeOutputRecordModel> _records = [];
+  bool _loading = true;
+  String? _error;
+  String? _lastLoadedAdmissionId;
+
+  static const _intakeCategories = [
+    'ORAL',
+    'IV',
+    'OTHER',
+  ];
+  static const _outputCategories = [
+    'URINE',
+    'STOOL',
+    'DRAIN',
+    'VOMIT',
+    'BLOOD',
+    'OTHER',
+  ];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final id = InpatientViewScope.of(context)?.admissionId;
+    if (id == null || id.isEmpty) {
+      if (_lastLoadedAdmissionId != null || _loading) {
+        setState(() {
+          _records = [];
+          _loading = false;
+          _error = null;
+          _lastLoadedAdmissionId = null;
+        });
+      }
+      return;
+    }
+    if (id != _lastLoadedAdmissionId) {
+      _lastLoadedAdmissionId = id;
+      _load(id);
+    }
+  }
+
+  Future<void> _load(String admissionId) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await _service.list(admissionId);
+      if (!mounted) return;
+      setState(() {
+        _records = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _records = [];
+        _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  bool _isToday(DateTime? t) {
+    if (t == null) return false;
+    final n = DateTime.now();
+    return t.year == n.year && t.month == n.month && t.day == n.day;
+  }
+
+  double _dailyTotalMl(bool intake) {
+    final type = intake ? 'INTAKE' : 'OUTPUT';
+    var sum = 0.0;
+    for (final r in _records) {
+      final rt = (r.type ?? '').toUpperCase();
+      if (rt != type) continue;
+      final t = r.recordedAt ?? r.createdAt;
+      if (!_isToday(t)) continue;
+      sum += r.amountMl ?? 0;
+    }
+    return sum;
+  }
+
+  List<IntakeOutputRecordModel> _rowsFor(bool intake) {
+    final type = intake ? 'INTAKE' : 'OUTPUT';
+    return _records
+        .where((r) => (r.type ?? '').toUpperCase() == type)
+        .toList()
+      ..sort((a, b) {
+        final ta = a.recordedAt ?? a.createdAt;
+        final tb = b.recordedAt ?? b.createdAt;
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return tb.compareTo(ta);
+      });
+  }
+
+  String _dioMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map && data['message'] != null) {
+      return data['message'].toString();
+    }
+    return e.message ?? 'Request failed';
+  }
+
+  Future<void> _openAddRecordDialog(BuildContext context, bool isIntake) async {
+    final scope = InpatientViewScope.of(context);
+    final admissionId = scope?.admissionId;
+    if (admissionId == null || admissionId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Admission context missing.')),
+      );
+      return;
+    }
+
+    final categories = isIntake ? _intakeCategories : _outputCategories;
+    String category = categories.first;
+    final amountCtrl = TextEditingController();
+    var recorded = DateTime.now();
+    var saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(isIntake ? 'Add Intake' : 'Add Output'),
+              content: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        key: ValueKey(category),
+                        initialValue: category,
+                        decoration: const InputDecoration(
+                          labelText: 'Category',
+                        ),
+                        items: categories
+                            .map(
+                              (c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(c),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setLocal(() => category = v);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: amountCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Amount (ml)',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Record time'),
+                        subtitle: Text(DateFormatter.dateTime(recorded)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.schedule),
+                          onPressed: () async {
+                            final d = await showDatePicker(
+                              context: ctx,
+                              initialDate: recorded,
+                              firstDate: DateTime.now()
+                                  .subtract(const Duration(days: 30)),
+                              lastDate: DateTime.now()
+                                  .add(const Duration(days: 1)),
+                            );
+                            if (d == null || !ctx.mounted) return;
+                            final time = await showTimePicker(
+                              context: ctx,
+                              initialTime: TimeOfDay.fromDateTime(recorded),
+                            );
+                            if (time == null || !ctx.mounted) return;
+                            setLocal(() {
+                              recorded = DateTime(
+                                d.year,
+                                d.month,
+                                d.day,
+                                time.hour,
+                                time.minute,
+                              );
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          final ml = double.tryParse(amountCtrl.text.trim());
+                          if (ml == null || ml < 0) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(
+                                content: Text('Enter a valid amount (ml).'),
+                              ),
+                            );
+                            return;
+                          }
+                          setLocal(() => saving = true);
+                          try {
+                            await _service.create(
+                              admissionId: admissionId,
+                              type: isIntake ? 'INTAKE' : 'OUTPUT',
+                              category: category,
+                              amountMl: ml,
+                              recordedAt: recorded,
+                            );
+                            if (ctx.mounted) Navigator.of(ctx).pop();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Record saved.'),
+                                ),
+                              );
+                              await _load(admissionId);
+                            }
+                          } on DioException catch (e) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text(_dioMessage(e))),
+                              );
+                            }
+                          } catch (e) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text('$e')),
+                              );
+                            }
+                          } finally {
+                            if (ctx.mounted) {
+                              setLocal(() => saving = false);
+                            }
+                          }
+                        },
+                  child: saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final scope = InpatientViewScope.of(context);
+    final admissionId = scope?.admissionId;
+
+    if (admissionId == null || admissionId.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(
+          child: Text('Open this patient with an admission to manage I/O.'),
+        ),
+      );
+    }
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, textAlign: TextAlign.center),
+            TextButton(
+              onPressed: () => _load(admissionId),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final intakeTotal = _dailyTotalMl(true);
+    final outputTotal = _dailyTotalMl(false);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -34,10 +345,10 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTable(context, isIntake: true),
+                  _buildTable(context, rows: _rowsFor(true)),
                   const SizedBox(height: 12),
                   Text(
-                    'Daily total: 0 ml',
+                    'Daily total (today): ${intakeTotal.toStringAsFixed(0)} ml',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: scheme.primary,
@@ -62,10 +373,10 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTable(context, isIntake: false),
+                  _buildTable(context, rows: _rowsFor(false)),
                   const SizedBox(height: 12),
                   Text(
-                    'Daily total: 0 ml',
+                    'Daily total (today): ${outputTotal.toStringAsFixed(0)} ml',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: scheme.error,
@@ -80,8 +391,11 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
     );
   }
 
-  Widget _buildTable(BuildContext context, {required bool isIntake}) {
-    final columns = [
+  Widget _buildTable(
+    BuildContext context, {
+    required List<IntakeOutputRecordModel> rows,
+  }) {
+    const columns = [
       'Time',
       'Type',
       'Category',
@@ -103,80 +417,25 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
               ),
             )
             .toList(),
-        rows: const [],
+        rows: rows
+            .map(
+              (r) => DataRow(
+                cells: [
+                  DataCell(
+                    Text(
+                      DateFormatter.dateTime(
+                        r.recordedAt ?? r.createdAt ?? DateTime.now(),
+                      ),
+                    ),
+                  ),
+                  DataCell(Text(r.type ?? '—')),
+                  DataCell(Text(r.category ?? '—')),
+                  DataCell(Text(r.amountMl?.toStringAsFixed(0) ?? '—')),
+                ],
+              ),
+            )
+            .toList(),
       ),
     );
   }
-
-  Future<void> _openAddRecordDialog(
-    BuildContext context,
-    bool isIntake,
-  ) async {
-    final typeCtrl = TextEditingController();
-    final categoryCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    final timeCtrl = TextEditingController();
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(isIntake ? 'Add Intake' : 'Add Output'),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: typeCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Type',
-                    hintText: 'e.g. Oral, IV, Urine, Drain',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: categoryCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    hintText: 'e.g. Normal saline, NG output',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: amountCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Amount (ml)',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: timeCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Time',
-                    hintText: 'e.g. 09:30',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
-

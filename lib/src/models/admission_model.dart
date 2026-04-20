@@ -1,5 +1,37 @@
 import '../paitients/patient_model.dart';
+import 'medication_order_model.dart';
 import 'patient_vitals_model.dart';
+
+/// Nested `attendingDoctor` on GET `/admissions/:id`.
+class AttendingDoctorSummary {
+  const AttendingDoctorSummary({
+    this.id,
+    this.firstName,
+    this.lastName,
+    this.staffId,
+  });
+
+  final String? id;
+  final String? firstName;
+  final String? lastName;
+  final String? staffId;
+
+  String get displayName {
+    final fn = firstName?.trim() ?? '';
+    final ln = lastName?.trim() ?? '';
+    if (fn.isEmpty && ln.isEmpty) return '';
+    return '$fn $ln'.trim();
+  }
+
+  factory AttendingDoctorSummary.fromJson(Map<String, dynamic> json) {
+    return AttendingDoctorSummary(
+      id: json['id']?.toString(),
+      firstName: json['firstName']?.toString(),
+      lastName: json['lastName']?.toString(),
+      staffId: json['staffId']?.toString(),
+    );
+  }
+}
 
 /// Inpatient admission as returned by GET/POST/PATCH `/admissions`.
 class AdmissionModel {
@@ -40,6 +72,8 @@ class AdmissionModel {
     this.wardEntity,
     this.bed,
     this.encounter,
+    this.attendingDoctor,
+    this.encounterMedicationOrders = const [],
   });
 
   final String id;
@@ -97,6 +131,12 @@ class AdmissionModel {
   /// Raw `encounter` when included (often null after admission is persisted).
   final Map<String, dynamic>? encounter;
 
+  /// When API includes `attendingDoctor` (name/staff id).
+  final AttendingDoctorSummary? attendingDoctor;
+
+  /// Orders nested under `encounter` when the admission payload includes them.
+  final List<MedicationOrderModel> encounterMedicationOrders;
+
   /// Best display date for “admitted on” UIs.
   DateTime? get displayAdmissionInstant =>
       admissionDateTime ?? admissionDate ?? createdAt;
@@ -122,6 +162,30 @@ class AdmissionModel {
     final encounterMap = encounterRaw is Map
         ? Map<String, dynamic>.from(encounterRaw)
         : null;
+
+    AttendingDoctorSummary? attendingDoctor;
+    final atDoc = json['attendingDoctor'];
+    if (atDoc is Map) {
+      attendingDoctor = AttendingDoctorSummary.fromJson(
+        Map<String, dynamic>.from(atDoc),
+      );
+    }
+
+    List<MedicationOrderModel> encounterMedicationOrders =
+        const <MedicationOrderModel>[];
+    if (encounterMap != null) {
+      final mo = encounterMap['medicationOrders'];
+      if (mo is List) {
+        encounterMedicationOrders = mo
+            .whereType<Map>()
+            .map(
+              (e) => MedicationOrderModel.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList();
+      }
+    }
 
     final encounterIdFromJson = json['encounterId']?.toString();
     final encounterIdNested = encounterMap?['id']?.toString();
@@ -187,6 +251,8 @@ class AdmissionModel {
       wardEntity: wardEntityMap,
       bed: bedMap,
       encounter: encounterMap,
+      attendingDoctor: attendingDoctor,
+      encounterMedicationOrders: encounterMedicationOrders,
     );
   }
 }

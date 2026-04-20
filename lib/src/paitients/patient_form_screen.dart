@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:states_and_capitals/states_and_capitals.dart' as sac;
 
+import '../models/hmo_models.dart';
+import '../services/hmo_service.dart';
 import 'patient_model.dart';
 import 'patient_providers.dart';
 import '../widgets/responsive_grid.dart';
@@ -68,6 +70,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   late TextEditingController _nextOfKinAddressController;
   late TextEditingController _nextOfKinRelationshipController;
   late TextEditingController _hmoController;
+  String? _selectedHmoId;
+  List<HmoListItem> _hmoPlans = [];
+  bool _loadingHmos = true;
   late TextEditingController _fingerprintController;
 
   late final List<cp.Country> _countries;
@@ -120,9 +125,12 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       text: p?.nextOfKinRelationship ?? '',
     );
     _hmoController = TextEditingController(text: p?.hmo ?? '');
+    _selectedHmoId = p?.hmoId;
     _fingerprintController = TextEditingController(
       text: p?.fingerprintData ?? '',
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadHmoPlans());
 
     _countries = List.of(cp.CountryService().getAll())
       ..sort((a, b) {
@@ -141,6 +149,20 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     )..sort((a, b) => a.name.compareTo(b.name));
 
     _syncLocationSelectionsFromControllers();
+  }
+
+  Future<void> _loadHmoPlans() async {
+    try {
+      final r = await HmoService().list(take: 200);
+      if (!mounted) return;
+      setState(() {
+        _hmoPlans = r.items;
+        _loadingHmos = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingHmos = false);
+    }
   }
 
   @override
@@ -225,6 +247,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         hmo: _hmoController.text.trim().isEmpty
             ? null
             : _hmoController.text.trim(),
+        hmoId: _selectedHmoId,
         fingerprintData: _fingerprintController.text.trim().isEmpty
             ? null
             : _fingerprintController.text.trim(),
@@ -478,7 +501,47 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       title: 'Other Info',
                       leadingIcon: Icons.more_horiz,
                       children: [
-                        _buildTextField(_hmoController, 'HMO'),
+                        if (_loadingHmos)
+                          const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: LinearProgressIndicator(),
+                          )
+                        else
+                          DropdownButtonFormField<String?>(
+                            key: ValueKey(
+                              '${_hmoPlans.length}_${_selectedHmoId ?? 'none'}',
+                            ),
+                            initialValue: _selectedHmoId,
+                            decoration: const InputDecoration(
+                              labelText: 'HMO plan',
+                              border: OutlineInputBorder(),
+                              helperText: 'Link patient to a configured plan',
+                            ),
+                            isExpanded: true,
+                            items: [
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('None'),
+                              ),
+                              ..._hmoPlans.map(
+                                (h) => DropdownMenuItem<String?>(
+                                  value: h.id,
+                                  child: Text(
+                                    h.code != null && h.code!.isNotEmpty
+                                        ? '${h.name} (${h.code})'
+                                        : h.name,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: (v) => setState(() => _selectedHmoId = v),
+                          ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          _hmoController,
+                          'HMO membership code',
+                          required: false,
+                        ),
                         _buildFingerprintSection(),
                       ],
                     ),

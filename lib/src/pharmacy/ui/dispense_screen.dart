@@ -377,7 +377,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   children: [
                     Expanded(
                       flex: 5,
-                      child: _buildLeftPanel(colorScheme, selectedPatient!),
+                      child: _buildLeftPanel(colorScheme, selectedPatient),
                     ),
                     const SizedBox(width: 16),
                     Expanded(flex: 4, child: _buildMiddlePanel(colorScheme)),
@@ -404,7 +404,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   children: [
                     SizedBox(
                       height: leftH,
-                      child: _buildLeftPanel(colorScheme, selectedPatient!),
+                      child: _buildLeftPanel(colorScheme, selectedPatient),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -433,7 +433,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   // ---------------------------------------------------------------------------
   // LEFT PANEL: Search, Categories, Drugs Grid
   // ---------------------------------------------------------------------------
-  Widget _buildLeftPanel(ColorScheme colorScheme, Patient selectedPatient) {
+  Widget _buildLeftPanel(ColorScheme colorScheme, Patient? selectedPatient) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -556,7 +556,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   itemBuilder: (context, index) {
                     final drug = _drugs[index];
 
-                    final patientWard = selectedPatient.ward ?? 'OPD';
+                    final patientWard = selectedPatient?.ward ?? 'OPD';
                     final wardPrice =
                         (drug.prices != null && drug.prices!.isNotEmpty)
                         ? drug.prices!.firstWhere(
@@ -896,7 +896,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   Widget _buildRightPanel(
     ColorScheme colorScheme,
     ThemeData theme,
-    Patient selectedPatient,
+    Patient? selectedPatient,
   ) {
     return Column(
       children: [
@@ -932,7 +932,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    selectedPatient.ward ?? 'OPD',
+                    selectedPatient?.ward ?? 'OPD',
                     style: TextStyle(fontSize: 12, color: colorScheme.primary),
                   ),
                 ],

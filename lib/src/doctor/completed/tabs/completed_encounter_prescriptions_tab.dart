@@ -80,6 +80,7 @@ class _CompletedEncounterPrescriptionsTabState
           final o = _orders[i];
           final detail = [
             if (o.dose != null && o.dose!.isNotEmpty) o.dose,
+            if (o.quantity != null) 'Qty ${o.quantity}',
             if (o.frequency != null && o.frequency!.isNotEmpty) o.frequency,
             if (o.duration != null && o.duration!.isNotEmpty) o.duration,
             if (o.route != null && o.route!.isNotEmpty) o.route,
