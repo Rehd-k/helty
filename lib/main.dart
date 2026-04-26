@@ -70,7 +70,7 @@ class _MyAppState extends ConsumerState<MyApp> {
       builder: (context, child) {
         return HeltyDesktopUpdateLayer(
           child: AppNotificationHost(
-            child: child ?? const SizedBox.shrink(),
+            child: SafeArea(child: child ?? const SizedBox.shrink()),
           ),
         );
       },

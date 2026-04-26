@@ -66,7 +66,10 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
       setState(() => _patientHits = []);
       return;
     }
-    _patientDebounce = Timer(const Duration(milliseconds: 400), _runPatientSearch);
+    _patientDebounce = Timer(
+      const Duration(milliseconds: 400),
+      _runPatientSearch,
+    );
   }
 
   Future<void> _runPatientSearch() async {
@@ -90,9 +93,9 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _patientLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Patient search failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Patient search failed: $e')));
     }
   }
 
@@ -112,14 +115,13 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingDoctors = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load staff list: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not load staff list: $e')));
     }
   }
 
-  String _patientLabel(Patient p) =>
-      '${p.firstName} ${p.surname}'.trim();
+  String _patientLabel(Patient p) => '${p.firstName} ${p.surname}'.trim();
 
   Future<void> _pickDate() async {
     final date = await showDatePicker(
@@ -148,9 +150,7 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
 
   Future<void> _submit() async {
     final dt = _combinedDateTime();
-    if (_selectedPatient?.id == null ||
-        _selectedDoctor == null ||
-        dt == null) {
+    if (_selectedPatient?.id == null || _selectedDoctor == null || dt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please select patient, doctor, date, and time.'),
@@ -208,20 +208,6 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
       backgroundColor: colorScheme.surfaceContainerLowest,
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
-            pinned: true,
-            backgroundColor: colorScheme.surface,
-            surfaceTintColor: Colors.transparent,
-            title: const Text('New appointment'),
-            actions: [
-              if (_confirmed)
-                TextButton.icon(
-                  onPressed: _resetForm,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Book another'),
-                ),
-            ],
-          ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             sliver: SliverToBoxAdapter(
@@ -246,7 +232,9 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
       color: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.35)),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -258,8 +246,11 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.event_available_rounded,
-                        color: colorScheme.primary, size: 28),
+                    Icon(
+                      Icons.event_available_rounded,
+                      color: colorScheme.primary,
+                      size: 28,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -333,7 +324,9 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
                               ),
                             )
                           : const Icon(Icons.check_rounded),
-                      label: Text(_submitting ? 'Booking…' : 'Book appointment'),
+                      label: Text(
+                        _submitting ? 'Booking…' : 'Book appointment',
+                      ),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
@@ -369,7 +362,9 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
               hintText: 'Type at least 2 letters to search…',
               prefixIcon: const Icon(Icons.search_rounded, size: 22),
               filled: true,
-              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.45,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -385,7 +380,9 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Material(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.35,
+                ),
                 borderRadius: BorderRadius.circular(14),
                 clipBehavior: Clip.antiAlias,
                 child: ConstrainedBox(
@@ -450,9 +447,7 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -500,19 +495,27 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionLabel('Clinician', Icons.medical_services_outlined, colorScheme),
+        _sectionLabel(
+          'Clinician',
+          Icons.medical_services_outlined,
+          colorScheme,
+        ),
         const SizedBox(height: 10),
         if (_loadingDoctors)
-          const Center(child: Padding(
-            padding: EdgeInsets.all(16),
-            child: CircularProgressIndicator(),
-          ))
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          )
         else
           InputDecorator(
             decoration: InputDecoration(
               hintText: 'Select doctor / consultant',
               filled: true,
-              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.45,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -592,7 +595,9 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
           decoration: InputDecoration(
             hintText: 'Reason for visit, instructions…',
             filled: true,
-            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+            fillColor: colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.45,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide.none,
@@ -671,7 +676,9 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
       color: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.35)),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 28),
@@ -684,13 +691,19 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
               ),
               child: const Padding(
                 padding: EdgeInsets.all(20),
-                child: Icon(Icons.check_circle_rounded, size: 56, color: Colors.green),
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  size: 56,
+                  color: Colors.green,
+                ),
               ),
             ),
             const SizedBox(height: 20),
             Text(
               'Appointment booked',
-              style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -715,13 +728,20 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 children: [
-                  _summaryLine(Icons.person_rounded, 'Patient',
-                      _selectedPatient != null ? _patientLabel(_selectedPatient!) : '—'),
+                  _summaryLine(
+                    Icons.person_rounded,
+                    'Patient',
+                    _selectedPatient != null
+                        ? _patientLabel(_selectedPatient!)
+                        : '—',
+                  ),
                   const Divider(height: 24),
                   _summaryLine(
                     Icons.medical_information_outlined,
@@ -747,7 +767,10 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
               icon: const Icon(Icons.add_rounded),
               label: const Text('Schedule another'),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),

@@ -9,18 +9,24 @@ class StaffChatThreadScreen extends ConsumerWidget {
   const StaffChatThreadScreen({
     super.key,
     required this.conversationId,
+    this.title,
   });
 
   final String conversationId;
+  final String? title;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = title?.trim();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chat'),
+        title: Text(
+          t != null && t.isNotEmpty ? t : 'Chat',
+        ),
       ),
       body: StaffChatThreadContent(
         conversationId: conversationId,
+        conversationTitle: t,
       ),
     );
   }

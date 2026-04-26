@@ -2,7 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
@@ -21,9 +21,8 @@ class CMDBedsFacilitiesScreen extends ConsumerWidget {
       subtitle: 'Ward occupancy and admission / discharge pulse',
       asyncValue: async,
       builder: (context, data) {
-        final fmt = DateFormat('MMM d, HH:mm');
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -71,7 +70,7 @@ class CMDBedsFacilitiesScreen extends ConsumerWidget {
                         ),
                         title: Text('${data.recentEvents[i].type} — ${data.recentEvents[i].ward}'),
                         subtitle: Text(data.recentEvents[i].patientRef),
-                        trailing: Text(fmt.format(data.recentEvents[i].at)),
+                        trailing: Text(DateFormatter.dateTime(data.recentEvents[i].at)),
                       ),
                       if (i < data.recentEvents.length - 1) const Divider(height: 1),
                     ],

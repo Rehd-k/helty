@@ -17,9 +17,51 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
   String? _filterItemId;
   int _skip = 0;
   static const int _limit = 20;
+
+  /// Keep modest; some backends cap `limit` and error on large values.
+  static const int _itemsDropdownLimit = 100;
   bool _loading = true;
   StoreStockResponse? _response;
   String? _error;
+  bool _pendingClearLocationFilter = false;
+  bool _pendingClearItemFilter = false;
+
+  void _ensureLocationFilterValid(List<StoreLocation> locations) {
+    if (_filterLocationId == null) return;
+    if (locations.any((l) => l.id == _filterLocationId)) return;
+    if (_pendingClearLocationFilter) return;
+    _pendingClearLocationFilter = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pendingClearLocationFilter = false;
+      if (!mounted) return;
+      if (_filterLocationId != null &&
+          !locations.any((l) => l.id == _filterLocationId)) {
+        setState(() {
+          _filterLocationId = null;
+          _skip = 0;
+        });
+        _loadStock();
+      }
+    });
+  }
+
+  void _ensureItemFilterValid(List<StoreItem> items) {
+    if (_filterItemId == null) return;
+    if (items.any((i) => i.id == _filterItemId)) return;
+    if (_pendingClearItemFilter) return;
+    _pendingClearItemFilter = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pendingClearItemFilter = false;
+      if (!mounted) return;
+      if (_filterItemId != null && !items.any((i) => i.id == _filterItemId)) {
+        setState(() {
+          _filterItemId = null;
+          _skip = 0;
+        });
+        _loadStock();
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -59,7 +101,6 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
     final theme = Theme.of(context);
     final locationsAsync = ref.watch(storeLocationsFutureProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Stock')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -83,8 +124,14 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
                       child: locationsAsync.when(
                         data: (res) {
                           final list = res.data;
+                          _ensureLocationFilterValid(list);
+                          final locationValue =
+                              _filterLocationId != null &&
+                                  list.any((l) => l.id == _filterLocationId)
+                              ? _filterLocationId
+                              : null;
                           return DropdownButtonFormField<String?>(
-                            initialValue: _filterLocationId,
+                            value: locationValue,
                             decoration: const InputDecoration(
                               labelText: 'Location',
                               border: OutlineInputBorder(),
@@ -124,8 +171,11 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
                             ),
                           ),
                         ),
-                        error: (_, __) =>
-                            const Text('Failed to load locations'),
+                        error: (e, _) => Text(
+                          'Locations: ${e.toString()}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -135,7 +185,7 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
                             storeItemsFutureProvider(
                               const StoreItemsParams(
                                 isActive: true,
-                                limit: 500,
+                                limit: _itemsDropdownLimit,
                                 skip: 0,
                               ),
                             ),
@@ -143,8 +193,14 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
                           .when(
                             data: (res) {
                               final list = res.data;
+                              _ensureItemFilterValid(list);
+                              final itemValue =
+                                  _filterItemId != null &&
+                                      list.any((i) => i.id == _filterItemId)
+                                  ? _filterItemId
+                                  : null;
                               return DropdownButtonFormField<String?>(
-                                initialValue: _filterItemId,
+                                value: itemValue,
                                 decoration: const InputDecoration(
                                   labelText: 'Item',
                                   border: OutlineInputBorder(),
@@ -186,8 +242,11 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
                                 ),
                               ),
                             ),
-                            error: (_, __) =>
-                                const Text('Failed to load items'),
+                            error: (e, _) => Text(
+                              'Items: ${e.toString()}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                     ),
                     const SizedBox(width: 16),

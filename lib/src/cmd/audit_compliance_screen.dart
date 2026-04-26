@@ -2,7 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
@@ -21,9 +21,8 @@ class CMDAuditComplianceScreen extends ConsumerWidget {
       subtitle: 'Activity trail and checklist status',
       asyncValue: async,
       builder: (context, data) {
-        final fmt = DateFormat('MMM d, HH:mm:ss');
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -70,7 +69,7 @@ class CMDAuditComplianceScreen extends ConsumerWidget {
                       for (final l in data.logs)
                         DataRow2(
                           cells: [
-                            DataCell(Text(fmt.format(l.at))),
+                            DataCell(Text(DateFormatter.dateTimeWithSeconds(l.at))),
                             DataCell(Text(l.user)),
                             DataCell(Text(l.action)),
                             DataCell(Text(l.entity)),
@@ -81,6 +80,7 @@ class CMDAuditComplianceScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         );

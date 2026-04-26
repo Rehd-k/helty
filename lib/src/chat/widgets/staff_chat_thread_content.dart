@@ -16,6 +16,7 @@ class StaffChatThreadContent extends ConsumerStatefulWidget {
     required this.conversationId,
     this.embedded = false,
     this.compactChrome = false,
+    this.conversationTitle,
     this.onBack,
     this.maxBubbleWidthFraction = 0.78,
   });
@@ -24,6 +25,8 @@ class StaffChatThreadContent extends ConsumerStatefulWidget {
   final bool embedded;
   /// When [embedded] is true, hide the inner title row (shell provides chrome).
   final bool compactChrome;
+  /// Shown above the thread when [embedded] (e.g. side panel) so the peer is clear.
+  final String? conversationTitle;
   final VoidCallback? onBack;
   final double maxBubbleWidthFraction;
 
@@ -155,6 +158,12 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
     });
   }
 
+  String _headerLabel() {
+    final t = widget.conversationTitle?.trim();
+    if (t != null && t.isNotEmpty) return t;
+    return 'Chat';
+  }
+
   Future<void> _send() async {
     final text = _messageCtrl.text.trim();
     if (text.isEmpty) return;
@@ -193,7 +202,7 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _EmbeddedHeader(
-            title: 'Chat',
+            title: _headerLabel(),
             onBack: widget.onBack,
           ),
           Expanded(child: _buildBody(theme, staffId, maxW)),
@@ -227,39 +236,68 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
       );
     }
 
+    final peerLine = widget.embedded &&
+        widget.compactChrome &&
+        widget.conversationTitle != null &&
+        widget.conversationTitle!.trim().isNotEmpty;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            itemCount: _messages.length,
-            itemBuilder: (context, i) {
-              final m = _messages[i];
-              final mine = staffId != null &&
-                  m.senderStaffId != null &&
-                  m.senderStaffId == staffId;
-              return Align(
-                alignment:
-                    mine ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  constraints: BoxConstraints(maxWidth: maxW.clamp(120, 400)),
-                  decoration: BoxDecoration(
-                    color: mine
-                        ? theme.colorScheme.primaryContainer
-                        : theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(m.content ?? ''),
-                ),
-              );
-            },
+        if (peerLine)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            child: Text(
+              widget.conversationTitle!.trim(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
+        Expanded(
+          child: _messages.isEmpty
+              ? Center(
+                  child: Text(
+                    'No messages yet. Say hello!',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, i) {
+                    final m = _messages[i];
+                    final mine = staffId != null &&
+                        m.senderStaffId != null &&
+                        m.senderStaffId == staffId;
+                    return Align(
+                      alignment:
+                          mine ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        constraints:
+                            BoxConstraints(maxWidth: maxW.clamp(120, 400)),
+                        decoration: BoxDecoration(
+                          color: mine
+                              ? theme.colorScheme.primaryContainer
+                              : theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(m.content ?? ''),
+                      ),
+                    );
+                  },
+                ),
         ),
         const Divider(height: 1),
         Padding(

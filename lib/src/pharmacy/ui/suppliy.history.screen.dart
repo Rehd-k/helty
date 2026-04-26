@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -29,6 +31,34 @@ class _SupplyHistoryRow {
 
 enum _DateFilterOption { last7Days, last30Days, last90Days, allTime }
 
+class _DrugPickResult {
+  const _DrugPickResult.clear()
+    : drug = null,
+      explicitClear = true;
+  _DrugPickResult.selected(this.drug) : explicitClear = false;
+
+  final Drug? drug;
+  final bool explicitClear;
+}
+
+String _drugDisplayLabel(Drug d) {
+  final g = d.genericName.trim();
+  final b = d.brandName.trim();
+  if (g.isEmpty) return b.isEmpty ? 'Unnamed drug' : b;
+  if (b.isEmpty || b.toLowerCase() == g.toLowerCase()) return g;
+  return '$g · $b';
+}
+
+Widget? _subtitleForDrugPicker(Drug d) {
+  final parts = <String>[];
+  final form = d.dosageForm?.trim();
+  final str = d.strength?.trim();
+  if (form != null && form.isNotEmpty) parts.add(form);
+  if (str != null && str.isNotEmpty) parts.add(str);
+  if (parts.isEmpty) return null;
+  return Text(parts.join(' · '));
+}
+
 @RoutePage()
 class SupplyHistoryScreen extends StatefulWidget {
   const SupplyHistoryScreen({super.key});
@@ -57,6 +87,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
   _DateFilterOption _dateFilter = _DateFilterOption.last30Days;
   String? _selectedSupplierId;
   String _selectedCategory = 'All';
+  Drug? _selectedDrug;
 
   // Supplier dropdown options
   List<Supplier> _suppliers = [];
@@ -125,6 +156,11 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
     // Category: backend may not support therapeuticClass on batch search; send anyway for future use
     if (_selectedCategory != 'All' && _selectedCategory.trim().isNotEmpty) {
       filters['therapeuticClass'] = _selectedCategory.trim();
+    }
+
+    final drugId = _selectedDrug?.id?.trim();
+    if (drugId != null && drugId.isNotEmpty) {
+      filters['drugId'] = drugId;
     }
 
     // Date filter: backend uses manufacturingDateFrom / manufacturingDateTo (and expiryDateFrom/To)
@@ -247,35 +283,111 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
     return row.totalCost.toFinancial(isMoney: true);
   }
 
+  String _drugNameForRow(_SupplyHistoryRow row) {
+    final d = row.batch.drug;
+    if (d != null) return _drugDisplayLabel(d);
+    if (row.batch.drugId.isNotEmpty) return row.batch.drugId;
+    return '—';
+  }
+
+  Future<void> _showDrugPicker() async {
+    final result = await showModalBottomSheet<_DrugPickResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => _SupplyHistoryDrugSheet(api: _api),
+    );
+    if (!mounted || result == null) return;
+    if (result.explicitClear) {
+      setState(() {
+        _selectedDrug = null;
+        _currentPage = 1;
+      });
+      _fetchHistory();
+      return;
+    }
+    if (result.drug != null) {
+      setState(() {
+        _selectedDrug = result.drug;
+        _currentPage = 1;
+      });
+      _fetchHistory();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    const pageBg = Color(0xFFF4F6FA);
+    const accent = Color(0xFF0D9488);
+
+    final scopeSubtitle = _selectedDrug != null
+        ? 'Inbound batches for ${_drugDisplayLabel(_selectedDrug!)}'
+        : 'Track receipts, costs, and batch status across suppliers';
 
     return Scaffold(
+      backgroundColor: pageBg,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text(
-          'Supply History',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-        ),
-
         elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey.shade200, height: 1),
+        scrolledUnderElevation: 0,
+        backgroundColor: pageBg,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.inventory_2_outlined,
+                    color: accent,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Supply history',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 22,
+                    color: Color(0xFF1E293B),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 46, top: 4),
+              child: Text(
+                scopeSubtitle,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Stats Cards
             Row(
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    title: 'Total Inventory Value',
+                    theme: theme,
+                    icon: Icons.payments_outlined,
+                    iconColor: const Color(0xFF6366F1),
+                    title: 'Page value (received)',
                     value: _rows.isEmpty
                         ? '₦0.00'
                         : _rows
@@ -283,59 +395,127 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                               .toFinancial(isMoney: true),
                   ),
                 ),
-                const SizedBox(width: 24),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _buildStatCard(
-                    title: 'Items Received This Page',
+                    theme: theme,
+                    icon: Icons.move_to_inbox_outlined,
+                    iconColor: accent,
+                    title: 'Units on this page',
                     value:
                         '${_rows.fold<int>(0, (sum, r) => sum + r.quantity)} units',
                     isUnitTextBold: true,
                   ),
                 ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatCard(
+                    theme: theme,
+                    icon: Icons.assignment_turned_in_outlined,
+                    iconColor: const Color(0xFFEA580C),
+                    title: 'Batches listed',
+                    value: '${_rows.length}',
+                    isUnitTextBold: true,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
 
-            // Filters Row
-            Row(
-              children: [
-                _buildDateFilterDropdown(),
-                const SizedBox(width: 16),
-                _buildSupplierFilterDropdown(),
-                const SizedBox(width: 16),
-                _buildCategoryFilterDropdown(),
-              ],
-            ),
-            const SizedBox(height: 24),
+            _buildFilterToolbar(theme, accent),
 
-            // Data Table + pagination (only table scrolls)
+            const SizedBox(height: 16),
+
             Expanded(
-              child: Container(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _isLoading
-                          ? const Center(child: CircularProgressIndicator())
-                          : _errorMessage.isNotEmpty
-                          ? Center(
-                              child: Text(
-                                _errorMessage,
-                                style: TextStyle(
-                                  color: theme.colorScheme.error,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            )
-                          : _buildScrollableTable(theme),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
                     ),
-                    _buildPagination(theme),
                   ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Batch receipts',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1E293B),
+                              ),
+                            ),
+                            const Spacer(),
+                            if (_selectedDrug != null)
+                              TextButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedDrug = null;
+                                    _currentPage = 1;
+                                  });
+                                  _fetchHistory();
+                                },
+                                icon: const Icon(Icons.close, size: 18),
+                                label: const Text('Clear drug'),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 24),
+                      Expanded(
+                        child: _isLoading
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(
+                                      width: 36,
+                                      height: 36,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 3,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Loading batches…',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : _errorMessage.isNotEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Text(
+                                    _errorMessage,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: theme.colorScheme.error,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : _buildScrollableTable(theme),
+                      ),
+                      _buildPagination(theme),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -348,6 +528,9 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
   // --- UI Builders ---
 
   Widget _buildStatCard({
+    required ThemeData theme,
+    required IconData icon,
+    required Color iconColor,
     required String title,
     required String value,
     bool isUnitTextBold = false,
@@ -359,15 +542,15 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
         : null;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.01),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -375,43 +558,101 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF6C757D),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 12),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: mainValue,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF212529),
-                    fontFamily: 'Serif',
+          Row(
+            children: [
+              Icon(icon, size: 20, color: iconColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          RichText(
+            text: TextSpan(
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0F172A),
+                letterSpacing: -0.5,
+              ),
+              children: [
+                TextSpan(text: mainValue),
                 if (suffix != null && suffix.isNotEmpty)
                   TextSpan(
                     text: ' $suffix',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: isUnitTextBold
                           ? FontWeight.w800
                           : FontWeight.w500,
-                      color: const Color(0xFF212529),
-                      fontFamily: 'Serif',
+                      color: const Color(0xFF334155),
                     ),
                   ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterToolbar(ThemeData theme, Color accent) {
+    return Material(
+      color: Colors.white,
+      elevation: 0,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: _showDrugPicker,
+              icon: const Icon(Icons.medication_outlined, size: 20),
+              label: Text(
+                _selectedDrug != null
+                    ? _drugDisplayLabel(_selectedDrug!)
+                    : 'Select drug',
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                backgroundColor: accent.withValues(alpha: 0.1),
+                foregroundColor: const Color(0xFF0F766E),
+              ),
+            ),
+            if (_selectedDrug != null)
+              IconButton(
+                tooltip: 'Clear drug filter',
+                onPressed: () {
+                  setState(() {
+                    _selectedDrug = null;
+                    _currentPage = 1;
+                  });
+                  _fetchHistory();
+                },
+                icon: const Icon(Icons.close_rounded),
+              ),
+            const SizedBox(width: 4),
+            _buildDateFilterDropdown(),
+            _buildSupplierFilterDropdown(),
+            _buildCategoryFilterDropdown(),
+          ],
+        ),
       ),
     );
   }
@@ -574,10 +815,32 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
 
   Widget _buildScrollableTable(ThemeData theme) {
     if (_rows.isEmpty) {
-      return const Center(
-        child: Text(
-          'No supply history found for the selected filters.',
-          style: TextStyle(color: Colors.black54),
+      final msg = _selectedDrug != null
+          ? 'No batches found for this drug in the selected period.\nTry widening the date range or clearing other filters.'
+          : 'No supply history matches these filters.\nPick a drug to see only its inbound batches, or adjust date and supplier.';
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.search_off_rounded,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                msg,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontSize: 15,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -614,6 +877,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                   label: const Text('BATCH\nID'),
                   onSort: (idx, asc) => _onSort(idx, asc, 'batchNumber'),
                 ),
+                const DataColumn(label: Text('DRUG')),
                 DataColumn(
                   label: const Text('RECEIVE\nDATE'),
                   onSort: (idx, asc) => _onSort(idx, asc, 'createdAt'),
@@ -646,6 +910,20 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        child: Text(
+                          _drugNameForRow(row),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF334155),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
@@ -822,6 +1100,199 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SupplyHistoryDrugSheet extends StatefulWidget {
+  const _SupplyHistoryDrugSheet({required this.api});
+
+  final PharmacyApiService api;
+
+  @override
+  State<_SupplyHistoryDrugSheet> createState() => _SupplyHistoryDrugSheetState();
+}
+
+class _SupplyHistoryDrugSheetState extends State<_SupplyHistoryDrugSheet> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _debounce;
+  List<Drug> _items = [];
+  bool _loading = false;
+  String _error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(_onSearchChanged);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.removeListener(_onSearchChanged);
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), _load);
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = '';
+    });
+    try {
+      final resp = await widget.api.getDrugs(
+        PharmacyQueryParams(
+          page: 1,
+          pageSize: 50,
+          search: _searchCtrl.text.trim().isEmpty
+              ? null
+              : _searchCtrl.text.trim(),
+          sortBy: 'genericName',
+          sortOrder: SortOrder.asc,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _items = resp.items
+            .where((d) => d.id != null && d.id!.trim().isNotEmpty)
+            .toList();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+        _items = [];
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.72,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      builder: (context, scrollCtrl) {
+        return Material(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Choose a drug',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(
+                        context,
+                        const _DrugPickResult.clear(),
+                      ),
+                      child: const Text('All drugs'),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SearchBar(
+                  controller: _searchCtrl,
+                  hintText: 'Search generic or brand name…',
+                  leading: const Icon(Icons.search),
+                  trailing: [
+                    if (_searchCtrl.text.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _load();
+                        },
+                      ),
+                  ],
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _load(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_error.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    _error,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: _loading && _items.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : _items.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'No drugs match this search. Try another name.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollCtrl,
+                        padding: EdgeInsets.fromLTRB(8, 0, 8, 12 + bottom),
+                        itemCount: _items.length,
+                        itemBuilder: (context, i) {
+                          final d = _items[i];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: const Color(
+                                0xFF0D9488,
+                              ).withValues(alpha: 0.12),
+                              child: const Icon(
+                                Icons.medication_outlined,
+                                color: Color(0xFF0F766E),
+                                size: 22,
+                              ),
+                            ),
+                            title: Text(
+                              _drugDisplayLabel(d),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: _subtitleForDrugPicker(d),
+                            onTap: () => Navigator.pop(
+                              context,
+                              _DrugPickResult.selected(d),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

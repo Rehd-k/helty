@@ -2,11 +2,12 @@ import 'package:dio/dio.dart';
 
 import '../../services/api_service.dart';
 import '../data/cmd_mock_data.dart';
+import '../models/cmd_from_json.dart';
 import '../models/cmd_models.dart';
 import 'cmd_endpoints.dart';
 
-/// Command-center API facade. Currently returns [CmdMockData] while REST contracts stabilize.
-/// Wire each method to `_dio.get`/`post` and model `fromJson` when the backend is available.
+/// Command-center API facade. Uses [CmdMockData] when [useMockData] is true;
+/// otherwise parses JSON from [CmdEndpoints] using [parseCmd*] in [cmd_from_json.dart].
 class CmdCommandService {
   CmdCommandService({Dio? dio, this.useMockData = true}) : _dio = dio ?? ApiService().dio;
 
@@ -19,14 +20,22 @@ class CmdCommandService {
     return real();
   }
 
+  Map<String, dynamic> _asMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  List<dynamic> _asList(dynamic data) {
+    if (data is List<dynamic>) return data;
+    return (data as List).cast<dynamic>();
+  }
+
   /// GET [CmdEndpoints.dashboard]
   Future<CmdExecutiveDashboardBundle> fetchExecutiveDashboard() {
     return _mockOr(
       () async {
-        final response = await _dio.get<Map<String, dynamic>>(CmdEndpoints.dashboard);
-        throw UnimplementedError(
-          'Parse ${CmdEndpoints.dashboard}: ${response.data}',
-        );
+        final response = await _dio.get<dynamic>(CmdEndpoints.dashboard);
+        return parseCmdExecutiveDashboardBundle(_asMap(response.data));
       },
       CmdMockData.executiveDashboard(),
     );
@@ -36,8 +45,8 @@ class CmdCommandService {
   Future<CmdHospitalOverview> fetchHospitalOverview() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.hospitalOverview);
-        throw UnimplementedError('Parse ${CmdEndpoints.hospitalOverview}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.hospitalOverview);
+        return parseCmdHospitalOverview(_asMap(response.data));
       },
       CmdMockData.hospitalOverview(),
     );
@@ -47,8 +56,8 @@ class CmdCommandService {
   Future<CmdFinancialOverview> fetchFinancialOverview() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.financialOverview);
-        throw UnimplementedError('Parse ${CmdEndpoints.financialOverview}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.financialOverview);
+        return parseCmdFinancialOverview(_asMap(response.data));
       },
       CmdMockData.financialOverview(),
     );
@@ -58,8 +67,8 @@ class CmdCommandService {
   Future<CmdStaffOversight> fetchStaffOversight() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.staffOversight);
-        throw UnimplementedError('Parse ${CmdEndpoints.staffOversight}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.staffOversight);
+        return parseCmdStaffOversight(_asMap(response.data));
       },
       CmdMockData.staffOversight(),
     );
@@ -69,8 +78,8 @@ class CmdCommandService {
   Future<CmdBedsSnapshot> fetchBedsSnapshot() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.bedsSnapshot);
-        throw UnimplementedError('Parse ${CmdEndpoints.bedsSnapshot}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.bedsSnapshot);
+        return parseCmdBedsSnapshot(_asMap(response.data));
       },
       CmdMockData.bedsSnapshot(),
     );
@@ -80,8 +89,8 @@ class CmdCommandService {
   Future<CmdLabMonitoring> fetchLabMonitoring() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.labMonitoring);
-        throw UnimplementedError('Parse ${CmdEndpoints.labMonitoring}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.labMonitoring);
+        return parseCmdLabMonitoring(_asMap(response.data));
       },
       CmdMockData.labMonitoring(),
     );
@@ -91,8 +100,8 @@ class CmdCommandService {
   Future<List<CmdIncident>> fetchIncidents() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.alerts);
-        throw UnimplementedError('Parse ${CmdEndpoints.alerts}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.alerts);
+        return parseCmdIncidentList(_asList(response.data));
       },
       CmdMockData.incidents(),
     );
@@ -102,8 +111,8 @@ class CmdCommandService {
   Future<List<CmdReportTemplate>> fetchReportTemplates() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.reportTemplates);
-        throw UnimplementedError('Parse ${CmdEndpoints.reportTemplates}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.reportTemplates);
+        return parseCmdReportTemplateList(_asList(response.data));
       },
       CmdMockData.reportTemplates(),
     );
@@ -113,8 +122,8 @@ class CmdCommandService {
   Future<CmdAuditComplianceBundle> fetchAuditCompliance() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.auditLogs);
-        throw UnimplementedError('Parse audit + compliance bundle');
+        final response = await _dio.get<dynamic>(CmdEndpoints.auditLogs);
+        return parseCmdAuditComplianceBundle(_asMap(response.data));
       },
       CmdMockData.auditCompliance(),
     );
@@ -124,8 +133,8 @@ class CmdCommandService {
   Future<List<CmdApprovalRequest>> fetchPendingApprovals() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.approvalsPending);
-        throw UnimplementedError('Parse ${CmdEndpoints.approvalsPending}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.approvalsPending);
+        return parseCmdApprovalRequestList(_asList(response.data));
       },
       CmdMockData.approvals(),
     );
@@ -135,8 +144,8 @@ class CmdCommandService {
   Future<CmdSettingsOverview> fetchSettingsOverview() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.settingsOverview);
-        throw UnimplementedError('Parse ${CmdEndpoints.settingsOverview}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.settingsOverview);
+        return parseCmdSettingsOverview(_asMap(response.data));
       },
       CmdMockData.settingsOverview(),
     );
@@ -146,8 +155,8 @@ class CmdCommandService {
   Future<List<CmdAnnouncement>> fetchAnnouncements() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.communications);
-        throw UnimplementedError('Parse ${CmdEndpoints.communications}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.communications);
+        return parseCmdAnnouncementList(_asList(response.data));
       },
       CmdMockData.announcements(),
     );
@@ -177,8 +186,8 @@ class CmdCommandService {
   Future<CmdPatientExperienceOverview> fetchPatientExperience() {
     return _mockOr(
       () async {
-        await _dio.get(CmdEndpoints.patientExperience);
-        throw UnimplementedError('Parse ${CmdEndpoints.patientExperience}');
+        final response = await _dio.get<dynamic>(CmdEndpoints.patientExperience);
+        return parseCmdPatientExperienceOverview(_asMap(response.data));
       },
       CmdMockData.patientExperience(),
     );

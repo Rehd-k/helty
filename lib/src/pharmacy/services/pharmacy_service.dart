@@ -587,6 +587,29 @@ class PharmacyApiService {
     }
   }
 
+  /// PATCH /pharmacy/batches/:id/quantity-correction — correct data-entry mistakes
+  /// for received and remaining quantities (server: pharmacy head + 24h rule).
+  Future<DrugBatch> correctDrugBatchQuantity(
+    String batchId,
+    CorrectBatchQuantityDto dto,
+  ) async {
+    final id = batchId.trim();
+    if (id.isEmpty) {
+      throw const ValidationException('Drug batch id is required.');
+    }
+    try {
+      final resp = await _dio.patch(
+        '$_basePath/batches/$id/quantity-correction',
+        data: dto.toJson(),
+      );
+      return DrugBatch.fromJson(_mapFromResponse(resp));
+    } on DioException catch (e) {
+      _handleError(e);
+    } on TypeError catch (e) {
+      throw UnknownException('Failed to parse drug batch: ${e.toString()}');
+    }
+  }
+
   Future<void> deleteDrugBatch(String id) async {
     try {
       await _dio.delete('$_basePath/batches/$id');

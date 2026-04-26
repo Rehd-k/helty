@@ -16,6 +16,11 @@ class DateFormatter {
     return DateFormat('dd/MM/yyyy HH:mm').format(date);
   }
 
+  /// Date with time including seconds (24h): 23/12/1990 14:30:05
+  static String dateTimeWithSeconds(DateTime date) {
+    return DateFormat('dd/MM/yyyy HH:mm:ss').format(date);
+  }
+
   // 4. Time only: 02:30 PM
   static String timeOnly(DateTime date) {
     return DateFormat('hh:mm a').format(date);

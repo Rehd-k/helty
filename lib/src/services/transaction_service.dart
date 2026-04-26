@@ -352,7 +352,7 @@ class TransactionService {
     return DateTime.now();
   }
 
-  /// Build display name from patient object (firstName, surname).
+  /// Build display name from patient object (firstName, surname, or single-field names).
   static String _patientName(Map<String, dynamic>? j) {
     if (j == null) return '';
     final first = (j['firstName'] as String?)?.trim() ?? '';
@@ -360,10 +360,16 @@ class TransactionService {
         (j['surname'] as String?)?.trim() ??
         (j['lastName'] as String?)?.trim() ??
         '';
-    return [first, last].where((s) => s.isNotEmpty).join(' ');
+    final fromParts = [first, last].where((s) => s.isNotEmpty).join(' ');
+    if (fromParts.isNotEmpty) return fromParts;
+    for (final key in ['fullName', 'name', 'displayName']) {
+      final v = j[key]?.toString().trim() ?? '';
+      if (v.isNotEmpty) return v;
+    }
+    return '';
   }
 
-  /// Build display name from staff object (firstName, lastName).
+  /// Build display name from staff object (firstName, lastName, or single name).
   static String _staffName(Map<String, dynamic>? j) {
     if (j == null) return '';
     final first = (j['firstName'] as String?)?.trim() ?? '';
@@ -371,7 +377,13 @@ class TransactionService {
         (j['lastName'] as String?)?.trim() ??
         (j['surname'] as String?)?.trim() ??
         '';
-    return [first, last].where((s) => s.isNotEmpty).join(' ');
+    final fromParts = [first, last].where((s) => s.isNotEmpty).join(' ');
+    if (fromParts.isNotEmpty) return fromParts;
+    for (final key in ['name', 'fullName', 'displayName', 'userName']) {
+      final v = j[key]?.toString().trim() ?? '';
+      if (v.isNotEmpty) return v;
+    }
+    return '';
   }
 
   /// Maps a raw JSON map (from the API) to a [TransactionModel].
@@ -500,13 +512,45 @@ class TransactionService {
     final methodText = (j['method'] ?? j['source'] ?? 'cash').toString();
     final amount = _toDouble(j['amount']);
     final paidAt = _toDateTime(j['paidAt'] ?? j['createdAt']);
-    final who = _staffName(receivedBy) == ''
+    var who = _staffName(receivedBy) == ''
         ? _staffName(createdBy)
         : _staffName(receivedBy);
-    final patientId = (patient?['patientId'] ?? '').toString();
-    final patientName = _patientName(patient) == ''
-        ? 'Unknown patient'
-        : _patientName(patient);
+    if (who.isEmpty) {
+      for (final k in [
+        'staffName',
+        'receivedByName',
+        'cashierName',
+        'initiatedByName',
+        'userName',
+      ]) {
+        final s = j[k]?.toString().trim() ?? '';
+        if (s.isNotEmpty) {
+          who = s;
+          break;
+        }
+      }
+    }
+    if (who.isEmpty) {
+      final st = j['staff'];
+      if (st is Map) who = _staffName(Map<String, dynamic>.from(st));
+    }
+    // Prefer stable patient id: APIs often use `id` (UUID) rather than `patientId`.
+    final patientId = (patient?['patientId'] ?? patient?['id'] ?? invoice['patientId'] ?? j['patientId'] ?? '')
+        .toString();
+    var patientName = _patientName(patient);
+    if (patientName.isEmpty) {
+      for (final v in [j['patientName'], invoice['patientName'], j['fullPatientName']]) {
+        if (v == null) continue;
+        final s = v.toString().trim();
+        if (s.isNotEmpty) {
+          patientName = s;
+          break;
+        }
+      }
+    }
+    if (patientName.isEmpty) {
+      patientName = 'Unknown patient';
+    }
     final items = invoiceItems.whereType<Map>().map((raw) {
       final row = Map<String, dynamic>.from(raw);
       final serviceRaw = row['service'];

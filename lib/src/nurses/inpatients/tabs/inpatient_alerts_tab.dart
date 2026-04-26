@@ -167,18 +167,19 @@ class _InpatientAlertsScreenState extends State<InpatientAlertsScreen> {
                     ),
               )
             : Column(
-                children: _alerts
-                    .map(
-                      (a) => _AlertTile(
-                        alert: a,
-                        resolving: _resolving.contains(a.id),
-                        relativeTime: _relativeTime(a.createdAt),
-                        onResolve: a.isResolved
-                            ? null
-                            : () => _resolve(context, admissionId, a),
-                      ),
-                    )
-                    .toList(),
+                children: [
+                  for (var i = 0; i < _alerts.length; i++) ...[
+                    if (i > 0) const Divider(height: 20),
+                    _AlertTile(
+                      alert: _alerts[i],
+                      resolving: _resolving.contains(_alerts[i].id),
+                      relativeTime: _relativeTime(_alerts[i].createdAt),
+                      onResolve: _alerts[i].isResolved
+                          ? null
+                          : () => _resolve(context, admissionId, _alerts[i]),
+                    ),
+                  ],
+                ],
               ),
       ),
     );
@@ -214,48 +215,69 @@ class _AlertTile extends StatelessWidget {
         color = scheme.tertiary;
     }
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 8,
-        height: 8,
-        margin: const EdgeInsets.only(top: 6),
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
-      ),
-      title: Text(
-        alert.title ?? 'Alert',
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-      subtitle: Text(alert.message ?? ''),
-      trailing: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            alert.isResolved ? 'Resolved' : relativeTime,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.6),
-                ),
+    final message = (alert.message ?? '').trim();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.only(top: 6),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 4),
-          if (!alert.isResolved && onResolve != null)
-            OutlinedButton(
-              onPressed: resolving ? null : onResolve,
-              child: resolving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Resolve'),
-            ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                alert.title ?? 'Alert',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              if (message.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.85),
+                      ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    alert.isResolved ? 'Resolved' : relativeTime,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                  ),
+                  if (!alert.isResolved && onResolve != null)
+                    OutlinedButton(
+                      onPressed: resolving ? null : onResolve,
+                      child: resolving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Resolve'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

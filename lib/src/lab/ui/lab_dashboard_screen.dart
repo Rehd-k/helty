@@ -259,43 +259,43 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     );
   }
 
-  Widget _buildQuickActions(
-    BuildContext context,
-    ThemeData theme,
-    bool isLabManager,
-  ) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Expanded(
-              child: _ActionChip(
-                icon: Icons.add_circle_outline_rounded,
-                label: 'New order',
-                onTap: () => {},
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _ActionChip(
-                icon: Icons.list_alt_rounded,
-                label: 'All orders',
-                onTap: () => _filterStatus = null,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Widget _buildQuickActions(
+  //   BuildContext context,
+  //   ThemeData theme,
+  //   bool isLabManager,
+  // ) {
+  //   return Card(
+  //     elevation: 0,
+  //     shape: RoundedRectangleBorder(
+  //       borderRadius: BorderRadius.circular(20),
+  //       side: BorderSide(
+  //         color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+  //       ),
+  //     ),
+  //     child: Padding(
+  //       padding: const EdgeInsets.all(20),
+  //       child: Row(
+  //         children: [
+  //           Expanded(
+  //             child: _ActionChip(
+  //               icon: Icons.add_circle_outline_rounded,
+  //               label: 'New order',
+  //               onTap: () => {},
+  //             ),
+  //           ),
+  //           const SizedBox(width: 16),
+  //           Expanded(
+  //             child: _ActionChip(
+  //               icon: Icons.list_alt_rounded,
+  //               label: 'All orders',
+  //               onTap: () => _filterStatus = null,
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildOrdersSection(BuildContext context, ThemeData theme) {
     return Column(

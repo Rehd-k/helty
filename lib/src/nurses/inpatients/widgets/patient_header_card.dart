@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
+import 'inpatient_layout_constants.dart';
 
 class PatientHeaderCard extends StatelessWidget {
   final String patientName;
@@ -39,31 +43,205 @@ class PatientHeaderCard extends StatelessWidget {
     return scheme.primary;
   }
 
+  /// Width for each info cell on wide layouts; keeps cells readable on tablets.
+  static double _expandedInfoItemWidth(double cardWidth) {
+    const reserved = 520.0;
+    return math.min(
+      220,
+      math.max(140, (cardWidth - reserved) / 3),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxW = constraints.maxWidth;
+        final compact = maxW < kInpatientCompactBreakpoint;
+        final innerW = (maxW - 40).clamp(0.0, double.infinity);
+
+        final rawInfoW = compact
+            ? (innerW >= 360 ? (innerW - 8) / 2 : innerW)
+            : _expandedInfoItemWidth(maxW);
+        final double infoItemW = math.max(72.0, rawInfoW);
+
+        final infoChildren = <Widget>[
+          _infoRow(
+            context,
+            label: 'Ward',
+            value: ward,
+            width: infoItemW,
           ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left: avatar + core identity
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          _infoRow(
+            context,
+            label: 'Bed',
+            value: bedNumber,
+            width: infoItemW,
+          ),
+          _infoRow(
+            context,
+            label: 'Attending Doctor',
+            value: attendingDoctor,
+            width: infoItemW,
+          ),
+          _infoRow(
+            context,
+            label: 'Diagnosis',
+            value: diagnosis,
+            width: infoItemW,
+          ),
+          _infoRow(
+            context,
+            label: 'Admission Date',
+            value: admissionDate,
+            width: infoItemW,
+          ),
+          if (lengthOfStay != null && lengthOfStay!.trim().isNotEmpty)
+            _infoRow(
+              context,
+              label: 'Length of stay',
+              value: lengthOfStay!,
+              width: infoItemW,
+            ),
+        ];
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            border:
+                Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: compact
+              ? _buildCompactLayout(
+                  context,
+                  colorScheme,
+                  theme,
+                  infoChildren,
+                  innerW,
+                )
+              : _buildExpandedLayout(
+                  context,
+                  colorScheme,
+                  theme,
+                  infoChildren,
+                  maxW,
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCompactLayout(
+    BuildContext context,
+    ColorScheme colorScheme,
+    ThemeData theme,
+    List<Widget> infoChildren,
+    double innerW,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+              child: Text(
+                _initials(patientName),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patientName,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _metaChip(
+                        context,
+                        icon: Icons.badge_outlined,
+                        label: hospitalNumber,
+                      ),
+                      _metaChip(
+                        context,
+                        icon: Icons.person_outline,
+                        label: ageGender,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: _compactInnerSpacing(innerW),
+          runSpacing: 8,
+          children: infoChildren,
+        ),
+        const SizedBox(height: 16),
+        _safetyColumn(
+          context,
+          colorScheme,
+          theme,
+          alignEnd: false,
+          fullWidthAllergies: true,
+        ),
+      ],
+    );
+  }
+
+  double _compactInnerSpacing(double innerW) {
+    return innerW >= 360 ? 8 : 0;
+  }
+
+  Widget _buildExpandedLayout(
+    BuildContext context,
+    ColorScheme colorScheme,
+    ThemeData theme,
+    List<Widget> infoChildren,
+    double cardWidth,
+  ) {
+    final double identityMaxWidth =
+        math.min(280.0, math.max(160.0, cardWidth * 0.28));
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: identityMaxWidth,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
                 radius: 26,
@@ -77,199 +255,207 @@ class PatientHeaderCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    patientName,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      _metaChip(
-                        context,
-                        icon: Icons.badge_outlined,
-                        label: hospitalNumber,
-                      ),
-                      const SizedBox(width: 8),
-                      _metaChip(
-                        context,
-                        icon: Icons.person_outline,
-                        label: ageGender,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(width: 28),
-
-          // Middle: admission / location details
-          Expanded(
-            child: Wrap(
-              spacing: 24,
-              runSpacing: 8,
-              children: [
-                _infoRow(context, label: 'Ward', value: ward),
-                _infoRow(context, label: 'Bed', value: bedNumber),
-                _infoRow(
-                  context,
-                  label: 'Attending Doctor',
-                  value: attendingDoctor,
-                ),
-                _infoRow(context, label: 'Diagnosis', value: diagnosis),
-                _infoRow(
-                  context,
-                  label: 'Admission Date',
-                  value: admissionDate,
-                ),
-                if (lengthOfStay != null && lengthOfStay!.trim().isNotEmpty)
-                  _infoRow(
-                    context,
-                    label: 'Length of stay',
-                    value: lengthOfStay!,
-                  ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 24),
-
-          // Right: safety flags
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Allergies
-              if (allergies.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.error.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.warning_amber_rounded,
-                        color: colorScheme.error,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Allergies: ${allergies.join(', ')}',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: colorScheme.error,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceBright,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.check_circle_outline,
-                        color: colorScheme.onSurfaceVariant,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'No recorded allergies',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 10),
-
-              // Code status
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _codeStatusColor(colorScheme).withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.monitor_heart_outlined,
-                      color: _codeStatusColor(colorScheme),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
                     Text(
-                      codeStatus,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: _codeStatusColor(colorScheme),
-                        fontWeight: FontWeight.w600,
+                      patientName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _metaChip(
+                          context,
+                          icon: Icons.badge_outlined,
+                          label: hospitalNumber,
+                        ),
+                        _metaChip(
+                          context,
+                          icon: Icons.person_outline,
+                          label: ageGender,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
-
-              // Risk flags
-              if (riskFlags.isNotEmpty)
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  alignment: WrapAlignment.end,
-                  children: riskFlags
-                      .map(
-                        (f) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorScheme.secondary.withValues(
-                              alpha: 0.12,
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            f,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: colorScheme.secondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
             ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 28),
+        Expanded(
+          child: Wrap(
+            spacing: 24,
+            runSpacing: 8,
+            children: infoChildren,
+          ),
+        ),
+        const SizedBox(width: 24),
+        _safetyColumn(
+          context,
+          colorScheme,
+          theme,
+          alignEnd: true,
+          fullWidthAllergies: false,
+        ),
+      ],
     );
+  }
+
+  Widget _safetyColumn(
+    BuildContext context,
+    ColorScheme colorScheme,
+    ThemeData theme, {
+    required bool alignEnd,
+    required bool fullWidthAllergies,
+  }) {
+    final allergyWidget = allergies.isNotEmpty
+        ? Container(
+            width: fullWidthAllergies ? double.infinity : null,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: colorScheme.error.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize:
+                  fullWidthAllergies ? MainAxisSize.max : MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    color: colorScheme.error,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                if (fullWidthAllergies)
+                  Expanded(
+                    child: Text(
+                      'Allergies: ${allergies.join(', ')}',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      softWrap: true,
+                    ),
+                  )
+                else
+                  Text(
+                    'Allergies: ${allergies.join(', ')}',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colorScheme.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          )
+        : Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceBright,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  color: colorScheme.onSurfaceVariant,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'No recorded allergies',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          );
+
+    final column = Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.stretch,
+      children: [
+        if (fullWidthAllergies)
+          allergyWidget
+        else
+          Align(alignment: Alignment.centerRight, child: allergyWidget),
+        const SizedBox(height: 10),
+        Align(
+          alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _codeStatusColor(colorScheme).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.monitor_heart_outlined,
+                  color: _codeStatusColor(colorScheme),
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  codeStatus,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: _codeStatusColor(colorScheme),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (riskFlags.isNotEmpty)
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
+            children: riskFlags
+                .map(
+                  (f) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.secondary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      f,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.secondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+      ],
+    );
+
+    return column;
   }
 
   String _initials(String name) {
@@ -315,12 +501,13 @@ class PatientHeaderCard extends StatelessWidget {
     BuildContext context, {
     required String label,
     required String value,
+    required double width,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return SizedBox(
-      width: 220,
+      width: width,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

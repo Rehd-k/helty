@@ -840,6 +840,22 @@ class CreateStockTransferDto {
   };
 }
 
+/// Body for PATCH /pharmacy/batches/:id/quantity-correction (pharmacy head; batch age rules on server).
+class CorrectBatchQuantityDto {
+  const CorrectBatchQuantityDto({
+    required this.quantityReceived,
+    required this.quantityRemaining,
+  });
+
+  final int quantityReceived;
+  final int quantityRemaining;
+
+  Map<String, dynamic> toJson() => {
+    'quantityReceived': quantityReceived,
+    'quantityRemaining': quantityRemaining,
+  };
+}
+
 /// Stock transfer between locations.
 class StockTransfer {
   final String? id;

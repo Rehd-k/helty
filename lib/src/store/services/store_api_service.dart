@@ -3,6 +3,12 @@ import 'package:dio/dio.dart';
 import '../../services/api_service.dart';
 import '../models/store_models.dart';
 
+Map<String, dynamic> _storeResponseAsMap(dynamic data) {
+  if (data is Map<String, dynamic>) return data;
+  if (data is Map) return Map<String, dynamic>.from(data);
+  throw StateError('Expected JSON object, got ${data.runtimeType}');
+}
+
 /// API client for store module. All endpoints under /store.
 class StoreApiService {
   StoreApiService() : _dio = ApiService().dio;
@@ -19,7 +25,7 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Create category returned no data');
-    return StoreCategory.fromJson(data);
+    return StoreCategory.fromJson(_storeResponseAsMap(data));
   }
 
   Future<StoreCategoriesResponse> getCategories() async {
@@ -31,13 +37,13 @@ class StoreApiService {
       final list = data;
       return StoreCategoriesResponse(
         data: list
-            .map((e) => StoreCategory.fromJson(e as Map<String, dynamic>))
+            .map((e) => StoreCategory.fromJson(_storeResponseAsMap(e)))
             .toList(),
         total: list.length,
       );
     }
-    if (data is Map<String, dynamic>) {
-      return StoreCategoriesResponse.fromJson(data);
+    if (data is Map) {
+      return StoreCategoriesResponse.fromJson(_storeResponseAsMap(data));
     }
     throw StateError('Get categories returned unexpected type: ${data.runtimeType}');
   }
@@ -48,7 +54,7 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Get category returned no data');
-    return StoreCategory.fromJson(data);
+    return StoreCategory.fromJson(_storeResponseAsMap(data));
   }
 
   Future<StoreCategory> updateCategory(
@@ -61,7 +67,7 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Update category returned no data');
-    return StoreCategory.fromJson(data);
+    return StoreCategory.fromJson(_storeResponseAsMap(data));
   }
 
   // ── Items ────────────────────────────────────────────────────────────────
@@ -73,7 +79,7 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Create item returned no data');
-    return StoreItem.fromJson(data);
+    return StoreItem.fromJson(_storeResponseAsMap(data));
   }
 
   Future<StoreItemsResponse> getItems({
@@ -97,13 +103,13 @@ class StoreApiService {
       final list = data;
       return StoreItemsResponse(
         data: list
-            .map((e) => StoreItem.fromJson(e as Map<String, dynamic>))
+            .map((e) => StoreItem.fromJson(_storeResponseAsMap(e)))
             .toList(),
         total: list.length,
       );
     }
-    if (data is Map<String, dynamic>) {
-      return StoreItemsResponse.fromJson(data);
+    if (data is Map) {
+      return StoreItemsResponse.fromJson(_storeResponseAsMap(data));
     }
     throw StateError('Get items returned unexpected type: ${data.runtimeType}');
   }
@@ -112,7 +118,7 @@ class StoreApiService {
     final response = await _dio.get<Map<String, dynamic>>('$_prefix/items/$id');
     final data = response.data;
     if (data == null) throw StateError('Get item returned no data');
-    return StoreItem.fromJson(data);
+    return StoreItem.fromJson(_storeResponseAsMap(data));
   }
 
   Future<StoreItem> updateItem(String id, UpdateStoreItemDto dto) async {
@@ -122,7 +128,7 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Update item returned no data');
-    return StoreItem.fromJson(data);
+    return StoreItem.fromJson(_storeResponseAsMap(data));
   }
 
   // ── Locations ─────────────────────────────────────────────────────────────
@@ -134,7 +140,7 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Create location returned no data');
-    return StoreLocation.fromJson(data);
+    return StoreLocation.fromJson(_storeResponseAsMap(data));
   }
 
   Future<StoreLocationsResponse> getLocations() async {
@@ -145,13 +151,13 @@ class StoreApiService {
       final list = data;
       return StoreLocationsResponse(
         data: list
-            .map((e) => StoreLocation.fromJson(e as Map<String, dynamic>))
+            .map((e) => StoreLocation.fromJson(_storeResponseAsMap(e)))
             .toList(),
         total: list.length,
       );
     }
-    if (data is Map<String, dynamic>) {
-      return StoreLocationsResponse.fromJson(data);
+    if (data is Map) {
+      return StoreLocationsResponse.fromJson(_storeResponseAsMap(data));
     }
     throw StateError('Get locations returned unexpected type: ${data.runtimeType}');
   }
@@ -162,7 +168,7 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Get location returned no data');
-    return StoreLocation.fromJson(data);
+    return StoreLocation.fromJson(_storeResponseAsMap(data));
   }
 
   Future<StoreLocation> updateLocation(
@@ -175,7 +181,7 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Update location returned no data');
-    return StoreLocation.fromJson(data);
+    return StoreLocation.fromJson(_storeResponseAsMap(data));
   }
 
   // ── Stock ────────────────────────────────────────────────────────────────
@@ -201,13 +207,13 @@ class StoreApiService {
       final list = data;
       return StoreStockResponse(
         data: list
-            .map((e) => StoreStock.fromJson(e as Map<String, dynamic>))
+            .map((e) => StoreStock.fromJson(_storeResponseAsMap(e)))
             .toList(),
         total: list.length,
       );
     }
-    if (data is Map<String, dynamic>) {
-      return StoreStockResponse.fromJson(data);
+    if (data is Map) {
+      return StoreStockResponse.fromJson(_storeResponseAsMap(data));
     }
     throw StateError('Get stock returned unexpected type: ${data.runtimeType}');
   }
@@ -247,6 +253,6 @@ class StoreApiService {
     );
     final data = response.data;
     if (data == null) throw StateError('Get analytics returned no data');
-    return StoreAnalytics.fromJson(data);
+    return StoreAnalytics.fromJson(_storeResponseAsMap(data));
   }
 }

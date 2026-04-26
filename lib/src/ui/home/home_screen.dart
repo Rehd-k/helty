@@ -10,12 +10,14 @@ import 'package:helty/app_router.gr.dart';
 import '../../helper/theme.dart';
 import '../../chat/services/internal_chat_socket.dart';
 import '../../models/staff_model.dart';
+import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/super_admin_preview_provider.dart';
 import '../../providers/module_request_flow_provider.dart';
+import '../../providers/theme_mode_provider.dart';
 import 'desktop_shell_side_panel.dart';
 import 'shell_side_panel_provider.dart';
 import '../../services/helty_desktop_update_service.dart';
-import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
 import 'account_types.dart';
 
@@ -43,6 +45,71 @@ class MenuItem {
     this.accent,
   });
 }
+
+/// CMD (chief medical director) executive sidebar — top-level for CMD logins;
+/// also nested under "CMD Panel" for full admins.
+const cmdExecutiveMenuItems = <MenuItem>[
+  MenuItem(
+    label: 'Executive dashboard',
+    icon: Icons.home_outlined,
+    route: CMDDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Hospital overview',
+    icon: Icons.account_balance_outlined,
+    route: CMDHospitalOverviewRoute(),
+  ),
+  MenuItem(
+    label: 'Financial command',
+    icon: Icons.payments_outlined,
+    route: CMDFinancialCommandRoute(),
+  ),
+  MenuItem(
+    label: 'Staff oversight',
+    icon: Icons.groups_outlined,
+    route: CMDStaffOversightRoute(),
+  ),
+  MenuItem(
+    label: 'Beds & facilities',
+    icon: Icons.bed_outlined,
+    route: CMDBedsFacilitiesRoute(),
+  ),
+  MenuItem(
+    label: 'Lab monitoring',
+    icon: Icons.biotech_outlined,
+    route: CMDLabMonitoringRoute(),
+  ),
+  MenuItem(
+    label: 'Alerts & incidents',
+    icon: Icons.crisis_alert_outlined,
+    route: CMDAlertsIncidentsRoute(),
+  ),
+  MenuItem(
+    label: 'Reports & analytics',
+    icon: Icons.assessment_outlined,
+    route: CMDReportsAnalyticsRoute(),
+  ),
+  MenuItem(
+    label: 'Audit & compliance',
+    icon: Icons.fact_check_outlined,
+    route: CMDAuditComplianceRoute(),
+  ),
+  MenuItem(
+    label: 'Communication',
+    icon: Icons.campaign_outlined,
+    route: CMDCommunicationCenterRoute(),
+  ),
+  MenuItem(
+    label: 'Patient experience',
+    icon: Icons.star_outline,
+    route: CMDPatientExperienceRoute(),
+  ),
+  MenuItem(
+    label: 'System control',
+    icon: Icons.tune_outlined,
+    route: CMDSystemControlRoute(),
+  ),
+];
 
 enum UserRole { admin, staff, receptionist }
 
@@ -154,13 +221,35 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  bool _sidebarOpen = true;
+  /// Desktop: full-width sidebar (true) vs icon-only rail (false). Default expanded.
+  bool _desktopSidebarExpanded = true;
+
+  /// Desktop: pointer over collapsed rail temporarily expands sidebar (peek).
+  bool _desktopRailHover = false;
+
+  /// Mobile drawer overlay; hidden by default so content uses full width.
+  bool _mobileDrawerOpen = false;
 
   List<MenuItem> _menuForRole(Staff? staff, String role, String accountType) {
     final common = <MenuItem>[];
+    if (staffIsSuperAdmin(staff)) {
+      common.add(
+        const MenuItem(
+          label: 'Super Admin hub',
+          icon: Icons.admin_panel_settings_outlined,
+          route: SuperAdminHubRoute(),
+        ),
+      );
+    }
     final r = role.toLowerCase();
     final at = accountType.toLowerCase();
     final canBillingDash = staffCanAccessPrivilegedBilling(staff);
+
+    final isCmdAccount = at == 'cmd' || r == 'cmd';
+    if (isCmdAccount) {
+      common.addAll(cmdExecutiveMenuItems);
+      return common;
+    }
 
     final isFrontDesk =
         at == 'front_desk' ||
@@ -279,7 +368,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     if (role.toLowerCase() == 'admin' ||
-        at == 'cmd' ||
         at == 'cmac' ||
         at == 'super_admin' ||
         r == 'super_admin') {
@@ -294,68 +382,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           label: 'CMD Panel',
           icon: Icons.dashboard_customize_outlined,
           route: const CMDDashboardRoute(),
-          children: [
-            const MenuItem(
-              label: 'Executive dashboard',
-              icon: Icons.home_outlined,
-              route: CMDDashboardRoute(),
-            ),
-            const MenuItem(
-              label: 'Hospital overview',
-              icon: Icons.account_balance_outlined,
-              route: CMDHospitalOverviewRoute(),
-            ),
-            const MenuItem(
-              label: 'Financial command',
-              icon: Icons.payments_outlined,
-              route: CMDFinancialCommandRoute(),
-            ),
-            const MenuItem(
-              label: 'Staff oversight',
-              icon: Icons.groups_outlined,
-              route: CMDStaffOversightRoute(),
-            ),
-            const MenuItem(
-              label: 'Beds & facilities',
-              icon: Icons.bed_outlined,
-              route: CMDBedsFacilitiesRoute(),
-            ),
-            const MenuItem(
-              label: 'Lab monitoring',
-              icon: Icons.biotech_outlined,
-              route: CMDLabMonitoringRoute(),
-            ),
-            const MenuItem(
-              label: 'Alerts & incidents',
-              icon: Icons.crisis_alert_outlined,
-              route: CMDAlertsIncidentsRoute(),
-            ),
-            const MenuItem(
-              label: 'Reports & analytics',
-              icon: Icons.assessment_outlined,
-              route: CMDReportsAnalyticsRoute(),
-            ),
-            const MenuItem(
-              label: 'Audit & compliance',
-              icon: Icons.fact_check_outlined,
-              route: CMDAuditComplianceRoute(),
-            ),
-            const MenuItem(
-              label: 'Communication',
-              icon: Icons.campaign_outlined,
-              route: CMDCommunicationCenterRoute(),
-            ),
-            const MenuItem(
-              label: 'Patient experience',
-              icon: Icons.star_outline,
-              route: CMDPatientExperienceRoute(),
-            ),
-            const MenuItem(
-              label: 'System control',
-              icon: Icons.tune_outlined,
-              route: CMDSystemControlRoute(),
-            ),
-          ],
+          children: cmdExecutiveMenuItems,
         ),
         const MenuItem(
           label: 'Register',
@@ -440,16 +467,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return common;
   }
 
+  static IconData _themeMenuIcon(ThemeMode mode) {
+    return switch (mode) {
+      ThemeMode.light => Icons.light_mode_outlined,
+      ThemeMode.dark => Icons.dark_mode_outlined,
+      ThemeMode.system => Icons.brightness_auto_outlined,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(internalChatSocketProvider);
     final state = ref.watch(authProvider);
     final auth = ref.watch(authProvider);
     final staff = auth.staff;
-    final role = staff?.role.toLowerCase() ?? '';
-    final accountType = staff?.accountType?.name.toLowerCase() ?? '';
+    final preview = ref.watch(superAdminPreviewProvider);
+    var role = staff?.role.toLowerCase() ?? '';
+    var accountType = staff?.accountType?.name.toLowerCase() ?? '';
+    if (staffIsSuperAdmin(staff) && preview.isActive) {
+      role = preview.previewRole!;
+      accountType = preview.previewAccountType!;
+    }
     final menuItems = _menuForRole(staff, role, accountType);
     final isMobile = MediaQuery.of(context).size.width < 720;
+    final previewBanner = preview.isActive
+        ? _SuperAdminPreviewBanner(
+            label: preview.previewBannerLabel!,
+            onClear: () {
+              ref.read(superAdminPreviewProvider.notifier).clear();
+              context.router.navigate(const SuperAdminHubRoute());
+            },
+            onOpenHub: () {
+              context.router.navigate(const SuperAdminHubRoute());
+            },
+          )
+        : null;
 
     void openHelpCenter() {
       if (isMobile) {
@@ -490,6 +542,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         state,
                         openHelpCenter,
                         openStaffChat,
+                        previewBanner,
                       )
                     : _buildDesktopLayout(
                         context,
@@ -497,6 +550,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         state,
                         openHelpCenter,
                         openStaffChat,
+                        previewBanner,
                       ),
               ),
             ],
@@ -515,18 +569,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     state,
     VoidCallback openHelpCenter,
     VoidCallback openStaffChat,
+    Widget? previewBanner,
   ) {
+    final hoverPeek = !_desktopSidebarExpanded && _desktopRailHover;
+    final sidebarWide = _desktopSidebarExpanded || hoverPeek;
+
     return Row(
       children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeInOut,
-          width: _sidebarOpen ? _kSidebarWidth : _kSidebarCollapsedWidth,
-          child: _SidebarNavigation(
-            menuItems: menuItems,
-            state: state,
-            collapsed: !_sidebarOpen,
-            onToggle: () => setState(() => _sidebarOpen = !_sidebarOpen),
+        MouseRegion(
+          onEnter: (_) => setState(() => _desktopRailHover = true),
+          onExit: (_) => setState(() => _desktopRailHover = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            width: sidebarWide ? _kSidebarWidth : _kSidebarCollapsedWidth,
+            child: _SidebarNavigation(
+              menuItems: menuItems,
+              state: state,
+              collapsed: !sidebarWide,
+              onToggle: () => setState(
+                () => _desktopSidebarExpanded = !_desktopSidebarExpanded,
+              ),
+            ),
           ),
         ),
         Expanded(
@@ -538,6 +602,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onHelpCenter: openHelpCenter,
                   onStaffChat: openStaffChat,
                 ),
+              if (previewBanner != null) previewBanner,
               Expanded(
                 child: ColoredBox(
                   color: AppShellTheme.of(context).contentBackground,
@@ -559,41 +624,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     state,
     VoidCallback openHelpCenter,
     VoidCallback openStaffChat,
+    Widget? previewBanner,
   ) {
     return Stack(
       children: [
         Column(
           children: [
             _MobileTopBar(
-              onMenuTap: () => setState(() => _sidebarOpen = true),
+              onMenuTap: () => setState(() => _mobileDrawerOpen = true),
               onHelpCenter: openHelpCenter,
               onStaffChat: openStaffChat,
             ),
+            if (previewBanner != null) previewBanner,
             const Expanded(child: AutoRouter()),
           ],
         ),
-        if (_sidebarOpen) ...[
-          // scrim
-          GestureDetector(
-            onTap: () => setState(() => _sidebarOpen = false),
-            child: ColoredBox(
-              color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.5),
+        if (_mobileDrawerOpen) ...[
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => setState(() => _mobileDrawerOpen = false),
+              child: ColoredBox(
+                color: Theme.of(
+                  context,
+                ).colorScheme.scrim.withValues(alpha: 0.5),
+              ),
             ),
           ),
-          // drawer
-          AnimatedSlide(
-            duration: const Duration(milliseconds: 250),
-            offset: _sidebarOpen ? Offset.zero : const Offset(-1, 0),
-            curve: Curves.easeInOut,
-            child: SizedBox(
-              width: _kSidebarWidth,
-              height: double.infinity,
-              child: _SidebarNavigation(
-                menuItems: menuItems,
-                state: state,
-                collapsed: false,
-                onToggle: () => setState(() => _sidebarOpen = false),
-                closeLabel: true,
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: _kSidebarWidth,
+            child: AnimatedSlide(
+              duration: const Duration(milliseconds: 250),
+              offset: _mobileDrawerOpen ? Offset.zero : const Offset(-1, 0),
+              curve: Curves.easeInOut,
+              child: Material(
+                elevation: 16,
+                shadowColor: Colors.black.withValues(alpha: 0.35),
+                clipBehavior: Clip.none,
+                child: _SidebarNavigation(
+                  menuItems: menuItems,
+                  state: state,
+                  collapsed: false,
+                  onToggle: () => setState(() => _mobileDrawerOpen = false),
+                  closeLabel: true,
+                  onNavigateTap: () =>
+                      setState(() => _mobileDrawerOpen = false),
+                ),
               ),
             ),
           ),
@@ -653,7 +731,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Row(
                 spacing: 8,
                 children: [
-                  const SlidingNotificationDropdown(),
                   const _WindowsCheckForUpdatesButton(),
                   _WindowsShellHelpChatButtons(
                     onHelpCenter: openHelpCenter,
@@ -819,6 +896,39 @@ class _NonWindowsShellActions extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Theme Menu Row
+// ---------------------------------------------------------------------------
+
+class _ThemeMenuRow extends StatelessWidget {
+  const _ThemeMenuRow({
+    required this.icon,
+    required this.label,
+    required this.selected,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 10),
+        Expanded(child: Text(label)),
+        if (selected)
+          Icon(
+            Icons.check,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Sidebar Navigation
 // ---------------------------------------------------------------------------
 
@@ -829,12 +939,16 @@ class _SidebarNavigation extends StatelessWidget {
   final VoidCallback onToggle;
   final bool closeLabel;
 
+  /// Called after navigating from the drawer (e.g. closes mobile drawer).
+  final VoidCallback? onNavigateTap;
+
   const _SidebarNavigation({
     required this.menuItems,
     required this.collapsed,
     required this.onToggle,
     this.closeLabel = false,
     required this.state,
+    this.onNavigateTap,
   });
 
   @override
@@ -858,6 +972,7 @@ class _SidebarNavigation extends StatelessWidget {
                     index: i,
                     currentName: currentName,
                     collapsed: collapsed,
+                    onNavigateTap: onNavigateTap,
                   ),
               ],
             ),
@@ -872,44 +987,71 @@ class _SidebarNavigation extends StatelessWidget {
   Widget _buildHeader(BuildContext context, AuthState state) {
     final cs = Theme.of(context).colorScheme;
     final shell = AppShellTheme.of(context);
+    final initials =
+        "${state.staff!.firstName.isNotEmpty ? state.staff!.firstName[0].toUpperCase() : ''}${state.staff!.lastName.isNotEmpty ? state.staff!.lastName[0].toUpperCase() : ''}";
+
+    final avatar = Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [cs.primary, cs.primary.withValues(alpha: .4)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(100),
+        boxShadow: [
+          BoxShadow(
+            color: cs.primary.withValues(alpha: 0.4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: CircleAvatar(
+        radius: collapsed ? 18 : 20,
+        backgroundColor: cs.primary,
+        child: Center(
+          child: Text(
+            initials,
+            style: TextStyle(
+              color: cs.onPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: collapsed ? 16 : 18,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    /// Icon rail (~64px): horizontal row does not fit avatar + toggle; stack vertically.
+    if (collapsed && !closeLabel) {
+      return SizedBox(
+        height: 200,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              avatar,
+              const SizedBox(height: 12),
+              _ToggleButton(
+                collapsed: collapsed,
+                onToggle: onToggle,
+                closeLabel: closeLabel,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 200,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [cs.primary, cs.primary.withValues(alpha: .4)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(100),
-                boxShadow: [
-                  BoxShadow(
-                    color: cs.primary.withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: CircleAvatar(
-                radius: 20,
-                backgroundColor: cs.primary,
-                child: Center(
-                  child: Text(
-                    "${state.staff!.firstName.isNotEmpty ? state.staff!.firstName[0].toUpperCase() : ''}${state.staff!.lastName.isNotEmpty ? state.staff!.lastName[0].toUpperCase() : ''}",
-                    style: TextStyle(
-                      color: cs.onPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            avatar,
             if (!collapsed) ...[
               const SizedBox(width: 12),
               Expanded(
@@ -934,11 +1076,11 @@ class _SidebarNavigation extends StatelessWidget {
                 ),
               ),
             ],
-            // _ToggleButton(
-            //   collapsed: collapsed,
-            //   onToggle: onToggle,
-            //   closeLabel: closeLabel,
-            // ),
+            _ToggleButton(
+              collapsed: collapsed,
+              onToggle: onToggle,
+              closeLabel: closeLabel,
+            ),
           ],
         ),
       ),
@@ -1027,12 +1169,14 @@ class _SidebarEntry extends StatefulWidget {
   final int index;
   final String? currentName;
   final bool collapsed;
+  final VoidCallback? onNavigateTap;
 
   const _SidebarEntry({
     required this.item,
     required this.index,
     required this.currentName,
     required this.collapsed,
+    this.onNavigateTap,
   });
 
   @override
@@ -1059,6 +1203,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
 
     // }
     context.router.push(route);
+    widget.onNavigateTap?.call();
   }
 
   bool get _isActive {
@@ -1137,7 +1282,11 @@ class _SidebarEntryState extends State<_SidebarEntry> {
       child: Column(
         children: [
           for (final child in widget.item.children!)
-            _ChildEntry(item: child, currentName: widget.currentName),
+            _ChildEntry(
+              item: child,
+              currentName: widget.currentName,
+              onNavigateTap: widget.onNavigateTap,
+            ),
         ],
       ),
     );
@@ -1308,8 +1457,13 @@ class _SidebarEntryState extends State<_SidebarEntry> {
 class _ChildEntry extends StatefulWidget {
   final MenuItem item;
   final String? currentName;
+  final VoidCallback? onNavigateTap;
 
-  const _ChildEntry({required this.item, required this.currentName});
+  const _ChildEntry({
+    required this.item,
+    required this.currentName,
+    this.onNavigateTap,
+  });
 
   @override
   State<_ChildEntry> createState() => _ChildEntryState();
@@ -1368,6 +1522,7 @@ class _ChildEntryState extends State<_ChildEntry> {
             onTap: () {
               _maybeSidebarHaptic(context);
               context.router.push(widget.item.route);
+              widget.onNavigateTap?.call();
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
@@ -1440,7 +1595,7 @@ class _ChildEntryState extends State<_ChildEntry> {
 // Mobile top bar
 // ---------------------------------------------------------------------------
 
-class _MobileTopBar extends StatelessWidget {
+class _MobileTopBar extends ConsumerWidget {
   final VoidCallback onMenuTap;
   final VoidCallback onHelpCenter;
   final VoidCallback onStaffChat;
@@ -1452,7 +1607,8 @@ class _MobileTopBar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentMode = ref.watch(themeModeProvider);
     final shell = AppShellTheme.of(context);
     final cs = Theme.of(context).colorScheme;
     return Container(
@@ -1472,34 +1628,68 @@ class _MobileTopBar extends StatelessWidget {
         children: [
           _IconButton(icon: Icons.menu_rounded, onTap: onMenuTap),
           const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.health_and_safety_rounded,
-              size: 18,
-              color: cs.primary,
-            ),
+          Image.asset(
+            'assets/logo.png',
+            fit: BoxFit.cover,
+            height: 20,
+            width: 20,
           ),
           const SizedBox(width: 8),
-          Text(
-            'Helty',
-            style: TextStyle(
-              color: shell.sidebarOnBackground,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
+          // Text(
+          //   'Helty',
+          //   style: TextStyle(
+          //     color: shell.sidebarOnBackground,
+          //     fontWeight: FontWeight.bold,
+          //     fontSize: 16,
+          //   ),
+          // ),
           const Spacer(),
           _IconButton(icon: Icons.help_outline_rounded, onTap: onHelpCenter),
           _IconButton(
             icon: Icons.chat_bubble_outline_rounded,
             onTap: onStaffChat,
           ),
-          const SlidingNotificationDropdown(),
+          PopupMenuButton<ThemeMode>(
+            tooltip: 'Theme',
+            padding: const EdgeInsets.all(8),
+            iconSize: 22,
+            splashRadius: 22,
+            icon: Icon(
+              _HomeScreenState._themeMenuIcon(currentMode),
+              color: shell.sidebarOnBackground,
+              size: 22,
+            ),
+            onSelected: (mode) {
+              ref.read(themeModeProvider.notifier).setThemeMode(mode);
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: ThemeMode.light,
+                child: _ThemeMenuRow(
+                  icon: Icons.light_mode_outlined,
+                  label: 'Light',
+                  selected: currentMode == ThemeMode.light,
+                ),
+              ),
+              PopupMenuItem(
+                value: ThemeMode.dark,
+                child: _ThemeMenuRow(
+                  icon: Icons.dark_mode_outlined,
+                  label: 'Dark',
+                  selected: currentMode == ThemeMode.dark,
+                ),
+              ),
+              PopupMenuItem(
+                value: ThemeMode.system,
+                child: _ThemeMenuRow(
+                  icon: Icons.brightness_auto_outlined,
+                  label: 'System',
+                  selected: currentMode == ThemeMode.system,
+                ),
+              ),
+            ],
+          ),
+
           const SizedBox(width: 8),
           _MobileLogoutButton(),
         ],
@@ -1544,14 +1734,57 @@ class _IconButtonState extends State<_IconButton> {
 }
 
 // ---------------------------------------------------------------------------
+// Super Admin preview banner
+// ---------------------------------------------------------------------------
+
+class _SuperAdminPreviewBanner extends StatelessWidget {
+  const _SuperAdminPreviewBanner({
+    required this.label,
+    required this.onClear,
+    required this.onOpenHub,
+  });
+
+  final String label;
+  final VoidCallback onClear;
+  final VoidCallback onOpenHub;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.primaryContainer.withValues(alpha: 0.45),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.visibility_outlined, size: 20, color: cs.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Preview: $label',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onPrimaryContainer,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            TextButton(onPressed: onClear, child: const Text('Clear preview')),
+            TextButton(onPressed: onOpenHub, child: const Text('Hub')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Logout buttons
 // ---------------------------------------------------------------------------
 
 void _logoutToLoginReplacingStack(BuildContext context) {
-  ProviderScope.containerOf(
-    context,
-    listen: false,
-  ).read(paidModuleRequestContextProvider.notifier).state = null;
+  final container = ProviderScope.containerOf(context, listen: false);
+  container.read(paidModuleRequestContextProvider.notifier).state = null;
+  container.read(superAdminPreviewProvider.notifier).clear();
   context.router.replaceAll([LoginRoute()]);
 }
 

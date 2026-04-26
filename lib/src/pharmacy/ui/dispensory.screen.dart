@@ -51,72 +51,7 @@ class _PharmacyPOSState extends State<PharmacyPOSScreen> {
     'Vitamins',
   ];
 
-  final List<Product> allProducts = [
-    Product(
-      id: '1',
-      name: 'Amoxicillin 500mg',
-      price: 12.50,
-      stock: 42,
-      sku: 'AM-500-12',
-      category: 'Antibiotics',
-    ),
-    Product(
-      id: '2',
-      name: 'Ibuprofen 200mg',
-      price: 8.00,
-      stock: 120,
-      sku: 'IB-200-P',
-      category: 'Painkillers',
-    ),
-    Product(
-      id: '3',
-      name: 'Paracetamol 500mg',
-      price: 5.25,
-      stock: 88,
-      sku: 'PA-500-T',
-      category: 'Painkillers',
-    ),
-    Product(
-      id: '4',
-      name: 'Azithromycin 250mg',
-      price: 18.90,
-      stock: 15,
-      sku: 'AZ-250-M',
-      category: 'Antibiotics',
-    ),
-    Product(
-      id: '5',
-      name: 'Lantus Solostar',
-      price: 45.00,
-      stock: 8,
-      sku: 'LA-SOL-8',
-      category: 'Common Drugs',
-    ),
-    Product(
-      id: '6',
-      name: 'Metformin 850mg',
-      price: 22.00,
-      stock: 65,
-      sku: 'ME-850-D',
-      category: 'Common Drugs',
-    ),
-    Product(
-      id: '7',
-      name: 'Cough Syrup (EX)',
-      price: 15.40,
-      stock: 24,
-      sku: 'CS-EX-24',
-      category: 'Common Drugs',
-    ),
-    Product(
-      id: '8',
-      name: 'Saline Nasal Mist',
-      price: 7.50,
-      stock: 30,
-      sku: 'SN-MST-30',
-      category: 'Common Drugs',
-    ),
-  ];
+  final List<Product> allProducts = [];
 
   List<CartItem> cart = [];
   String selectedCategory = 'All';

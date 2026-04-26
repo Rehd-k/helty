@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -6,13 +7,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
-import '../../models/staff_model.dart';
+import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
+import '../../routing/initial_route_for_role.dart';
 import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
 
-// const _kSidebarAccent = Color(0xFF6366F1); // indigo-500
-const _kSidebarTextMuted = Color(0xFF64748B); // slate-500
+const _kLogoAsset = 'assets/logo.png';
+
+/// Side-by-side brand / form when wide enough (desktop & large tablet).
+const _kLoginSplitBreakpoint = 900.0;
+
+const _kFormMaxWidth = 440.0;
 
 final _kEmailReg = RegExp(
   r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
@@ -54,60 +60,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  PageRouteInfo _initialRouteForRole(String role, String accountType) {
-    final at = accountType.toLowerCase();
-    final r = role.toUpperCase();
+  void _openStaffRegister() {
+    context.router.push(const RegisterRoute());
+  }
 
-    switch (at) {
-      case 'front_desk':
-      case 'frontdesk':
-      case 'medical_records':
-        return const FrontDeskDashboardRoute();
-      case 'billing':
-      case 'bills':
-        return staffCanAccessPrivilegedBillingStrings(role, accountType)
-            ? const BillingDashboardRoute()
-            : const PendingBillsRoute();
-      case 'hmo':
-        return EnlistPaitientRoute(serviceName: 'OPD');
-      case 'nurse':
-      case 'head_nurse':
-      case 'inpatient_nurse':
-      case 'outpatient_nurse':
-        return const NursesDashboardRoute();
-      case 'pharmacy':
-      case 'pharmacy_store':
-      case 'pharmacy_head':
-        if (r == 'PHARMACY_DISPENSARY' || at == 'pharmacy_dispensary') {
-          return EnlistPaitientRoute(serviceName: 'Pharmacy');
-        }
-        return const MedicineInventoryRoute();
-      case 'pharmacy_dispensary':
-        return EnlistPaitientRoute(serviceName: 'Pharmacy');
-      case 'physician':
-      case 'consultant':
-      case 'inpatient_doctor':
-        return const DoctorOutpatientListRoute();
-      case 'laboratory':
-      case 'lab':
-        return const LabDashboardRoute();
-      case 'radiology':
-        return const RadiologyDashboardRoute();
-      case 'store':
-        return const StoreDashboardRoute();
-      case 'accounting':
-      case 'accounts':
-      case 'ict':
-        return const DashboardRoute();
-      case 'cmd':
-      case 'cmac':
-      case 'super_admin':
-        return const CMDDashboardRoute();
-      case 'admin':
-        return const CMDDashboardRoute();
-      default:
-        return const FrontDeskDashboardRoute();
-    }
+  /// Logo with long-press → staff registration (no visible register CTA).
+  Widget _brandLogo({
+    required double maxWidth,
+    required double maxHeight,
+    EdgeInsetsGeometry padding = EdgeInsets.zero,
+    BorderRadius borderRadius = const BorderRadius.all(Radius.circular(20)),
+  }) {
+    return Tooltip(
+      message: 'Long-press for staff registration',
+      child: Semantics(
+        label: 'Helty logo',
+        onLongPressHint: 'Opens staff registration',
+        child: Material(
+          color: Colors.transparent,
+          clipBehavior: Clip.antiAlias,
+          borderRadius: borderRadius,
+          child: InkWell(
+            onLongPress: _openStaffRegister,
+            borderRadius: borderRadius,
+            child: Padding(
+              padding: padding,
+              child: Image.asset(
+                _kLogoAsset,
+                fit: BoxFit.contain,
+                width: maxWidth,
+                height: maxHeight,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (context, _, __) => Icon(
+                  Icons.local_hospital_rounded,
+                  size: math.min(maxWidth, maxHeight) * 0.42,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -123,7 +117,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final auth = ref.read(authProvider);
       final role = auth.staff?.role ?? '';
       final accountType = auth.staff?.accountType?.name ?? '';
-      final initialChild = _initialRouteForRole(role, accountType);
+      final PageRouteInfo initialChild = staffIsSuperAdmin(auth.staff)
+          ? const SuperAdminHubRoute()
+          : initialRouteForRole(role, accountType);
       context.router.replaceAll([
         HomeRoute(children: [initialChild]),
       ]);
@@ -166,13 +162,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-
-                          child: Image.asset(
-                            'assets/logo.png',
-                            fit: BoxFit.cover,
-                          ),
+                        _brandLogo(
+                          maxWidth: 30,
+                          maxHeight: 30,
+                          borderRadius: BorderRadius.circular(10),
+                          padding: EdgeInsets.zero,
                         ),
                         const SizedBox(width: 10),
                         Text(
@@ -210,245 +204,317 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: [
           if (Platform.isWindows) buildTitleBar(context),
           Expanded(
-            child: Row(
-              children: [
-                // ── Left panel (banner) ─────────────────────────────────────────
-                if (MediaQuery.of(context).size.width > 800)
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [colors.primary, colors.tertiary],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final w = constraints.maxWidth;
+                final split = w >= _kLoginSplitBreakpoint;
+                final padH = w < 400 ? 20.0 : w < 600 ? 24.0 : 32.0;
+                final padV = w < 600 ? 20.0 : 28.0;
+
+                if (split) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        flex: 46,
+                        child: _brandingHero(theme, colors),
+                      ),
+                      Expanded(
+                        flex: 54,
+                        child: ColoredBox(
+                          color: colors.surface,
+                          child: Center(
+                            child: SingleChildScrollView(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: padH,
+                                vertical: padV,
+                              ),
+                              child: _loginFormCard(
+                                theme: theme,
+                                colors: colors,
+                                auth: auth,
+                                showHeroLogo: false,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/logo.png',
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Helty',
-                            style: theme.textTheme.displaySmall?.copyWith(
-                              color: colors.onPrimary,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Hospital Management System',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: colors.onPrimary.withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
-                      ),
+                    ],
+                  );
+                }
+
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        colors.surface,
+                        colors.primary.withValues(alpha: 0.05),
+                        colors.tertiary.withValues(alpha: 0.07),
+                      ],
                     ),
                   ),
-
-                // ── Right panel (form) ──────────────────────────────────────────
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(40),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 400),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Logo (small screens)
-                              if (MediaQuery.of(context).size.width <= 800) ...[
-                                Icon(
-                                  Icons.local_hospital_rounded,
-                                  size: 56,
-                                  color: colors.primary,
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              Text(
-                                'Welcome back',
-                                style: theme.textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Sign in to your staff account',
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: colors.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 36),
-
-                              // Email or phone
-                              TextFormField(
-                                controller: _emailOrPhoneCtrl,
-                                keyboardType: TextInputType.text,
-                                autocorrect: false,
-                                textInputAction: TextInputAction.next,
-                                decoration: const InputDecoration(
-                                  labelText: 'Email or phone',
-                                  hintText: 'you@imsh.org or 080...',
-                                  prefixIcon: Icon(Icons.person_outline),
-                                ),
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) {
-                                    return 'Email or phone is required';
-                                  }
-                                  if (!_isValidEmailOrPhone(v)) {
-                                    return 'Enter a valid email or phone number';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Password
-                              TextFormField(
-                                controller: _passwordCtrl,
-                                obscureText: _obscurePassword,
-                                textInputAction: TextInputAction.done,
-                                onFieldSubmitted: (_) => _submit(),
-                                decoration: InputDecoration(
-                                  labelText: 'Password',
-                                  prefixIcon: const Icon(Icons.lock_outline),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                    ),
-                                    onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
-                                    ),
-                                  ),
-                                ),
-                                validator: (v) => (v == null || v.isEmpty)
-                                    ? 'Password is required'
-                                    : null,
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Forgot password
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: () => context.router.push(
-                                    const ForgotPasswordRoute(),
-                                  ),
-                                  child: const Text('Forgot password?'),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Login button
-                              FilledButton(
-                                onPressed: auth.isLoading ? null : _submit,
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: auth.isLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Text(
-                                        'Sign In',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                              ),
-                              const SizedBox(height: 24),
-
-                              // Register link
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    "Don't have an account? ",
-                                    style: TextStyle(
-                                      color: colors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => context.router.push(
-                                      const RegisterRoute(),
-                                    ),
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: const Text('Register'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                  child: SafeArea(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: padH,
+                          vertical: padV,
+                        ),
+                        child: _loginFormCard(
+                          theme: theme,
+                          colors: colors,
+                          auth: auth,
+                          showHeroLogo: true,
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _TitleBarLogoutButton extends StatefulWidget {
-  const _TitleBarLogoutButton();
-
-  @override
-  State<_TitleBarLogoutButton> createState() => _TitleBarLogoutButtonState();
-}
-
-class _TitleBarLogoutButtonState extends State<_TitleBarLogoutButton> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: InkWell(
-        onTap: () => context.router.replaceAll([LoginRoute()]),
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Icon(
-            Icons.logout_rounded,
-            color: _hover ? Colors.red.shade400 : _kSidebarTextMuted,
-            size: 18,
+  Widget _brandingHero(ThemeData theme, ColorScheme colors) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colors.primary, colors.tertiary],
+        ),
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _brandLogo(
+                maxWidth: 240,
+                maxHeight: 110,
+                padding: const EdgeInsets.all(12),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                'Hospital Management System',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: colors.onPrimary.withValues(alpha: 0.95),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Secure staff access to wards, clinical workflows, and operations.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colors.onPrimary.withValues(alpha: 0.78),
+                  height: 1.5,
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  InputDecoration _fieldDecoration(
+    ColorScheme colors, {
+    required String label,
+    String? hint,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    final r = BorderRadius.circular(14);
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.4),
+      border: OutlineInputBorder(borderRadius: r),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: r,
+        borderSide: BorderSide(color: colors.outline.withValues(alpha: 0.22)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: r,
+        borderSide: BorderSide(color: colors.primary, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+    );
+  }
+
+  Widget _loginFormCard({
+    required ThemeData theme,
+    required ColorScheme colors,
+    required AuthState auth,
+    required bool showHeroLogo,
+  }) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _kFormMaxWidth),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: colors.outline.withValues(alpha: 0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: colors.shadow.withValues(alpha: 0.12),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
+              spreadRadius: -6,
+            ),
+          ],
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colors.surface,
+              colors.surfaceContainerHighest.withValues(alpha: 0.22),
+            ],
+          ),
+        ),
+        child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: showHeroLogo ? 24 : 32,
+              vertical: showHeroLogo ? 26 : 36,
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (showHeroLogo) ...[
+                    Center(
+                      child: _brandLogo(
+                        maxWidth: 240,
+                        maxHeight: 100,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 6,
+                          horizontal: 10,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  Text(
+                    'Welcome back',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sign in to your staff account',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colors.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+                  ),
+                  SizedBox(height: showHeroLogo ? 28 : 32),
+
+                  TextFormField(
+                    controller: _emailOrPhoneCtrl,
+                    keyboardType: TextInputType.text,
+                    autocorrect: false,
+                    textInputAction: TextInputAction.next,
+                    decoration: _fieldDecoration(
+                      colors,
+                      label: 'Email or phone',
+                      hint: 'you@imsh.org or 080…',
+                      prefixIcon: const Icon(Icons.person_outline),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Email or phone is required';
+                      }
+                      if (!_isValidEmailOrPhone(v)) {
+                        return 'Enter a valid email or phone number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextFormField(
+                    controller: _passwordCtrl,
+                    obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _submit(),
+                    decoration: _fieldDecoration(
+                      colors,
+                      label: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        tooltip: _obscurePassword ? 'Show password' : 'Hide',
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
+                    ),
+                    validator: (v) => (v == null || v.isEmpty)
+                        ? 'Password is required'
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => context.router.push(
+                        const ForgotPasswordRoute(),
+                      ),
+                      child: const Text('Forgot password?'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  FilledButton(
+                    onPressed: auth.isLoading ? null : _submit,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: auth.isLoading
+                        ? SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: colors.onPrimary,
+                            ),
+                          )
+                        : const Text(
+                            'Sign in',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
     );
   }
 }

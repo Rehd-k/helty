@@ -2,8 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
+import 'cmd_breakpoints.dart';
+import 'cmd_money_format.dart';
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
 import 'widgets/cmd_async_scaffold.dart';
@@ -21,35 +22,45 @@ class CMDHospitalOverviewScreen extends ConsumerWidget {
       subtitle: 'Departments, patient flow, and wait times',
       asyncValue: async,
       builder: (context, data) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SummaryRow(daily: data.dailySummary, weekly: data.weeklySummary),
-              const SizedBox(height: 24),
-              Text(
-                'Department scorecards',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        return LayoutBuilder(
+          builder: (context, c) {
+            final bp = CmdBreakpoints.fromWidth(c.maxWidth);
+            return SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SummaryRow(
+                    daily: data.dailySummary,
+                    weekly: data.weeklySummary,
+                    stack: bp.isMobile,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Department scorecards',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  _DeptTable(rows: data.departments),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Patient flow (pipeline)',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  _FlowList(flow: data.flow),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Waiting times',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  _WaitTable(rows: data.waitTimes),
+                  const SizedBox(height: 24),
+                ],
               ),
-              const SizedBox(height: 12),
-              _DeptTable(rows: data.departments),
-              const SizedBox(height: 28),
-              Text(
-                'Patient flow (pipeline)',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              _FlowList(flow: data.flow),
-              const SizedBox(height: 28),
-              Text(
-                'Waiting times',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              _WaitTable(rows: data.waitTimes),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -57,48 +68,67 @@ class CMDHospitalOverviewScreen extends ConsumerWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.daily, required this.weekly});
+  const _SummaryRow({
+    required this.daily,
+    required this.weekly,
+    required this.stack,
+  });
 
   final String daily;
   final String weekly;
+  final bool stack;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dailyCard = Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Daily summary',
+              style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary),
+            ),
+            const SizedBox(height: 8),
+            Text(daily, style: theme.textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
+    final weeklyCard = Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Weekly summary',
+              style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary),
+            ),
+            const SizedBox(height: 8),
+            Text(weekly, style: theme.textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
+    if (stack) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          dailyCard,
+          const SizedBox(height: 12),
+          weeklyCard,
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Daily summary', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
-                  const SizedBox(height: 8),
-                  Text(daily, style: theme.textTheme.bodyMedium),
-                ],
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: dailyCard),
         const SizedBox(width: 16),
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Weekly summary', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
-                  const SizedBox(height: 8),
-                  Text(weekly, style: theme.textTheme.bodyMedium),
-                ],
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: weeklyCard),
       ],
     );
   }
@@ -112,7 +142,7 @@ class _DeptTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fmt = NumberFormat.currency(symbol: r'$', decimalDigits: 0);
+    final fmt = cmdNairaFormat();
     return Card(
       clipBehavior: Clip.antiAlias,
       child: CmdDataTableBox(

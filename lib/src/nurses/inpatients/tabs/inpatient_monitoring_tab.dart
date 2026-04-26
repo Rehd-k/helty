@@ -277,41 +277,55 @@ class _InpatientMonitoringScreenState extends State<InpatientMonitoringScreen> {
             ),
             const SizedBox(height: 16),
             if (_chartType == 'GCS') ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _gcsEye,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Eye',
-                        border: OutlineInputBorder(),
-                      ),
+              LayoutBuilder(
+                builder: (context, c) {
+                  final stack = c.maxWidth < 480;
+                  final eye = TextField(
+                    controller: _gcsEye,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Eye',
+                      border: OutlineInputBorder(),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _gcsVerbal,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Verbal',
-                        border: OutlineInputBorder(),
-                      ),
+                  );
+                  final verbal = TextField(
+                    controller: _gcsVerbal,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Verbal',
+                      border: OutlineInputBorder(),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _gcsMotor,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Motor',
-                        border: OutlineInputBorder(),
-                      ),
+                  );
+                  final motor = TextField(
+                    controller: _gcsMotor,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Motor',
+                      border: OutlineInputBorder(),
                     ),
-                  ),
-                ],
+                  );
+                  if (stack) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        eye,
+                        const SizedBox(height: 8),
+                        verbal,
+                        const SizedBox(height: 8),
+                        motor,
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: eye),
+                      const SizedBox(width: 8),
+                      Expanded(child: verbal),
+                      const SizedBox(width: 8),
+                      Expanded(child: motor),
+                    ],
+                  );
+                },
               ),
             ] else ...[
               TextField(

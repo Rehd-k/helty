@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/iv_fluid_order_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/iv_fluid_order_service.dart';
@@ -118,7 +119,7 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
             ),
             title: const Text('Update IV'),
             content: SizedBox(
-              width: 420,
+              width: inpatientDialogBodyWidth(ctx, preferred: 420),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

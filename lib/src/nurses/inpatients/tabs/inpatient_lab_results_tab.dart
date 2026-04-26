@@ -94,24 +94,40 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (hasEncounter) ...[
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text('All patient'),
-                    icon: Icon(Icons.person_outline, size: 16),
-                  ),
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text('This encounter'),
-                    icon: Icon(Icons.event_note_outlined, size: 16),
-                  ),
-                ],
-                selected: {_encounterOnly},
-                onSelectionChanged: (s) {
-                  if (s.isEmpty) return;
-                  setState(() => _encounterOnly = s.first);
-                  _load();
+              LayoutBuilder(
+                builder: (context, c) {
+                  final narrow = c.maxWidth < 520;
+                  return SegmentedButton<bool>(
+                    segments: narrow
+                        ? const [
+                            ButtonSegment<bool>(
+                              value: false,
+                              label: Text('All'),
+                            ),
+                            ButtonSegment<bool>(
+                              value: true,
+                              label: Text('Visit'),
+                            ),
+                          ]
+                        : const [
+                            ButtonSegment<bool>(
+                              value: false,
+                              label: Text('All patient'),
+                              icon: Icon(Icons.person_outline, size: 16),
+                            ),
+                            ButtonSegment<bool>(
+                              value: true,
+                              label: Text('This encounter'),
+                              icon: Icon(Icons.event_note_outlined, size: 16),
+                            ),
+                          ],
+                    selected: {_encounterOnly},
+                    onSelectionChanged: (s) {
+                      if (s.isEmpty) return;
+                      setState(() => _encounterOnly = s.first);
+                      _load();
+                    },
+                  );
                 },
               ),
               const SizedBox(height: 12),

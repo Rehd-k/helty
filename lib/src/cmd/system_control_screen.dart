@@ -2,8 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
+import 'cmd_money_format.dart';
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
 import 'widgets/cmd_async_scaffold.dart';
@@ -23,10 +24,9 @@ class CMDSystemControlScreen extends ConsumerWidget {
       builder: (context, data) {
         final approvals = data.$1;
         final settings = data.$2;
-        final fmt = DateFormat('MMM d, HH:mm');
-        final money = NumberFormat.currency(symbol: r'$', decimalDigits: 0);
+        final money = cmdNairaFormat();
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -58,7 +58,7 @@ class CMDSystemControlScreen extends ConsumerWidget {
                             DataCell(Text(a.requester)),
                             DataCell(Text(money.format(a.amountDummy))),
                             DataCell(Text(a.status)),
-                            DataCell(Text(fmt.format(a.submittedAt))),
+                            DataCell(Text(DateFormatter.dateTime(a.submittedAt))),
                             DataCell(
                               TextButton(
                                 onPressed: () {
@@ -86,7 +86,11 @@ class CMDSystemControlScreen extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     title: Text(i.name),
-                    subtitle: Text(i.lastSyncAt != null ? 'Last sync ${fmt.format(i.lastSyncAt!)}' : 'Never synced'),
+                    subtitle: Text(
+                      i.lastSyncAt != null
+                          ? 'Last sync ${DateFormatter.dateTime(i.lastSyncAt!)}'
+                          : 'Never synced',
+                    ),
                     trailing: Chip(
                       label: Text(i.status),
                       backgroundColor: i.status == 'Connected'
@@ -117,6 +121,7 @@ class CMDSystemControlScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         );

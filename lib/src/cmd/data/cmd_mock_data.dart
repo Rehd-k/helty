@@ -1,3 +1,4 @@
+import '../cmd_money_format.dart';
 import '../models/cmd_models.dart';
 
 /// Rich dummy dataset for CMD screens. Financial amounts are **not** real.
@@ -5,15 +6,18 @@ abstract final class CmdMockData {
   static final DateTime _now = DateTime(2026, 3, 23, 14, 30);
 
   static CmdExecutiveDashboardBundle executiveDashboard() {
+    const revenueToday = 42850.00;
+    const outstandingArDummy = 118000.00;
+    final compact = cmdNairaCompactFormat();
     return CmdExecutiveDashboardBundle(
-      revenueToday: 42850.00,
+      revenueToday: revenueToday,
       revenueWeekTotal: 284200.00,
       revenueMonthTotal: 1124500.00,
       patientsTodayOpd: 842,
       patientsTodayAdmitted: 87,
       pendingLabResults: 63,
-      kpis: const [
-        CmdKpiTile(
+      kpis: [
+        const CmdKpiTile(
           id: 'k1',
           label: 'Patients Today (OPD)',
           value: '842',
@@ -21,7 +25,7 @@ abstract final class CmdMockData {
           direction: CmdTrendDirection.up,
           iconKey: 'people',
         ),
-        CmdKpiTile(
+        const CmdKpiTile(
           id: 'k2',
           label: 'Admissions Today',
           value: '87',
@@ -29,7 +33,7 @@ abstract final class CmdMockData {
           direction: CmdTrendDirection.up,
           iconKey: 'login',
         ),
-        CmdKpiTile(
+        const CmdKpiTile(
           id: 'k3',
           label: 'Bed occupancy',
           value: '78%',
@@ -40,12 +44,12 @@ abstract final class CmdMockData {
         CmdKpiTile(
           id: 'k4',
           label: 'Revenue today (dummy)',
-          value: r'$42.9k',
+          value: compact.format(revenueToday),
           trendLabel: '+12%',
           direction: CmdTrendDirection.up,
           iconKey: 'money',
         ),
-        CmdKpiTile(
+        const CmdKpiTile(
           id: 'k5',
           label: 'Staff on duty',
           value: '312',
@@ -53,7 +57,7 @@ abstract final class CmdMockData {
           direction: CmdTrendDirection.up,
           iconKey: 'badge',
         ),
-        CmdKpiTile(
+        const CmdKpiTile(
           id: 'k6',
           label: 'Pending lab results',
           value: '63',
@@ -65,12 +69,12 @@ abstract final class CmdMockData {
         CmdKpiTile(
           id: 'k7',
           label: 'Outstanding AR (dummy)',
-          value: r'$118k',
+          value: compact.format(outstandingArDummy),
           trendLabel: '-2%',
           direction: CmdTrendDirection.down,
           iconKey: 'receipt',
         ),
-        CmdKpiTile(
+        const CmdKpiTile(
           id: 'k8',
           label: 'ER visits (24h)',
           value: '142',
@@ -106,7 +110,8 @@ abstract final class CmdMockData {
           id: 'f3',
           at: _now.subtract(const Duration(minutes: 25)),
           category: 'Billing',
-          message: 'Large invoice \$18,400 pending CMD approval',
+          message:
+              'Large invoice ${cmdNairaFormat().format(18400)} pending CMD approval',
           actorLabel: 'Billing Lead',
         ),
         CmdActivityFeedItem(
@@ -496,7 +501,7 @@ abstract final class CmdMockData {
           user: 'jdoe@hospital',
           action: 'Override discount',
           entity: 'Invoice #INV-99281',
-          metadata: r'Amount $2,400 — reason: goodwill',
+          metadata: 'Amount ${cmdNairaFormat().format(2400)} — reason: goodwill',
         ),
         CmdAuditLogEntry(
           id: 'al2',
@@ -504,7 +509,7 @@ abstract final class CmdMockData {
           user: 'billing_mgr',
           action: 'Refund approved',
           entity: 'Payment #PAY-44102',
-          metadata: r'$640 — duplicate charge',
+          metadata: '${cmdNairaFormat().format(640)} — duplicate charge',
         ),
         CmdAuditLogEntry(
           id: 'al3',

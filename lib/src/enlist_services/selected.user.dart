@@ -23,8 +23,11 @@ class SelectedPatientCard extends ConsumerWidget {
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
+              color: Theme.of(context).colorScheme.surface,
               border: Border.all(
-                color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outline.withValues(alpha: 0.2),
               ),
               boxShadow: [
                 BoxShadow(
@@ -80,7 +83,6 @@ class SelectedPatientCard extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).primaryColor,
                                 ),
                               ),
                             ),
@@ -119,7 +121,6 @@ class SelectedPatientCard extends ConsumerWidget {
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -132,10 +133,6 @@ class SelectedPatientCard extends ConsumerWidget {
                                       : selectedPatient.patientId,
                                 ),
                                 const SizedBox(width: 8),
-                                // _detailBadge(
-                                //   Icons.phone_outlined,
-                                //   selectedPatient.phoneNumber ?? '--',
-                                // ),
                               ],
                             ),
                           ],
@@ -147,10 +144,7 @@ class SelectedPatientCard extends ConsumerWidget {
                         onPressed: () async {
                           ref.read(patientProvider.notifier).clearPatient();
                         },
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.grey[100],
-                          hoverColor: Colors.red[50],
-                        ),
+
                         icon: Icon(Icons.close, color: Colors.grey[600]),
                         tooltip: "Remove Patient",
                       ),
@@ -168,22 +162,15 @@ class SelectedPatientCard extends ConsumerWidget {
   Widget _detailBadge(IconData icon, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(6)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: Colors.grey[500]),
+          Icon(icon, size: 12),
           const SizedBox(width: 4),
           Text(
             text,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ],
       ),

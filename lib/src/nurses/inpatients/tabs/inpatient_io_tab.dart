@@ -3,6 +3,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/intake_output_record_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_responsive_row_or_column.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/intake_output_service.dart';
@@ -148,7 +150,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
               ),
               title: Text(isIntake ? 'Add Intake' : 'Add Output'),
               content: SizedBox(
-                width: 420,
+                width: inpatientDialogBodyWidth(ctx, preferred: 420),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -328,65 +330,57 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: SectionCard(
-              title: 'Intake',
-              subtitle: 'Fluids and intake for this admission',
-              actions: [
-                FilledButton.icon(
-                  onPressed: () => _openAddRecordDialog(context, true),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Record'),
-                ),
-              ],
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTable(context, rows: _rowsFor(true)),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Daily total (today): ${intakeTotal.toStringAsFixed(0)} ml',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.primary,
-                        ),
-                  ),
-                ],
-              ),
+      child: InpatientResponsiveRowOrColumn(
+        first: SectionCard(
+          title: 'Intake',
+          subtitle: 'Fluids and intake for this admission',
+          actions: [
+            FilledButton.icon(
+              onPressed: () => _openAddRecordDialog(context, true),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Record'),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: SectionCard(
-              title: 'Output',
-              subtitle: 'Urine, drains and other output',
-              actions: [
-                FilledButton.icon(
-                  onPressed: () => _openAddRecordDialog(context, false),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Record'),
-                ),
-              ],
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTable(context, rows: _rowsFor(false)),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Daily total (today): ${outputTotal.toStringAsFixed(0)} ml',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.error,
-                        ),
-                  ),
-                ],
+          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTable(context, rows: _rowsFor(true)),
+              const SizedBox(height: 12),
+              Text(
+                'Daily total (today): ${intakeTotal.toStringAsFixed(0)} ml',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.primary,
+                    ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
+        second: SectionCard(
+          title: 'Output',
+          subtitle: 'Urine, drains and other output',
+          actions: [
+            FilledButton.icon(
+              onPressed: () => _openAddRecordDialog(context, false),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Record'),
+            ),
+          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTable(context, rows: _rowsFor(false)),
+              const SizedBox(height: 12),
+              Text(
+                'Daily total (today): ${outputTotal.toStringAsFixed(0)} ml',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.error,
+                    ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

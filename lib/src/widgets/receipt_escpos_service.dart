@@ -62,6 +62,78 @@ class ReceiptEscposService {
     return s[0].toUpperCase() + s.substring(1).toLowerCase();
   }
 
+  static String _nameFromPersonMap(Map<String, dynamic> m) {
+    final first = m['firstName']?.toString().trim() ?? '';
+    final last =
+        (m['surname'] ?? m['lastName'])?.toString().trim() ?? '';
+    final fromParts = [first, last].where((s) => s.isNotEmpty).join(' ');
+    if (fromParts.isNotEmpty) return fromParts;
+    for (final k in ['fullName', 'name', 'displayName', 'userName']) {
+      final v = m[k]?.toString().trim() ?? '';
+      if (v.isNotEmpty) return v;
+    }
+    return '';
+  }
+
+  /// [TransactionMap] names + optional nested `patient` / `receivedBy` / `createdBy` from API.
+  static String _patientNameFromTransactionMap(Map<String, dynamic> t) {
+    final top = t['patientName']?.toString().trim() ?? '';
+    if (top.isNotEmpty) return _sanitizeEscPosText(top);
+    final p = t['patient'];
+    if (p is Map) {
+      return _sanitizeEscPosText(
+        _nameFromPersonMap(Map<String, dynamic>.from(p)),
+      );
+    }
+    return '';
+  }
+
+  static String _staffNameFromTransactionMap(Map<String, dynamic> t) {
+    for (final k in [
+      'initiator',
+      'initiatedByName',
+      'staffName',
+      'receivedByName',
+      'cashierName',
+      'userName',
+    ]) {
+      final s = t[k]?.toString().trim() ?? '';
+      if (s.isNotEmpty) return _sanitizeEscPosText(s);
+    }
+    for (final k in [
+      'receivedBy',
+      'createdBy',
+      'staff',
+      'initiatedBy',
+      'user',
+    ]) {
+      final v = t[k];
+      if (v is Map) {
+        final s = _nameFromPersonMap(Map<String, dynamic>.from(v));
+        if (s.isNotEmpty) return _sanitizeEscPosText(s);
+      }
+    }
+    for (final k in ['createdById', 'receivedById']) {
+      final s = t[k]?.toString().trim() ?? '';
+      if (s.isNotEmpty) return s;
+    }
+    return '';
+  }
+
+  /// [fromPayBillSnapshot] uses first+last; [fromTransactionMap] may put the full
+  /// name in [firstName] only — do not run [_capitalize] on the whole string in that case.
+  static String _receiptLineStaffName(Map<String, dynamic> staff) {
+    final fn = (staff['firstName'] ?? '').toString().trim();
+    final ln = (staff['lastName'] ?? '').toString().trim();
+    if (ln.isEmpty) {
+      if (fn.isEmpty) return '';
+      return _sanitizeEscPosText(fn);
+    }
+    return _sanitizeEscPosText(
+      '${_capitalize(fn)} ${_capitalize(ln)}'.trim(),
+    );
+  }
+
   /// Parses [transactionModelToMap]'s ISO string or legacy display [date] (`MMM d, y h:mm a`).
   static DateTime? _parseReceiptCreatedAt(String raw) {
     final s = raw.trim();
@@ -139,10 +211,13 @@ class ReceiptEscposService {
             '',
       },
       'patient': {
-        'firstName': t['patientName']?.toString() ?? '',
+        'firstName': _patientNameFromTransactionMap(t),
         'surname': '',
       },
-      'staff': {'firstName': t['initiator']?.toString() ?? '', 'lastName': ''},
+      'staff': {
+        'firstName': _staffNameFromTransactionMap(t),
+        'lastName': '',
+      },
       'itemSnapshots': itemSnapshots,
     };
   }
@@ -360,16 +435,27 @@ class ReceiptEscposService {
 
     final pFirst = patient['firstName']?.toString() ?? '';
     final pLast = patient['surname']?.toString() ?? '';
-    final patientLine = '$pFirst $pLast'.trim();
-
-    bytes += generator.row([
-      PosColumn(
-        text: 'Patient:',
-        width: 4,
-        styles: const PosStyles(bold: true),
-      ),
-      PosColumn(text: patientLine, width: 8),
-    ]);
+    final patientLine = _sanitizeEscPosText('$pFirst $pLast'.trim());
+    if (patientLine.isEmpty) {
+      bytes += generator.row([
+        PosColumn(
+          text: 'Patient:',
+          width: 4,
+          styles: const PosStyles(bold: true),
+        ),
+        PosColumn(text: '—', width: 8),
+      ]);
+    } else {
+      bytes += generator.row([
+        PosColumn(
+          text: 'Patient:',
+          width: 4,
+          styles: const PosStyles(bold: true),
+        ),
+        PosColumn(text: patientLine, width: 8),
+      ]);
+    }
+    final cashierLine = _receiptLineStaffName(staff);
     bytes += generator.row([
       PosColumn(
         text: 'Cashier:',
@@ -377,9 +463,7 @@ class ReceiptEscposService {
         styles: const PosStyles(bold: true),
       ),
       PosColumn(
-        text:
-            '${_capitalize((staff['firstName'] ?? '').toString())} ${_capitalize((staff['lastName'] ?? '').toString())}'
-                .trim(),
+        text: cashierLine.isNotEmpty ? cashierLine : '—',
         width: 8,
       ),
     ]);

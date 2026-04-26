@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+import '../cmd/cmd_breakpoints.dart';
 import '../models/nurse_dashboard_models.dart';
 import '../services/nurse_dashboard_service.dart';
 
@@ -188,8 +189,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
     return out;
   }
 
-  static final RegExp _label24h =
-      RegExp(r'^(\d{1,2})(?::(\d{2}))?$');
+  static final RegExp _label24h = RegExp(r'^(\d{1,2})(?::(\d{2}))?$');
   static final RegExp _label12h = RegExp(
     r'^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$',
     caseSensitive: false,
@@ -316,394 +316,520 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
         children: [
           if (_loading) const LinearProgressIndicator(minHeight: 2),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final bp = CmdBreakpoints.fromWidth(constraints.maxWidth);
+                final admitH = bp.isMobile
+                    ? 280.0
+                    : bp.isTablet
+                    ? 340.0
+                    : 400.0;
+                final deptH = bp.isMobile
+                    ? 230.0
+                    : bp.isTablet
+                    ? 270.0
+                    : 300.0;
+                final chartPad = bp.isMobile ? 16.0 : 24.0;
+                final pad = EdgeInsets.symmetric(
+                  horizontal: bp.paddingH,
+                  vertical: bp.paddingV,
+                );
+
+                return SingleChildScrollView(
+                  padding: pad,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: math.min(
+                          constraints.maxWidth,
+                          CmdBreakpoints.maxContentWidth,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            header.title ?? 'Hospital Overview',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
+                          _nurseDashboardHeader(
+                            bp: bp,
+                            header: header,
+                            colorScheme: colorScheme,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _resolvedSubtitle(header),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
+                          SizedBox(height: bp.isMobile ? 24 : 32),
+                          _nurseKpiGrid(bp, kpis, colorScheme),
+                          const SizedBox(height: 24),
+                          _nurseChartsAndSidebar(
+                            bp: bp,
+                            data: data,
+                            colorScheme: colorScheme,
+                            admissionsHeight: admitH,
+                            departmentHeight: deptH,
+                            chartInnerPadding: chartPad,
+                            stackChartTitleRow: !bp.isDesktop,
                           ),
                         ],
                       ),
-                      Row(
-                        children: [
-                          Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: colorScheme.outline.withValues(
-                                  alpha: 0.3,
-                                ),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _timeRange,
-                                icon: Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                  color: colorScheme.primary,
-                                ),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colorScheme.onSurface,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                items: _timeRanges
-                                    .map(
-                                      (e) => DropdownMenuItem(
-                                        value: e,
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            left: 8.0,
-                                          ),
-                                          child: Text(e),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (val) {
-                                  if (val == null) return;
-                                  setState(() => _timeRange = val);
-                                  _load();
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: colorScheme.primary.withValues(
-                              alpha: 0.1,
-                            ),
-                            child: Icon(
-                              Icons.person,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      _buildMetricCard(
-                        'Total Patients',
-                        kpis.totalPatients.valueFormatted,
-                        kpis.totalPatients.delta.label,
-                        Icons.people_alt,
-                        Colors.blue,
-                        colorScheme,
-                        trendPositive: kpis.totalPatients.delta.isPositive,
-                        trendDirection: kpis.totalPatients.delta.direction,
-                        showTrendArrow: kpis.totalPatients.delta.kind != 'text',
-                      ),
-                      const SizedBox(width: 16),
-                      _buildMetricCard(
-                        'Bed Occupancy',
-                        kpis.bedOccupancy.valueFormatted,
-                        kpis.bedOccupancy.delta.label,
-                        Icons.bed,
-                        Colors.orange,
-                        colorScheme,
-                        isProgress: true,
-                        progressValue: kpis.bedOccupancy.ratio.clamp(0.0, 1.0),
-                        trendPositive: kpis.bedOccupancy.delta.isPositive,
-                        trendDirection: kpis.bedOccupancy.delta.direction,
-                        showTrendArrow: kpis.bedOccupancy.delta.kind != 'text',
-                      ),
-                      const SizedBox(width: 16),
-                      _buildMetricCard(
-                        'Active Staff',
-                        kpis.activeStaff.valueFormatted,
-                        kpis.activeStaff.delta.label,
-                        Icons.medical_information,
-                        Colors.green,
-                        colorScheme,
-                        trendPositive: kpis.activeStaff.delta.isPositive,
-                        trendDirection: kpis.activeStaff.delta.direction,
-                        showTrendArrow: kpis.activeStaff.delta.kind != 'text',
-                      ),
-                      const SizedBox(width: 16),
-                      _buildMetricCard(
-                        'Avg. Wait Time',
-                        kpis.averageWaitTime.valueFormatted,
-                        kpis.averageWaitTime.delta.label,
-                        Icons.timer,
-                        Colors.purple,
-                        colorScheme,
-                        trendPositive: kpis.averageWaitTime.delta.isPositive,
-                        trendDirection: kpis.averageWaitTime.delta.direction,
-                        showTrendArrow:
-                            kpis.averageWaitTime.delta.kind != 'text',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: Column(
-                          children: [
-                            Container(
-                              height: 400,
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: colorScheme.outline.withValues(
-                                    alpha: 0.2,
-                                  ),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Patient Admissions vs Discharges',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: colorScheme.onSurface,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Row(
-                                        children: [
-                                          _buildLegendIndicator(
-                                            colorScheme.primary,
-                                            'Admissions',
-                                          ),
-                                          const SizedBox(width: 16),
-                                          _buildLegendIndicator(
-                                            Colors.orange,
-                                            'Discharges',
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 32),
-                                  Expanded(
-                                    child: _buildPatientInfluxChart(
-                                      colorScheme,
-                                      _admissionsSeriesForChart(data),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Container(
-                              height: 300,
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: colorScheme.outline.withValues(
-                                    alpha: 0.2,
-                                  ),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Department Load (Patients)',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Expanded(
-                                    child: _buildDepartmentBarChart(
-                                      colorScheme,
-                                      data.departmentLoad,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: colorScheme.outline.withValues(
-                                    alpha: 0.2,
-                                  ),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Staff on Duty',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: colorScheme.onSurface,
-                                        ),
-                                      ),
-                                      Text(
-                                        'View All',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: colorScheme.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-                                  if (data.staffOnDuty.isEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      child: Text(
-                                        'No staff on duty',
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    ...data.staffOnDuty.map(
-                                      (staff) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 16.0,
-                                        ),
-                                        child: _staffRow(staff, colorScheme),
-                                      ),
-                                    ),
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton.icon(
-                                      onPressed: () {},
-                                      icon: const Icon(
-                                        Icons.assignment_ind,
-                                        size: 16,
-                                      ),
-                                      label: const Text('Manage Roster'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.red.withValues(alpha: 0.2),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.warning_rounded,
-                                        color: Colors.red[700],
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Critical Alerts',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.red[700],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  if (data.criticalAlerts.isEmpty)
-                                    Text(
-                                      'No critical alerts',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.red[700]?.withValues(
-                                          alpha: 0.8,
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    ..._alertTiles(data.criticalAlerts),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _timeRangeDropdown(ColorScheme colorScheme) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: _timeRange,
+          icon: Icon(
+            Icons.calendar_today,
+            size: 16,
+            color: colorScheme.primary,
+          ),
+          style: TextStyle(
+            fontSize: 13,
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+          items: _timeRanges
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: Text(e),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (val) {
+            if (val == null) return;
+            setState(() => _timeRange = val);
+            _load();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _nurseDashboardHeader({
+    required CmdBreakpoints bp,
+    required NurseDashboardHeader header,
+    required ColorScheme colorScheme,
+  }) {
+    final titleStyle = TextStyle(
+      fontSize: bp.isMobile ? 20 : 24,
+      fontWeight: FontWeight.bold,
+      color: colorScheme.onSurface,
+    );
+    final subtitleStyle = TextStyle(
+      fontSize: bp.isMobile ? 13 : 14,
+      color: colorScheme.onSurface.withValues(alpha: 0.6),
+    );
+    final timeDropdown = _timeRangeDropdown(colorScheme);
+    final avatar = CircleAvatar(
+      radius: 20,
+      backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+      child: Icon(Icons.person, color: colorScheme.primary),
+    );
+
+    if (bp.isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(header.title ?? 'Hospital Overview', style: titleStyle),
+          const SizedBox(height: 4),
+          Text(_resolvedSubtitle(header), style: subtitleStyle),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: timeDropdown),
+              const SizedBox(width: 12),
+              avatar,
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(header.title ?? 'Hospital Overview', style: titleStyle),
+              const SizedBox(height: 4),
+              Text(_resolvedSubtitle(header), style: subtitleStyle),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 160, maxWidth: 240),
+              child: timeDropdown,
+            ),
+            const SizedBox(width: 16),
+            avatar,
+          ],
+        ),
+      ],
+    );
+  }
+
+  int _nurseKpiCrossAxisCount(CmdBreakpoints bp) => bp.isDesktop ? 4 : 2;
+
+  double _nurseKpiChildAspectRatio(CmdBreakpoints bp) {
+    if (bp.isDesktop) return 1.65;
+    if (bp.isTablet) return 1.48;
+    return bp.maxWidth < 360 ? 1.2 : 1.36;
+  }
+
+  Widget _nurseKpiGrid(
+    CmdBreakpoints bp,
+    NurseDashboardKpis kpis,
+    ColorScheme colorScheme,
+  ) {
+    return GridView.count(
+      crossAxisCount: _nurseKpiCrossAxisCount(bp),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      childAspectRatio: _nurseKpiChildAspectRatio(bp),
+      children: [
+        _buildMetricCard(
+          'Total Patients',
+          kpis.totalPatients.valueFormatted,
+          kpis.totalPatients.delta.label,
+          Icons.people_alt,
+          Colors.blue,
+          colorScheme,
+          trendPositive: kpis.totalPatients.delta.isPositive,
+          trendDirection: kpis.totalPatients.delta.direction,
+          showTrendArrow: kpis.totalPatients.delta.kind != 'text',
+        ),
+        _buildMetricCard(
+          'Bed Occupancy',
+          kpis.bedOccupancy.valueFormatted,
+          kpis.bedOccupancy.delta.label,
+          Icons.bed,
+          Colors.orange,
+          colorScheme,
+          isProgress: true,
+          progressValue: kpis.bedOccupancy.ratio.clamp(0.0, 1.0),
+          trendPositive: kpis.bedOccupancy.delta.isPositive,
+          trendDirection: kpis.bedOccupancy.delta.direction,
+          showTrendArrow: kpis.bedOccupancy.delta.kind != 'text',
+        ),
+        _buildMetricCard(
+          'Active Staff',
+          kpis.activeStaff.valueFormatted,
+          kpis.activeStaff.delta.label,
+          Icons.medical_information,
+          Colors.green,
+          colorScheme,
+          trendPositive: kpis.activeStaff.delta.isPositive,
+          trendDirection: kpis.activeStaff.delta.direction,
+          showTrendArrow: kpis.activeStaff.delta.kind != 'text',
+        ),
+        _buildMetricCard(
+          'Avg. Wait Time',
+          kpis.averageWaitTime.valueFormatted,
+          kpis.averageWaitTime.delta.label,
+          Icons.timer,
+          Colors.purple,
+          colorScheme,
+          trendPositive: kpis.averageWaitTime.delta.isPositive,
+          trendDirection: kpis.averageWaitTime.delta.direction,
+          showTrendArrow: kpis.averageWaitTime.delta.kind != 'text',
+        ),
+      ],
+    );
+  }
+
+  Widget _nurseChartsColumn({
+    required NurseDashboardOverview data,
+    required ColorScheme colorScheme,
+    required double admissionsHeight,
+    required double departmentHeight,
+    required double chartInnerPadding,
+    required bool stackChartTitleRow,
+  }) {
+    final titleRow = stackChartTitleRow
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Patient Admissions vs Discharges',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: [
+                  _buildLegendIndicator(colorScheme.primary, 'Admissions'),
+                  _buildLegendIndicator(Colors.orange, 'Discharges'),
+                ],
+              ),
+            ],
+          )
+        : Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Patient Admissions vs Discharges',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              Row(
+                children: [
+                  _buildLegendIndicator(colorScheme.primary, 'Admissions'),
+                  const SizedBox(width: 16),
+                  _buildLegendIndicator(Colors.orange, 'Discharges'),
+                ],
+              ),
+            ],
+          );
+
+    return Column(
+      children: [
+        Container(
+          height: admissionsHeight,
+          padding: EdgeInsets.all(chartInnerPadding),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              titleRow,
+              SizedBox(height: stackChartTitleRow ? 20 : 32),
+              Expanded(
+                child: _buildPatientInfluxChart(
+                  colorScheme,
+                  _admissionsSeriesForChart(data),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          height: departmentHeight,
+          padding: EdgeInsets.all(chartInnerPadding),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Department Load (Patients)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              SizedBox(height: stackChartTitleRow ? 16 : 24),
+              Expanded(
+                child: _buildDepartmentBarChart(
+                  colorScheme,
+                  data.departmentLoad,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _nurseSidebarColumn({
+    required NurseDashboardOverview data,
+    required ColorScheme colorScheme,
+    required double chartInnerPadding,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(chartInnerPadding),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Staff on Duty',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              if (data.staffOnDuty.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'No staff on duty',
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                )
+              else
+                ...data.staffOnDuty.map(
+                  (staff) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: _staffRow(staff, colorScheme),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.assignment_ind, size: 16),
+                  label: const Text('Manage Roster'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: EdgeInsets.all(chartInnerPadding),
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.warning_rounded, color: Colors.red[700], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Critical Alerts',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[700],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (data.criticalAlerts.isEmpty)
+                Text(
+                  'No critical alerts',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.red[700]?.withValues(alpha: 0.8),
+                  ),
+                )
+              else
+                ..._alertTiles(data.criticalAlerts),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _nurseChartsAndSidebar({
+    required CmdBreakpoints bp,
+    required NurseDashboardOverview data,
+    required ColorScheme colorScheme,
+    required double admissionsHeight,
+    required double departmentHeight,
+    required double chartInnerPadding,
+    required bool stackChartTitleRow,
+  }) {
+    final charts = _nurseChartsColumn(
+      data: data,
+      colorScheme: colorScheme,
+      admissionsHeight: admissionsHeight,
+      departmentHeight: departmentHeight,
+      chartInnerPadding: chartInnerPadding,
+      stackChartTitleRow: stackChartTitleRow,
+    );
+    final aside = _nurseSidebarColumn(
+      data: data,
+      colorScheme: colorScheme,
+      chartInnerPadding: chartInnerPadding,
+    );
+
+    if (bp.isDesktop) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: 5, child: charts),
+          const SizedBox(width: 24),
+          Expanded(flex: 2, child: aside),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        charts,
+        SizedBox(height: bp.isMobile ? 20 : 24),
+        aside,
+      ],
     );
   }
 
@@ -819,111 +945,109 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
   }) {
     final trendColor = trendPositive ? Colors.green : Colors.red;
 
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              if (isProgress)
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CircularProgressIndicator(
+                        value: progressValue,
+                        backgroundColor: colorScheme.outline.withValues(
+                          alpha: 0.1,
+                        ),
+                        color: color,
+                        strokeWidth: 4,
+                      ),
+                      Center(
+                        child: Text(
+                          '${(progressValue * 100).round()}%',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: trendColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                if (isProgress)
-                  SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CircularProgressIndicator(
-                          value: progressValue,
-                          backgroundColor: colorScheme.outline.withValues(
-                            alpha: 0.1,
+                  child: Row(
+                    children: [
+                      if (showTrendArrow)
+                        Icon(
+                          _trendArrowIcon(
+                            trendPositive: trendPositive,
+                            trendDirection: trendDirection,
                           ),
-                          color: color,
-                          strokeWidth: 4,
+                          size: 12,
+                          color: trendColor,
                         ),
-                        Center(
-                          child: Text(
-                            '${(progressValue * 100).round()}%',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
+                      if (showTrendArrow) const SizedBox(width: 4),
+                      Text(
+                        trendLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: trendColor,
                         ),
-                      ],
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: trendColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        if (showTrendArrow)
-                          Icon(
-                            _trendArrowIcon(
-                              trendPositive: trendPositive,
-                              trendDirection: trendDirection,
-                            ),
-                            size: 12,
-                            color: trendColor,
-                          ),
-                        if (showTrendArrow) const SizedBox(width: 4),
-                        Text(
-                          trendLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: trendColor,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-              ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 0),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
             ),
-            const SizedBox(height: 20),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              color: colorScheme.onSurface.withValues(alpha: 0.6),
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                color: colorScheme.onSurface.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

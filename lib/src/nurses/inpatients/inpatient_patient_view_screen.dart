@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/patient_header_card.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
@@ -14,8 +15,6 @@ import '../../models/medication_order_model.dart';
 import '../../models/invoice.dart';
 import '../../services/admission_service.dart';
 import '../../services/invoice_service.dart';
-
-const double _contentMaxWidth = 1440;
 
 @RoutePage()
 class InpatientPatientViewScreen extends ConsumerStatefulWidget {
@@ -144,7 +143,8 @@ class _InpatientPatientViewScreenState
     final accountType = staff?.accountType?.name.toLowerCase() ?? '';
     final staffId = staff?.id ?? staff?.staffId;
 
-    final isDoctor = role == 'doctor' ||
+    final isDoctor =
+        role == 'doctor' ||
         role == 'consultant' ||
         role == 'resident' ||
         role == 'intern' ||
@@ -155,7 +155,8 @@ class _InpatientPatientViewScreenState
         accountType == 'physician' ||
         accountType == 'consultant' ||
         accountType == 'inpatient_doctor';
-    final isNurse = role == 'nurse' ||
+    final isNurse =
+        role == 'nurse' ||
         role == 'head_nurse' ||
         role == 'inpatient_nurse' ||
         role == 'outpatient_nurse' ||
@@ -170,7 +171,8 @@ class _InpatientPatientViewScreenState
       patientId: _patient?.id ?? '',
       admissionId: widget.admissionId,
       encounterId: _admission?.encounterId,
-      embeddedMedicationOrders: _admission?.encounterMedicationOrders ??
+      embeddedMedicationOrders:
+          _admission?.encounterMedicationOrders ??
           const <MedicationOrderModel>[],
       patientDisplayName: identity?.name,
       hospitalNumber: identity?.hospNo,
@@ -206,47 +208,86 @@ class _InpatientPatientViewScreenState
             body: SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final double horizontalPadding = constraints.maxWidth > 1400
-                      ? 32
-                      : 20;
+                  final bool compact =
+                      constraints.maxWidth < kInpatientCompactBreakpoint;
+                  final double horizontalPadding = compact
+                      ? 16
+                      : (constraints.maxWidth > 1400 ? 32 : 20);
+                  final double verticalPadding = compact ? 16 : 24;
+
+                  final tabContent = _buildTabContentShell(
+                    colorScheme,
+                    child: child,
+                  );
 
                   return Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(
-                        maxWidth: _contentMaxWidth,
+                        maxWidth: kInpatientContentMaxWidth,
                       ),
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(
                           horizontalPadding,
-                          24,
+                          verticalPadding,
                           horizontalPadding,
-                          24,
+                          verticalPadding,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildHeaderRow(context),
-                            const SizedBox(height: 16),
-                            _buildPatientHeader(context),
-                            const SizedBox(height: 20),
-                            _buildTabsStrip(context, tabsRouter),
-                            const SizedBox(height: 16),
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.surface,
+                        child: compact
+                            ? CustomScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                slivers: [
+                                  SliverToBoxAdapter(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        _buildHeaderRow(
+                                          context,
+                                          compact: compact,
+                                        ),
+                                        SizedBox(height: compact ? 12 : 16),
+                                        _buildPatientHeader(context),
+                                        SizedBox(height: compact ? 16 : 20),
+                                      ],
+                                    ),
                                   ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(4.0),
-                                    child: child,
+                                  SliverPersistentHeader(
+                                    pinned: true,
+                                    delegate: _PinnedTabStripDelegate(
+                                      height: _pinnedTabStripHeight(compact),
+                                      color: colorScheme.surface,
+                                      child: _buildTabsStrip(
+                                        context,
+                                        tabsRouter,
+                                        compact: compact,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  SliverFillRemaining(
+                                    hasScrollBody: true,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 12),
+                                      child: tabContent,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildHeaderRow(context, compact: compact),
+                                  SizedBox(height: compact ? 12 : 16),
+                                  _buildPatientHeader(context),
+                                  SizedBox(height: compact ? 16 : 20),
+                                  _buildTabsStrip(
+                                    context,
+                                    tabsRouter,
+                                    compact: compact,
+                                  ),
+                                  SizedBox(height: compact ? 12 : 16),
+                                  Expanded(child: tabContent),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   );
@@ -259,76 +300,95 @@ class _InpatientPatientViewScreenState
     );
   }
 
-  Widget _buildHeaderRow(BuildContext context) {
+  Widget _buildHeaderRow(BuildContext context, {required bool compact}) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final title = 'Inpatient Patient View';
-    final subtitle = 'Bedside overview';
+    const title = 'Inpatient Patient View';
+    const subtitle = 'Bedside overview';
+
+    final titleStyle = theme.textTheme.headlineSmall?.copyWith(
+      fontWeight: FontWeight.bold,
+      color: scheme.onSurface,
+    );
+    final subtitleStyle = theme.textTheme.bodySmall?.copyWith(
+      color: scheme.onSurface.withValues(alpha: 0.7),
+    );
+
+    final actions = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: compact ? WrapAlignment.start : WrapAlignment.end,
+      children: [
+        FilledButton.tonalIcon(
+          onPressed: _patient == null ? null : _openBilling,
+          icon: const Icon(Icons.receipt_long_outlined, size: 18),
+          label: const Text('Billing'),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: _admission == null ? null : _attemptDischarge,
+          icon: const Icon(Icons.logout, size: 18),
+          label: const Text('Discharge'),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.monitor_heart_outlined,
+                size: 18,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Inpatient module',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: titleStyle,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: subtitleStyle,
+        ),
+      ],
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [titleBlock, const SizedBox(height: 12), actions],
+      );
+    }
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: scheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            FilledButton.tonalIcon(
-              onPressed: _patient == null ? null : _openBilling,
-              icon: const Icon(Icons.receipt_long_outlined, size: 18),
-              label: const Text('Billing'),
-            ),
-            FilledButton.tonalIcon(
-              onPressed: _admission == null ? null : _attemptDischarge,
-              icon: const Icon(Icons.logout, size: 18),
-              label: const Text('Discharge'),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.monitor_heart_outlined,
-                    size: 18,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Inpatient module',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+        Expanded(child: titleBlock),
+        actions,
       ],
     );
   }
@@ -464,12 +524,14 @@ class _InpatientPatientViewScreenState
     final name = nameParts.isEmpty ? 'Unknown patient' : nameParts.join(' ');
 
     final ageLabel = DateFormatter.patientAgeFromDob(patient.dob);
-    final genderLabel =
-        patient.gender.trim().isEmpty ? '—' : patient.gender.trim();
+    final genderLabel = patient.gender.trim().isEmpty
+        ? '—'
+        : patient.gender.trim();
     final ageGender = '$ageLabel, $genderLabel';
 
-    final hospitalNumber =
-        patient.patientId.isNotEmpty ? patient.patientId : '—';
+    final hospitalNumber = patient.patientId.isNotEmpty
+        ? patient.patientId
+        : '—';
 
     final ward = _wardDisplay(admission);
     final bed = admission.bedPreference?.trim().isNotEmpty == true
@@ -546,7 +608,24 @@ class _InpatientPatientViewScreenState
     return '—';
   }
 
-  Widget _buildTabsStrip(BuildContext context, TabsRouter tabsRouter) {
+  Widget _buildTabContentShell(
+    ColorScheme colorScheme, {
+    required Widget child,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: colorScheme.surface),
+        child: Padding(padding: const EdgeInsets.all(4.0), child: child),
+      ),
+    );
+  }
+
+  Widget _buildTabsStrip(
+    BuildContext context,
+    TabsRouter tabsRouter, {
+    required bool compact,
+  }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
@@ -566,6 +645,11 @@ class _InpatientPatientViewScreenState
       'Handover',
     ];
 
+    final tabPadding = EdgeInsets.symmetric(
+      horizontal: compact ? 12 : 16,
+      vertical: compact ? 14 : 8,
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: scheme.surfaceBright.withValues(alpha: 0.4),
@@ -580,28 +664,34 @@ class _InpatientPatientViewScreenState
             final label = labels[index];
 
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: () => tabsRouter.setActiveIndex(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected ? scheme.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    label,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected
-                          ? scheme.onPrimary
-                          : scheme.onSurface.withValues(alpha: 0.8),
+              padding: const EdgeInsets.symmetric(horizontal: 0),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: () => tabsRouter.setActiveIndex(index),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: compact ? 48 : 0),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      alignment: Alignment.center,
+                      padding: tabPadding,
+                      decoration: BoxDecoration(
+                        color: selected ? scheme.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        label,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: selected
+                              ? scheme.onPrimary
+                              : scheme.onSurface.withValues(alpha: 0.8),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -611,5 +701,50 @@ class _InpatientPatientViewScreenState
         ),
       ),
     );
+  }
+}
+
+/// Vertical extent of [_InpatientPatientViewScreenState._buildTabsStrip] for
+/// [SliverPersistentHeader] — must stay in sync with tab chip min heights.
+double _pinnedTabStripHeight(bool compact) {
+  return compact ? 56 : 52;
+}
+
+class _PinnedTabStripDelegate extends SliverPersistentHeaderDelegate {
+  _PinnedTabStripDelegate({
+    required this.height,
+    required this.color,
+    required this.child,
+  });
+
+  final double height;
+  final Color color;
+  final Widget child;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(
+      color: color,
+      elevation: overlapsContent ? 1 : 0,
+      shadowColor: Colors.black26,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedTabStripDelegate oldDelegate) {
+    return oldDelegate.height != height ||
+        oldDelegate.color != color ||
+        oldDelegate.child != child;
   }
 }

@@ -2,20 +2,44 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/errors/app_exception.dart';
+import '../../models/staff_model.dart';
+import '../../models/super_admin_department_preview.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/super_admin_preview_provider.dart';
 import '../inputs/morden.form.inpts.dart';
 import '../models/pharmacy_model.dart';
 import '../services/pharmacy_service.dart';
 
+bool _viewerIsPharmacyHead(Staff? staff, SuperAdminPreviewState preview) {
+  if (staffIsSuperAdmin(staff) && preview.isActive) {
+    final r = (preview.previewRole ?? '').toLowerCase().trim();
+    final at = (preview.previewAccountType ?? '').toLowerCase().trim();
+    return r == 'pharmacy_head' || at == 'pharmacy_head';
+  }
+  final r = staff?.role.toLowerCase().replaceAll('-', '_') ?? '';
+  final pr = staff?.pharmacyRole?.toLowerCase().replaceAll('-', '_') ?? '';
+  return r == 'pharmacy_head' || pr == 'pharmacy_head';
+}
+
+bool _batchEligibleForQuantityCorrection(DrugBatch b) {
+  final created = b.createdAt;
+  if (created == null) return false;
+  return DateTime.now().difference(created) >= const Duration(hours: 24);
+}
+
 @RoutePage()
-class StockTransferScreen extends StatefulWidget {
+class StockTransferScreen extends ConsumerStatefulWidget {
   const StockTransferScreen({super.key});
 
   @override
-  State<StockTransferScreen> createState() => _StockTransferScreenState();
+  ConsumerState<StockTransferScreen> createState() =>
+      _StockTransferScreenState();
 }
 
-class _StockTransferScreenState extends State<StockTransferScreen> {
+class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = PharmacyApiService();
 
@@ -291,6 +315,177 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  Future<void> _showQuantityCorrectionDialog(DrugBatch batch) async {
+    final batchId = batch.id;
+    if (batchId == null || batchId.isEmpty) {
+      _showError('This batch has no id; quantity cannot be corrected here.');
+      return;
+    }
+
+    final receivedCtrl = TextEditingController(
+      text: '${batch.quantityReceived}',
+    );
+    final remainingCtrl = TextEditingController(
+      text: '${batch.quantityRemaining ?? batch.quantityReceived}',
+    );
+
+    var submitting = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            Future<void> submit() async {
+              final received = int.tryParse(receivedCtrl.text.trim());
+              final remaining = int.tryParse(remainingCtrl.text.trim());
+              if (received == null || received < 0) {
+                _showError('Enter a valid quantity received (0 or greater).');
+                return;
+              }
+              if (remaining == null || remaining < 0) {
+                _showError('Enter a valid quantity remaining (0 or greater).');
+                return;
+              }
+              setLocal(() => submitting = true);
+              try {
+                final updated = await _apiService.correctDrugBatchQuantity(
+                  batchId,
+                  CorrectBatchQuantityDto(
+                    quantityReceived: received,
+                    quantityRemaining: remaining,
+                  ),
+                );
+                if (!mounted) return;
+                setState(() {
+                  if (_selectedBatch?.id == updated.id) {
+                    _selectedBatch = updated;
+                  }
+                  final nextLines = _lines.map((l) {
+                    if (l.batch.id != updated.id) return l;
+                    final maxAvail =
+                        updated.quantityRemaining ??
+                        updated.quantityReceived;
+                    final q = l.quantity.clamp(0, maxAvail);
+                    return _TransferLine(
+                      drug: l.drug,
+                      batch: updated,
+                      quantity: q,
+                    );
+                  }).toList();
+                  _lines
+                    ..clear()
+                    ..addAll(nextLines);
+                });
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Batch quantities updated.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  await _loadBatches();
+                }
+              } on AppException catch (e) {
+                if (mounted) _showError(e.message);
+              } catch (e) {
+                if (mounted) _showError(e.toString());
+              } finally {
+                if (ctx.mounted) {
+                  setLocal(() => submitting = false);
+                }
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Correct batch quantities'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Batch ${batch.batchNumber ?? batchId}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'For wrong data entry only. This uses the restricted '
+                      'correction endpoint (pharmacy head; batch must be at '
+                      'least 24 hours old — the server will reject otherwise).',
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: receivedCtrl,
+                      enabled: !submitting,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Quantity received',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: remainingCtrl,
+                      enabled: !submitting,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Quantity remaining',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: submitting
+                      ? null
+                      : () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: submitting ? null : submit,
+                  child: submitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save correction'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    receivedCtrl.dispose();
+    remainingCtrl.dispose();
+  }
+
+  Widget? _buildBatchQuantityCorrectionButton(ThemeData theme, DrugBatch b) {
+    final staff = ref.watch(authProvider).staff;
+    final preview = ref.watch(superAdminPreviewProvider);
+    if (!_viewerIsPharmacyHead(staff, preview)) return null;
+
+    final eligible = _batchEligibleForQuantityCorrection(b);
+    return IconButton(
+      tooltip: eligible
+          ? 'Correct received & remaining (data entry)'
+          : 'Corrections are allowed once the batch is at least 24 hours old',
+      onPressed: eligible ? () => _showQuantityCorrectionDialog(b) : null,
+      icon: Icon(
+        Icons.edit_note_outlined,
+        color: eligible ? theme.colorScheme.primary : Colors.grey.shade400,
+      ),
+    );
   }
 
   @override
@@ -744,6 +939,7 @@ class _StockTransferScreenState extends State<StockTransferScreen> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+          trailing: _buildBatchQuantityCorrectionButton(theme, b),
           onTap: () {
             setState(() {
               _selectedBatch = b;

@@ -2,7 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
@@ -21,9 +21,8 @@ class CMDReportsAnalyticsScreen extends ConsumerWidget {
       subtitle: 'Catalog — export wiring comes with backend jobs',
       asyncValue: async,
       builder: (context, data) {
-        final fmt = DateFormat('MMM d, yyyy HH:mm');
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -52,7 +51,11 @@ class CMDReportsAnalyticsScreen extends ConsumerWidget {
                           cells: [
                             DataCell(Text(r.name)),
                             DataCell(Text(r.cadence)),
-                            DataCell(Text(r.lastGeneratedAt != null ? fmt.format(r.lastGeneratedAt!) : '—')),
+                            DataCell(Text(
+                              r.lastGeneratedAt != null
+                                  ? DateFormatter.dateTime(r.lastGeneratedAt!)
+                                  : '—',
+                            )),
                             DataCell(Text(r.formatsSupported.join(', '))),
                             DataCell(
                               OutlinedButton(
@@ -82,6 +85,7 @@ class CMDReportsAnalyticsScreen extends ConsumerWidget {
                   subtitle: Text('PDF / Excel export will enqueue server-side jobs.'),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         );

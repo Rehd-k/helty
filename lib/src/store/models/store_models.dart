@@ -1,6 +1,67 @@
 // Store module — typed models for /store API.
 // Matches backend DTOs and list response shapes.
 
+double _storeParseDouble(dynamic value, [double fallback = 0]) {
+  if (value == null) return fallback;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString()) ?? fallback;
+}
+
+int _storeParseInt(dynamic value, [int fallback = 0]) {
+  if (value == null) return fallback;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString()) ?? fallback;
+}
+
+int? _storeParseIntNullable(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString());
+}
+
+Map<String, dynamic> _storeMapFrom(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  throw FormatException('Expected JSON object, got ${value.runtimeType}');
+}
+
+String _storeString(dynamic value, [String fallback = '']) {
+  if (value == null) return fallback;
+  return value.toString();
+}
+
+bool _storeBool(dynamic value, [bool fallback = true]) {
+  if (value == null) return fallback;
+  if (value is bool) return value;
+  final s = value.toString().toLowerCase().trim();
+  if (s == 'true' || s == '1' || s == 'yes') return true;
+  if (s == 'false' || s == '0' || s == 'no') return false;
+  return fallback;
+}
+
+DateTime? _storeDate(dynamic value) {
+  if (value == null) return null;
+  return DateTime.tryParse(value.toString());
+}
+
+/// Normalizes `data` / `items` list fields (null, nested map, or non-list → empty list).
+List<Map<String, dynamic>> _storeJsonObjectList(dynamic raw, [int depth = 0]) {
+  if (raw == null || depth > 5) return const [];
+  if (raw is Map) {
+    final inner = raw['data'] ?? raw['items'];
+    if (inner == null) return const [];
+    return _storeJsonObjectList(inner, depth + 1);
+  }
+  if (raw is! List) return const [];
+  final out = <Map<String, dynamic>>[];
+  for (final e in raw) {
+    if (e is Map) out.add(Map<String, dynamic>.from(e));
+  }
+  return out;
+}
+
 /// Store item category (e.g. Consumables, Equipment).
 class StoreCategory {
   const StoreCategory({
@@ -22,17 +83,13 @@ class StoreCategory {
   final DateTime? updatedAt;
 
   factory StoreCategory.fromJson(Map<String, dynamic> json) => StoreCategory(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        code: json['code'] as String,
-        description: json['description'] as String?,
-        isActive: (json['isActive'] as bool?) ?? true,
-        createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'] as String)
-            : null,
-        updatedAt: json['updatedAt'] != null
-            ? DateTime.tryParse(json['updatedAt'] as String)
-            : null,
+        id: _storeString(json['id']),
+        name: _storeString(json['name']),
+        code: _storeString(json['code']),
+        description: json['description']?.toString(),
+        isActive: _storeBool(json['isActive'] ?? json['is_active'], true),
+        createdAt: _storeDate(json['createdAt'] ?? json['created_at']),
+        updatedAt: _storeDate(json['updatedAt'] ?? json['updated_at']),
       );
 
   Map<String, dynamic> toJson() => {
@@ -119,22 +176,23 @@ class StoreItem {
   final DateTime? updatedAt;
 
   factory StoreItem.fromJson(Map<String, dynamic> json) => StoreItem(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        sku: json['sku'] as String?,
-        categoryId: json['categoryId'] as String,
+        id: _storeString(json['id']),
+        name: _storeString(json['name']),
+        sku: json['sku'] != null ? _storeString(json['sku']) : null,
+        categoryId: _storeString(json['categoryId'] ?? json['category_id']),
         category: json['category'] != null
-            ? StoreCategoryRef.fromJson(json['category'] as Map<String, dynamic>)
+            ? StoreCategoryRef.fromJson(_storeMapFrom(json['category']))
             : null,
-        unitOfMeasure: json['unitOfMeasure'] as String? ?? 'unit',
-        reorderLevel: (json['reorderLevel'] as num?)?.toDouble() ?? 0,
-        isActive: (json['isActive'] as bool?) ?? true,
-        createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'] as String)
-            : null,
-        updatedAt: json['updatedAt'] != null
-            ? DateTime.tryParse(json['updatedAt'] as String)
-            : null,
+        unitOfMeasure: _storeString(
+          json['unitOfMeasure'] ?? json['unit_of_measure'],
+          'unit',
+        ),
+        reorderLevel: _storeParseDouble(
+          json['reorderLevel'] ?? json['reorder_level'],
+        ),
+        isActive: _storeBool(json['isActive'] ?? json['is_active'], true),
+        createdAt: _storeDate(json['createdAt'] ?? json['created_at']),
+        updatedAt: _storeDate(json['updatedAt'] ?? json['updated_at']),
       );
 
   Map<String, dynamic> toJson() => {
@@ -157,8 +215,8 @@ class StoreCategoryRef {
 
   factory StoreCategoryRef.fromJson(Map<String, dynamic> json) =>
       StoreCategoryRef(
-        id: json['id'] as String,
-        name: json['name'] as String,
+        id: _storeString(json['id']),
+        name: _storeString(json['name']),
       );
   Map<String, dynamic> toJson() => {'id': id, 'name': name};
 }
@@ -244,18 +302,14 @@ class StoreLocation {
   final DateTime? updatedAt;
 
   factory StoreLocation.fromJson(Map<String, dynamic> json) => StoreLocation(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        code: json['code'] as String,
-        description: json['description'] as String?,
-        isPrimary: (json['isPrimary'] as bool?) ?? false,
-        isActive: (json['isActive'] as bool?) ?? true,
-        createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'] as String)
-            : null,
-        updatedAt: json['updatedAt'] != null
-            ? DateTime.tryParse(json['updatedAt'] as String)
-            : null,
+        id: _storeString(json['id']),
+        name: _storeString(json['name']),
+        code: _storeString(json['code']),
+        description: json['description']?.toString(),
+        isPrimary: _storeBool(json['isPrimary'] ?? json['is_primary'], false),
+        isActive: _storeBool(json['isActive'] ?? json['is_active'], true),
+        createdAt: _storeDate(json['createdAt'] ?? json['created_at']),
+        updatedAt: _storeDate(json['updatedAt'] ?? json['updated_at']),
       );
 
   Map<String, dynamic> toJson() => {
@@ -343,16 +397,18 @@ class StoreStock {
   final StoreItem? item;
 
   factory StoreStock.fromJson(Map<String, dynamic> json) => StoreStock(
-        id: json['id'] as String,
-        locationId: json['locationId'] as String,
-        itemId: json['itemId'] as String,
-        quantity: (json['quantity'] as num).toDouble(),
-        unitCost: (json['unitCost'] as num?)?.toDouble(),
+        id: _storeString(json['id']),
+        locationId: _storeString(json['locationId'] ?? json['location_id']),
+        itemId: _storeString(json['itemId'] ?? json['item_id']),
+        quantity: _storeParseDouble(json['quantity']),
+        unitCost: json['unitCost'] != null || json['unit_cost'] != null
+            ? _storeParseDouble(json['unitCost'] ?? json['unit_cost'])
+            : null,
         location: json['location'] != null
-            ? StoreLocation.fromJson(json['location'] as Map<String, dynamic>)
+            ? StoreLocation.fromJson(_storeMapFrom(json['location']))
             : null,
         item: json['item'] != null
-            ? StoreItem.fromJson(json['item'] as Map<String, dynamic>)
+            ? StoreItem.fromJson(_storeMapFrom(json['item']))
             : null,
       );
 
@@ -512,17 +568,13 @@ class StoreCategoriesResponse {
 
   factory StoreCategoriesResponse.fromJson(Map<String, dynamic> json) =>
       StoreCategoriesResponse(
-        data: (json['data'] as List<dynamic>?)
-                ?.map((e) => StoreCategory.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            (json['data'] == null && json['items'] != null
-                ? (json['items'] as List<dynamic>)
-                    .map((e) => StoreCategory.fromJson(e as Map<String, dynamic>))
-                    .toList()
-                : []),
-        total: (json['total'] as num?)?.toInt() ?? 0,
-        skip: (json['skip'] as num?)?.toInt(),
-        limit: (json['limit'] as num?)?.toInt() ?? (json['take'] as num?)?.toInt(),
+        data: _storeJsonObjectList(json['data'] ?? json['items'])
+            .map(StoreCategory.fromJson)
+            .toList(),
+        total: _storeParseInt(json['total']),
+        skip: _storeParseIntNullable(json['skip']),
+        limit: _storeParseIntNullable(json['limit']) ??
+            _storeParseIntNullable(json['take']),
       );
 }
 
@@ -541,17 +593,13 @@ class StoreItemsResponse {
 
   factory StoreItemsResponse.fromJson(Map<String, dynamic> json) =>
       StoreItemsResponse(
-        data: (json['data'] as List<dynamic>?)
-                ?.map((e) => StoreItem.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            (json['data'] == null && json['items'] != null
-                ? (json['items'] as List<dynamic>)
-                    .map((e) => StoreItem.fromJson(e as Map<String, dynamic>))
-                    .toList()
-                : []),
-        total: (json['total'] as num?)?.toInt() ?? 0,
-        skip: (json['skip'] as num?)?.toInt(),
-        limit: (json['limit'] as num?)?.toInt() ?? (json['take'] as num?)?.toInt(),
+        data: _storeJsonObjectList(json['data'] ?? json['items'])
+            .map(StoreItem.fromJson)
+            .toList(),
+        total: _storeParseInt(json['total']),
+        skip: _storeParseIntNullable(json['skip']),
+        limit: _storeParseIntNullable(json['limit']) ??
+            _storeParseIntNullable(json['take']),
       );
 }
 
@@ -570,17 +618,13 @@ class StoreLocationsResponse {
 
   factory StoreLocationsResponse.fromJson(Map<String, dynamic> json) =>
       StoreLocationsResponse(
-        data: (json['data'] as List<dynamic>?)
-                ?.map((e) => StoreLocation.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            (json['data'] == null && json['items'] != null
-                ? (json['items'] as List<dynamic>)
-                    .map((e) => StoreLocation.fromJson(e as Map<String, dynamic>))
-                    .toList()
-                : []),
-        total: (json['total'] as num?)?.toInt() ?? 0,
-        skip: (json['skip'] as num?)?.toInt(),
-        limit: (json['limit'] as num?)?.toInt() ?? (json['take'] as num?)?.toInt(),
+        data: _storeJsonObjectList(json['data'] ?? json['items'])
+            .map(StoreLocation.fromJson)
+            .toList(),
+        total: _storeParseInt(json['total']),
+        skip: _storeParseIntNullable(json['skip']),
+        limit: _storeParseIntNullable(json['limit']) ??
+            _storeParseIntNullable(json['take']),
       );
 }
 
@@ -599,17 +643,13 @@ class StoreStockResponse {
 
   factory StoreStockResponse.fromJson(Map<String, dynamic> json) =>
       StoreStockResponse(
-        data: (json['data'] as List<dynamic>?)
-                ?.map((e) => StoreStock.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            (json['data'] == null && json['items'] != null
-                ? (json['items'] as List<dynamic>)
-                    .map((e) => StoreStock.fromJson(e as Map<String, dynamic>))
-                    .toList()
-                : []),
-        total: (json['total'] as num?)?.toInt() ?? 0,
-        skip: (json['skip'] as num?)?.toInt(),
-        limit: (json['limit'] as num?)?.toInt() ?? (json['take'] as num?)?.toInt(),
+        data: _storeJsonObjectList(json['data'] ?? json['items'])
+            .map(StoreStock.fromJson)
+            .toList(),
+        total: _storeParseInt(json['total']),
+        skip: _storeParseIntNullable(json['skip']),
+        limit: _storeParseIntNullable(json['limit']) ??
+            _storeParseIntNullable(json['take']),
       );
 }
 
@@ -634,12 +674,18 @@ class LowStockEntry {
   final double reorderLevel;
 
   factory LowStockEntry.fromJson(Map<String, dynamic> json) => LowStockEntry(
-        itemId: json['itemId'] as String? ?? '',
-        itemName: json['itemName'] as String? ?? json['name'] as String? ?? '',
-        locationId: json['locationId'] as String? ?? '',
-        locationName: json['locationName'] as String? ?? json['locationName'] as String? ?? '',
-        quantity: (json['quantity'] as num?)?.toDouble() ?? 0,
-        reorderLevel: (json['reorderLevel'] as num?)?.toDouble() ?? 0,
+        itemId: _storeString(json['itemId'] ?? json['item_id']),
+        itemName: _storeString(
+          json['itemName'] ?? json['item_name'] ?? json['name'],
+        ),
+        locationId: _storeString(json['locationId'] ?? json['location_id']),
+        locationName: _storeString(
+          json['locationName'] ?? json['location_name'],
+        ),
+        quantity: _storeParseDouble(json['quantity']),
+        reorderLevel: _storeParseDouble(
+          json['reorderLevel'] ?? json['reorder_level'],
+        ),
       );
 }
 
@@ -658,10 +704,22 @@ class TopMovingEntry {
   final String? movementType;
 
   factory TopMovingEntry.fromJson(Map<String, dynamic> json) => TopMovingEntry(
-        itemId: json['itemId'] as String? ?? '',
-        itemName: json['itemName'] as String? ?? json['name'] as String? ?? '',
-        quantityMoved: (json['quantityMoved'] as num?)?.toDouble() ?? (json['quantity'] as num?)?.toDouble() ?? 0,
-        movementType: json['movementType'] as String?,
+        itemId: _storeString(json['itemId'] ?? json['item_id']),
+        itemName: _storeString(
+          json['itemName'] ?? json['item_name'] ?? json['name'],
+        ),
+        quantityMoved: json['quantityMoved'] != null ||
+                json['quantity_moved'] != null
+            ? _storeParseDouble(
+                json['quantityMoved'] ?? json['quantity_moved'],
+              )
+            : _storeParseDouble(json['quantity']),
+        movementType: () {
+          final v = json['movementType'] ?? json['movement_type'];
+          if (v == null) return null;
+          final s = _storeString(v);
+          return s.isEmpty ? null : s;
+        }(),
       );
 }
 
@@ -689,37 +747,39 @@ class StoreAnalytics {
     List<LowStockEntry> lowStock = [];
     if (json['lowStockItems'] is List) {
       lowStock = (json['lowStockItems'] as List<dynamic>)
-          .map((e) => LowStockEntry.fromJson(e as Map<String, dynamic>))
+          .map((e) => LowStockEntry.fromJson(_storeMapFrom(e)))
           .toList();
     } else if (json['lowStock'] is List) {
       lowStock = (json['lowStock'] as List<dynamic>)
-          .map((e) => LowStockEntry.fromJson(e as Map<String, dynamic>))
+          .map((e) => LowStockEntry.fromJson(_storeMapFrom(e)))
           .toList();
     }
 
     List<TopMovingEntry> topMoving = [];
     if (json['topMovingItems'] is List) {
       topMoving = (json['topMovingItems'] as List<dynamic>)
-          .map((e) => TopMovingEntry.fromJson(e as Map<String, dynamic>))
+          .map((e) => TopMovingEntry.fromJson(_storeMapFrom(e)))
           .toList();
     } else if (json['topMoving'] is List) {
       topMoving = (json['topMoving'] as List<dynamic>)
-          .map((e) => TopMovingEntry.fromJson(e as Map<String, dynamic>))
+          .map((e) => TopMovingEntry.fromJson(_storeMapFrom(e)))
           .toList();
     }
 
     return StoreAnalytics(
       lowStockItems: lowStock,
       topMovingItems: topMoving,
-      issueCount: (json['issueCount'] as num?)?.toInt() ?? (json['issuesCount'] as num?)?.toInt(),
-      receiveCount: (json['receiveCount'] as num?)?.toInt() ?? (json['receivesCount'] as num?)?.toInt(),
-      transferCount: (json['transferCount'] as num?)?.toInt() ?? (json['transfersCount'] as num?)?.toInt(),
-      fromDate: json['fromDate'] != null
-          ? DateTime.tryParse(json['fromDate'] as String)
-          : null,
-      toDate: json['toDate'] != null
-          ? DateTime.tryParse(json['toDate'] as String)
-          : null,
+      issueCount: json['issueCount'] != null
+          ? _storeParseInt(json['issueCount'])
+          : _storeParseIntNullable(json['issuesCount']),
+      receiveCount: json['receiveCount'] != null
+          ? _storeParseInt(json['receiveCount'])
+          : _storeParseIntNullable(json['receivesCount']),
+      transferCount: json['transferCount'] != null
+          ? _storeParseInt(json['transferCount'])
+          : _storeParseIntNullable(json['transfersCount']),
+      fromDate: _storeDate(json['fromDate'] ?? json['from_date']),
+      toDate: _storeDate(json['toDate'] ?? json['to_date']),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
@@ -32,9 +32,8 @@ class CMDAlertsIncidentsScreen extends ConsumerWidget {
       subtitle: 'Problem radar — clinical, ops, and experience',
       asyncValue: async,
       builder: (context, data) {
-        final fmt = DateFormat('MMM d, HH:mm');
         return ListView.separated(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.only(bottom: 24),
           itemCount: data.length,
           separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (context, i) {
@@ -48,7 +47,7 @@ class CMDAlertsIncidentsScreen extends ConsumerWidget {
               child: ExpansionTile(
                 leading: Icon(Icons.flag, color: _cmdIncidentSeverityColor(e.severity)),
                 title: Text(e.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text('${e.category} · ${fmt.format(e.createdAt)}'),
+                subtitle: Text('${e.category} · ${DateFormatter.dateTime(e.createdAt)}'),
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

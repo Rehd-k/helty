@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../cmd_breakpoints.dart';
+
 class CmdAsyncScaffold<T> extends StatelessWidget {
   const CmdAsyncScaffold({
     super.key,
@@ -40,15 +42,45 @@ class CmdAsyncScaffold<T> extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: asyncValue.when(
-        data: (data) => builder(context, data),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: SelectableText('Error: $e'),
-          ),
-        ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final bp = CmdBreakpoints.fromWidth(constraints.maxWidth);
+          Widget wrapBody(Widget child) {
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: CmdBreakpoints.maxContentWidth,
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    bp.paddingH,
+                    bp.paddingV,
+                    bp.paddingH,
+                    bp.paddingV,
+                  ),
+                  child: child,
+                ),
+              ),
+            );
+          }
+
+          return asyncValue.when(
+            data: (data) => wrapBody(builder(context, data)),
+            loading: () => wrapBody(
+              const Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, st) => wrapBody(
+              Center(
+                child: SelectableText(
+                  'Error: $e',
+                  style: theme.textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

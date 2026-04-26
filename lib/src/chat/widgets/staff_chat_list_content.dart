@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/staff_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/staff_providers.dart';
 import '../../widgets/notifications/app_notification_provider.dart';
 import '../models/chat_models.dart';
 import '../services/chat_api_service.dart';
+import '../services/internal_chat_socket.dart';
 
 /// Conversation list for staff chat (embedded panel or full-screen shell).
 class StaffChatListContent extends ConsumerStatefulWidget {
@@ -13,7 +20,8 @@ class StaffChatListContent extends ConsumerStatefulWidget {
     this.dense = false,
   });
 
-  final void Function(String conversationId) onOpenConversation;
+  /// [title] is the peer / conversation label for the thread screen (when known).
+  final void Function(String conversationId, {String? title}) onOpenConversation;
   final bool dense;
 
   @override
@@ -25,18 +33,58 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
   List<ChatConversationSummary> _conversations = [];
   bool _loading = true;
   String? _error;
+  StreamSubscription<Map<String, dynamic>>? _chatSocketSub;
 
   @override
   void initState() {
     super.initState();
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _chatSocketSub =
+          ref.read(internalChatSocketProvider).receiveMessageStream.listen(
+                _onIncomingChatSocket,
+              );
+    });
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _chatSocketSub?.cancel();
+    super.dispose();
+  }
+
+  void _onIncomingChatSocket(dynamic data) {
+    if (data is Map) {
+      final map = Map<String, dynamic>.from(data);
+      Map<String, dynamic> msgMap;
+      if (map['message'] is Map) {
+        msgMap = Map<String, dynamic>.from(map['message'] as Map);
+      } else {
+        msgMap = map;
+      }
+      final m = ChatMessage.tryParse(msgMap);
+      if (m != null) {
+        final me = ref.read(currentStaffProvider)?.id;
+        final fromOther = me == null ||
+            m.senderStaffId == null ||
+            m.senderStaffId != me;
+        if (fromOther) {
+          unawaited(SystemSound.play(SystemSoundType.alert));
+        }
+      }
+    }
+    if (mounted) unawaited(_load(silent: true));
+  }
+
+  /// [silent]: refresh list without full-screen loading spinner (socket / background).
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final api = ref.read(chatApiServiceProvider);
       final list = await api.listConversations();
@@ -49,57 +97,41 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
       setState(() {
         _conversations = list;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        if (!silent) _error = e.toString();
         _loading = false;
       });
     }
   }
 
   Future<void> _openDirect() async {
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
+    final picked = await showModalBottomSheet<({String id, String displayName})?>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Start direct chat'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            labelText: 'Other staff ID (UUID)',
-            hintText: 'Staff.id from directory',
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Open'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (ctx) => const _StaffDirectPickerSheet(),
     );
-    if (ok != true || !mounted) {
-      ctrl.dispose();
-      return;
-    }
-    final otherId = ctrl.text.trim();
-    ctrl.dispose();
-    if (otherId.isEmpty) return;
+    if (picked == null || picked.id.isEmpty || !mounted) return;
 
     try {
       final conv = await ref
           .read(chatApiServiceProvider)
-          .openDirect(otherStaffId: otherId);
+          .openDirect(otherStaffId: picked.id);
       if (!mounted) return;
       if (conv != null) {
-        widget.onOpenConversation(conv.id);
+        final me = ref.read(currentStaffProvider)?.id;
+        final fromApi = conv.displayTitle(me);
+        final title =
+            fromApi != 'Conversation' && fromApi.isNotEmpty ? fromApi : picked.displayName;
+        widget.onOpenConversation(
+          conv.id,
+          title: title,
+        );
         _load();
       }
     } catch (e) {
@@ -109,10 +141,24 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
     }
   }
 
+  String _initials(String title) {
+    final parts = title.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) {
+      final s = parts.single;
+      return s.isNotEmpty ? s[0].toUpperCase() : '?';
+    }
+    final a = parts.first.isNotEmpty ? parts.first[0] : '';
+    final b = parts.last.isNotEmpty ? parts.last[0] : '';
+    return ('$a$b').toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final pad = widget.dense ? 8.0 : 0.0;
+    final cs = theme.colorScheme;
+    final myStaffId = ref.watch(currentStaffProvider)?.id;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -166,53 +212,353 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Start a direct chat with another staff member.',
+                              'Start a direct chat with a colleague.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.tonalIcon(
+                              onPressed: _openDirect,
+                              icon: const Icon(Icons.forum_outlined),
+                              label: const Text('Message someone'),
                             ),
                           ],
                         )
                       : ListView.separated(
                           padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
                           itemCount: _conversations.length,
-                          separatorBuilder: (_, __) =>
-                              Divider(height: 1, color: theme.dividerColor),
+                          separatorBuilder: (_, __) => const SizedBox(height: 6),
                           itemBuilder: (context, i) {
                             final c = _conversations[i];
-                            final title = c.name?.isNotEmpty == true
-                                ? c.name!
-                                : 'Conversation';
-                            return ListTile(
-                              dense: widget.dense,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 2,
+                            final title = c.displayTitle(myStaffId);
+                            return Material(
+                              color: cs.surfaceContainerHighest.withValues(
+                                  alpha: 0.45),
+                              borderRadius: BorderRadius.circular(12),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () => widget.onOpenConversation(
+                                      c.id,
+                                      title: title,
+                                    ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor:
+                                            cs.primaryContainer,
+                                        foregroundColor:
+                                            cs.onPrimaryContainer,
+                                        child: Text(
+                                          _initials(title),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.textTheme.titleSmall
+                                                  ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            if (c.lastMessagePreview != null)
+                                              Text(
+                                                c.lastMessagePreview!,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: theme
+                                                    .textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  color: cs
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (c.unreadCount > 0)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 8),
+                                          child: Badge(
+                                            label:
+                                                Text('${c.unreadCount}'),
+                                            child: Icon(
+                                              Icons.chat_bubble_rounded,
+                                              size: 22,
+                                              color: cs.primary,
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          color: cs.outline,
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              title: Text(title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              subtitle: c.lastMessagePreview != null
-                                  ? Text(
-                                      c.lastMessagePreview!,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    )
-                                  : null,
-                              trailing: c.unreadCount > 0
-                                  ? Badge(
-                                      label: Text('${c.unreadCount}'),
-                                      child: const Icon(
-                                          Icons.chat_bubble_outline_rounded),
-                                    )
-                                  : const Icon(Icons.chevron_right_rounded),
-                              onTap: () =>
-                                  widget.onOpenConversation(c.id),
                             );
                           },
                         ),
         ),
       ],
+    );
+  }
+}
+
+/// Picks a staff member for a direct chat. Search field and controller live
+/// here so they are disposed after the sheet is fully removed (avoids
+/// "TextEditingController was used after being disposed").
+class _StaffDirectPickerSheet extends ConsumerStatefulWidget {
+  const _StaffDirectPickerSheet();
+
+  @override
+  ConsumerState<_StaffDirectPickerSheet> createState() =>
+      _StaffDirectPickerSheetState();
+}
+
+class _StaffDirectPickerSheetState
+    extends ConsumerState<_StaffDirectPickerSheet> {
+  final TextEditingController _search = TextEditingController();
+  List<Staff> _staff = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(_onSearchChanged);
+    _loadStaff();
+  }
+
+  void _onSearchChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    _search.removeListener(_onSearchChanged);
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadStaff() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await ref.read(staffServiceProvider).fetchStaff(
+            page: 1,
+            limit: 400,
+            isActive: true,
+          );
+      if (!mounted) return;
+      final me = ref.read(currentStaffProvider)?.id;
+      setState(() {
+        _staff = me != null
+            ? list.where((s) => s.id != me).toList()
+            : list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  List<Staff> get _filtered {
+    final q = _search.text.trim().toLowerCase();
+    if (q.isEmpty) return _staff;
+    return _staff.where((s) {
+      return s.fullName.toLowerCase().contains(q) ||
+          s.role.toLowerCase().contains(q) ||
+          s.staffId.toLowerCase().contains(q) ||
+          (s.departmentName?.toLowerCase().contains(q) ?? false) ||
+          (s.email?.toLowerCase().contains(q) ?? false);
+    }).toList();
+  }
+
+  String _initials(Staff s) {
+    final a = s.firstName.trim().isNotEmpty ? s.firstName[0] : '';
+    final b = s.lastName.trim().isNotEmpty ? s.lastName[0] : '';
+    final t = ('$a$b').trim();
+    if (t.isEmpty) return '?';
+    return t.toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final h = MediaQuery.sizeOf(context).height * 0.88;
+    return SizedBox(
+      height: h,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            child: Text(
+              'Message a colleague',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+            child: SearchBar(
+              controller: _search,
+              hintText: 'Search by name, role, or department',
+              leading: const Icon(Icons.search_rounded),
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.symmetric(horizontal: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Text(
+                _error!,
+                style: TextStyle(color: cs.error),
+              ),
+            ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _filtered.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            _staff.isEmpty
+                                ? 'No staff found.'
+                                : 'No matches for your search.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                        itemCount: _filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 6),
+                        itemBuilder: (context, i) {
+                          final s = _filtered[i];
+                          final sub = [
+                            if (s.role.isNotEmpty) s.role,
+                            if (s.departmentName != null &&
+                                s.departmentName!.isNotEmpty)
+                              s.departmentName!,
+                          ].join(' · ');
+                          return Material(
+                            color: cs.surfaceContainerHighest
+                                .withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(12),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () => Navigator.of(context)
+                                  .pop((id: s.id, displayName: s.fullName)),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor: cs.tertiaryContainer,
+                                      foregroundColor: cs.onTertiaryContainer,
+                                      child: Text(
+                                        _initials(s),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            s.fullName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.textTheme.titleSmall
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          if (sub.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              sub,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                color: cs.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                          if (s.staffId.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              s.staffId,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.textTheme.labelSmall
+                                                  ?.copyWith(
+                                                color: cs.outline,
+                                                letterSpacing: 0.2,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.chat_bubble_outline_rounded,
+                                      color: cs.primary,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }

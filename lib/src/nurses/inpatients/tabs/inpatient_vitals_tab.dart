@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
 
@@ -94,21 +95,38 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
+          LayoutBuilder(
+            builder: (context, c) {
+              final narrowHeader = c.maxWidth < 560;
+              final title = Text(
                 'Vitals',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              FilledButton.icon(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              );
+              final button = FilledButton.icon(
                 onPressed: _openRecordVitalsDialog,
                 icon: const Icon(Icons.add_chart, size: 18),
                 label: const Text('Record Vitals'),
-              ),
-            ],
+              );
+              if (narrowHeader) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    title,
+                    const SizedBox(height: 12),
+                    button,
+                  ],
+                );
+              }
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  title,
+                  button,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           SectionCard(
@@ -121,8 +139,8 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
                 label: const Text('Trend graph'),
               ),
             ],
-            child: SizedBox(
-              width: double.infinity,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               child: DataTable(
                 headingTextStyle: Theme.of(
                   context,
@@ -189,14 +207,16 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
+        final bodyW = inpatientDialogBodyWidth(dialogContext);
+        final narrowForm = bodyW < 520;
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           title: const Text('Record Vitals'),
           content: SizedBox(
-            width: 520,
+            width: bodyW,
             child: Form(
               key: _formKey,
               child: SingleChildScrollView(
@@ -204,79 +224,135 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _numberField(
-                            label: 'Temperature (°C)',
-                            controller: _tempCtrl,
-                            required: true,
+                    if (!narrowForm)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _numberField(
+                              label: 'Temperature (°C)',
+                              controller: _tempCtrl,
+                              required: true,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _numberField(
-                                  label: 'Systolic',
-                                  controller: _sysCtrl,
-                                  required: true,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _numberField(
+                                    label: 'Systolic',
+                                    controller: _sysCtrl,
+                                    required: true,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _numberField(
-                                  label: 'Diastolic',
-                                  controller: _diaCtrl,
-                                  required: true,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _numberField(
+                                    label: 'Diastolic',
+                                    controller: _diaCtrl,
+                                    required: true,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      )
+                    else ...[
+                      _numberField(
+                        label: 'Temperature (°C)',
+                        controller: _tempCtrl,
+                        required: true,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _numberField(
+                              label: 'Systolic',
+                              controller: _sysCtrl,
+                              required: true,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _numberField(
+                              label: 'Diastolic',
+                              controller: _diaCtrl,
+                              required: true,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _numberField(
-                            label: 'Pulse (bpm)',
-                            controller: _pulseCtrl,
-                            required: true,
+                    if (!narrowForm)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _numberField(
+                              label: 'Pulse (bpm)',
+                              controller: _pulseCtrl,
+                              required: true,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _numberField(
-                            label: 'Resp Rate',
-                            controller: _respCtrl,
-                            required: true,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _numberField(
+                              label: 'Resp Rate',
+                              controller: _respCtrl,
+                              required: true,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      )
+                    else ...[
+                      _numberField(
+                        label: 'Pulse (bpm)',
+                        controller: _pulseCtrl,
+                        required: true,
+                      ),
+                      const SizedBox(height: 12),
+                      _numberField(
+                        label: 'Resp Rate',
+                        controller: _respCtrl,
+                        required: true,
+                      ),
+                    ],
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _numberField(
-                            label: 'SpO₂ (%)',
-                            controller: _spo2Ctrl,
-                            required: true,
+                    if (!narrowForm)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _numberField(
+                              label: 'SpO₂ (%)',
+                              controller: _spo2Ctrl,
+                              required: true,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _numberField(
-                            label: 'Glucose',
-                            controller: _glucoseCtrl,
-                            required: false,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _numberField(
+                              label: 'Glucose',
+                              controller: _glucoseCtrl,
+                              required: false,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      )
+                    else ...[
+                      _numberField(
+                        label: 'SpO₂ (%)',
+                        controller: _spo2Ctrl,
+                        required: true,
+                      ),
+                      const SizedBox(height: 12),
+                      _numberField(
+                        label: 'Glucose',
+                        controller: _glucoseCtrl,
+                        required: false,
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     ValueListenableBuilder<double>(
                       valueListenable: _painCtrl,
@@ -322,7 +398,7 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
               onPressed: _submitting
                   ? null
                   : () {
-                      Navigator.of(context).pop();
+                      Navigator.of(dialogContext).pop();
                     },
               child: const Text('Cancel'),
             ),
@@ -486,11 +562,12 @@ class _VitalsTrendDialogState extends State<_VitalsTrendDialog> {
       series.add((t: v.createdAt, y: y));
     }
 
+    final dialogW = inpatientDialogBodyWidth(context);
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text('Vitals Trend'),
       content: SizedBox(
-        width: 520,
+        width: dialogW,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/models/ward_round_note_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -148,24 +149,53 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
     if (_error != null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: colorScheme.error, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                _error!,
-                style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.error),
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final narrow = c.maxWidth < 420;
+            final message = Text(
+              _error!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.error,
               ),
-            ),
-            TextButton(
+            );
+            final retry = TextButton(
               onPressed: () {
                 final id = InpatientViewScope.of(context)?.admissionId;
                 if (id != null) _loadNotes(id);
               },
               child: const Text('Retry'),
-            ),
-          ],
+            );
+            if (narrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: colorScheme.error,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: message),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerLeft, child: retry),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.error_outline, color: colorScheme.error, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: message),
+                retry,
+              ],
+            );
+          },
         ),
       );
     }
@@ -313,7 +343,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
       title: const Text('Add ward round note'),
       content: SingleChildScrollView(
         child: SizedBox(
-          width: 400,
+          width: inpatientDialogBodyWidth(context, preferred: 400),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -3,6 +3,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/models/medication_administration_model.dart';
 import 'package:helty/src/models/medication_order_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_responsive_row_or_column.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/medication_administration_service.dart';
@@ -177,41 +179,33 @@ class _InpatientMedicationsScreenState
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: SectionCard(
-              title: 'Active Medication Orders',
-              subtitle: 'Standing and PRN orders for this inpatient stay',
-              actions: [
-                if (isDoctor)
-                  FilledButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'To add prescriptions, open the doctor encounter view for this patient.',
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add medication'),
-                  ),
-              ],
-              child: _buildActiveOrdersTable(context, scope),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: SectionCard(
-              title: 'Medication Administration History',
-              subtitle: 'Chronological record of administered doses',
-              child: _buildHistoryTable(context),
-            ),
-          ),
-        ],
+      child: InpatientResponsiveRowOrColumn(
+        first: SectionCard(
+          title: 'Active Medication Orders',
+          subtitle: 'Standing and PRN orders for this inpatient stay',
+          actions: [
+            if (isDoctor)
+              FilledButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'To add prescriptions, open the doctor encounter view for this patient.',
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add medication'),
+              ),
+          ],
+          child: _buildActiveOrdersTable(context, scope),
+        ),
+        second: SectionCard(
+          title: 'Medication Administration History',
+          subtitle: 'Chronological record of administered doses',
+          child: _buildHistoryTable(context),
+        ),
       ),
     );
   }
@@ -373,7 +367,7 @@ class _InpatientMedicationsScreenState
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Administer Medication'),
           content: SizedBox(
-            width: 520,
+            width: inpatientDialogBodyWidth(dialogContext),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

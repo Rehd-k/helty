@@ -75,6 +75,7 @@ class WindowButtons extends ConsumerWidget {
             ),
           ],
         ),
+
         MinimizeWindowButton(colors: buttonColors),
         MaximizeWindowButton(colors: buttonColors),
         CloseWindowButton(colors: closeButtonColors),
@@ -101,7 +102,12 @@ class _ThemeMenuRow extends StatelessWidget {
         Icon(icon, size: 18),
         const SizedBox(width: 10),
         Expanded(child: Text(label)),
-        if (selected) Icon(Icons.check, size: 18, color: Theme.of(context).colorScheme.primary),
+        if (selected)
+          Icon(
+            Icons.check,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
       ],
     );
   }

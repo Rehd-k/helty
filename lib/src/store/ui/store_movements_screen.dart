@@ -107,7 +107,7 @@ class _IssueTabState extends ConsumerState<_IssueTab> {
       final deptService = DepartmentService();
       final departments = await deptService.fetchDepartments();
       final locationsRes = await api.getLocations();
-      final itemsRes = await api.getItems(limit: 500, skip: 0);
+      final itemsRes = await api.getItems(limit: 100, skip: 0);
       if (!mounted) return;
       setState(() {
         _departments = departments;
@@ -423,7 +423,7 @@ class _ReceiveTabState extends ConsumerState<_ReceiveTab> {
       final deptService = DepartmentService();
       final locationsRes = await api.getLocations();
       final departments = await deptService.fetchDepartments();
-      final itemsRes = await api.getItems(limit: 500, skip: 0);
+      final itemsRes = await api.getItems(limit: 100, skip: 0);
       if (!mounted) return;
       setState(() {
         _locations = locationsRes.data;
@@ -760,7 +760,7 @@ class _TransferTabState extends ConsumerState<_TransferTab> {
     try {
       final api = ref.read(storeApiServiceProvider);
       final locationsRes = await api.getLocations();
-      final itemsRes = await api.getItems(limit: 500, skip: 0);
+      final itemsRes = await api.getItems(limit: 100, skip: 0);
       if (!mounted) return;
       setState(() {
         _locations = locationsRes.data;

@@ -20,6 +20,7 @@ class AppRouter extends RootStackRouter {
       page: HomeRoute.page,
       guards: [const AuthGuard()],
       children: [
+        AutoRoute(page: SuperAdminHubRoute.page),
         AutoRoute(page: CMDDashboardRoute.page, initial: true),
         AutoRoute(page: CMDHospitalOverviewRoute.page),
         AutoRoute(page: CMDFinancialCommandRoute.page),

@@ -3,6 +3,7 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'cmd_breakpoints.dart';
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
 import 'widgets/cmd_async_scaffold.dart';
@@ -21,48 +22,60 @@ class CMDLabMonitoringScreen extends ConsumerWidget {
       asyncValue: async,
       builder: (context, data) {
         final theme = Theme.of(context);
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
+        return LayoutBuilder(
+          builder: (context, c) {
+            final bp = CmdBreakpoints.fromWidth(c.maxWidth);
+            final tileW = bp.isMobile
+                ? ((c.maxWidth - 16) / 2).clamp(140.0, 220.0)
+                : 200.0;
+            return SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _MiniTile(
-                    label: 'Delayed samples',
-                    value: '${data.delayedCount}',
-                    color: theme.colorScheme.error,
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      _MiniTile(
+                        label: 'Delayed samples',
+                        value: '${data.delayedCount}',
+                        color: theme.colorScheme.error,
+                        width: tileW,
+                      ),
+                      _MiniTile(
+                        label: 'Avg TAT',
+                        value: '${data.avgTatHours.toStringAsFixed(1)} h',
+                        color: theme.colorScheme.primary,
+                        width: tileW,
+                      ),
+                      _MiniTile(
+                        label: 'Redo / repeat rate',
+                        value: '${data.redoPercent.toStringAsFixed(1)}%',
+                        color: theme.colorScheme.tertiary,
+                        width: tileW,
+                      ),
+                    ],
                   ),
-                  _MiniTile(
-                    label: 'Avg TAT',
-                    value: '${data.avgTatHours.toStringAsFixed(1)} h',
-                    color: theme.colorScheme.primary,
+                  const SizedBox(height: 24),
+                  Text(
+                    'Pending by test type',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  _MiniTile(
-                    label: 'Redo / repeat rate',
-                    value: '${data.redoPercent.toStringAsFixed(1)}%',
-                    color: theme.colorScheme.tertiary,
+                  const SizedBox(height: 12),
+                  _PendingTable(rows: data.pendingRows),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Analyser / instrument stats',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 12),
+                  _MachineTable(rows: data.machines),
+                  const SizedBox(height: 24),
                 ],
               ),
-              const SizedBox(height: 24),
-              Text(
-                'Pending by test type',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              _PendingTable(rows: data.pendingRows),
-              const SizedBox(height: 28),
-              Text(
-                'Analyser / instrument stats',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              _MachineTable(rows: data.machines),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -70,17 +83,23 @@ class CMDLabMonitoringScreen extends ConsumerWidget {
 }
 
 class _MiniTile extends StatelessWidget {
-  const _MiniTile({required this.label, required this.value, required this.color});
+  const _MiniTile({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.width,
+  });
 
   final String label;
   final String value;
   final Color color;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SizedBox(
-      width: 200,
+      width: width,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(16),

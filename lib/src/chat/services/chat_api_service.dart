@@ -15,8 +15,8 @@ class ChatApiService {
     if (data == null) return [];
     final out = <ChatConversationSummary>[];
     for (final e in data) {
-      if (e is Map<String, dynamic>) {
-        final c = ChatConversationSummary.tryParse(e);
+      if (e is Map) {
+        final c = ChatConversationSummary.tryParse(Map<String, dynamic>.from(e));
         if (c != null) out.add(c);
       }
     }
@@ -26,10 +26,15 @@ class ChatApiService {
   static List<dynamic>? _unwrapList(dynamic raw) {
     if (raw is List) return raw;
     if (raw is Map) {
-      final d = raw['data'];
-      if (d is List) return d;
-      final c = raw['conversations'];
-      if (c is List) return c;
+      final map = Map<String, dynamic>.from(raw);
+      for (final k in ['data', 'conversations', 'items', 'rows']) {
+        final v = map[k];
+        if (v is List) return v;
+        if (v is Map) {
+          final inner = v['conversations'] ?? v['data'] ?? v['items'];
+          if (inner is List) return inner;
+        }
+      }
     }
     return null;
   }
@@ -46,16 +51,33 @@ class ChatApiService {
         'limit': limit,
       },
     );
-    final data = _unwrapList(res.data);
+    final data = _unwrapMessageListResponse(res.data);
     if (data == null) return [];
     final out = <ChatMessage>[];
     for (final e in data) {
-      if (e is Map<String, dynamic>) {
-        final m = ChatMessage.tryParse(e);
+      if (e is Map) {
+        final m = ChatMessage.tryParse(Map<String, dynamic>.from(e));
         if (m != null) out.add(m);
       }
     }
     return out;
+  }
+
+  /// Some APIs wrap rows as `data`, `data.messages`, or `messages` only.
+  static List<dynamic>? _unwrapMessageListResponse(dynamic raw) {
+    if (raw is List) return raw;
+    if (raw is Map) {
+      final map = Map<String, dynamic>.from(raw);
+      for (final k in ['messages', 'data', 'items', 'rows']) {
+        final v = map[k];
+        if (v is List) return v;
+        if (v is Map) {
+          final inner = v['messages'] ?? v['data'] ?? v['items'];
+          if (inner is List) return inner;
+        }
+      }
+    }
+    return null;
   }
 
   Future<void> markRead({
@@ -89,13 +111,14 @@ class ChatApiService {
       '/chat/conversations/direct',
       data: {'otherStaffId': otherStaffId},
     );
-    var data = res.data;
+    final data = res.data;
     if (data == null) return null;
-    final inner = data['data'];
+    var map = Map<String, dynamic>.from(data);
+    final inner = map['data'];
     if (inner is Map) {
-      data = Map<String, dynamic>.from(inner);
+      map = Map<String, dynamic>.from(inner);
     }
-    return ChatConversationSummary.tryParse(data);
+    return ChatConversationSummary.tryParse(map);
   }
 }
 

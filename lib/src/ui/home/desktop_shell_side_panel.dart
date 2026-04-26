@@ -20,6 +20,7 @@ class DesktopShellSidePanel extends ConsumerStatefulWidget {
 
 class _DesktopShellSidePanelState extends ConsumerState<DesktopShellSidePanel> {
   String? _chatConversationId;
+  String? _chatPeerTitle;
   String? _ticketId;
 
   static const _panelWidth = 400.0;
@@ -34,6 +35,7 @@ class _DesktopShellSidePanelState extends ConsumerState<DesktopShellSidePanel> {
       if (!next.isOpen) {
         setState(() {
           _chatConversationId = null;
+          _chatPeerTitle = null;
           _ticketId = null;
         });
         return;
@@ -42,6 +44,7 @@ class _DesktopShellSidePanelState extends ConsumerState<DesktopShellSidePanel> {
         setState(() {
           if (next.activeTab != ShellSidePanelTab.chat) {
             _chatConversationId = null;
+            _chatPeerTitle = null;
           }
           if (next.activeTab != ShellSidePanelTab.help) {
             _ticketId = null;
@@ -158,6 +161,7 @@ class _DesktopShellSidePanelState extends ConsumerState<DesktopShellSidePanel> {
     setState(() {
       if (_chatConversationId != null) {
         _chatConversationId = null;
+        _chatPeerTitle = null;
       } else if (_ticketId != null) {
         _ticketId = null;
       }
@@ -173,13 +177,17 @@ class _DesktopShellSidePanelState extends ConsumerState<DesktopShellSidePanel> {
             conversationId: _chatConversationId!,
             embedded: true,
             compactChrome: true,
+            conversationTitle: _chatPeerTitle,
             maxBubbleWidthFraction: 0.92,
           );
         }
         return StaffChatListContent(
           dense: true,
-          onOpenConversation: (id) {
-            setState(() => _chatConversationId = id);
+          onOpenConversation: (id, {String? title}) {
+            setState(() {
+              _chatConversationId = id;
+              _chatPeerTitle = title;
+            });
           },
         );
       case ShellSidePanelTab.help:

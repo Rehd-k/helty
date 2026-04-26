@@ -7,6 +7,7 @@ import 'package:helty/src/models/care_plan_model.dart';
 import 'package:helty/src/models/intake_output_record_model.dart';
 import 'package:helty/src/models/iv_fluid_order_model.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_responsive_row_or_column.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/admission_alert_service.dart';
@@ -192,85 +193,79 @@ class _InpatientOverviewScreenState extends State<InpatientOverviewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  children: [
-                    SectionCard(
-                      title: 'Latest Vitals',
-                      subtitle: 'Most recent bedside observations',
-                      child: _bodyText(
-                        context,
-                        _vitalsSummary(latest),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      title: 'Active Medications',
-                      subtitle: 'Orders on this encounter',
-                      child: _bodyText(
-                        context,
-                        orders.isEmpty
-                            ? 'No medication orders loaded for this admission.'
-                            : '${orders.length} active order(s). Open the Medications tab for MAR.',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      title: 'IV Running Status',
-                      subtitle: 'Active IV fluid orders',
-                      child: _bodyText(
-                        context,
-                        _ivOrders.isEmpty
-                            ? 'No IV orders. Use the IV tab when fluids are prescribed.'
-                            : '${_activeIvCount()} active line(s) · ${_ivOrders.length} total order(s).',
-                      ),
-                    ),
-                  ],
+          InpatientResponsiveRowOrColumn(
+            first: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionCard(
+                  title: 'Latest Vitals',
+                  subtitle: 'Most recent bedside observations',
+                  child: _bodyText(
+                    context,
+                    _vitalsSummary(latest),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  children: [
-                    SectionCard(
-                      title: "Today's Intake / Output",
-                      subtitle: 'Fluid balance (local date)',
-                      child: _bodyText(
-                        context,
-                        'Intake: ${intakeToday.toStringAsFixed(0)} ml · '
-                        'Output: ${outputToday.toStringAsFixed(0)} ml · '
-                        'Net: ${(intakeToday - outputToday).toStringAsFixed(0)} ml',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      title: 'Care Plan Summary',
-                      subtitle: 'Plans documented for this admission',
-                      child: _bodyText(
-                        context,
-                        _carePlanCount == 0
-                            ? 'No care plans yet. Use the Care Plan tab.'
-                            : '$_carePlanCount care plan(s). Open the Care Plan tab for details.',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      title: 'Alerts',
-                      subtitle: 'Unresolved admission alerts',
-                      child: _bodyText(
-                        context,
-                        _unresolvedAlerts == 0
-                            ? 'No unresolved alerts.'
-                            : '$_unresolvedAlerts unresolved alert(s). Open the Alerts tab.',
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                SectionCard(
+                  title: 'Active Medications',
+                  subtitle: 'Orders on this encounter',
+                  child: _bodyText(
+                    context,
+                    orders.isEmpty
+                        ? 'No medication orders loaded for this admission.'
+                        : '${orders.length} active order(s). Open the Medications tab for MAR.',
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                SectionCard(
+                  title: 'IV Running Status',
+                  subtitle: 'Active IV fluid orders',
+                  child: _bodyText(
+                    context,
+                    _ivOrders.isEmpty
+                        ? 'No IV orders. Use the IV tab when fluids are prescribed.'
+                        : '${_activeIvCount()} active line(s) · ${_ivOrders.length} total order(s).',
+                  ),
+                ),
+              ],
+            ),
+            second: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionCard(
+                  title: "Today's Intake / Output",
+                  subtitle: 'Fluid balance (local date)',
+                  child: _bodyText(
+                    context,
+                    'Intake: ${intakeToday.toStringAsFixed(0)} ml · '
+                    'Output: ${outputToday.toStringAsFixed(0)} ml · '
+                    'Net: ${(intakeToday - outputToday).toStringAsFixed(0)} ml',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SectionCard(
+                  title: 'Care Plan Summary',
+                  subtitle: 'Plans documented for this admission',
+                  child: _bodyText(
+                    context,
+                    _carePlanCount == 0
+                        ? 'No care plans yet. Use the Care Plan tab.'
+                        : '$_carePlanCount care plan(s). Open the Care Plan tab for details.',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SectionCard(
+                  title: 'Alerts',
+                  subtitle: 'Unresolved admission alerts',
+                  child: _bodyText(
+                    context,
+                    _unresolvedAlerts == 0
+                        ? 'No unresolved alerts.'
+                        : '$_unresolvedAlerts unresolved alert(s). Open the Alerts tab.',
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Text(

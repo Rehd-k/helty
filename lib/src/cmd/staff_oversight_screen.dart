@@ -3,6 +3,7 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'cmd_breakpoints.dart';
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
 import 'widgets/cmd_async_scaffold.dart';
@@ -21,55 +22,84 @@ class CMDStaffOversightScreen extends ConsumerWidget {
       asyncValue: async,
       builder: (context, data) {
         final a = data.attendance;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
+        return LayoutBuilder(
+          builder: (context, c) {
+            final bp = CmdBreakpoints.fromWidth(c.maxWidth);
+            final chipW = bp.isMobile
+                ? ((c.maxWidth - 16) / 2).clamp(120.0, 200.0)
+                : 160.0;
+            return SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _StatChip(label: 'On duty', value: '${a.onDuty}', icon: Icons.badge_outlined),
-                  _StatChip(label: 'Scheduled', value: '${a.scheduled}', icon: Icons.calendar_today_outlined),
-                  _StatChip(label: 'Late', value: '${a.late}', icon: Icons.schedule_outlined),
-                  _StatChip(label: 'Absent', value: '${a.absent}', icon: Icons.person_off_outlined),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      _StatChip(
+                        label: 'On duty',
+                        value: '${a.onDuty}',
+                        icon: Icons.badge_outlined,
+                        width: chipW,
+                      ),
+                      _StatChip(
+                        label: 'Scheduled',
+                        value: '${a.scheduled}',
+                        icon: Icons.calendar_today_outlined,
+                        width: chipW,
+                      ),
+                      _StatChip(
+                        label: 'Late',
+                        value: '${a.late}',
+                        icon: Icons.schedule_outlined,
+                        width: chipW,
+                      ),
+                      _StatChip(
+                        label: 'Absent',
+                        value: '${a.absent}',
+                        icon: Icons.person_off_outlined,
+                        width: chipW,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  if (data.alerts.isNotEmpty) ...[
+                    Text(
+                      'Staffing alerts',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    ...data.alerts.map(
+                      (e) => Card(
+                        color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: const Icon(Icons.warning_amber_rounded),
+                          title: Text(e.message),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Text(
+                    'Department staffing',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  _StaffingTable(rows: data.byDepartment),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Performance (sample teams)',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  _PerfTable(rows: data.performance),
+                  const SizedBox(height: 24),
                 ],
               ),
-              const SizedBox(height: 20),
-              if (data.alerts.isNotEmpty) ...[
-                Text(
-                  'Staffing alerts',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ...data.alerts.map(
-                  (e) => Card(
-                    color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: const Icon(Icons.warning_amber_rounded),
-                      title: Text(e.message),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              Text(
-                'Department staffing',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              _StaffingTable(rows: data.byDepartment),
-              const SizedBox(height: 28),
-              Text(
-                'Performance (sample teams)',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              _PerfTable(rows: data.performance),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -77,17 +107,23 @@ class CMDStaffOversightScreen extends ConsumerWidget {
 }
 
 class _StatChip extends StatelessWidget {
-  const _StatChip({required this.label, required this.value, required this.icon});
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.width,
+  });
 
   final String label;
   final String value;
   final IconData icon;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SizedBox(
-      width: 160,
+      width: width,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(14),
