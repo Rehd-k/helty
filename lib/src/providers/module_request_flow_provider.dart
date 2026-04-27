@@ -47,6 +47,8 @@ class PaidModuleRequestContext {
     required this.invoiceDisplayId,
     required this.serviceLines,
     this.invoiceStaffId,
+    this.patientFirstName,
+    this.patientSurname,
   });
 
   final ModuleRequestFlowType moduleType;
@@ -56,6 +58,9 @@ class PaidModuleRequestContext {
   final List<PaidInvoiceServiceLine> serviceLines;
   /// Staff on the invoice (requesting doctor); optional for external patients.
   final String? invoiceStaffId;
+  /// From the waiting-list / invoice row when opening lab; improves display before full fetch.
+  final String? patientFirstName;
+  final String? patientSurname;
 }
 
 final moduleRequestFlowProvider = StateProvider<ModuleRequestFlowConfig>(

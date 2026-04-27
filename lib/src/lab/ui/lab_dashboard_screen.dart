@@ -6,6 +6,7 @@ import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/lab/services/lab_api_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 @RoutePage()
 class LabDashboardScreen extends ConsumerStatefulWidget {
@@ -22,12 +23,65 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
   bool _loadingSummary = true;
   String? _summaryError;
   Map<LabOrderStatus, int> _statusCounts = {};
-  int _todayCount = 0;
+  int _totalOrdersInRange = 0;
+
+  /// Summary + order list (aligned with [view_waiting_patient] defaults).
+  late DateTimeRange _ordersDateRange;
 
   @override
   void initState() {
     super.initState();
+    final n = DateTime.now();
+    _ordersDateRange = DateTimeRange(
+      start: DateTime(n.year, n.month, n.day),
+      end: DateTime(n.year, n.month, n.day, 23, 59, 59, 999),
+    );
     _loadSummary();
+  }
+
+  (DateTime, DateTime) _ordersQueryBounds() {
+    final r = _ordersDateRange;
+    return (
+      DateTime(r.start.year, r.start.month, r.start.day),
+      DateTime(r.end.year, r.end.month, r.end.day, 23, 59, 59, 999),
+    );
+  }
+
+  Future<void> _pickOrdersDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialDateRange: _ordersDateRange,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(
+            context,
+          ).copyWith(colorScheme: Theme.of(context).colorScheme),
+          child: child!,
+        );
+      },
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _ordersDateRange = DateTimeRange(
+        start: DateTime(
+          picked.start.year,
+          picked.start.month,
+          picked.start.day,
+        ),
+        end: DateTime(
+          picked.end.year,
+          picked.end.month,
+          picked.end.day,
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+    });
+    await _loadSummary();
   }
 
   Future<void> _loadSummary() async {
@@ -37,33 +91,23 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     });
     try {
       final api = ref.read(labApiServiceProvider);
-      final now = DateTime.now();
-      final todayFrom = DateTime(now.year, now.month, now.day, 0, 0, 0);
-      final todayTo = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+      final (from, to) = _ordersQueryBounds();
       final response = await api.getOrders(
-        fromDate: todayFrom,
-        toDate: todayTo,
+        fromDate: from,
+        toDate: to,
         skip: 0,
         take: 100,
       );
       final Map<LabOrderStatus, int> counts = {
         for (final s in LabOrderStatus.values) s: 0,
       };
-      int today = 0;
       for (final o in response.data) {
         counts[o.status] = (counts[o.status] ?? 0) + 1;
-        final created = o.createdAt;
-        if (created != null &&
-            created.year == now.year &&
-            created.month == now.month &&
-            created.day == now.day) {
-          today++;
-        }
       }
       if (!mounted) return;
       setState(() {
         _statusCounts = counts;
-        _todayCount = today;
+        _totalOrdersInRange = response.data.length;
         _loadingSummary = false;
       });
     } catch (e) {
@@ -147,10 +191,10 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
 
     final cards = <Widget>[
       _SummaryCard(
-        label: 'Today\'s orders',
-        value: _todayCount.toString(),
+        label: 'Orders in range',
+        value: _totalOrdersInRange.toString(),
         accent: theme.colorScheme.primary,
-        icon: Icons.today_rounded,
+        icon: Icons.receipt_long_rounded,
       ),
       _SummaryCard(
         label: 'Pending',
@@ -301,6 +345,17 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _loadingSummary ? null : _pickOrdersDateRange,
+            icon: const Icon(Icons.date_range_outlined, size: 20),
+            label: Text(
+              'Date range: ${DateFormatter.shortDate(_ordersDateRange.start)} – ${DateFormatter.shortDate(_ordersDateRange.end)}',
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -331,6 +386,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
         ),
         const SizedBox(height: 16),
         _OrdersList(
+          dateRange: _ordersDateRange,
           status: _filterStatus,
           skip: _skip,
           take: _take,
@@ -500,12 +556,14 @@ class _StatusChip extends StatelessWidget {
 
 class _OrdersList extends ConsumerWidget {
   const _OrdersList({
+    required this.dateRange,
     required this.status,
     required this.skip,
     required this.take,
     required this.onOrderTap,
   });
 
+  final DateTimeRange dateRange;
   final LabOrderStatus? status;
   final int skip;
   final int take;
@@ -514,26 +572,15 @@ class _OrdersList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final api = ref.watch(labApiServiceProvider);
+    final r = dateRange;
+    final from = DateTime(r.start.year, r.start.month, r.start.day);
+    final to = DateTime(r.end.year, r.end.month, r.end.day, 23, 59, 59, 999);
     return FutureBuilder<LabOrdersResponse>(
+      key: ObjectKey(dateRange),
       future: api.getOrders(
         status: status,
-        fromDate: DateTime(
-          DateTime.now().year,
-          DateTime.now().month,
-          DateTime.now().day,
-          0,
-          0,
-          0,
-        ),
-        toDate: DateTime(
-          DateTime.now().year,
-          DateTime.now().month,
-          DateTime.now().day,
-          23,
-          59,
-          59,
-          999,
-        ),
+        fromDate: from,
+        toDate: to,
         skip: skip,
         take: take,
       ),

@@ -895,6 +895,15 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
       final moduleType = use == 'radiology'
           ? ModuleRequestFlowType.radiology
           : ModuleRequestFlowType.laboratory;
+      var patientFirst = patient.firstName.trim();
+      var patientLast = patient.surname.trim();
+      if (patientFirst.isEmpty && patientLast.isEmpty) {
+        final parts = _UnregisteredPatientTxn._namesFromPatientName(
+          patient.patientNameAsPrinted,
+        );
+        patientFirst = parts.$1;
+        patientLast = parts.$2;
+      }
       final paidContext = PaidModuleRequestContext(
         moduleType: moduleType,
         patientId: resolvedPatientId,
@@ -902,6 +911,8 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
         invoiceDisplayId: patient.billLabel,
         serviceLines: patient.serviceLines,
         invoiceStaffId: patient.invoiceStaffId,
+        patientFirstName: patientFirst.isNotEmpty ? patientFirst : null,
+        patientSurname: patientLast.isNotEmpty ? patientLast : null,
       );
       ref.read(paidModuleRequestContextProvider.notifier).state = paidContext;
 
@@ -1305,6 +1316,18 @@ class _UnregisteredPatientTxn {
       final v = root[key] ?? json[key];
       final s = v?.toString().trim();
       if (s != null && s.isNotEmpty) return s;
+    }
+    // e.g. invoice line `createdBy` (requesting / billing user on that item).
+    for (final source in [root, json]) {
+      final items = source['invoiceItems'] as List?;
+      if (items == null) continue;
+      for (final e in items) {
+        if (e is! Map) continue;
+        final m = Map<String, dynamic>.from(e);
+        final cb = _asMap(m['createdBy']);
+        final id = cb?['id']?.toString().trim();
+        if (id != null && id.isNotEmpty) return id;
+      }
     }
     return null;
   }

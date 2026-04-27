@@ -96,6 +96,8 @@ class LabApiService {
     bool? isActive,
     int? skip,
     int? take,
+    DateTime? fromDate,
+    DateTime? toDate,
   }) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_prefix/tests',
@@ -104,6 +106,8 @@ class LabApiService {
         if (isActive != null) 'isActive': isActive,
         if (skip != null) 'skip': skip,
         if (take != null) 'take': take,
+        if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
+        if (toDate != null) 'toDate': toDate.toIso8601String(),
       },
     );
     final data = response.data;

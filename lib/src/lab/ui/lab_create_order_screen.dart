@@ -115,6 +115,15 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     });
   }
 
+  String _formatPatientName(Patient p) {
+    final f = p.firstName.trim();
+    final s = p.surname.trim();
+    if (f.isNotEmpty && s.isNotEmpty) return '$f $s';
+    if (f.isNotEmpty) return f;
+    if (s.isNotEmpty) return s;
+    return '—';
+  }
+
   /// Signed-in staff used when no requesting doctor is chosen.
   String? _resolvedDoctorId(WidgetRef ref) {
     final fromUi = _doctor?.id.trim();
@@ -191,6 +200,11 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     final currentHasOrder =
         currentItemId != null &&
         _orderIdByInvoiceItemId.containsKey(currentItemId);
+
+    final hasInvoiceRequestingStaff =
+        paidCtx?.invoiceStaffId?.trim().isNotEmpty ?? false;
+    final showRequestingDoctorSection =
+        !isPaidLab || hasInvoiceRequestingStaff;
 
     return Scaffold(
       appBar: AppBar(
@@ -276,10 +290,14 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
                   : ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        '${_patient!.surname} ${_patient!.firstName}',
+                        _formatPatientName(_patient!),
                         style: theme.textTheme.titleSmall,
                       ),
-                      subtitle: Text(_patient!.patientId),
+                      subtitle: _patientLocked &&
+                              paidCtx != null &&
+                              paidCtx.invoiceDisplayId.trim().isNotEmpty
+                          ? Text('Invoice ${paidCtx.invoiceDisplayId}')
+                          : null,
                       trailing: _patientLocked
                           ? const Icon(Icons.lock_rounded)
                           : IconButton(
@@ -289,66 +307,71 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
                     ),
             ),
             const SizedBox(height: 20),
-            _SectionCard(
-              title: 'Requesting doctor (optional)',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'If left empty, your signed-in account is used when the server requires a doctor id.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_invoiceStaffLoadError != null) ...[
-                    Text(
-                      _invoiceStaffLoadError!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.error,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  _doctor == null
-                      ? _SearchField<Staff>(
-                          hint: 'Search doctor / staff',
-                          onSearch: (q) async {
-                            setState(() {
-                              _searchingDoctors = true;
-                            });
-                            final list = await staffService.fetchStaff(
-                              query: q,
-                              limit: 15,
-                            );
-                            if (mounted) {
-                              setState(() {
-                                _doctorSearchResults = list;
-                                _searchingDoctors = false;
-                              });
-                            }
-                          },
-                          suggestions: _doctorSearchResults,
-                          searching: _searchingDoctors,
-                          suggestionTitle: (s) => s.fullName,
-                          onSelect: (s) => setState(() => _doctor = s),
-                        )
-                      : ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            _doctor!.fullName,
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          subtitle: Text(_doctor!.role),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close_rounded),
-                            onPressed: () => setState(() => _doctor = null),
-                          ),
+            if (showRequestingDoctorSection) ...[
+              _SectionCard(
+                title: isPaidLab
+                    ? 'Requesting doctor'
+                    : 'Requesting doctor (optional)',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!isPaidLab)
+                      Text(
+                        'If left empty, your signed-in account is used when the server requires a doctor id.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                ],
+                      ),
+                    if (!isPaidLab) const SizedBox(height: 12),
+                    if (_invoiceStaffLoadError != null) ...[
+                      Text(
+                        _invoiceStaffLoadError!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    _doctor == null
+                        ? _SearchField<Staff>(
+                            hint: 'Search doctor / staff',
+                            onSearch: (q) async {
+                              setState(() {
+                                _searchingDoctors = true;
+                              });
+                              final list = await staffService.fetchStaff(
+                                query: q,
+                                limit: 15,
+                              );
+                              if (mounted) {
+                                setState(() {
+                                  _doctorSearchResults = list;
+                                  _searchingDoctors = false;
+                                });
+                              }
+                            },
+                            suggestions: _doctorSearchResults,
+                            searching: _searchingDoctors,
+                            suggestionTitle: (s) => s.fullName,
+                            onSelect: (s) => setState(() => _doctor = s),
+                          )
+                        : ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              _doctor!.fullName,
+                              style: theme.textTheme.titleSmall,
+                            ),
+                            subtitle: Text(_doctor!.role),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => setState(() => _doctor = null),
+                            ),
+                          ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
+            ],
             if (isPaidLab && currentHasOrder && selectedLine != null) ...[
               _ExistingOrderForLineCard(
                 orderId: _orderIdByInvoiceItemId[selectedLine.invoiceItemId]!,
@@ -934,13 +957,19 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     if (paidContext != null &&
         paidContext.moduleType == ModuleRequestFlowType.laboratory &&
         paidContext.patientId.isNotEmpty) {
+      var fn = paidContext.patientFirstName?.trim() ?? '';
+      var sn = paidContext.patientSurname?.trim() ?? '';
+      if (fn.isEmpty && sn.isEmpty) {
+        fn = 'Patient';
+        sn = 'Selected';
+      }
       _patient = Patient(
         id: paidContext.patientId,
         patientId: paidContext.patientId,
         cardNo: '',
         title: '',
-        surname: 'Selected',
-        firstName: 'Patient',
+        surname: sn,
+        firstName: fn,
         dob: DateTime.now(),
         gender: '',
         maritalStatus: '',
@@ -956,7 +985,8 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     if (lines.isNotEmpty) {
       _selectedInvoiceLine = lines.first;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prefillDoctorFromInvoice());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _prefillDoctorFromInvoice());
   }
 }
 
