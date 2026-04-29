@@ -446,6 +446,71 @@ class PharmacyApiService {
     }
   }
 
+  Future<DrugBatch> createConsumableBatch(
+    String consumableId,
+    DrugBatch batch,
+  ) async {
+    if (consumableId.trim().isEmpty) {
+      throw const ValidationException('Consumable id required.');
+    }
+    if ((batch.costPrice ?? 0) < 0 || (batch.sellingPrice ?? 0) < 0) {
+      throw const ValidationException('Cost and selling price must be >= 0.');
+    }
+    if (batch.quantityReceived < 0 || (batch.quantityRemaining ?? 0) < 0) {
+      throw const ValidationException('Batch quantities must be >= 0.');
+    }
+    try {
+      final resp = await _dio.post(
+        '$_basePath/consumables/${consumableId.trim()}/batches',
+        data: batch.toJson(),
+      );
+      return DrugBatch.fromJson(_mapFromResponse(resp));
+    } on DioException catch (e) {
+      _handleError(e);
+    } on TypeError catch (e) {
+      throw UnknownException(
+        'Failed to parse consumable batch response: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<PaginatedResponse<DrugBatch>> getConsumableBatches(
+    String consumableId, [
+    PharmacyQueryParams? q,
+  ]) async {
+    if (consumableId.trim().isEmpty) {
+      throw const ValidationException('Consumable id required.');
+    }
+    final params = q ?? const PharmacyQueryParams();
+    try {
+      final resp = await _dio.get(
+        '$_basePath/consumables/${consumableId.trim()}/batches',
+        queryParameters: _buildBatchSearchQuery(params),
+      );
+      return _parsePaginated(resp, (m) => DrugBatch.fromJson(m));
+    } on DioException catch (e) {
+      _handleError(e);
+    } on TypeError catch (e) {
+      throw UnknownException('Failed to parse consumable batches: ${e.toString()}');
+    }
+  }
+
+  Future<PaginatedResponse<DispenseHistoryItem>> getDispenseHistory(
+    DispenseHistoryQuery query,
+  ) async {
+    try {
+      final resp = await _dio.get(
+        '$_basePath/dashboard/dispense-history',
+        queryParameters: query.toQuery(),
+      );
+      return _parsePaginated(resp, (m) => DispenseHistoryItem.fromJson(m));
+    } on DioException catch (e) {
+      _handleError(e);
+    } on TypeError catch (e) {
+      throw UnknownException('Failed to parse dispense history: ${e.toString()}');
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // PURCHASE ORDERS
   // ═══════════════════════════════════════════════════════════════════════════

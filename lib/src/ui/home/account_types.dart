@@ -255,6 +255,11 @@ final pharmacy = <MenuItem>[
     route: AddBatchRoute(),
   ),
   MenuItem(
+    label: 'Dispense History',
+    icon: Icons.receipt_long_outlined,
+    route: DispenseHistoryRoute(),
+  ),
+  MenuItem(
     label: 'Stock Transfer',
     icon: Icons.move_to_inbox_outlined,
     route: StockTransferRoute(),
@@ -308,6 +313,11 @@ final phamDispense = <MenuItem>[
     label: 'Add Supply',
     icon: Icons.add_box_outlined,
     route: AddBatchRoute(),
+  ),
+  MenuItem(
+    label: 'Dispense History',
+    icon: Icons.receipt_long_outlined,
+    route: DispenseHistoryRoute(),
   ),
   MenuItem(
     label: 'Stock Transfer',

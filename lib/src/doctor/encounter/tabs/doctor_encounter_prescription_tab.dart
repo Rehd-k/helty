@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/models/medication_order_model.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
@@ -158,6 +159,10 @@ class _DoctorEncounterPrescriptionTabState
     final durationValueCtrl = TextEditingController(text: '7');
     final routeCtrl = TextEditingController(text: 'Oral');
     final instructionsCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    DateTime? startDateTime;
+    DateTime? endDateTime;
+    var adminStatus = MedicationAdministrationStatus.active;
     var selectedFreq = _kFrequencies[1];
     var durationUnit = _DurationUnit.days;
 
@@ -184,6 +189,10 @@ class _DoctorEncounterPrescriptionTabState
 
             final qtyForDisplay = computedQty();
             final durForDisplay = parsedDuration();
+            final invalidDateRange =
+                startDateTime != null &&
+                endDateTime != null &&
+                endDateTime!.isBefore(startDateTime!);
 
             return AlertDialog(
               title: const Text('Add prescription'),
@@ -425,6 +434,107 @@ class _DoctorEncounterPrescriptionTabState
                             border: OutlineInputBorder(),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<MedicationAdministrationStatus>(
+                          key: ValueKey(adminStatus),
+                          initialValue: adminStatus,
+                          decoration: const InputDecoration(
+                            labelText: 'Administration status',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: MedicationAdministrationStatus.values
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s.label),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => adminStatus = v);
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: notesCtrl,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Clinical notes',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final picked = await showDateTimePicker(
+                                    context: ctx,
+                                    initialDate: startDateTime ?? DateTime.now(),
+                                    firstDate: DateTime.now().subtract(
+                                      const Duration(days: 3650),
+                                    ),
+                                    lastDate: DateTime.now().add(
+                                      const Duration(days: 3650),
+                                    ),
+                                  );
+                                  if (picked == null) return;
+                                  setState(() => startDateTime = picked);
+                                },
+                                icon: const Icon(Icons.play_arrow_outlined),
+                                label: Text(
+                                  startDateTime == null
+                                      ? 'Start'
+                                      : DateFormat(
+                                          'dd MMM yyyy, HH:mm',
+                                        ).format(startDateTime!),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final picked = await showDateTimePicker(
+                                    context: ctx,
+                                    initialDate:
+                                        endDateTime ??
+                                        (startDateTime ?? DateTime.now()),
+                                    firstDate: DateTime.now().subtract(
+                                      const Duration(days: 3650),
+                                    ),
+                                    lastDate: DateTime.now().add(
+                                      const Duration(days: 3650),
+                                    ),
+                                  );
+                                  if (picked == null) return;
+                                  setState(() => endDateTime = picked);
+                                },
+                                icon: const Icon(Icons.stop_outlined),
+                                label: Text(
+                                  endDateTime == null
+                                      ? 'End'
+                                      : DateFormat(
+                                          'dd MMM yyyy, HH:mm',
+                                        ).format(endDateTime!),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (invalidDateRange) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'End date/time cannot be before start date/time.',
+                            style: TextStyle(
+                              color: Theme.of(ctx).colorScheme.error,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
                     ],
                   ),
@@ -439,7 +549,8 @@ class _DoctorEncounterPrescriptionTabState
                   onPressed:
                       selected == null ||
                           selected!.id == null ||
-                          qtyForDisplay == null
+                          qtyForDisplay == null ||
+                          invalidDateRange
                       ? null
                       : () async {
                           final n = int.tryParse(durationValueCtrl.text.trim());
@@ -468,6 +579,12 @@ class _DoctorEncounterPrescriptionTabState
                                 instructionsCtrl.text.trim().isEmpty
                                 ? null
                                 : instructionsCtrl.text.trim(),
+                            startDateTime: startDateTime,
+                            endDateTime: endDateTime,
+                            notes: notesCtrl.text.trim().isEmpty
+                                ? null
+                                : notesCtrl.text.trim(),
+                            administrationStatus: adminStatus,
                           );
                           if (ctx.mounted) {
                             Navigator.of(ctx).pop();
@@ -546,13 +663,28 @@ class _DoctorEncounterPrescriptionTabState
                                 o.frequency,
                               if (o.duration != null && o.duration!.isNotEmpty)
                                 o.duration,
-                              o.status,
+                              if (o.administrationStatus.label.isNotEmpty)
+                                'Clinical ${o.administrationStatus.label}',
                             ].join(' · '),
                             style: theme.textTheme.bodySmall,
                           ),
-                          trailing: Chip(
-                            label: Text(o.status),
-                            backgroundColor: theme.colorScheme.primaryContainer,
+                          trailing: Wrap(
+                            spacing: 8,
+                            children: [
+                              Chip(
+                                label: Text(o.status),
+                                backgroundColor:
+                                    theme.colorScheme.primaryContainer,
+                              ),
+                              Chip(
+                                label: Text(o.administrationStatus.label),
+                                backgroundColor:
+                                    o.administrationStatus ==
+                                        MedicationAdministrationStatus.active
+                                    ? Colors.green.withValues(alpha: 0.15)
+                                    : Colors.grey.withValues(alpha: 0.2),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -563,4 +695,32 @@ class _DoctorEncounterPrescriptionTabState
       ),
     );
   }
+}
+
+Future<DateTime?> showDateTimePicker({
+  required BuildContext context,
+  required DateTime initialDate,
+  required DateTime firstDate,
+  required DateTime lastDate,
+}) async {
+  final pickedDate = await showDatePicker(
+    context: context,
+    initialDate: initialDate,
+    firstDate: firstDate,
+    lastDate: lastDate,
+  );
+  if (pickedDate == null) return null;
+  if (!context.mounted) return null;
+  final pickedTime = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(initialDate),
+  );
+  if (pickedTime == null) return null;
+  return DateTime(
+    pickedDate.year,
+    pickedDate.month,
+    pickedDate.day,
+    pickedTime.hour,
+    pickedTime.minute,
+  );
 }

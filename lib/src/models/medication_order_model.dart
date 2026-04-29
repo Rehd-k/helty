@@ -10,7 +10,12 @@ class MedicationOrderModel {
     this.quantity,
     this.route,
     this.specialInstructions,
+    this.admissionId,
+    this.startDateTime,
+    this.endDateTime,
+    this.notes,
     required this.status,
+    this.administrationStatus = MedicationAdministrationStatus.active,
   });
 
   final String id;
@@ -24,7 +29,12 @@ class MedicationOrderModel {
   final int? quantity;
   final String? route;
   final String? specialInstructions;
+  final String? admissionId;
+  final DateTime? startDateTime;
+  final DateTime? endDateTime;
+  final String? notes;
   final String status;
+  final MedicationAdministrationStatus administrationStatus;
 
   factory MedicationOrderModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
@@ -43,7 +53,37 @@ class MedicationOrderModel {
       quantity: quantity,
       route: json['route']?.toString(),
       specialInstructions: json['specialInstructions']?.toString(),
+      admissionId: json['admissionId']?.toString(),
+      startDateTime: DateTime.tryParse(json['startDateTime']?.toString() ?? ''),
+      endDateTime: DateTime.tryParse(json['endDateTime']?.toString() ?? ''),
+      notes: json['notes']?.toString(),
       status: (json['status']?.toString()) ?? 'Pending Dispense',
+      administrationStatus: MedicationAdministrationStatusX.fromApi(
+        json['administrationStatus']?.toString(),
+      ),
     );
+  }
+}
+
+enum MedicationAdministrationStatus { active, stopped }
+
+extension MedicationAdministrationStatusX on MedicationAdministrationStatus {
+  String get apiValue => this == MedicationAdministrationStatus.stopped
+      ? 'STOPPED'
+      : 'ACTIVE';
+
+  String get label => this == MedicationAdministrationStatus.stopped
+      ? 'Stopped'
+      : 'Active';
+
+  static MedicationAdministrationStatus fromApi(String? value) {
+    if (value == null) return MedicationAdministrationStatus.active;
+    switch (value.toUpperCase()) {
+      case 'STOPPED':
+        return MedicationAdministrationStatus.stopped;
+      case 'ACTIVE':
+      default:
+        return MedicationAdministrationStatus.active;
+    }
   }
 }

@@ -41,7 +41,18 @@ class MedicationOrderService {
     int? quantity,
     String? route,
     String? specialInstructions,
+    String? admissionId,
+    DateTime? startDateTime,
+    DateTime? endDateTime,
+    String? notes,
+    MedicationAdministrationStatus administrationStatus =
+        MedicationAdministrationStatus.active,
   }) async {
+    if (startDateTime != null &&
+        endDateTime != null &&
+        endDateTime.isBefore(startDateTime)) {
+      throw ArgumentError('End date/time cannot be before start date/time.');
+    }
     final body = <String, dynamic>{
       'encounterId': encounterId,
       'drugId': drugId,
@@ -55,6 +66,11 @@ class MedicationOrderService {
       if (route != null && route.isNotEmpty) 'route': route,
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,
+      if (admissionId != null && admissionId.isNotEmpty) 'admissionId': admissionId,
+      if (startDateTime != null) 'startDateTime': startDateTime.toUtc().toIso8601String(),
+      if (endDateTime != null) 'endDateTime': endDateTime.toUtc().toIso8601String(),
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'administrationStatus': administrationStatus.apiValue,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/medication-orders',
@@ -78,7 +94,16 @@ class MedicationOrderService {
     int? quantity,
     String? route,
     String? specialInstructions,
+    DateTime? startDateTime,
+    DateTime? endDateTime,
+    String? notes,
+    MedicationAdministrationStatus? administrationStatus,
   }) async {
+    if (startDateTime != null &&
+        endDateTime != null &&
+        endDateTime.isBefore(startDateTime)) {
+      throw ArgumentError('End date/time cannot be before start date/time.');
+    }
     final body = <String, dynamic>{
       if (drugId != null && drugId.isNotEmpty) 'drugId': drugId,
       if (drugName != null && drugName.isNotEmpty) 'drugName': drugName,
@@ -89,6 +114,11 @@ class MedicationOrderService {
       if (route != null && route.isNotEmpty) 'route': route,
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,
+      if (startDateTime != null) 'startDateTime': startDateTime.toUtc().toIso8601String(),
+      if (endDateTime != null) 'endDateTime': endDateTime.toUtc().toIso8601String(),
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (administrationStatus != null)
+        'administrationStatus': administrationStatus.apiValue,
     };
     final response = await _dio.patch<Map<String, dynamic>>(
       '/medication-orders/$id',

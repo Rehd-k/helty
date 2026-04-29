@@ -189,6 +189,122 @@ class SearchDrugParams {
   }
 }
 
+class DispenseHistoryQuery {
+  const DispenseHistoryQuery({
+    required this.fromDate,
+    required this.toDate,
+    this.drugId,
+    this.patientQuery,
+    this.skip = 0,
+    this.take = 20,
+  });
+
+  final DateTime fromDate;
+  final DateTime toDate;
+  final String? drugId;
+  final String? patientQuery;
+  final int skip;
+  final int take;
+
+  Map<String, dynamic> toQuery() => {
+    'fromDate': fromDate.toUtc().toIso8601String(),
+    'toDate': toDate.toUtc().toIso8601String(),
+    if (drugId != null && drugId!.trim().isNotEmpty) 'drugId': drugId!.trim(),
+    if (patientQuery != null && patientQuery!.trim().isNotEmpty)
+      'patientQuery': patientQuery!.trim(),
+    'skip': skip,
+    'take': take,
+  };
+}
+
+class DispenseHistoryPatient {
+  const DispenseHistoryPatient({
+    required this.id,
+    required this.patientId,
+    required this.name,
+  });
+
+  final String id;
+  final String patientId;
+  final String name;
+
+  factory DispenseHistoryPatient.fromJson(Map<String, dynamic> json) =>
+      DispenseHistoryPatient(
+        id: json['id']?.toString() ?? '',
+        patientId: json['patientId']?.toString() ?? '',
+        name: json['name']?.toString() ?? 'Unknown patient',
+      );
+}
+
+class DispenseHistoryDrug {
+  const DispenseHistoryDrug({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory DispenseHistoryDrug.fromJson(Map<String, dynamic> json) =>
+      DispenseHistoryDrug(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? 'Unknown drug',
+      );
+}
+
+class DispenseHistoryItem {
+  const DispenseHistoryItem({
+    required this.invoiceItemId,
+    required this.invoiceId,
+    required this.dispensedAt,
+    required this.encounterId,
+    required this.quantity,
+    required this.unitPrice,
+    required this.amountPaid,
+    required this.drug,
+    required this.patient,
+  });
+
+  final String invoiceItemId;
+  final String invoiceId;
+  final DateTime? dispensedAt;
+  final String encounterId;
+  final int quantity;
+  final double unitPrice;
+  final double amountPaid;
+  final DispenseHistoryDrug drug;
+  final DispenseHistoryPatient patient;
+
+  factory DispenseHistoryItem.fromJson(Map<String, dynamic> json) =>
+      DispenseHistoryItem(
+        invoiceItemId: json['invoiceItemId']?.toString() ?? '',
+        invoiceId: json['invoiceId']?.toString() ?? '',
+        dispensedAt: json['dispensedAt'] == null
+            ? null
+            : DateTime.tryParse(json['dispensedAt'].toString()),
+        encounterId: json['encounterId']?.toString() ?? '',
+        quantity: () {
+          final v = json['quantity'];
+          if (v is int) return v;
+          if (v is num) return v.toInt();
+          return int.tryParse(v?.toString() ?? '') ?? 0;
+        }(),
+        unitPrice: () {
+          final v = json['unitPrice'];
+          if (v is num) return v.toDouble();
+          return double.tryParse(v?.toString() ?? '') ?? 0;
+        }(),
+        amountPaid: () {
+          final v = json['amountPaid'];
+          if (v is num) return v.toDouble();
+          return double.tryParse(v?.toString() ?? '') ?? 0;
+        }(),
+        drug: DispenseHistoryDrug.fromJson(
+          Map<String, dynamic>.from((json['drug'] as Map?) ?? const {}),
+        ),
+        patient: DispenseHistoryPatient.fromJson(
+          Map<String, dynamic>.from((json['patient'] as Map?) ?? const {}),
+        ),
+      );
+}
+
 class InventoryMovement {
   final String? id;
   final String batchId;
@@ -464,9 +580,15 @@ class DrugPrice {
     wardName: json['ward'] is Map
         ? (json['ward'] as Map)['name']?.toString()
         : json['wardName']?.toString(),
-    price: json['price'] is num
-        ? (json['price'] as num).toDouble()
-        : double.tryParse(json['price']?.toString() ?? '0') ?? 0,
+    price: () {
+      final raw =
+          json['price'] ??
+          json['computedPrice'] ??
+          json['sellingPrice'] ??
+          json['amount'];
+      if (raw is num) return raw.toDouble();
+      return double.tryParse(raw?.toString() ?? '0') ?? 0;
+    }(),
   );
 
   Map<String, dynamic> toJson() => {

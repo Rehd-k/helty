@@ -92,9 +92,18 @@ class _CompletedEncounterPrescriptionsTabState
             child: hasNotes
                 ? ExpansionTile(
                     title: Text(o.drugName),
-                    subtitle: Text(
-                      detail.isEmpty ? o.status : '$detail · ${o.status}',
-                      style: theme.textTheme.bodySmall,
+                    subtitle: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          detail,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        Chip(label: Text(o.status)),
+                        Chip(label: Text(o.administrationStatus.label)),
+                      ],
                     ),
                     children: [
                       Padding(
@@ -111,9 +120,19 @@ class _CompletedEncounterPrescriptionsTabState
                   )
                 : ListTile(
                     title: Text(o.drugName),
-                    subtitle: Text(
-                      detail.isEmpty ? o.status : '$detail · ${o.status}',
-                      style: theme.textTheme.bodySmall,
+                    subtitle: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (detail.isNotEmpty)
+                          Text(
+                            detail,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        Chip(label: Text(o.status)),
+                        Chip(label: Text(o.administrationStatus.label)),
+                      ],
                     ),
                   ),
           );

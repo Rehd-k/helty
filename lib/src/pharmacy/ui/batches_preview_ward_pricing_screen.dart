@@ -79,10 +79,7 @@ class _BatchesPreviewWardPricingScreenState
     }
 
     _batches = _parseBatchList(
-      data['batches'] ??
-          data['items'] ??
-          data['data'] ??
-          data['drugBatches'],
+      data['batches'] ?? data['items'] ?? data['data'] ?? data['drugBatches'],
     );
 
     _wardPrices = _parseWardPriceList(
@@ -157,10 +154,7 @@ class _BatchesPreviewWardPricingScreenState
                       style: TextStyle(color: theme.colorScheme.error),
                     ),
                     const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _load,
-                      child: const Text('Retry'),
-                    ),
+                    FilledButton(onPressed: _load, child: const Text('Retry')),
                   ],
                 ),
               ),

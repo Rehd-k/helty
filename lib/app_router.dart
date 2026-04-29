@@ -130,6 +130,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: StockTransferRoute.page),
         AutoRoute(page: CreateRequisitionRoute.page),
         AutoRoute(page: SupplyHistoryRoute.page),
+        AutoRoute(path: 'pharmacy/dispense-history', page: DispenseHistoryRoute.page),
         AutoRoute(page: PharmacyLocationRoute.page),
         AutoRoute(page: PharmacyPOSRoute.page),
         AutoRoute(page: DispenseRoute.page),

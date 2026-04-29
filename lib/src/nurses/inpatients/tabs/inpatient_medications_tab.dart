@@ -234,7 +234,8 @@ class _InpatientMedicationsScreenState
       'Route',
       'Frequency',
       'Duration',
-      'Status',
+      'Dispense',
+      'Clinical',
       'Administer',
     ];
 
@@ -263,6 +264,7 @@ class _InpatientMedicationsScreenState
                   DataCell(Text(o.frequency ?? '')),
                   DataCell(Text(o.duration ?? '')),
                   DataCell(Text(o.status)),
+                  DataCell(Text(o.administrationStatus.label)),
                   DataCell(
                     scope.isNurse
                         ? TextButton(
