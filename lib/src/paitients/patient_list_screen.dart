@@ -93,7 +93,6 @@ class _PatientListScreenState extends State<PatientListScreen> {
         );
       }
     } finally {
-      if (!mounted) return;
       setState(() {
         _initialLoading = false;
         _isLoadingMore = false;

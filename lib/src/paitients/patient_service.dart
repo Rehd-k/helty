@@ -59,7 +59,9 @@ class PatientService {
       case PatientListStatusFilter.none:
         return patients;
       case PatientListStatusFilter.onlyAdmitted:
-        return patients.where((p) => patientStatusIsAdmitted(p.status)).toList();
+        return patients
+            .where((p) => patientStatusIsAdmitted(p.status))
+            .toList();
       case PatientListStatusFilter.excludeAdmitted:
         return patients
             .where((p) => !patientStatusIsAdmitted(p.status))
@@ -67,8 +69,11 @@ class PatientService {
     }
   }
 
-  Future<Patient> getPatientById(String id) async {
-    final resp = await _dio.get<Map<String, dynamic>>('/patients/$id');
+  Future<Patient> getPatientById(String id, [String? select]) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/patients/$id',
+      queryParameters: select != null ? {'select': select} : null,
+    );
     final data = resp.data;
 
     if (data == null) {
@@ -95,10 +100,7 @@ class PatientService {
   }
 
   Future<Patient> updatePatient(Patient p, String? patientId) async {
-    final resp = await _dio.patch(
-      '/patients/$patientId',
-      data: p.toJson(),
-    );
+    final resp = await _dio.patch('/patients/$patientId', data: p.toJson());
     return Patient.fromJson(resp.data as Map<String, dynamic>);
   }
 

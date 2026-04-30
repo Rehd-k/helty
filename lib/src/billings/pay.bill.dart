@@ -760,6 +760,32 @@ class PayBillState extends ConsumerState<PayBill> {
     }
   }
 
+  Future<void> _handleCloseModal() async {
+    if (_isSubmitting) return;
+
+    final invId = widget.invoiceId?.trim();
+    if (!_confirmed && invId != null && invId.isNotEmpty) {
+      try {
+        await _invoiceService.deleteInvoice(invId);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade600,
+            content: Text('Failed to discard invoice: $e'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_confirmed) {
@@ -767,7 +793,7 @@ class PayBillState extends ConsumerState<PayBill> {
     }
 
     return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
+      onTap: _handleCloseModal,
       child: Scaffold(
         backgroundColor: Colors.black45,
         body: Center(
@@ -811,7 +837,7 @@ class PayBillState extends ConsumerState<PayBill> {
                       top: 8,
                       child: IconButton(
                         icon: const Icon(Icons.close, color: Colors.grey),
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: _handleCloseModal,
                       ),
                     ),
                   ],
@@ -894,7 +920,7 @@ class PayBillState extends ConsumerState<PayBill> {
           ..._items.map((c) {
             final qty = c.qty ?? 1;
             final lineTotal = c.cost * qty;
-            final label = qty > 1 ? '${c.name}  ×$qty' : c.name;
+            final label = qty > 1 ? '${c.name}  x$qty' : c.name;
             return _invoiceRow(label, lineTotal.toFinancial(isMoney: true));
           }),
           const Divider(),

@@ -202,9 +202,12 @@ class PharmacyApiService {
     }
   }
 
-  Future<Drug> getDrugById(String id) async {
+  Future<Drug> getDrugById(String id, [String? select]) async {
     try {
-      final resp = await _dio.get('$_basePath/drugs/$id');
+      final resp = await _dio.get(
+        '$_basePath/drugs/$id',
+        queryParameters: select != null ? {'select': select} : null,
+      );
       return Drug.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -491,7 +494,9 @@ class PharmacyApiService {
     } on DioException catch (e) {
       _handleError(e);
     } on TypeError catch (e) {
-      throw UnknownException('Failed to parse consumable batches: ${e.toString()}');
+      throw UnknownException(
+        'Failed to parse consumable batches: ${e.toString()}',
+      );
     }
   }
 
@@ -507,7 +512,9 @@ class PharmacyApiService {
     } on DioException catch (e) {
       _handleError(e);
     } on TypeError catch (e) {
-      throw UnknownException('Failed to parse dispense history: ${e.toString()}');
+      throw UnknownException(
+        'Failed to parse dispense history: ${e.toString()}',
+      );
     }
   }
 

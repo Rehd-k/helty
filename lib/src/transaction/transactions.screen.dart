@@ -35,6 +35,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   DateTime? _dateTo;
   TransactionStatus? _status;
   bool _myTransactionsOnly = false;
+
   /// Staff filter: `receivedById` from API `staffSummary` (query param `initiatedBy`).
   String? _initiatedById;
   String?
@@ -126,7 +127,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         _totalCount = result.total;
         _staffSummaryOptions = result.staffSummary;
         if (_initiatedById != null &&
-            !_staffSummaryOptions.any((e) => e.receivedById == _initiatedById)) {
+            !_staffSummaryOptions.any(
+              (e) => e.receivedById == _initiatedById,
+            )) {
           _initiatedById = null;
         }
         _tableDataGeneration++;
@@ -297,9 +300,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       await _loadTransactions();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update date: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update date: $e')));
     }
   }
 
@@ -526,7 +529,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                             ),
                             columns: const [
                               DataColumn2(label: Text('Transaction ID')),
-                              DataColumn2(label: Text('Patient Name / ID')),
+                              DataColumn2(label: Text('Patient Name')),
                               DataColumn2(label: Text('Services')),
                               DataColumn2(label: Text('Amount Due')),
                               DataColumn2(label: Text('Amount Paid')),
@@ -560,7 +563,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                       return n.isEmpty ? '—' : n;
                                     }()),
                                     Text(
-                                      _patientIdCell(txn['patientId']),
+                                      // _patientIdCell(txn['patientId']),
+                                      '--',
                                       style: Theme.of(
                                         context,
                                       ).textTheme.bodySmall,
@@ -685,7 +689,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                 ? () =>
                                       _openPaymentDialog(_selectedTransaction!)
                                 : () {},
-                            onChangeTransactionDate: _selectedTransaction != null
+                            onChangeTransactionDate:
+                                _selectedTransaction != null
                                 ? () => _openChangeTransactionDateDialog(
                                     _selectedTransaction!,
                                   )

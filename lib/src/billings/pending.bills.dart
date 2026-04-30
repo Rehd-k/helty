@@ -45,6 +45,8 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   bool _isLoading = true;
   String? _error;
   List<Invoice> _invoices = const [];
+  final Set<String> _deletingInvoiceIds = <String>{};
+  final Set<String> _splittingInvoiceIds = <String>{};
 
   @override
   void initState() {
@@ -91,6 +93,263 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
     setState(() => selectedInvoice = invoice);
   }
 
+  bool _canDeleteInvoice(Invoice invoice, String? currentStaffId) {
+    if (currentStaffId == null || currentStaffId.isEmpty) return false;
+    return invoice.createdById == currentStaffId || invoice.staffId == currentStaffId;
+  }
+
+  String _cleanErrorMessage(Object error, {String fallback = 'Unable to split invoice'}) {
+    final raw = error.toString().trim();
+    if (raw.isEmpty) return fallback;
+    if (raw.startsWith('Exception:')) {
+      final cleaned = raw.replaceFirst('Exception:', '').trim();
+      return cleaned.isEmpty ? fallback : cleaned;
+    }
+    return raw;
+  }
+
+  Future<void> _deleteInvoice(Invoice invoice) async {
+    if (_deletingInvoiceIds.contains(invoice.id)) return;
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Invoice'),
+        content: Text(
+          'Are you sure you want to delete invoice ${invoice.id}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true || !mounted) return;
+
+    setState(() => _deletingInvoiceIds.add(invoice.id));
+    try {
+      await _invoiceService.deleteInvoice(invoice.id);
+      if (!mounted) return;
+      setState(() {
+        _invoices = _invoices.where((i) => i.id != invoice.id).toList();
+        if (selectedInvoice?.id == invoice.id) {
+          selectedInvoice = null;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invoice deleted successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_cleanErrorMessage(e, fallback: 'Unable to delete invoice'))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _deletingInvoiceIds.remove(invoice.id));
+      }
+    }
+  }
+
+  Future<void> _showSplitInvoiceDialog(Invoice invoice) async {
+    if (_splittingInvoiceIds.contains(invoice.id)) return;
+
+    final items = invoice.invoiceItems;
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invoice has no line items to split')),
+      );
+      return;
+    }
+
+    final selectedItemIds = <String>{};
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        var isSubmitting = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final selectableItems = items
+                .where((it) => !it.settled && it.amountPaid <= 0.001 && it.id.isNotEmpty)
+                .toList();
+            final selectableCount = selectableItems.length;
+            final allSelectableChosen =
+                selectableCount > 0 && selectedItemIds.length == selectableCount;
+
+            Future<void> submitSplit() async {
+              if (selectedItemIds.isEmpty || isSubmitting) return;
+
+              if (allSelectableChosen) {
+                await showDialog<void>(
+                  context: ctx,
+                  builder: (warnCtx) => AlertDialog(
+                    title: const Text('Cannot split all items'),
+                    content: const Text(
+                      'Moving all items would leave the original invoice empty. Select fewer items and try again.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(warnCtx).pop(),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+                return;
+              }
+
+              setDialogState(() => isSubmitting = true);
+              setState(() => _splittingInvoiceIds.add(invoice.id));
+              try {
+                final result = await _invoiceService.splitInvoice(
+                  invoiceId: invoice.id,
+                  invoiceItemIds: selectedItemIds.toList(),
+                );
+                if (!mounted) return;
+
+                setState(() {
+                  final updated = <Invoice>[];
+                  for (final inv in _invoices) {
+                    if (inv.id == invoice.id) {
+                      updated.add(result.original);
+                      updated.add(result.splitOff);
+                    } else {
+                      updated.add(inv);
+                    }
+                  }
+                  _invoices = updated;
+                  if (selectedInvoice?.id == invoice.id) {
+                    selectedInvoice = result.original;
+                  }
+                });
+
+                if (ctx.mounted) Navigator.of(ctx).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Invoice split successfully'),
+                    action: SnackBarAction(
+                      label: 'Open New Invoice',
+                      onPressed: () {
+                        if (!mounted) return;
+                        setState(() => selectedInvoice = result.splitOff);
+                      },
+                    ),
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _cleanErrorMessage(e, fallback: 'Unable to split invoice'),
+                    ),
+                  ),
+                );
+              } finally {
+                if (mounted) {
+                  setState(() => _splittingInvoiceIds.remove(invoice.id));
+                }
+                if (ctx.mounted) {
+                  setDialogState(() => isSubmitting = false);
+                }
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Split Invoice'),
+              content: SizedBox(
+                width: 520,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Select line items to move to a new invoice'),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 320,
+                      child: ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (_, index) {
+                          final item = items[index];
+                          final lineTotal = item.cost * (item.qty ?? 1);
+                          final isSelectable =
+                              !item.settled && item.amountPaid <= 0.001 && item.id.isNotEmpty;
+                          final isSelected = selectedItemIds.contains(item.id);
+                          final subtitle = isSelectable
+                              ? lineTotal.toFinancial(isMoney: true)
+                              : 'Not eligible (paid/settled)';
+
+                          return CheckboxListTile(
+                            value: isSelected,
+                            onChanged: isSelectable && !isSubmitting
+                                ? (checked) {
+                                    setDialogState(() {
+                                      if (checked == true) {
+                                        selectedItemIds.add(item.id);
+                                      } else {
+                                        selectedItemIds.remove(item.id);
+                                      }
+                                    });
+                                  }
+                                : null,
+                            title: Text(item.name),
+                            subtitle: Text(subtitle),
+                            secondary: !isSelectable
+                                ? const Icon(Icons.lock_outline, color: Colors.grey)
+                                : null,
+                          );
+                        },
+                      ),
+                    ),
+                    if (selectedItemIds.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Select at least one item to continue.',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                    if (allSelectableChosen)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Warning: selecting all eligible lines is not allowed.',
+                          style: TextStyle(color: Colors.orange),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedItemIds.isEmpty || isSubmitting ? null : submitSplit,
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Split'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _onInvoiceFilterChanged(
     String query,
     String category,
@@ -114,6 +373,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+    final currentStaffId = auth.staff?.id;
     return Scaffold(
       body: Column(
         children: [
@@ -236,6 +496,57 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                           invoice.createdAt,
                                         ),
                                         style: const TextStyle(fontSize: 11),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        children: [
+                                          if (_canDeleteInvoice(invoice, currentStaffId))
+                                            ElevatedButton.icon(
+                                              onPressed: _deletingInvoiceIds.contains(invoice.id)
+                                                  ? null
+                                                  : () => _deleteInvoice(invoice),
+                                              icon: _deletingInvoiceIds.contains(invoice.id)
+                                                  ? const SizedBox(
+                                                      width: 14,
+                                                      height: 14,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                    )
+                                                  : const Icon(Icons.delete_outline, size: 16),
+                                              label: const Text('Delete'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red.shade600,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(0, 34),
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                ),
+                                              ),
+                                            ),
+                                          const SizedBox(width: 8),
+                                          OutlinedButton.icon(
+                                            onPressed: _splittingInvoiceIds.contains(invoice.id)
+                                                ? null
+                                                : () => _showSplitInvoiceDialog(invoice),
+                                            icon: _splittingInvoiceIds.contains(invoice.id)
+                                                ? const SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : const Icon(Icons.call_split, size: 16),
+                                            label: const Text('Split'),
+                                            style: OutlinedButton.styleFrom(
+                                              minimumSize: const Size(0, 34),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),

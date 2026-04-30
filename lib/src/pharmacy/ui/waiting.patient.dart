@@ -48,7 +48,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   final PatientService _patientService = PatientService();
   final PharmacyApiService _pharmacyApi = PharmacyApiService();
   final InvoiceService _invoiceService = InvoiceService();
-  final MedicationOrderService _medicationOrderService = MedicationOrderService();
+  final MedicationOrderService _medicationOrderService =
+      MedicationOrderService();
 
   Patient? _detailPatient;
   bool _patientLoading = false;
@@ -87,8 +88,14 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   bool _medHasStock(PrescribedMedication med) =>
       _effectiveStock(med) >= med.quantity;
 
+  bool get _selectedPatientIsInpatient {
+    final ward = _detailPatient?.ward?.trim();
+    if (ward == null || ward.isEmpty) return false;
+    return ward.toUpperCase() != 'OPD';
+  }
+
   bool _canDispense(QueueOrder order, PrescribedMedication med) =>
-      invoiceStatusIsPaid(order.invoiceStatus) &&
+      (invoiceStatusIsPaid(order.invoiceStatus) || _selectedPatientIsInpatient) &&
       _medHasStock(med) &&
       !med.isDispensed &&
       !med.settled &&
@@ -121,7 +128,10 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       final did = m.drugId;
       if (did == null || did.isEmpty) continue;
       try {
-        final drug = await _pharmacyApi.getDrugById(did);
+        final drug = await _pharmacyApi.getDrugById(
+          did,
+          'id,genericName,brandName,quantity',
+        );
         final q = drug.stock ?? drug.displayStock;
         if (!mounted) return;
         setState(() {
@@ -153,16 +163,20 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       });
     }
     try {
-      final p = await _patientService.getPatientById(order.patient.id);
+      final p = await _patientService.getPatientById(
+        order.patient.id,
+        'id,surname,firstName,dob,gender,ward',
+      );
       List<PastMedication> hist = [];
-      if (p.prescriptionHistory.isNotEmpty) {
-        hist = p.prescriptionHistory
-            .map((e) => PastMedication(e.name, e.detail ?? '—'))
-            .toList();
-      } else {
-        final invs = await _invoiceService.getPatientInvoices(order.patient.id);
-        hist = _pastMedsFromInvoices(invs);
-      }
+      //Change to medicationOrder and not prescription history
+      // if (p.prescriptionHistory.isNotEmpty) {
+      //   hist = p.prescriptionHistory
+      //       .map((e) => PastMedication(e.name, e.detail ?? '—'))
+      //       .toList();
+      // } else {
+      //   final invs = await _invoiceService.getPatientInvoices(order.patient.id);
+      //   hist = _pastMedsFromInvoices(invs);
+      // }
       if (!mounted) return;
       setState(() {
         _detailPatient = p;
@@ -264,9 +278,9 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
           _loadingMore = false;
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not load more: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Could not load more: $e')));
         }
       }
     }
@@ -349,9 +363,9 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       ).showSnackBar(SnackBar(content: Text('Dispensed ${med.name}')));
     } catch (e) {
       if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Dispense failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Dispense failed: $e')));
       }
     }
   }
@@ -410,15 +424,11 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       final fullDrug = await _pharmacyApi.getDrugById(newDrugId);
       final unitPrice = _unitPriceFromDrug(fullDrug);
 
-      await _queueService.substituteInvoiceDrugItem(
-        order.id,
-        med.id,
-        {
-          'drugId': newDrugId,
-          'unitPrice': unitPrice,
-          'quantity': med.quantity,
-        },
-      );
+      await _queueService.substituteInvoiceDrugItem(order.id, med.id, {
+        'drugId': newDrugId,
+        'unitPrice': unitPrice,
+        'quantity': med.quantity,
+      });
 
       final moId = med.medicationOrderId;
       if (moId != null && moId.isNotEmpty) {
@@ -450,9 +460,9 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not substitute: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not substitute: $e')));
       }
     }
   }
@@ -466,13 +476,12 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         onPressed: null,
         icon: const Icon(Icons.check, size: 20),
         tooltip: 'Dispensed',
-        style: IconButton.styleFrom(
-          visualDensity: VisualDensity.compact,
-        ),
+        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
       );
     }
 
     final unpaid = !invoiceStatusIsPaid(order.invoiceStatus);
+    final requiresPaymentBeforeDispense = unpaid && !_selectedPatientIsInpatient;
     final oos = !_medHasStock(med);
     final hasDrug = med.drugId != null && med.drugId!.isNotEmpty;
 
@@ -480,22 +489,18 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (unpaid)
+          if (requiresPaymentBeforeDispense)
             IconButton(
               onPressed: null,
               icon: const Icon(Icons.lock_outline, size: 20),
               tooltip: 'Invoice must be paid before dispense',
-              style: IconButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-              ),
+              style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
             ),
           IconButton(
             onPressed: null,
             icon: const Icon(Icons.block, size: 20),
             tooltip: 'Out of stock',
-            style: IconButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-            ),
+            style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
           ),
           if (hasDrug)
             IconButton(
@@ -512,22 +517,18 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
               onPressed: null,
               icon: const Icon(Icons.link_off, size: 20),
               tooltip: 'No drug id for this line',
-              style: IconButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-              ),
+              style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
             ),
         ],
       );
     }
 
-    if (unpaid) {
+    if (requiresPaymentBeforeDispense) {
       return IconButton(
         onPressed: null,
         icon: const Icon(Icons.lock_outline, size: 20),
         tooltip: 'Invoice must be paid before dispense',
-        style: IconButton.styleFrom(
-          visualDensity: VisualDensity.compact,
-        ),
+        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
       );
     }
 
@@ -536,9 +537,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         onPressed: null,
         icon: const Icon(Icons.link_off, size: 20),
         tooltip: 'No drug id for this line',
-        style: IconButton.styleFrom(
-          visualDensity: VisualDensity.compact,
-        ),
+        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
       );
     }
 
@@ -630,10 +629,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                       ),
                       child: _selectedOrder == null
                           ? const SizedBox.shrink()
-                          : _buildPatientSidebar(
-                              _selectedOrder!,
-                              colorScheme,
-                            ),
+                          : _buildPatientSidebar(_selectedOrder!, colorScheme),
                     ),
                   ),
                 ],
@@ -718,19 +714,12 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 40,
-                color: colorScheme.error,
-              ),
+              Icon(Icons.error_outline, size: 40, color: colorScheme.error),
               const SizedBox(height: 12),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colorScheme.error,
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: colorScheme.error, fontSize: 11),
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
@@ -747,10 +736,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       return Center(
         child: Text(
           'No invoices in this range',
-          style: TextStyle(
-            fontSize: 12,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -758,10 +744,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       return Center(
         child: Text(
           'Nothing in this tab',
-          style: TextStyle(
-            fontSize: 12,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -796,10 +779,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             ),
           ),
         if (!_listExhausted && _orders.isNotEmpty && !_loadingMore)
-          TextButton(
-            onPressed: _loadMore,
-            child: const Text('Load more'),
-          ),
+          TextButton(onPressed: _loadMore, child: const Text('Load more')),
         if (_listExhausted && _orders.isNotEmpty && !_loadingMore)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -855,10 +835,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             const SizedBox(height: 4),
             Text(
               order.patient.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -876,10 +853,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             const SizedBox(height: 4),
             Text(
               order.medSummary,
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurface,
-              ),
+              style: TextStyle(fontSize: 11, color: colorScheme.onSurface),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),

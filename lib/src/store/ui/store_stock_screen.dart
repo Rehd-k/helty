@@ -131,7 +131,7 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
                               ? _filterLocationId
                               : null;
                           return DropdownButtonFormField<String?>(
-                            value: locationValue,
+                            initialValue: locationValue,
                             decoration: const InputDecoration(
                               labelText: 'Location',
                               border: OutlineInputBorder(),
@@ -200,7 +200,7 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
                                   ? _filterItemId
                                   : null;
                               return DropdownButtonFormField<String?>(
-                                value: itemValue,
+                                initialValue: itemValue,
                                 decoration: const InputDecoration(
                                   labelText: 'Item',
                                   border: OutlineInputBorder(),

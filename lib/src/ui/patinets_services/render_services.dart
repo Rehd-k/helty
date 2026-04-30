@@ -157,7 +157,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   }
 
   double _effectiveUnitPrice(ServiceModel item) {
-    final sid = item.id.trim().isNotEmpty ? item.id.trim() : item.serviceId.trim();
+    final sid = item.id.trim().isNotEmpty
+        ? item.id.trim()
+        : item.serviceId.trim();
     if (sid.isNotEmpty) {
       final p = _hmoPatientPaysByServiceId[sid];
       if (p != null) return p;
@@ -167,7 +169,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
   Future<void> _refreshHmoPricingIfNeeded() async {
     if (!_useHmoPatientPricing) {
-      if (_hmoPatientPaysByServiceId.isNotEmpty || _hmoPricesLoadedFor != null) {
+      if (_hmoPatientPaysByServiceId.isNotEmpty ||
+          _hmoPricesLoadedFor != null) {
         if (mounted) {
           setState(() {
             _hmoPatientPaysByServiceId = {};
@@ -1693,12 +1696,25 @@ class _PatientStatusDialogState extends State<_PatientStatusDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ..._statuses.map(
-                (status) => RadioListTile<String>(
-                  value: status,
-                  groupValue: _selected,
-                  title: Text(status),
-                  onChanged: _submitting ? null : _onStatusRadioChanged,
+              RadioGroup<String>(
+                groupValue: _selected,
+                onChanged: (value) {
+                  if (_submitting) return;
+                  if (value == null) return;
+                  _onStatusRadioChanged(value);
+                },
+                child: IgnorePointer(
+                  ignoring: _submitting,
+                  child: Column(
+                    children: _statuses
+                        .map(
+                          (status) => RadioListTile<String>(
+                            value: status,
+                            title: Text(status),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
                 ),
               ),
               if (showWardBed) ...[

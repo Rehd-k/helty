@@ -8,6 +8,8 @@ class InvoiceService {
   InvoiceService() : _dio = ApiService().dio;
   final Dio _dio;
 
+  static const _kSplitInvoiceFallbackError = 'Unable to split invoice';
+
   List<dynamic> _extractList(dynamic data, {String? key}) {
     if (data is List<dynamic>) return data;
     if (data is Map<String, dynamic>) {
@@ -91,9 +93,15 @@ class InvoiceService {
     }
   }
 
-  Future<List<Invoice>> getPatientInvoices(String patientId) async {
+  Future<List<Invoice>> getPatientInvoices(
+    String patientId, [
+    String? select,
+  ]) async {
     try {
-      final response = await _dio.get('/invoices/patient/$patientId');
+      final response = await _dio.get(
+        '/invoices/patient/$patientId',
+        queryParameters: select != null ? {'select': select} : null,
+      );
       final list = _extractList(response.data, key: 'invoices');
       return list
           .whereType<Map>()
@@ -280,6 +288,39 @@ class InvoiceService {
       throw Exception(
         'Failed to allocate item payment: ${_dioMessage(e, 'Unknown error')}',
       );
+    }
+  }
+
+  Future<({Invoice original, Invoice splitOff})> splitInvoice({
+    required String invoiceId,
+    required List<String> invoiceItemIds,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/invoices/$invoiceId/split',
+        data: {'invoiceItemIds': invoiceItemIds},
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw Exception(_kSplitInvoiceFallbackError);
+      }
+
+      final originalRaw = data['original'];
+      final splitOffRaw = data['splitOff'];
+      if (originalRaw is! Map || splitOffRaw is! Map) {
+        throw Exception(_kSplitInvoiceFallbackError);
+      }
+
+      return (
+        original: Invoice.fromJson(Map<String, dynamic>.from(originalRaw)),
+        splitOff: Invoice.fromJson(Map<String, dynamic>.from(splitOffRaw)),
+      );
+    } on DioException catch (e) {
+      final msg = _dioMessage(e, _kSplitInvoiceFallbackError);
+      throw Exception(msg.isEmpty ? _kSplitInvoiceFallbackError : msg);
+    } catch (_) {
+      throw Exception(_kSplitInvoiceFallbackError);
     }
   }
 

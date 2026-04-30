@@ -10,7 +10,7 @@ class PatientsFilterWidget extends StatefulWidget {
   final Function doRefresh;
   final bool dateFilter;
   final Function(String query, String category, DateTime? from, DateTime? to)
-      onFilterChanged;
+  onFilterChanged;
 
   const PatientsFilterWidget({
     super.key,
@@ -37,15 +37,7 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
     if (widget.dateFilter) {
       final now = DateTime.now();
       _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
-      _toDate = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        23,
-        59,
-        59,
-        999,
-      );
+      _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
     } else {
       _fromDate = null;
       _toDate = null;
@@ -68,15 +60,7 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
       if (widget.dateFilter) {
         final now = DateTime.now();
         _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
-        _toDate = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          23,
-          59,
-          59,
-          999,
-        );
+        _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       } else {
         _fromDate = null;
         _toDate = null;
@@ -165,7 +149,8 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final narrow = constraints.maxWidth < kPatientsFilterCompactBreakpoint;
+          final narrow =
+              constraints.maxWidth < kPatientsFilterCompactBreakpoint;
 
           return Padding(
             padding: EdgeInsets.all(narrow ? 12 : 16),
@@ -197,7 +182,7 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
             Expanded(
               flex: 2,
               child: DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: _dropdownDecoration(scheme),
                 items: widget.searchCategories.map((cat) {
                   return DropdownMenuItem(
@@ -249,9 +234,7 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
               onPressed: _resetFilters,
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Reset'),
-              style: TextButton.styleFrom(
-                foregroundColor: scheme.error,
-              ),
+              style: TextButton.styleFrom(foregroundColor: scheme.error),
             ),
           ],
         ),
@@ -270,7 +253,7 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          value: _selectedCategory,
+          initialValue: _selectedCategory,
           isExpanded: true,
           decoration: _dropdownDecoration(scheme),
           items: widget.searchCategories.map((cat) {
@@ -309,9 +292,7 @@ class _PatientsFilterWidgetState extends State<PatientsFilterWidget> {
             onPressed: _resetFilters,
             icon: const Icon(Icons.refresh, size: 18),
             label: const Text('Reset'),
-            style: TextButton.styleFrom(
-              foregroundColor: scheme.error,
-            ),
+            style: TextButton.styleFrom(foregroundColor: scheme.error),
           ),
         ),
       ],

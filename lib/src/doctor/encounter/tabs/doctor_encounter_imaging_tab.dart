@@ -625,22 +625,7 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                RadioListTile<bool>(
-                  title: const Text('Without contrast'),
-                  value: false,
-                  groupValue: _contrast,
-                  onChanged: (v) => setState(() => _contrast = v),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                RadioListTile<bool>(
-                  title: const Text('With contrast'),
-                  value: true,
-                  groupValue: _contrast,
-                  onChanged: (v) => setState(() => _contrast = v),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
+
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _urgency,

@@ -303,44 +303,6 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     );
   }
 
-  // Widget _buildQuickActions(
-  //   BuildContext context,
-  //   ThemeData theme,
-  //   bool isLabManager,
-  // ) {
-  //   return Card(
-  //     elevation: 0,
-  //     shape: RoundedRectangleBorder(
-  //       borderRadius: BorderRadius.circular(20),
-  //       side: BorderSide(
-  //         color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-  //       ),
-  //     ),
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(20),
-  //       child: Row(
-  //         children: [
-  //           Expanded(
-  //             child: _ActionChip(
-  //               icon: Icons.add_circle_outline_rounded,
-  //               label: 'New order',
-  //               onTap: () => {},
-  //             ),
-  //           ),
-  //           const SizedBox(width: 16),
-  //           Expanded(
-  //             child: _ActionChip(
-  //               icon: Icons.list_alt_rounded,
-  //               label: 'All orders',
-  //               onTap: () => _filterStatus = null,
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
   Widget _buildOrdersSection(BuildContext context, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,53 +433,6 @@ class _SummaryCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionChip extends StatelessWidget {
-  const _ActionChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: theme.colorScheme.primary, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Text(
-                label,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
