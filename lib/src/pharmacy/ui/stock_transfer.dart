@@ -197,7 +197,11 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
         pageSize: _pageSize,
         sortBy: 'createdAt',
         sortOrder: SortOrder.desc,
-        filters: {'drugId': _selectedDrug!.id, 'toLocationId': fromId},
+        filters: {
+          'drugId': _selectedDrug!.id,
+          'toLocationId': fromId,
+          'doNotAllowempty': true,
+        },
       );
       final resp = await _apiService.getDrugBatches(q);
       if (!mounted) return;
@@ -367,8 +371,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
                   final nextLines = _lines.map((l) {
                     if (l.batch.id != updated.id) return l;
                     final maxAvail =
-                        updated.quantityRemaining ??
-                        updated.quantityReceived;
+                        updated.quantityRemaining ?? updated.quantityReceived;
                     final q = l.quantity.clamp(0, maxAvail);
                     return _TransferLine(
                       drug: l.drug,
@@ -417,7 +420,10 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
                       'For wrong data entry only. This uses the restricted '
                       'correction endpoint (pharmacy head; batch must be at '
                       'least 24 hours old — the server will reject otherwise).',
-                      style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -444,9 +450,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: submitting
-                      ? null
-                      : () => Navigator.of(ctx).pop(),
+                  onPressed: submitting ? null : () => Navigator.of(ctx).pop(),
                   child: const Text('Cancel'),
                 ),
                 FilledButton(

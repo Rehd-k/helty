@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:states_and_capitals/states_and_capitals.dart' as sac;
 
 import '../models/hmo_models.dart';
+import '../models/ward_models.dart';
 import '../services/hmo_service.dart';
+import '../services/ward_service.dart';
 import 'patient_model.dart';
 import 'patient_providers.dart';
 import '../widgets/responsive_grid.dart';
@@ -73,6 +75,10 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   String? _selectedHmoId;
   List<HmoListItem> _hmoPlans = [];
   bool _loadingHmos = true;
+  final WardService _wardService = WardService();
+  List<Ward> _wards = [];
+  bool _loadingWards = true;
+  String? _selectedWardId;
   late TextEditingController _fingerprintController;
 
   late final List<cp.Country> _countries;
@@ -126,11 +132,13 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     );
     _hmoController = TextEditingController(text: p?.hmo ?? '');
     _selectedHmoId = p?.hmoId;
+    _selectedWardId = p?.wardId;
     _fingerprintController = TextEditingController(
       text: p?.fingerprintData ?? '',
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadHmoPlans());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadWards());
 
     _countries = List.of(cp.CountryService().getAll())
       ..sort((a, b) {
@@ -162,6 +170,28 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _loadingHmos = false);
+    }
+  }
+
+  Future<void> _loadWards() async {
+    try {
+      final wards = await _wardService.fetchWards();
+      if (!mounted) return;
+      final sorted = [...wards]..sort((a, b) => a.name.compareTo(b.name));
+      final defaultOpd = sorted.where(
+        (w) => w.name.trim().toUpperCase() == 'OPD',
+      );
+
+      setState(() {
+        _wards = sorted;
+        _selectedWardId =
+            _selectedWardId ??
+            (defaultOpd.isNotEmpty ? defaultOpd.first.id : null);
+        _loadingWards = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingWards = false);
     }
   }
 
@@ -248,6 +278,13 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
             ? null
             : _hmoController.text.trim(),
         hmoId: _selectedHmoId,
+        wardId: _selectedWardId,
+        ward: () {
+          for (final w in _wards) {
+            if (w.id == _selectedWardId) return w.name;
+          }
+          return null;
+        }(),
         fingerprintData: _fingerprintController.text.trim().isEmpty
             ? null
             : _fingerprintController.text.trim(),
@@ -501,6 +538,36 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       title: 'Other Info',
                       leadingIcon: Icons.more_horiz,
                       children: [
+                        if (_loadingWards)
+                          const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: LinearProgressIndicator(),
+                          )
+                        else
+                          DropdownButtonFormField<String>(
+                            key: ValueKey(
+                              '${_wards.length}_${_selectedWardId ?? 'none'}',
+                            ),
+                            initialValue: _selectedWardId,
+                            decoration: const InputDecoration(
+                              labelText: 'Ward *',
+                              border: OutlineInputBorder(),
+                              helperText: 'Required. Defaults to OPD',
+                            ),
+                            isExpanded: true,
+                            items: _wards
+                                .map(
+                                  (w) => DropdownMenuItem<String>(
+                                    value: w.id,
+                                    child: Text(w.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => setState(() => _selectedWardId = v),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? 'Required' : null,
+                          ),
+                        const SizedBox(height: 8),
                         if (_loadingHmos)
                           const Padding(
                             padding: EdgeInsets.all(12),
