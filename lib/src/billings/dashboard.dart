@@ -34,6 +34,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
   final TextEditingController surname = TextEditingController();
   final TextEditingController age = TextEditingController();
   final TextEditingController gender = TextEditingController();
+  final TextEditingController wardId = TextEditingController();
 
   bool _loading = false;
   String? _error;
@@ -100,6 +101,12 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
   }
 
   void createNewPatient() async {
+    if (wardId.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a ward')),
+      );
+      return;
+    }
     try {
       var res = await apiService.dio.post(
         '/no-id-patient',
@@ -108,6 +115,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
           'surname': surname.text,
           'age': age.text,
           'gender': gender.text,
+          'wardId': wardId.text.trim(),
         },
       );
       if (!mounted) return;
@@ -120,6 +128,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
       surname.clear();
       age.clear();
       gender.clear();
+      wardId.clear();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -135,6 +144,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     surname.dispose();
     age.dispose();
     gender.dispose();
+    wardId.dispose();
     super.dispose();
   }
 
@@ -538,6 +548,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                             surname,
                             age,
                             gender,
+                            wardId,
                             createNewPatient,
                           ),
                           icon: const Icon(

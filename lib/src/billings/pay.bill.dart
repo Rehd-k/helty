@@ -18,7 +18,7 @@ import '../widgets/receipt_printer_picker_sheet.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 // These payment methods require a bank to be selected before paying.
 // ─────────────────────────────────────────────────────────────────────────────
-const _bankRequiredMethods = {'pos', 'transfer', 'cheque'};
+const _bankRequiredMethods = {'card', 'transfer', 'cheque'};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable Bank Dropdown Widget
@@ -105,6 +105,7 @@ class PayBill extends ConsumerStatefulWidget {
     /// When null/empty with [invoiceId], uses `POST /invoices/:id/payments` (header payment).
     this.invoiceItemAllocations,
     this.onPaymentComplete,
+    this.preserveInvoiceOnDismiss = false,
   });
   final String firstName;
   final String lastName;
@@ -120,6 +121,10 @@ class PayBill extends ConsumerStatefulWidget {
 
   /// Called after the payment API call succeeds so the caller can clear its cart.
   final VoidCallback? onPaymentComplete;
+
+  /// When false (default), closing without paying deletes [invoiceId] (draft checkout).
+  /// When true, the invoice is left intact (e.g. existing inpatient / pending invoice).
+  final bool preserveInvoiceOnDismiss;
 
   @override
   PayBillState createState() => PayBillState();
@@ -145,11 +150,19 @@ class PayBillState extends ConsumerState<PayBill> {
   // Payment State
   String? _paymentMethod;
   bool _isSubmitting = false;
-  final List<String> _methods = ['transfer', 'pos', 'cash', 'cheque', 'mixed'];
+  final List<String> _methods = [
+    'transfer',
+    'card',
+    'cash',
+    'wallet',
+    'cheque',
+    'mixed',
+  ];
   final Map<String, IconData> _methodIcons = {
     'transfer': Icons.account_balance,
-    'pos': Icons.credit_card,
+    'card': Icons.credit_card,
     'cash': Icons.payments,
+    'wallet': Icons.account_balance_wallet_outlined,
     'cheque': Icons.history_edu,
     'mixed': Icons.pie_chart,
   };
@@ -209,11 +222,13 @@ class PayBillState extends ConsumerState<PayBill> {
     switch (method) {
       case 'cash':
         return 'CASH';
-      case 'pos':
+      case 'card':
         return 'CARD';
       case 'transfer':
       case 'cheque':
         return 'TRANSFER';
+      case 'wallet':
+        return 'WALLET';
       case 'mixed':
         return 'CASH';
       default:
@@ -226,12 +241,14 @@ class PayBillState extends ConsumerState<PayBill> {
     switch (method) {
       case 'cash':
         return 'CASH';
-      case 'pos':
+      case 'card':
         return 'CARD';
       case 'transfer':
         return 'TRANSFER';
       case 'cheque':
         return 'TRANSFER';
+      case 'wallet':
+        return 'WALLET';
       case 'mixed':
         return 'CASH';
       default:
@@ -764,7 +781,10 @@ class PayBillState extends ConsumerState<PayBill> {
     if (_isSubmitting) return;
 
     final invId = widget.invoiceId?.trim();
-    if (!_confirmed && invId != null && invId.isNotEmpty) {
+    if (!_confirmed &&
+        !widget.preserveInvoiceOnDismiss &&
+        invId != null &&
+        invId.isNotEmpty) {
       try {
         await _invoiceService.deleteInvoice(invId);
       } catch (e) {

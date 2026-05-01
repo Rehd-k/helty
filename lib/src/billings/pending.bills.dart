@@ -706,6 +706,7 @@ void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
                   total: invoice.total,
                   staffId: staffId,
                   invoiceId: invoice.id,
+                  preserveInvoiceOnDismiss: true,
                 ),
               ),
             ],

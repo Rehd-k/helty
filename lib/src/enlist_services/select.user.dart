@@ -36,6 +36,7 @@ class _SelectUserState extends State<SelectUser> {
   final TextEditingController surname = TextEditingController();
   final TextEditingController age = TextEditingController();
   final TextEditingController gender = TextEditingController();
+  final TextEditingController wardId = TextEditingController();
 
   bool _isSearching = false;
 
@@ -45,6 +46,12 @@ class _SelectUserState extends State<SelectUser> {
       widget.serviceName == 'lab';
 
   void createNewPatient() async {
+    if (wardId.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a ward')),
+      );
+      return;
+    }
     try {
       var newUser = await apiService.dio.post(
         '/patients',
@@ -53,6 +60,7 @@ class _SelectUserState extends State<SelectUser> {
           'surname': surname.text,
           'age': age.text,
           'gender': gender.text,
+          'wardId': wardId.text.trim(),
         },
       );
 
@@ -160,6 +168,7 @@ class _SelectUserState extends State<SelectUser> {
                                 surname,
                                 age,
                                 gender,
+                                wardId,
                                 createNewPatient,
                               ),
                               icon: const Icon(

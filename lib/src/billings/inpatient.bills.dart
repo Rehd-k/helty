@@ -436,6 +436,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         invoiceId: detail.id,
         invoiceItemAllocations: allocations,
         onPaymentComplete: _loadBillingData,
+        preserveInvoiceOnDismiss: true,
       ),
     );
   }
