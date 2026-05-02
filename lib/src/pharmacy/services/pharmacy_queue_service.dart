@@ -50,6 +50,13 @@ abstract class IPharmacyQueueService {
     String itemId,
     Map<String, dynamic> payload,
   );
+
+  /// Return units from a dispensed invoice line (`POST /invoice-drugs/:id/items/:itemId/return`).
+  Future<QueueOrder> returnInvoiceDrugItem(
+    String id,
+    String itemId,
+    ReturnDrugInvoiceItemDto dto,
+  );
 }
 
 /// API implementation for invoice-drugs endpoints.
@@ -177,6 +184,25 @@ class PharmacyQueueApiService implements IPharmacyQueueService {
     }
   }
 
+  @override
+  Future<QueueOrder> returnInvoiceDrugItem(
+    String id,
+    String itemId,
+    ReturnDrugInvoiceItemDto dto,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/invoice-drugs/$id/items/$itemId/return',
+        data: dto.toJson(),
+      );
+      return QueueOrder.fromJson(_unwrapOrderPayload(response.data));
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to return invoice drug item: ${_errorMessage(e)}',
+      );
+    }
+  }
+
   List<dynamic> _extractList(dynamic data) {
     if (data is List<dynamic>) return data;
     if (data is Map<String, dynamic>) {
@@ -273,6 +299,15 @@ class MockPharmacyQueueService implements IPharmacyQueueService {
     String id,
     String itemId,
     Map<String, dynamic> payload,
+  ) async {
+    return getInvoiceDrug(id);
+  }
+
+  @override
+  Future<QueueOrder> returnInvoiceDrugItem(
+    String id,
+    String itemId,
+    ReturnDrugInvoiceItemDto dto,
   ) async {
     return getInvoiceDrug(id);
   }

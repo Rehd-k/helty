@@ -1531,7 +1531,7 @@ class _PatientStatusDialog extends StatefulWidget {
 }
 
 class _PatientStatusDialogState extends State<_PatientStatusDialog> {
-  static const List<String> _statuses = ['ADMITED', 'DECEASED', 'OUTPATIENT'];
+  static const List<String> _statuses = ['ADMITED', 'DECEASED', ''];
 
   final WardService _wardService = WardService();
 

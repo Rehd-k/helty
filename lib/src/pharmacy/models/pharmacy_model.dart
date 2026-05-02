@@ -252,6 +252,7 @@ class DispenseHistoryDrug {
 class DispenseHistoryItem {
   const DispenseHistoryItem({
     required this.invoiceItemId,
+    required this.invoiceUUID,
     required this.invoiceId,
     required this.dispensedAt,
     required this.encounterId,
@@ -262,6 +263,7 @@ class DispenseHistoryItem {
     required this.patient,
   });
 
+  final String invoiceUUID;
   final String invoiceItemId;
   final String invoiceId;
   final DateTime? dispensedAt;
@@ -276,6 +278,7 @@ class DispenseHistoryItem {
       DispenseHistoryItem(
         invoiceItemId: json['invoiceItemId']?.toString() ?? '',
         invoiceId: json['invoiceId']?.toString() ?? '',
+        invoiceUUID: json['invoiceUUID']?.toString() ?? '',
         dispensedAt: json['dispensedAt'] == null
             ? null
             : DateTime.tryParse(json['dispensedAt'].toString()),

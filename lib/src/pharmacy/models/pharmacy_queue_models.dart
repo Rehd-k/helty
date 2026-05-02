@@ -2,6 +2,22 @@
 
 enum UrgencyLevel { urgent, standard, waiting }
 
+/// Body for `POST /invoice-drugs/:id/items/:itemId/return`.
+class ReturnDrugInvoiceItemDto {
+  const ReturnDrugInvoiceItemDto({required this.quantity, this.reason});
+
+  final int quantity;
+  final String? reason;
+
+  Map<String, dynamic> toJson() {
+    final r = reason?.trim();
+    return {
+      'quantity': quantity,
+      if (r != null && r.isNotEmpty) 'reason': r,
+    };
+  }
+}
+
 class PrescribedMedication {
   final String id;
   final String name;
