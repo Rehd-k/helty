@@ -29,6 +29,15 @@ class RefreshTokenInterceptor extends Interceptor {
 
   static const _retryKey = 'retry_after_refresh';
 
+  /// 401 on these routes means invalid credentials / code, not an expired session.
+  /// Do not attempt refresh or clear stored tokens.
+  static bool isPublicAuthFailure(RequestOptions request) {
+    final p = request.path;
+    return p.endsWith('/auth/login') ||
+        p.endsWith('/auth/forgot-password') ||
+        p.endsWith('/auth/reset-password');
+  }
+
   @override
   Future<void> onError(
     DioException err,
@@ -37,6 +46,11 @@ class RefreshTokenInterceptor extends Interceptor {
     final response = err.response;
     final statusCode = response?.statusCode;
     final request = err.requestOptions;
+
+    if (statusCode == 401 && isPublicAuthFailure(request)) {
+      handler.next(err);
+      return;
+    }
 
     // If backend explicitly reports an invalid/missing auth token,
     // immediately log out and replace the stack with the login screen

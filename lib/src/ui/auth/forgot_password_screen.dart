@@ -2,7 +2,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app_router.gr.dart';
 import '../../providers/auth_provider.dart';
+
+final _kEmailReg = RegExp(
+  r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
+);
 
 @RoutePage()
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -25,9 +30,28 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    await ref
-        .read(authProvider.notifier)
-        .forgotPassword(email: _emailCtrl.text.trim());
+    final email = _emailCtrl.text.trim();
+    final message = await ref.read(authProvider.notifier).forgotPassword(
+          email: email,
+        );
+    if (!mounted) return;
+    if (message != null) {
+      final combined = StringBuffer()
+        ..writeln(message)
+        ..writeln()
+        ..writeln(
+          'If your account was found, a code was generated. Please contact '
+          'your administrator for the code, then enter it on the next screen. '
+          'Codes expire in 15 minutes.',
+        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(combined.toString()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      await context.router.push(ResetPasswordRoute(email: email));
+    }
   }
 
   @override
@@ -51,7 +75,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Forgot Password'),
+        title: const Text('Forgot password'),
         leading: BackButton(onPressed: () => context.router.maybePop()),
       ),
       body: Center(
@@ -64,44 +88,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Success banner
-                  if (auth.successMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: colors.secondaryContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.mark_email_read_outlined,
-                            color: colors.onSecondaryContainer,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              auth.successMessage!,
-                              style: TextStyle(
-                                color: colors.onSecondaryContainer,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                  Semantics(
+                    header: true,
+                    child: Icon(
+                      Icons.lock_reset_outlined,
+                      size: 56,
+                      color: colors.primary,
                     ),
-                    const SizedBox(height: 24),
-                  ],
-
-                  Icon(
-                    Icons.lock_reset_outlined,
-                    size: 56,
-                    color: colors.primary,
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Reset your password',
+                    'Request a verification code',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -109,32 +106,35 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Enter your email and we\'ll send you a link to reset your password.',
+                    'Enter the email address on your staff account. If an account '
+                    'exists, a verification code will be issued. Until email '
+                    'delivery is enabled for your hospital, ask your administrator '
+                    'for the code — it is not sent by email yet.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
+                      height: 1.45,
                     ),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 28),
 
                   TextFormField(
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _submit(),
                     decoration: const InputDecoration(
-                      labelText: 'Email address',
+                      labelText: 'Work email',
+                      hintText: 'you@hospital.org',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'Email is required';
                       }
-                      final emailReg = RegExp(
-                        r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
-                      );
-                      if (!emailReg.hasMatch(v.trim())) {
-                        return 'Enter a valid email';
+                      if (!_kEmailReg.hasMatch(v.trim())) {
+                        return 'Enter a valid email address';
                       }
                       return null;
                     },
@@ -150,28 +150,28 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       ),
                     ),
                     child: auth.isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
+                        ? SizedBox(
+                            height: 22,
+                            width: 22,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                              strokeWidth: 2.5,
+                              color: colors.onPrimary,
                             ),
                           )
                         : const Text(
-                            'Send Reset Link',
+                            'Continue',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   TextButton.icon(
                     onPressed: () => context.router.maybePop(),
                     icon: const Icon(Icons.arrow_back, size: 18),
-                    label: const Text('Back to Sign In'),
+                    label: const Text('Back to sign in'),
                   ),
                 ],
               ),

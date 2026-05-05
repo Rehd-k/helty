@@ -32,6 +32,8 @@ class PatientService {
         if (toDate != null) 'toDate': toDate.toIso8601String(),
         if (sortBy != null) 'sortBy': sortBy,
         'isAscending': isAscending,
+        if (listStatusFilter != PatientListStatusFilter.none)
+          'listStatusFilter': listStatusFilter.name,
       },
     );
 
@@ -47,26 +49,13 @@ class PatientService {
               ? raw['data'] as List
               : <dynamic>[]);
 
-    final patients = list
+    return list
         .map(
           (e) => Patient.fromJson(
             Map<String, dynamic>.from(e as Map<String, dynamic>),
           ),
         )
         .toList();
-
-    switch (listStatusFilter) {
-      case PatientListStatusFilter.none:
-        return patients;
-      case PatientListStatusFilter.onlyAdmitted:
-        return patients
-            .where((p) => patientStatusIsAdmitted(p.status))
-            .toList();
-      case PatientListStatusFilter.excludeAdmitted:
-        return patients
-            .where((p) => !patientStatusIsAdmitted(p.status))
-            .toList();
-    }
   }
 
   Future<Patient> getPatientById(String id, [String? select]) async {

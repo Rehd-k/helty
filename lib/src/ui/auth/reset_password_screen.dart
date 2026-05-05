@@ -1,15 +1,23 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app_router.gr.dart';
 import '../../providers/auth_provider.dart';
+
+final _kEmailReg = RegExp(
+  r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
+);
+
+final _kSixDigits = RegExp(r'^\d{6}$');
 
 @RoutePage()
 class ResetPasswordScreen extends ConsumerStatefulWidget {
-  const ResetPasswordScreen({super.key, @QueryParam() this.token});
+  const ResetPasswordScreen({super.key, @QueryParam() this.email});
 
-  /// Reset token, typically from a deep-link query parameter.
-  final String? token;
+  /// Email from the forgot-password step (query param or deep link).
+  final String? email;
 
   @override
   ConsumerState<ResetPasswordScreen> createState() =>
@@ -18,23 +26,27 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _tokenCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _requestingNewCode = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.token != null) {
-      _tokenCtrl.text = widget.token!;
+    final initial = widget.email?.trim();
+    if (initial != null && initial.isNotEmpty) {
+      _emailCtrl.text = initial;
     }
   }
 
   @override
   void dispose() {
-    _tokenCtrl.dispose();
+    _emailCtrl.dispose();
+    _codeCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
@@ -42,20 +54,54 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await ref
-        .read(authProvider.notifier)
-        .resetPassword(
-          token: _tokenCtrl.text.trim(),
+    final ok = await ref.read(authProvider.notifier).resetPassword(
+          email: _emailCtrl.text.trim(),
+          code: _codeCtrl.text.trim(),
           newPassword: _passwordCtrl.text,
         );
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Password updated successfully. Please sign in.'),
+          content: Text(
+            'Your password was updated. Sign in with your email and new password.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
-      context.router.popUntilRoot();
+      context.router.replaceAll([LoginRoute()]);
+    }
+  }
+
+  Future<void> _requestNewCode() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty || !_kEmailReg.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter a valid email address first.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() => _requestingNewCode = true);
+    ref.read(authProvider.notifier).clearError();
+    final message = await ref.read(authProvider.notifier).forgotPassword(
+          email: email,
+          manageLoading: false,
+        );
+    if (!mounted) return;
+    setState(() => _requestingNewCode = false);
+    if (message != null) {
+      _codeCtrl.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$message '
+            'Your previous unused code is no longer valid. Ask your administrator for the new code.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -64,6 +110,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final auth = ref.watch(authProvider);
+    final secondaryBusy = _requestingNewCode;
 
     ref.listen(authProvider, (_, next) {
       if (next.error != null) {
@@ -80,7 +127,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reset Password'),
+        title: const Text('Reset password'),
         leading: BackButton(onPressed: () => context.router.maybePop()),
       ),
       body: Center(
@@ -93,14 +140,17 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.lock_open_outlined,
-                    size: 56,
-                    color: colors.primary,
+                  Semantics(
+                    header: true,
+                    child: Icon(
+                      Icons.pin_outlined,
+                      size: 56,
+                      color: colors.primary,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Set a new password',
+                    'Enter code and new password',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -108,38 +158,71 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Enter the reset token from your email and choose a new password.',
+                    'Use the same email as in the previous step. The 6-digit '
+                    'code expires in 15 minutes. If your hospital has not enabled '
+                    'email yet, your administrator can look up the code.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
+                      height: 1.45,
                     ),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 28),
 
-                  // Token field (hidden if passed via deep-link)
-                  if (widget.token == null || widget.token!.isEmpty) ...[
-                    TextFormField(
-                      controller: _tokenCtrl,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Reset Token *',
-                        prefixIcon: Icon(Icons.vpn_key_outlined),
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Token is required'
-                          : null,
+                  TextFormField(
+                    controller: _emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined),
                     ),
-                    const SizedBox(height: 14),
-                  ],
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Email is required';
+                      }
+                      if (!_kEmailReg.hasMatch(v.trim())) {
+                        return 'Enter a valid email address';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  TextFormField(
+                    controller: _codeCtrl,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: '6-digit code',
+                      hintText: '000000',
+                      prefixIcon: Icon(Icons.password_outlined),
+                    ),
+                    validator: (v) {
+                      final s = v?.trim() ?? '';
+                      if (s.isEmpty) return 'Code is required';
+                      if (!_kSixDigits.hasMatch(s)) {
+                        return 'Enter the 6-digit code';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
 
                   TextFormField(
                     controller: _passwordCtrl,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.next,
                     decoration: InputDecoration(
-                      labelText: 'New Password *',
+                      labelText: 'New password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
+                        tooltip: _obscurePassword ? 'Show password' : 'Hide',
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility_outlined
@@ -151,8 +234,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       ),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty) return 'Password is required';
-                      if (v.length < 8) return 'Minimum 8 characters';
+                      if (v == null || v.isEmpty) {
+                        return 'Password is required';
+                      }
+                      if (v.length < 6) {
+                        return 'At least 6 characters';
+                      }
                       return null;
                     },
                   ),
@@ -164,9 +251,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
-                      labelText: 'Confirm Password *',
+                      labelText: 'Confirm new password',
                       prefixIcon: const Icon(Icons.lock_person_outlined),
                       suffixIcon: IconButton(
+                        tooltip: _obscureConfirm ? 'Show password' : 'Hide',
                         icon: Icon(
                           _obscureConfirm
                               ? Icons.visibility_outlined
@@ -186,10 +274,25 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 12),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed:
+                          (auth.isLoading || secondaryBusy) ? null : _requestNewCode,
+                      child: Text(
+                        _requestingNewCode
+                            ? 'Requesting…'
+                            : 'Request new code',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
 
                   FilledButton(
-                    onPressed: auth.isLoading ? null : _submit,
+                    onPressed:
+                        (auth.isLoading || secondaryBusy) ? null : _submit,
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -197,16 +300,16 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       ),
                     ),
                     child: auth.isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
+                        ? SizedBox(
+                            height: 22,
+                            width: 22,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                              strokeWidth: 2.5,
+                              color: colors.onPrimary,
                             ),
                           )
                         : const Text(
-                            'Update Password',
+                            'Update password',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

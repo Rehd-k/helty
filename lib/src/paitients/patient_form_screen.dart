@@ -87,6 +87,14 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   sac.State? _selectedNigerianState;
   String? _selectedLgaName;
 
+  /// Text field values as they were after [initState] (for merge-on-save when editing).
+  late Map<String, String> _fieldSnapshot;
+
+  /// Ward/HMO picks after async lists finish loading — compared on save to [Patient.wardId] / [Patient.hmoId].
+  String? _wardIdBaseline;
+  String? _hmoIdBaseline;
+  bool _selectionBaselinesReady = false;
+
   @override
   void initState() {
     super.initState();
@@ -157,77 +165,77 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     )..sort((a, b) => a.name.compareTo(b.name));
 
     _syncLocationSelectionsFromControllers();
+    _fieldSnapshot = _snapshotControllers();
   }
 
-  Future<void> _loadHmoPlans() async {
-    try {
-      final r = await HmoService().list(take: 200);
-      if (!mounted) return;
-      setState(() {
-        _hmoPlans = r.items;
-        _loadingHmos = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loadingHmos = false);
-    }
+  Map<String, String> _snapshotControllers() {
+    return {
+      'cardNo': _cardNoController.text,
+      'title': _titleController.text,
+      'surname': _surnameController.text,
+      'firstName': _firstNameController.text,
+      'otherName': _otherNameController.text,
+      'dob': _dobController.text,
+      'gender': _genderController.text,
+      'maritalStatus': _maritalStatusController.text,
+      'nationality': _nationalityController.text,
+      'stateOfOrigin': _stateController.text,
+      'lga': _lgaController.text,
+      'town': _townController.text,
+      'permanentAddress': _permanentAddressController.text,
+      'religion': _religionController.text,
+      'email': _emailController.text,
+      'preferredLanguage': _preferredLanguageController.text,
+      'phoneNumber': _phoneController.text,
+      'addressOfResidence': _addressOfResidenceController.text,
+      'profession': _professionController.text,
+      'nextOfKinName': _nextOfKinNameController.text,
+      'nextOfKinPhone': _nextOfKinPhoneController.text,
+      'nextOfKinAddress': _nextOfKinAddressController.text,
+      'nextOfKinRelationship': _nextOfKinRelationshipController.text,
+      'hmo': _hmoController.text,
+      'fingerprint': _fingerprintController.text,
+    };
   }
 
-  Future<void> _loadWards() async {
-    try {
-      final wards = await _wardService.fetchWards();
-      if (!mounted) return;
-      final sorted = [...wards]..sort((a, b) => a.name.compareTo(b.name));
-      final defaultOpd = sorted.where(
-        (w) => w.name.trim().toUpperCase() == 'OPD',
-      );
+  bool _fieldTextUnchanged(String key, String text) =>
+      text.trim() == (_fieldSnapshot[key] ?? '').trim();
 
-      setState(() {
-        _wards = sorted;
-        _selectedWardId =
-            _selectedWardId ??
-            (defaultOpd.isNotEmpty ? defaultOpd.first.id : null);
-        _loadingWards = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loadingWards = false);
-    }
+  String _mergeRequiredField(
+    TextEditingController c,
+    String key,
+    String server,
+  ) {
+    if (_fieldTextUnchanged(key, c.text)) return server;
+    return c.text.trim();
   }
 
-  @override
-  void dispose() {
-    _cardNoController.dispose();
-    _titleController.dispose();
-    _surnameController.dispose();
-    _firstNameController.dispose();
-    _otherNameController.dispose();
-    _dobController.dispose();
-    _genderController.dispose();
-    _maritalStatusController.dispose();
-    _nationalityController.dispose();
-    _stateController.dispose();
-    _lgaController.dispose();
-    _townController.dispose();
-    _permanentAddressController.dispose();
-    _religionController.dispose();
-    _emailController.dispose();
-    _preferredLanguageController.dispose();
-    _phoneController.dispose();
-    _addressOfResidenceController.dispose();
-    _professionController.dispose();
-    _nextOfKinNameController.dispose();
-    _nextOfKinPhoneController.dispose();
-    _nextOfKinAddressController.dispose();
-    _nextOfKinRelationshipController.dispose();
-    _hmoController.dispose();
-    _fingerprintController.dispose();
-    super.dispose();
+  String? _mergeOptionalField(
+    TextEditingController c,
+    String key,
+    String? server,
+  ) {
+    if (_fieldTextUnchanged(key, c.text)) return server;
+    final t = c.text.trim();
+    return t.isEmpty ? null : t;
   }
 
-  Future<void> _save(String? patientId) async {
-    if (_formKey.currentState?.validate() ?? false) {
-      final newPatient = Patient(
+  DateTime _mergeDob(TextEditingController c, DateTime server) {
+    if (_fieldTextUnchanged('dob', c.text)) return server;
+    return DateTime.tryParse(c.text) ?? server;
+  }
+
+  void _tryCaptureSelectionBaselines() {
+    if (_selectionBaselinesReady || _loadingWards || _loadingHmos) return;
+    _wardIdBaseline = _selectedWardId;
+    _hmoIdBaseline = _selectedHmoId;
+    _selectionBaselinesReady = true;
+  }
+
+  Patient _buildPatientForSave() {
+    final p = widget.patient;
+    if (p == null) {
+      return Patient(
         cardNo: _cardNoController.text.trim(),
         title: _titleController.text.trim(),
         surname: _surnameController.text.trim(),
@@ -290,18 +298,247 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
             : _fingerprintController.text.trim(),
         patientId: '',
       );
+    }
 
+    final mergedWardId =
+        _selectionBaselinesReady && _selectedWardId == _wardIdBaseline
+        ? p.wardId
+        : _selectedWardId;
+    final mergedHmoId =
+        _selectionBaselinesReady && _selectedHmoId == _hmoIdBaseline
+        ? p.hmoId
+        : _selectedHmoId;
+
+    String? resolvedWardName = p.ward;
+    if (mergedWardId != null) {
+      for (final w in _wards) {
+        if (w.id == mergedWardId) {
+          resolvedWardName = w.name;
+          break;
+        }
+      }
+    }
+
+    return Patient(
+      id: p.id,
+      patientId: p.patientId,
+      cardNo: _mergeRequiredField(_cardNoController, 'cardNo', p.cardNo),
+      title: _mergeRequiredField(_titleController, 'title', p.title),
+      surname: _mergeRequiredField(_surnameController, 'surname', p.surname),
+      firstName: _mergeRequiredField(
+        _firstNameController,
+        'firstName',
+        p.firstName,
+      ),
+      otherName: _mergeOptionalField(
+        _otherNameController,
+        'otherName',
+        p.otherName,
+      ),
+      dob: _mergeDob(_dobController, p.dob),
+      gender: _mergeRequiredField(_genderController, 'gender', p.gender),
+      maritalStatus: _mergeRequiredField(
+        _maritalStatusController,
+        'maritalStatus',
+        p.maritalStatus,
+      ),
+      nationality: _mergeRequiredField(
+        _nationalityController,
+        'nationality',
+        p.nationality,
+      ),
+      stateOfOrigin: _mergeRequiredField(
+        _stateController,
+        'stateOfOrigin',
+        p.stateOfOrigin,
+      ),
+      lga: _mergeRequiredField(_lgaController, 'lga', p.lga),
+      town: _mergeRequiredField(_townController, 'town', p.town),
+      permanentAddress: _mergeRequiredField(
+        _permanentAddressController,
+        'permanentAddress',
+        p.permanentAddress,
+      ),
+      religion: _mergeOptionalField(
+        _religionController,
+        'religion',
+        p.religion,
+      ),
+      email: _mergeOptionalField(_emailController, 'email', p.email),
+      preferredLanguage: _mergeOptionalField(
+        _preferredLanguageController,
+        'preferredLanguage',
+        p.preferredLanguage,
+      ),
+      phoneNumber: _mergeOptionalField(
+        _phoneController,
+        'phoneNumber',
+        p.phoneNumber,
+      ),
+      addressOfResidence: _mergeOptionalField(
+        _addressOfResidenceController,
+        'addressOfResidence',
+        p.addressOfResidence,
+      ),
+      profession: _mergeOptionalField(
+        _professionController,
+        'profession',
+        p.profession,
+      ),
+      nextOfKinName: _mergeOptionalField(
+        _nextOfKinNameController,
+        'nextOfKinName',
+        p.nextOfKinName,
+      ),
+      nextOfKinPhone: _mergeOptionalField(
+        _nextOfKinPhoneController,
+        'nextOfKinPhone',
+        p.nextOfKinPhone,
+      ),
+      nextOfKinAddress: _mergeOptionalField(
+        _nextOfKinAddressController,
+        'nextOfKinAddress',
+        p.nextOfKinAddress,
+      ),
+      nextOfKinRelationship: _mergeOptionalField(
+        _nextOfKinRelationshipController,
+        'nextOfKinRelationship',
+        p.nextOfKinRelationship,
+      ),
+      hmo: _mergeOptionalField(_hmoController, 'hmo', p.hmo),
+      hmoId: mergedHmoId,
+      hmoProvider: p.hmoProvider,
+      fingerprintData: _mergeOptionalField(
+        _fingerprintController,
+        'fingerprint',
+        p.fingerprintData,
+      ),
+      createdAt: p.createdAt,
+      createdBy: p.createdBy,
+      updatedAt: p.updatedAt,
+      updatedBy: p.updatedBy,
+      status: p.status,
+      lockNames: p.lockNames,
+      fromUnregisteredFlow: p.fromUnregisteredFlow,
+      unregisteredTransactionId: p.unregisteredTransactionId,
+      ward: resolvedWardName ?? p.ward,
+      wardId: mergedWardId,
+      bedNumber: p.bedNumber,
+      bedId: p.bedId,
+      admissionDate: p.admissionDate,
+      allergies: p.allergies,
+      prescriptionHistory: p.prescriptionHistory,
+    );
+  }
+
+  Future<void> _loadHmoPlans() async {
+    try {
+      final r = await HmoService().list(take: 200);
+      if (!mounted) return;
+      setState(() {
+        _hmoPlans = r.items;
+        _loadingHmos = false;
+        final pat = widget.patient;
+        if (pat != null &&
+            (_selectedHmoId == null || _selectedHmoId!.isEmpty) &&
+            pat.hmoId != null &&
+            pat.hmoId!.isNotEmpty) {
+          final match = _hmoPlans.where((h) => h.id == pat.hmoId).toList();
+          if (match.isNotEmpty) _selectedHmoId = pat.hmoId;
+        }
+      });
+      _tryCaptureSelectionBaselines();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingHmos = false);
+      _tryCaptureSelectionBaselines();
+    }
+  }
+
+  Future<void> _loadWards() async {
+    try {
+      final wards = await _wardService.fetchWards();
+      if (!mounted) return;
+      final sorted = [...wards]..sort((a, b) => a.name.compareTo(b.name));
+      final defaultOpd = sorted.where(
+        (w) => w.name.trim().toUpperCase() == 'OPD',
+      );
+      final opdId = defaultOpd.isNotEmpty ? defaultOpd.first.id : null;
+      final pat = widget.patient;
+
+      setState(() {
+        _wards = sorted;
+        if (pat == null) {
+          _selectedWardId = _selectedWardId ?? opdId;
+        } else {
+          if (_selectedWardId == null &&
+              pat.ward != null &&
+              pat.ward!.trim().isNotEmpty) {
+            final byName = sorted.where(
+              (w) => _equalsIgnoreCase(w.name, pat.ward!.trim()),
+            );
+            if (byName.isNotEmpty) _selectedWardId = byName.first.id;
+          }
+          _selectedWardId = _selectedWardId ?? pat.wardId ?? opdId;
+        }
+        _loadingWards = false;
+      });
+      _tryCaptureSelectionBaselines();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingWards = false);
+      _tryCaptureSelectionBaselines();
+    }
+  }
+
+  @override
+  void dispose() {
+    _cardNoController.dispose();
+    _titleController.dispose();
+    _surnameController.dispose();
+    _firstNameController.dispose();
+    _otherNameController.dispose();
+    _dobController.dispose();
+    _genderController.dispose();
+    _maritalStatusController.dispose();
+    _nationalityController.dispose();
+    _stateController.dispose();
+    _lgaController.dispose();
+    _townController.dispose();
+    _permanentAddressController.dispose();
+    _religionController.dispose();
+    _emailController.dispose();
+    _preferredLanguageController.dispose();
+    _phoneController.dispose();
+    _addressOfResidenceController.dispose();
+    _professionController.dispose();
+    _nextOfKinNameController.dispose();
+    _nextOfKinPhoneController.dispose();
+    _nextOfKinAddressController.dispose();
+    _nextOfKinRelationshipController.dispose();
+    _hmoController.dispose();
+    _fingerprintController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      final payload = _buildPatientForSave();
       final service = ref.read(patientServiceProvider);
+      final routeKey = widget.patient?.id ?? widget.patient?.patientId;
       try {
         if (widget.patient == null) {
-          Patient savedPatient = await service.createPatient(newPatient);
-          _showSuccessModal(savedPatient.patientId);
-        } else {
-          Patient updatedPatient = await service.updatePatient(
-            newPatient,
-            patientId,
+          final savedPatient = await service.createPatient(payload);
+          await _showSuccessModal(
+            isUpdate: false,
+            patientId: savedPatient.patientId,
           );
-          _showSuccessModal(updatedPatient.patientId);
+        } else {
+          final updatedPatient = await service.updatePatient(payload, routeKey);
+          await _showSuccessModal(
+            isUpdate: true,
+            patientId: updatedPatient.patientId,
+          );
         }
         if (!mounted) return;
         Navigator.of(context).pop();
@@ -314,78 +551,139 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     }
   }
 
-  Future<void> _showSuccessModal(String patientId) async {
+  Future<void> _showSuccessModal({
+    required bool isUpdate,
+    required String patientId,
+  }) async {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final id = patientId.trim();
+    final showId = id.isNotEmpty;
 
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
+      barrierColor: colors.scrim.withValues(alpha: 0.45),
       builder: (dialogContext) {
         return Dialog(
           elevation: 0,
           backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
+          alignment: Alignment.center,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 28,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Material(
               color: colors.surface,
+              elevation: 6,
+              shadowColor: colors.shadow.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: colors.shadow.withValues(alpha: 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 68,
-                  height: 68,
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    color: Colors.green,
-                    size: 40,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Created successfully',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Patient Id - $patientId',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colors.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 22),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: colors.primaryContainer.withValues(alpha: 0.35),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: colors.primary,
+                        size: 42,
                       ),
                     ),
-                    child: const Text('Done'),
-                  ),
+                    const SizedBox(height: 20),
+                    Text(
+                      isUpdate
+                          ? 'Updated successfully'
+                          : 'Created successfully',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (showId) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceContainerHighest.withValues(
+                            alpha: 0.65,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: colors.outlineVariant.withValues(
+                              alpha: 0.45,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Patient ID',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colors.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.2,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            SelectableText(
+                              id,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else if (isUpdate) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Changes have been saved.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          height: 1.35,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Done'),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -422,6 +720,16 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (isEditing &&
+                        (widget.patient?.patientId ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
+                      _buildPatientIdBanner(
+                        context,
+                        widget.patient!.patientId.trim(),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     ModernFormCard(
                       title: 'Patient Information',
                       leadingIcon: Icons.person_outline,
@@ -555,17 +863,29 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                               helperText: 'Required. Defaults to OPD',
                             ),
                             isExpanded: true,
-                            items: _wards
-                                .map(
-                                  (w) => DropdownMenuItem<String>(
-                                    value: w.id,
-                                    child: Text(w.name),
+                            items: [
+                              if (_selectedWardId != null &&
+                                  _selectedWardId!.isNotEmpty &&
+                                  !_wards.any((w) => w.id == _selectedWardId))
+                                DropdownMenuItem<String>(
+                                  value: _selectedWardId,
+                                  child: Text(
+                                    widget.patient?.ward ??
+                                        'Current ward (reload lists if needed)',
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (v) => setState(() => _selectedWardId = v),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                ),
+                              ..._wards.map(
+                                (w) => DropdownMenuItem<String>(
+                                  value: w.id,
+                                  child: Text(w.name),
+                                ),
+                              ),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => _selectedWardId = v),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
                           ),
                         const SizedBox(height: 8),
                         if (_loadingHmos)
@@ -590,6 +910,17 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                 value: null,
                                 child: Text('None'),
                               ),
+                              if (_selectedHmoId != null &&
+                                  _selectedHmoId!.isNotEmpty &&
+                                  !_hmoPlans.any((h) => h.id == _selectedHmoId))
+                                DropdownMenuItem<String?>(
+                                  value: _selectedHmoId,
+                                  child: Text(
+                                    widget.patient?.hmoProvider?.name ??
+                                        widget.patient?.hmo ??
+                                        'Current HMO plan',
+                                  ),
+                                ),
                               ..._hmoPlans.map(
                                 (h) => DropdownMenuItem<String?>(
                                   value: h.id,
@@ -601,7 +932,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                 ),
                               ),
                             ],
-                            onChanged: (v) => setState(() => _selectedHmoId = v),
+                            onChanged: (v) =>
+                                setState(() => _selectedHmoId = v),
                           ),
                         const SizedBox(height: 8),
                         _buildTextField(
@@ -618,7 +950,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 260),
                         child: ElevatedButton(
-                          onPressed: () => _save(widget.patient?.id),
+                          onPressed: _save,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                               vertical: 16.0,
@@ -644,6 +976,47 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     );
   }
 
+  Widget _buildPatientIdBanner(BuildContext context, String patientId) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Material(
+      color: colors.secondaryContainer.withValues(alpha: 0.65),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.badge_outlined, color: colors.onSecondaryContainer),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Patient ID',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: colors.onSecondaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    patientId,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.25,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _sectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -652,6 +1025,15 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
     );
+  }
+
+  String? _matchOptionCaseInsensitive(String value, List<String> options) {
+    final t = value.trim().toLowerCase();
+    if (t.isEmpty) return null;
+    for (final o in options) {
+      if (o.toLowerCase() == t) return o;
+    }
+    return null;
   }
 
   Widget _buildTextField(
@@ -682,21 +1064,40 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     bool required = false,
   }) {
     final currentValue = controller.text.trim();
-    final initialValue = options.contains(currentValue) ? currentValue : null;
+    final canonical = _matchOptionCaseInsensitive(currentValue, options);
+    final valueForDropdown =
+        canonical ??
+        (options.contains(currentValue) ? currentValue : null) ??
+        (currentValue.isNotEmpty ? currentValue : null);
+
+    final items = <DropdownMenuItem<String>>[
+      ...options.map(
+        (option) =>
+            DropdownMenuItem<String>(value: option, child: Text(option)),
+      ),
+    ];
+    if (valueForDropdown != null &&
+        valueForDropdown.isNotEmpty &&
+        !items.any(
+          (e) => e.value!.toLowerCase() == valueForDropdown.toLowerCase(),
+        )) {
+      items.insert(
+        0,
+        DropdownMenuItem<String>(
+          value: valueForDropdown,
+          child: Text(valueForDropdown),
+        ),
+      );
+    }
 
     return DropdownButtonFormField<String>(
-      initialValue: initialValue,
+      initialValue: valueForDropdown,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
       ),
       isExpanded: true,
-      items: options
-          .map(
-            (option) =>
-                DropdownMenuItem<String>(value: option, child: Text(option)),
-          )
-          .toList(),
+      items: items,
       onChanged: (value) {
         controller.text = value ?? '';
       },
@@ -757,7 +1158,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         (lga) => lga.name.toLowerCase() == normalizedLga,
       );
       _selectedLgaName = match.isNotEmpty ? match.first.name : null;
-      if (_selectedLgaName == null) _lgaController.clear();
       return;
     }
 

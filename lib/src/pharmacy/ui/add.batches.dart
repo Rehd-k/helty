@@ -496,7 +496,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                           children: [
                             Expanded(
                               child: ModernTextField(
-                                label: 'Batch Number / Lot ID',
+                                label: 'Batch Number / Lot ID *',
                                 hint: 'e.g., LOT-2023-XYZ',
                                 controller: _batchNumberCtrl,
                               ),
@@ -572,7 +572,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                           children: [
                             Expanded(
                               child: ModernTextField(
-                                label: 'Quantity Received',
+                                label: 'Quantity Received *',
                                 hint: 'e.g., 500',
                                 controller: _quantityCtrl,
                                 keyboardType: TextInputType.number,
@@ -584,10 +584,15 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: ModernTextField(
-                                label: 'Cost Price (Per Unit)',
+                                label: 'Cost Price (Per Unit) *',
                                 hint: '0.00',
                                 icon: Icons.money_off_csred_outlined,
                                 controller: _costPriceCtrl,
+                                validator: (v) => v == null || v.trim().isEmpty
+                                    ? 'Required'
+                                    : double.tryParse(v) == null
+                                    ? 'Invalid'
+                                    : null,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
                                       decimal: true,

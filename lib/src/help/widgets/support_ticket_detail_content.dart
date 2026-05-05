@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../chat/services/internal_chat_socket.dart';
+import '../../models/staff_model.dart';
+import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/staff_providers.dart';
 import '../../widgets/notifications/app_notification_provider.dart';
 import '../models/support_ticket_models.dart';
 import '../services/tickets_api_service.dart';
@@ -96,13 +99,7 @@ class _SupportTicketDetailContentState
         if (!list.any((m) => m.id == msg.id)) {
           list.add(msg);
           if (_detail != null) {
-            _detail = SupportTicketDetail(
-              id: _detail!.id,
-              title: _detail!.title,
-              status: _detail!.status,
-              messages: list,
-              createdAt: _detail!.createdAt,
-            );
+            _detail = _detail!.copyWith(messages: list);
           }
         }
       });
@@ -170,6 +167,108 @@ class _SupportTicketDetailContentState
       showAppNotification(ref, 'Update failed: $e',
           level: AppNotificationLevel.error);
     }
+  }
+
+  Future<void> _pickStaffToAssign() async {
+    final exclude =
+        _detail?.assignments.map((a) => a.staffUuid).toSet() ?? {};
+    final staff = await showDialog<Staff>(
+      context: context,
+      builder: (ctx) => _StaffPickerDialog(excludeStaffIds: exclude),
+    );
+    if (staff == null || !mounted) return;
+    try {
+      await ref.read(ticketsApiServiceProvider).assignTicket(
+            ticketId: widget.ticketId,
+            staffId: staff.id,
+          );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      showAppNotification(ref, 'Assign failed: $e',
+          level: AppNotificationLevel.error);
+    }
+  }
+
+  Future<void> _unassignStaff(String staffUuid) async {
+    try {
+      await ref.read(ticketsApiServiceProvider).unassignTicket(
+            ticketId: widget.ticketId,
+            staffId: staffUuid,
+          );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      showAppNotification(ref, 'Unassign failed: $e',
+          level: AppNotificationLevel.error);
+    }
+  }
+
+  Widget _buildSuperAdminAssignmentPanel(
+    ThemeData theme,
+    SupportTicketDetail d,
+  ) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Requester', style: theme.textTheme.labelMedium),
+            Text(
+              d.createdBy != null && d.createdBy!.fullName.isNotEmpty
+                  ? d.createdBy!.fullName
+                  : (d.createdById != null && d.createdById!.isNotEmpty
+                      ? 'User ${d.createdById}'
+                      : 'Unknown'),
+              style: theme.textTheme.bodyMedium,
+            ),
+            if (d.createdBy != null && d.createdBy!.staffId.isNotEmpty)
+              Text(
+                'Staff ID: ${d.createdBy!.staffId}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text('Assigned to', style: theme.textTheme.labelMedium),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _pickStaffToAssign,
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                  label: const Text('Assign'),
+                ),
+              ],
+            ),
+            if (d.assignments.isEmpty)
+              Text(
+                'No one assigned yet.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: d.assignments.map((a) {
+                  final label = a.staff != null && a.staff!.fullName.isNotEmpty
+                      ? a.staff!.fullName
+                      : 'Staff';
+                  return InputChip(
+                    label: Text(label),
+                    onDeleted: () => _unassignStaff(a.staffUuid),
+                    deleteIcon: const Icon(Icons.close_rounded, size: 18),
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -282,15 +381,19 @@ class _SupportTicketDetailContentState
       );
     }
 
+    final isSuperAdmin = staffIsSuperAdmin(ref.watch(currentStaffProvider));
+    final detail = _detail!;
+
     return Column(
       children: [
+        if (isSuperAdmin) _buildSuperAdminAssignmentPanel(theme, detail),
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            itemCount: _detail?.messages.length ?? 0,
+            itemCount: detail.messages.length,
             itemBuilder: (context, i) {
-              final m = _detail!.messages[i];
+              final m = detail.messages[i];
               final mine = staffId != null &&
                   m.authorStaffId != null &&
                   m.authorStaffId == staffId;
@@ -342,6 +445,101 @@ class _SupportTicketDetailContentState
               ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Searchable staff list for super-admin ticket assignment.
+class _StaffPickerDialog extends ConsumerStatefulWidget {
+  const _StaffPickerDialog({this.excludeStaffIds = const {}});
+
+  final Set<String> excludeStaffIds;
+
+  @override
+  ConsumerState<_StaffPickerDialog> createState() => _StaffPickerDialogState();
+}
+
+class _StaffPickerDialogState extends ConsumerState<_StaffPickerDialog> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncStaff = ref.watch(
+      staffListProvider((
+        query: _query.trim().isEmpty ? null : _query.trim(),
+        role: null,
+        departmentId: null,
+        limit: 50,
+      )),
+    );
+
+    return AlertDialog(
+      title: const Text('Assign ticket'),
+      content: SizedBox(
+        width: 420,
+        height: 420,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Search staff',
+                hintText: 'Name, email, or ID',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (v) => setState(() => _query = v),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: asyncStaff.when(
+                data: (list) {
+                  final visible = list
+                      .where((s) => !widget.excludeStaffIds.contains(s.id))
+                      .toList();
+                  if (visible.isEmpty) {
+                    return Center(
+                      child: Text(
+                        list.isEmpty
+                            ? 'No staff found.'
+                            : 'Everyone listed is already assigned.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    itemCount: visible.length,
+                    itemBuilder: (context, i) {
+                      final s = visible[i];
+                      return ListTile(
+                        title: Text(s.fullName),
+                        subtitle: Text(
+                          '${s.staffId}${s.email != null ? ' · ${s.email}' : ''}',
+                        ),
+                        onTap: () => Navigator.pop(context, s),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(
+                  child: Text(
+                    '$e',
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
         ),
       ],
     );

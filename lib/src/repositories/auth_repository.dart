@@ -53,9 +53,14 @@ class AuthRepository {
       _authService.forgotPassword(email: email);
 
   Future<String> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
-  }) => _authService.resetPassword(token: token, newPassword: newPassword);
+  }) => _authService.resetPassword(
+        email: email,
+        code: code,
+        newPassword: newPassword,
+      );
 
   Future<Staff> getMe() => _authService.getMe();
 

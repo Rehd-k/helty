@@ -84,6 +84,9 @@ class Staff {
     this.email,
     this.phone,
     this.isActive = true,
+    /// Present on some admin / detail API responses when a forgot-password code exists.
+    this.passwordResetCode,
+    this.passwordResetCodeExpiresAt,
   });
 
   final String id;
@@ -100,7 +103,16 @@ class Staff {
   final String? phone;
   final bool isActive;
 
+  /// 6-digit (or other) code for staff password reset; read-only from API.
+  final String? passwordResetCode;
+
+  /// When [passwordResetCode] expires, if the API provides it.
+  final DateTime? passwordResetCodeExpiresAt;
+
   String get fullName => '$firstName $lastName';
+
+  bool get hasActivePasswordResetCode =>
+      passwordResetCode != null && passwordResetCode!.trim().isNotEmpty;
 
   static String? _optionalString(dynamic v) {
     if (v == null) return null;
@@ -111,6 +123,33 @@ class Staff {
   static String _requiredString(dynamic v, [String fallback = '']) {
     final s = _optionalString(v);
     return (s == null || s.isEmpty) ? fallback : s;
+  }
+
+  static DateTime? _optionalDateTime(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    if (v is String) return DateTime.tryParse(v);
+    return null;
+  }
+
+  static String? _passwordResetCodeFromJson(Map<String, dynamic> json) {
+    return _optionalString(
+          json['passwordResetCode'],
+        ) ??
+        _optionalString(json['password_reset_code']) ??
+        _optionalString(json['resetCode']) ??
+        _optionalString(json['reset_code']) ??
+        _optionalString(json['pendingPasswordResetCode']) ??
+        _optionalString(json['forgotPasswordCode']);
+  }
+
+  static DateTime? _passwordResetExpiresFromJson(Map<String, dynamic> json) {
+    return _optionalDateTime(
+          json['passwordResetCodeExpiresAt'],
+        ) ??
+        _optionalDateTime(json['password_reset_code_expires_at']) ??
+        _optionalDateTime(json['passwordResetExpiresAt']) ??
+        _optionalDateTime(json['resetCodeExpiresAt']);
   }
 
   factory Staff.fromJson(Map<String, dynamic> json) {
@@ -143,6 +182,8 @@ class Staff {
       email: json['email'] as String?,
       phone: json['phone']?.toString(), // API may return int or string
       isActive: (json['isActive'] as bool?) ?? true,
+      passwordResetCode: _passwordResetCodeFromJson(json),
+      passwordResetCodeExpiresAt: _passwordResetExpiresFromJson(json),
     );
   }
 
@@ -175,6 +216,9 @@ class Staff {
     String? email,
     String? phone,
     bool? isActive,
+    String? passwordResetCode,
+    DateTime? passwordResetCodeExpiresAt,
+    bool clearPasswordResetCode = false,
   }) => Staff(
     id: id ?? this.id,
     staffId: staffId ?? this.staffId,
@@ -189,6 +233,12 @@ class Staff {
     email: email ?? this.email,
     phone: phone ?? this.phone,
     isActive: isActive ?? this.isActive,
+    passwordResetCode: clearPasswordResetCode
+        ? null
+        : (passwordResetCode ?? this.passwordResetCode),
+    passwordResetCodeExpiresAt: clearPasswordResetCode
+        ? null
+        : (passwordResetCodeExpiresAt ?? this.passwordResetCodeExpiresAt),
   );
 }
 

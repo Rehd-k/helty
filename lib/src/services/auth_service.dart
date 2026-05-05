@@ -99,26 +99,35 @@ class AuthService {
   // ── Forgot / Reset Password ─────────────────────────────────────────────────
 
   /// POST /auth/forgot-password  →  { message }
+  ///
+  /// **503** — email delivery failed (SMTP configured but sending failed).
   Future<String> forgotPassword({required String email}) async {
-    final resp = await _dio.post(
+    final resp = await _dio.post<Map<String, dynamic>>(
       '/auth/forgot-password',
-      data: {'email': email},
+      data: {'email': email.trim()},
     );
-    final data = resp.data as Map<String, dynamic>;
-    return data['message'] as String? ?? 'Reset link sent.';
+    final data = resp.data;
+    return data?['message'] as String? ??
+        'If an account exists for this email, a verification code has been issued.';
   }
 
-  /// POST /auth/reset-password  →  { message }
+  /// POST /auth/reset-password  with staff code flow:
+  /// `{ email, code, newPassword }`
   Future<String> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
   }) async {
-    final resp = await _dio.post(
+    final resp = await _dio.post<Map<String, dynamic>>(
       '/auth/reset-password',
-      data: {'token': token, 'password': newPassword},
+      data: {
+        'email': email.trim(),
+        'code': code.trim(),
+        'newPassword': newPassword,
+      },
     );
-    final data = resp.data as Map<String, dynamic>;
-    return data['message'] as String? ?? 'Password updated.';
+    final data = resp.data;
+    return data?['message'] as String? ?? 'Password updated.';
   }
 
   // ── Current Staff ───────────────────────────────────────────────────────────

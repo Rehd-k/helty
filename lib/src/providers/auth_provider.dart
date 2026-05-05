@@ -1,8 +1,19 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/errors/app_exception.dart';
 import '../models/staff_model.dart';
 import '../repositories/auth_repository.dart';
 import '../services/auth_service.dart';
+
+String authFlowErrorMessage(Object e) {
+  if (e is DioException) {
+    final inner = e.error;
+    if (inner is AppException) return inner.message;
+  }
+  if (e is AppException) return e.message;
+  return e.toString();
+}
 
 // ── Repository provider ──────────────────────────────────────────────────────
 
@@ -66,7 +77,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(staff: response.staff, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: authFlowErrorMessage(e));
       return false;
     }
   }
@@ -100,33 +111,50 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(staff: response.staff, isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: authFlowErrorMessage(e));
       return false;
     }
   }
 
   // ── Forgot Password ────────────────────────────────────────────────────────
 
-  Future<bool> forgotPassword({required String email}) async {
+  /// Returns the API message on success, or `null` on failure ([state.error] set).
+  ///
+  /// When [manageLoading] is false, [AuthState.isLoading] is unchanged (e.g. “Request new code”
+  /// from the reset screen should not disable the main submit button).
+  Future<String?> forgotPassword({
+    required String email,
+    bool manageLoading = true,
+  }) async {
     state = state.copyWith(
-      isLoading: true,
+      isLoading: manageLoading ? true : state.isLoading,
       clearError: true,
       clearSuccess: true,
     );
     try {
       final message = await _repo.forgotPassword(email: email);
-      state = state.copyWith(isLoading: false, successMessage: message);
-      return true;
+      if (manageLoading) {
+        state = state.copyWith(isLoading: false);
+      }
+      return message;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
+      final code = e is DioException ? e.response?.statusCode : null;
+      final msg = code == 503
+          ? 'We could not send email right now. Please try again in a few minutes.'
+          : authFlowErrorMessage(e);
+      state = state.copyWith(
+        isLoading: manageLoading ? false : state.isLoading,
+        error: msg,
+      );
+      return null;
     }
   }
 
   // ── Reset Password ─────────────────────────────────────────────────────────
 
   Future<bool> resetPassword({
-    required String token,
+    required String email,
+    required String code,
     required String newPassword,
   }) async {
     state = state.copyWith(
@@ -135,14 +163,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       clearSuccess: true,
     );
     try {
-      final message = await _repo.resetPassword(
-        token: token,
+      await _repo.resetPassword(
+        email: email,
+        code: code,
         newPassword: newPassword,
       );
-      state = state.copyWith(isLoading: false, successMessage: message);
+      state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final isInvalidCode = e is DioException &&
+          (e.response?.statusCode == 401 || e.error is UnauthorizedException);
+      final msg = isInvalidCode
+          ? 'Invalid or expired code. Request a new code from your administrator.'
+          : authFlowErrorMessage(e);
+      state = state.copyWith(isLoading: false, error: msg);
       return false;
     }
   }

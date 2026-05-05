@@ -1,6 +1,6 @@
 import '../models/hmo_models.dart';
 
-/// How [PatientService.fetchPatients] should narrow results by [Patient.status].
+/// Sent to GET /patients as `listStatusFilter` so the server narrows by [Patient.status].
 enum PatientListStatusFilter { none, onlyAdmitted, excludeAdmitted }
 
 /// Optional allergy row from GET /patients/:id when the API includes it.

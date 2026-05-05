@@ -240,6 +240,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           route: SuperAdminHubRoute(),
         ),
       );
+      common.add(
+        const MenuItem(
+          label: 'Staff directory',
+          icon: Icons.groups_outlined,
+          route: SuperAdminStaffListRoute(),
+        ),
+      );
     }
     final r = role.toLowerCase();
     final at = accountType.toLowerCase();

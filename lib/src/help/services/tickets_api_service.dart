@@ -24,8 +24,9 @@ class TicketsApiService {
     if (data == null) return [];
     final out = <SupportTicketSummary>[];
     for (final e in data) {
-      if (e is Map<String, dynamic>) {
-        final t = SupportTicketSummary.tryParse(e);
+      if (e is Map) {
+        final m = Map<String, dynamic>.from(e);
+        final t = SupportTicketSummary.tryParse(m);
         if (t != null) out.add(t);
       }
     }
@@ -61,6 +62,9 @@ class TicketsApiService {
           status: detail.status,
           messages: thread,
           createdAt: detail.createdAt,
+          createdById: detail.createdById,
+          createdBy: detail.createdBy,
+          assignments: detail.assignments,
         );
       }
     }
@@ -73,8 +77,8 @@ class TicketsApiService {
     if (data == null) return [];
     final out = <TicketMessage>[];
     for (final e in data) {
-      if (e is Map<String, dynamic>) {
-        final m = TicketMessage.tryParse(e);
+      if (e is Map) {
+        final m = TicketMessage.tryParse(Map<String, dynamic>.from(e));
         if (m != null) out.add(m);
       }
     }
@@ -116,6 +120,26 @@ class TicketsApiService {
     await _dio.patch<Map<String, dynamic>>(
       '/tickets/$ticketId/status',
       data: {'status': status},
+    );
+  }
+
+  Future<void> assignTicket({
+    required String ticketId,
+    required String staffId,
+  }) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/tickets/$ticketId/assign',
+      data: {'staffId': staffId},
+    );
+  }
+
+  Future<void> unassignTicket({
+    required String ticketId,
+    required String staffId,
+  }) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/tickets/$ticketId/unassign',
+      data: {'staffId': staffId},
     );
   }
 }

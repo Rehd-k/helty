@@ -158,10 +158,12 @@ class AddServiceScreenState extends ConsumerState<AddServiceScreen> {
                         decimal: true,
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty)
+                        if (v == null || v.trim().isEmpty) {
                           return 'Cost required';
-                        if (double.tryParse(v) == null)
+                        }
+                        if (double.tryParse(v) == null) {
                           return 'Enter valid number';
+                        }
                         return null;
                       },
                     ),
