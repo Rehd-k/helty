@@ -273,25 +273,67 @@ class BillingInvoicePayment {
     required this.id,
     required this.amount,
     required this.source,
+    this.method,
     this.reference,
+    this.notes,
+    this.receivedById,
+    this.receivedByName,
+    this.createdById,
+    this.createdByName,
+    this.paidAt,
+    this.walletTransactionId,
     this.createdAt,
   });
 
   final String id;
   final double amount;
   final String source;
+  final String? method;
   final String? reference;
+  final String? notes;
+  final String? receivedById;
+  final String? receivedByName;
+  final String? createdById;
+  final String? createdByName;
+  final DateTime? paidAt;
+  final String? walletTransactionId;
   final DateTime? createdAt;
 
   factory BillingInvoicePayment.fromJson(Map<String, dynamic> json) {
+    final receivedByRaw = json['receivedBy'];
+    final createdByRaw = json['createdBy'];
+    final receivedBy = receivedByRaw is Map
+        ? Map<String, dynamic>.from(receivedByRaw)
+        : null;
+    final createdBy = createdByRaw is Map
+        ? Map<String, dynamic>.from(createdByRaw)
+        : null;
+    final receivedByName = _staffNameFromMap(receivedBy);
+    final createdByName = _staffNameFromMap(createdBy);
     return BillingInvoicePayment(
       id: _asString(json['id']),
       amount: _asDouble(json['amount']),
       source: _asString(json['source'], fallback: 'CASH'),
+      method: _nullableString(json['method']),
       reference: _nullableString(json['reference']),
+      notes: _nullableString(json['notes']),
+      receivedById: _nullableString(json['receivedById']),
+      receivedByName: receivedByName.isNotEmpty ? receivedByName : null,
+      createdById: _nullableString(json['createdById']),
+      createdByName: createdByName.isNotEmpty ? createdByName : null,
+      paidAt: _asDate(json['paidAt']),
+      walletTransactionId: _nullableString(json['walletTransactionId']),
       createdAt: _asDate(json['createdAt']),
     );
   }
+}
+
+String _staffNameFromMap(Map<String, dynamic>? m) {
+  if (m == null) return '';
+  final first = _nullableString(m['firstName']) ?? '';
+  final last = _nullableString(m['lastName']) ?? '';
+  final full = '$first $last'.trim();
+  return full;
 }
 
 class BillingWallet {

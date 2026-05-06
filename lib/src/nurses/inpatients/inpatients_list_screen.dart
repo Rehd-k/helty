@@ -367,12 +367,12 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
             ),
             child: Row(
               children: const [
-                _HeaderCell('PATIENT'),
-                _HeaderCell('WARD'),
-                _HeaderCell('BED'),
-                _HeaderCell('DIAGNOSIS'),
-                _HeaderCell('DAYS ADMITTED'),
-                _HeaderCell('ACTIONS', alignRight: true),
+                _HeaderCell('PATIENT', flex: 3),
+                _HeaderCell('WARD', flex: 2),
+                _HeaderCell('BED', flex: 1),
+                _HeaderCell('DIAGNOSIS', flex: 3),
+                _HeaderCell('DAYS ADMITTED', flex: 2),
+                _HeaderCell('ACTIONS', flex: 2, alignRight: true),
               ],
             ),
           ),
@@ -697,8 +697,9 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
 class _HeaderCell extends StatelessWidget {
   final String label;
   final bool alignRight;
+  final int flex;
 
-  const _HeaderCell(this.label, {this.alignRight = false});
+  const _HeaderCell(this.label, {this.alignRight = false, this.flex = 1});
 
   @override
   Widget build(BuildContext context) {
@@ -714,6 +715,7 @@ class _HeaderCell extends StatelessWidget {
     );
 
     return Expanded(
+      flex: flex,
       child: alignRight
           ? Align(alignment: Alignment.centerRight, child: text)
           : text,

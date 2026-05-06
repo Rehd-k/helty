@@ -367,7 +367,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     final label = item.displayLabel;
     return ServiceModel(
       id: item.id,
-      serviceId: item.serviceId.isNotEmpty ? item.serviceId : (item.drugId ?? item.id),
+      serviceId: item.serviceId.isNotEmpty
+          ? item.serviceId
+          : (item.drugId ?? item.id),
       name: label,
       cost: item.unitPrice,
       qty: item.quantity,
@@ -1469,9 +1471,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                             'Qty: ${item.quantity}',
                                             style: theme.textTheme.bodySmall
                                                 ?.copyWith(
-                                                  color: theme
-                                                      .colorScheme
-                                                      .primary,
+                                                  color:
+                                                      theme.colorScheme.primary,
                                                 ),
                                           ),
                                         ],
@@ -1481,8 +1482,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                   Text(
                                     'Paid ${item.amountPaid.toFinancial(isMoney: true)} / ${item.displayLineTotal.toFinancial(isMoney: true)}',
                                     style: theme.textTheme.labelSmall?.copyWith(
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -1602,13 +1602,34 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               backgroundColor: Colors.white,
               child: Icon(Icons.check_circle, color: Colors.green),
             ),
-            title: const Text(
-              'Invoice payment',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            title: Text(
+              row.method != null && row.method!.trim().isNotEmpty
+                  ? 'Invoice payment (${row.method})'
+                  : 'Invoice payment',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              '${_formatDate(row.createdAt ?? DateTime.now())} • ${row.source}'
-              '${row.reference != null && row.reference!.trim().isNotEmpty ? ' • ${row.reference}' : ''}',
+              [
+                '${_formatDate((row.paidAt ?? row.createdAt) ?? DateTime.now())} • ${row.source}',
+
+                if (row.receivedByName != null &&
+                    row.receivedByName!.trim().isNotEmpty)
+                  'Received by: ${row.receivedByName}',
+                if ((row.receivedByName == null ||
+                        row.receivedByName!.trim().isEmpty) &&
+                    row.receivedById != null &&
+                    row.receivedById!.trim().isNotEmpty)
+                  'Received by ID: ${row.receivedById}',
+                if (row.createdByName != null &&
+                    row.createdByName!.trim().isNotEmpty &&
+                    row.createdByName != row.receivedByName)
+                  'Created by: ${row.createdByName}',
+                if (row.walletTransactionId != null &&
+                    row.walletTransactionId!.trim().isNotEmpty)
+                  'Wallet Txn: ${row.walletTransactionId}',
+                if (row.notes != null && row.notes!.trim().isNotEmpty)
+                  'Note: ${row.notes}',
+              ].join('\n'),
             ),
             trailing: Text(
               row.amount.toFinancial(isMoney: true),

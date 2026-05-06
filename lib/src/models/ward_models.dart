@@ -180,10 +180,20 @@ class InpatientCensus {
     final ward = wardRaw is Map<String, dynamic> ? wardRaw : null;
     final bed = bedRaw is Map<String, dynamic> ? bedRaw : null;
 
-    final firstName = patient?['firstName'] ?? patient?['firstname'];
-    final lastName = patient?['lastName'] ?? patient?['lastname'];
-    final fullName =
-        json['name'] ?? json['patientName'] ?? '$firstName $lastName';
+    final firstName =
+        (patient?['firstName'] ?? patient?['firstname'] ?? '').toString().trim();
+    final lastName =
+        (patient?['lastName'] ??
+                patient?['lastname'] ??
+                patient?['surname'] ??
+                '')
+            .toString()
+            .trim();
+    final joinedPatientName = [firstName, lastName]
+        .where((e) => e.isNotEmpty)
+        .join(' ')
+        .trim();
+    final fullName = json['name'] ?? json['patientName'] ?? joinedPatientName;
 
     final age = json['age']?.toString() ?? patient?['age']?.toString();
     final gender = json['gender'] ?? patient?['gender'];
@@ -217,7 +227,10 @@ class InpatientCensus {
     return InpatientCensus(
       id: json['id']?.toString() ?? '',
       patientId:
-          json['patientId']?.toString() ?? patient?['id']?.toString() ?? '',
+          json['patientId']?.toString() ??
+          patient?['patientId']?.toString() ??
+          patient?['id']?.toString() ??
+          '',
       name: (fullName is String && fullName.trim().isNotEmpty)
           ? fullName
           : 'Unknown patient',
