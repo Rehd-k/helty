@@ -2,7 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/models/discount_policy_models.dart';
 import 'package:helty/src/billings/pay.bill.dart';
+import 'package:helty/src/auth/billing_permissions.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/models/service_model.dart';
@@ -163,6 +165,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   bool _loading = true;
   String? _loadError;
   final Set<String> _selectedLineIdsForPay = {};
+  List<DiscountPolicy> _discountPolicies = const [];
+  bool _coverageBusy = false;
 
   @override
   void initState() {
@@ -197,6 +201,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
 
     try {
       final detail = await _invoiceService.getBillingInvoice(id);
+      List<DiscountPolicy> policies = const [];
+      try {
+        policies = await _invoiceService.getActiveDiscountPolicies();
+      } catch (_) {
+        policies = const [];
+      }
       BillingWallet? wallet;
       try {
         wallet = await _invoiceService.getWallet(detail.patientId);
@@ -213,6 +223,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       if (!mounted) return;
       setState(() {
         _billingDetail = detail;
+        _discountPolicies = policies;
         _mergedInvoicePayments = merged;
         _wallet = wallet;
         _loading = false;
@@ -437,6 +448,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         isInvoice: true,
         invoiceId: detail.id,
         invoiceItemAllocations: allocations,
+        invoiceMaxPayable: (detail.effectivePayable - detail.amountPaid) > 0
+            ? (detail.effectivePayable - detail.amountPaid)
+            : 0,
         onPaymentComplete: _loadBillingData,
         preserveInvoiceOnDismiss: true,
       ),
@@ -533,6 +547,105 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Unable to update recurring line: $e')),
       );
+    }
+  }
+
+  Future<void> _applyHmoSplit() async {
+    final detail = _billingDetail;
+    final staff = ref.read(authProvider).staff;
+    if (detail == null || !canSplitWithHmo(staff)) return;
+    if ((detail.patientHmoId ?? '').trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient has no registered HMO')),
+      );
+      return;
+    }
+    setState(() => _coverageBusy = true);
+    try {
+      await _invoiceService.applyHmoCoverage(invoiceId: detail.id, scope: 'INVOICE');
+      await _loadBillingData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('HMO split applied')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _coverageBusy = false);
+    }
+  }
+
+  Future<void> _applyDiscountPolicy(String policyId) async {
+    final detail = _billingDetail;
+    final staff = ref.read(authProvider).staff;
+    if (detail == null || !canApplyDiscount(staff) || policyId.trim().isEmpty) return;
+    setState(() => _coverageBusy = true);
+    try {
+      await _invoiceService.applyDiscountCoverage(
+        invoiceId: detail.id,
+        policyId: policyId,
+        scope: 'INVOICE',
+      );
+      await _loadBillingData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Discount applied')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _coverageBusy = false);
+    }
+  }
+
+  Future<void> _reverseCoverage(InvoiceCoverage coverage) async {
+    final detail = _billingDetail;
+    final staff = ref.read(authProvider).staff;
+    if (detail == null || !canReverseCoverage(staff)) return;
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reverse coverage'),
+        content: TextField(
+          controller: reasonCtrl,
+          decoration: const InputDecoration(labelText: 'Reason (optional)'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reverse'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _coverageBusy = true);
+    try {
+      await _invoiceService.reverseCoverage(
+        invoiceId: detail.id,
+        coverageId: coverage.id,
+        reason: reasonCtrl.text,
+      );
+      await _loadBillingData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      reasonCtrl.dispose();
+      if (mounted) setState(() => _coverageBusy = false);
     }
   }
 
@@ -961,7 +1074,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     final charges = _chargesFromBillingDetail(inv);
     final totalCharges = inv.totalAmount;
     final totalPayments = inv.amountPaid;
-    final balanceDue = inv.netAmountDue;
+    final balanceDue = (inv.effectivePayable - inv.amountPaid) > 0
+        ? (inv.effectivePayable - inv.amountPaid)
+        : 0.0;
 
     return _buildContent(
       context,
@@ -1040,6 +1155,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             balanceDue: balanceDue,
             totalCharges: totalCharges,
             totalPayments: totalPayments,
+            coveredAmount: invoiceDetail?.coveredAmount ?? 0,
+            effectivePayable: invoiceDetail?.effectivePayable ?? balanceDue,
             walletBalance: walletBalance,
           ),
           Expanded(
@@ -1071,7 +1188,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 label: const Text('Add Service'),
               ),
               FilledButton.tonalIcon(
-                onPressed: invoiceDetail == null
+                onPressed: invoiceDetail == null ||
+                        (invoiceDetail.effectivePayable - invoiceDetail.amountPaid) <= 0.001
                     ? null
                     : () {
                         final lines = _selectedLineIdsForPay.isEmpty
@@ -1168,6 +1286,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double balanceDue,
     required double totalCharges,
     required double totalPayments,
+    required double coveredAmount,
+    required double effectivePayable,
     required double walletBalance,
   }) {
     final bool isPaidOff = balanceDue <= 0;
@@ -1255,6 +1375,47 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
+                        'Covered/Discount:',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        coveredAmount.toFinancial(isMoney: true),
+                        style: const TextStyle(
+                          color: Colors.deepPurple,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Effective Payable:',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        effectivePayable.toFinancial(isMoney: true),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
                         'Total Paid:',
                         style: TextStyle(
                           color: colorScheme.onSurfaceVariant,
@@ -1315,6 +1476,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        _buildCoveragePanel(detail),
+        const SizedBox(height: 12),
         _buildSectionHeader('Compulsory & Daily Charges'),
         _buildChargeGroup(
           colorScheme,
@@ -1574,6 +1737,99 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildCoveragePanel(BillingInvoiceDetail? detail) {
+    if (detail == null) return const SizedBox.shrink();
+    final staff = ref.read(authProvider).staff;
+    final canSplit = canSplitWithHmo(staff) &&
+        detail.status.toUpperCase() != 'PAID' &&
+        (detail.patientHmoId ?? '').trim().isNotEmpty;
+    final canDiscount = canApplyDiscount(staff) && detail.status.toUpperCase() != 'PAID';
+    final canReverse = canReverseCoverage(staff);
+
+    final policiesByReason = <String, List<DiscountPolicy>>{};
+    for (final p in _discountPolicies) {
+      policiesByReason.putIfAbsent(p.reason, () => []).add(p);
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: canSplit && !_coverageBusy ? _applyHmoSplit : null,
+                  icon: const Icon(Icons.local_hospital_outlined),
+                  label: const Text('Split with HMO'),
+                ),
+                PopupMenuButton<String>(
+                  enabled: canDiscount && !_coverageBusy && _discountPolicies.isNotEmpty,
+                  onSelected: _applyDiscountPolicy,
+                  itemBuilder: (context) {
+                    final entries = <PopupMenuEntry<String>>[];
+                    final keys = policiesByReason.keys.toList()..sort();
+                    for (final reason in keys) {
+                      entries.add(
+                        PopupMenuItem<String>(
+                          enabled: false,
+                          child: Text(reason, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      );
+                      for (final policy in policiesByReason[reason]!) {
+                        entries.add(
+                          PopupMenuItem<String>(
+                            value: policy.id,
+                            child: Text('${policy.name} (${policy.value})'),
+                          ),
+                        );
+                      }
+                    }
+                    return entries;
+                  },
+                  child: const Chip(
+                    avatar: Icon(Icons.discount_outlined, size: 16),
+                    label: Text('Apply discount'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (detail.coverages.isEmpty)
+              const Text('No coverage/discount applied yet.')
+            else
+              ...detail.coverages.map(
+                (c) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${c.kind} · ${c.scope} · ${c.status}'),
+                  subtitle: Text(
+                    '${c.mode ?? '-'} ${c.value ?? c.percent ?? ''} · ${c.appliedByName ?? c.appliedById ?? 'N/A'}',
+                  ),
+                  trailing: Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(c.computedAmount.toFinancial(isMoney: true)),
+                      if (canReverse && c.status.toUpperCase() != 'SETTLED')
+                        IconButton(
+                          tooltip: 'Reverse coverage',
+                          onPressed: _coverageBusy ? null : () => _reverseCoverage(c),
+                          icon: const Icon(Icons.undo_outlined),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -28,13 +28,19 @@ class BillingInvoiceDetail {
     required this.amountPaid,
     required this.amountDue,
     required this.netAmountDue,
+    required this.coveredAmount,
+    required this.effectivePayable,
     required this.invoiceItems,
     required this.payments,
+    required this.coverages,
     this.staffId,
     this.encounterId,
     this.createdAt,
     this.updatedAt,
     this.billingLink,
+    this.patientHmoId,
+    this.patientHmoName,
+    this.patientHmoDefaultCoveragePercent,
   });
 
   final String id;
@@ -46,13 +52,19 @@ class BillingInvoiceDetail {
 
   /// Patient-facing balance when discounts/insurance apply; falls back to [amountDue] if omitted.
   final double netAmountDue;
+  final double coveredAmount;
+  final double effectivePayable;
   final String? staffId;
   final String? encounterId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final BillingInvoiceBillingLink? billingLink;
+  final String? patientHmoId;
+  final String? patientHmoName;
+  final double? patientHmoDefaultCoveragePercent;
   final List<BillingInvoiceItem> invoiceItems;
   final List<BillingInvoicePayment> payments;
+  final List<InvoiceCoverage> coverages;
 
   factory BillingInvoiceDetail.fromJson(Map<String, dynamic> json) {
     final payload = _unwrapMap(json);
@@ -60,9 +72,12 @@ class BillingInvoiceDetail {
     final paymentsRaw = payload['payments'];
     final amountDue = _asDouble(payload['amountDue']);
     final netRaw = payload['netAmountDue'];
-    final netAmountDue = netRaw != null
-        ? _asDouble(netRaw)
-        : amountDue;
+    final netAmountDue = netRaw != null ? _asDouble(netRaw) : amountDue;
+    final coveredAmount = _asDouble(payload['coveredAmount']);
+    final effectivePayableRaw = payload['effectivePayable'];
+    final effectivePayable = effectivePayableRaw != null
+        ? _asDouble(effectivePayableRaw)
+        : netAmountDue;
 
     BillingInvoiceBillingLink? billingLink;
     final linkRaw = payload['billingLink'];
@@ -71,6 +86,11 @@ class BillingInvoiceDetail {
         Map<String, dynamic>.from(linkRaw),
       );
     }
+    final patientRaw = payload['patient'];
+    final patientMap = patientRaw is Map<String, dynamic>
+        ? patientRaw
+        : (patientRaw is Map ? Map<String, dynamic>.from(patientRaw) : null);
+    final patientHmoName = _patientHmoDisplayName(patientMap);
 
     return BillingInvoiceDetail(
       id: _asString(payload['id']),
@@ -80,11 +100,19 @@ class BillingInvoiceDetail {
       amountPaid: _asDouble(payload['amountPaid']),
       amountDue: amountDue,
       netAmountDue: netAmountDue,
+      coveredAmount: coveredAmount,
+      effectivePayable: effectivePayable,
       staffId: _nullableString(payload['staffId']),
       encounterId: _nullableString(payload['encounterId']),
       createdAt: _asDate(payload['createdAt']),
       updatedAt: _asDate(payload['updatedAt']),
       billingLink: billingLink,
+      patientHmoId: _patientHmoIdFromMap(payload, patientMap),
+      patientHmoName: patientHmoName,
+      patientHmoDefaultCoveragePercent: _patientHmoDefaultCoveragePercent(
+        payload,
+        patientMap,
+      ),
       invoiceItems: itemsRaw is List
           ? itemsRaw
                 .whereType<Map>()
@@ -104,6 +132,80 @@ class BillingInvoiceDetail {
                 )
                 .toList()
           : <BillingInvoicePayment>[],
+      coverages: payload['coverages'] is List
+          ? (payload['coverages'] as List)
+                .whereType<Map>()
+                .map(
+                  (e) => InvoiceCoverage.fromJson(Map<String, dynamic>.from(e)),
+                )
+                .toList()
+          : <InvoiceCoverage>[],
+    );
+  }
+}
+
+class InvoiceCoverage {
+  InvoiceCoverage({
+    required this.id,
+    required this.kind,
+    required this.scope,
+    required this.status,
+    required this.computedAmount,
+    this.mode,
+    this.value,
+    this.percent,
+    this.policyId,
+    this.notes,
+    this.payerType,
+    this.hmoId,
+    this.ownerStaffId,
+    this.appliedById,
+    this.appliedByName,
+    this.createdAt,
+  });
+
+  final String id;
+  final String kind;
+  final String scope;
+  final String status;
+  final String? mode;
+  final double? value;
+  final double? percent;
+  final double computedAmount;
+  final String? policyId;
+  final String? notes;
+  final String? payerType;
+  final String? hmoId;
+  final String? ownerStaffId;
+  final String? appliedById;
+  final String? appliedByName;
+  final DateTime? createdAt;
+
+  factory InvoiceCoverage.fromJson(Map<String, dynamic> json) {
+    final appliedByRaw = json['appliedBy'];
+    final appliedBy = appliedByRaw is Map
+        ? Map<String, dynamic>.from(appliedByRaw)
+        : null;
+    final staffName = _staffNameFromMap(appliedBy);
+    return InvoiceCoverage(
+      id: _asString(json['id']),
+      kind: _asString(json['kind'], fallback: 'UNKNOWN'),
+      scope: _asString(json['scope'], fallback: 'INVOICE'),
+      status: _asString(json['status'], fallback: 'ACTIVE'),
+      mode: _nullableString(json['mode']),
+      value: json.containsKey('value') ? _asDouble(json['value']) : null,
+      percent: json.containsKey('percent') ? _asDouble(json['percent']) : null,
+      computedAmount: _asDouble(json['computedAmount'] ?? json['amount']),
+      policyId: _nullableString(json['policyId']),
+      notes: _nullableString(json['notes']),
+      payerType: _nullableString(json['payerType']),
+      hmoId: _nullableString(json['hmoId']),
+      ownerStaffId: _nullableString(json['ownerStaffId']),
+      appliedById: _nullableString(json['appliedById']),
+      appliedByName: staffName.isEmpty
+          ? _nullableString(json['appliedByName'])
+          : staffName,
+      createdAt: _asDate(json['createdAt']),
     );
   }
 }
@@ -130,6 +232,8 @@ class BillingInvoiceItem {
     required this.usageSegments,
     required this.lineTotal,
     required this.lineItemAmountPaid,
+    required this.lineCovered,
+    required this.lineEffectiveDue,
     required this.lineAmountDue,
     this.serviceName,
     this.serviceCategoryName,
@@ -168,6 +272,8 @@ class BillingInvoiceItem {
 
   /// Allocated payments on this line only (`GET /invoices/:id` → `amountPaid` on item).
   final double lineItemAmountPaid;
+  final double lineCovered;
+  final double lineEffectiveDue;
 
   /// Remaining due on this line for `allocate-item-payments` caps.
   final double lineAmountDue;
@@ -198,9 +304,7 @@ class BillingInvoiceItem {
         ? Map<String, dynamic>.from(service)
         : null;
     final drugRaw = json['drug'];
-    final drugMap = drugRaw is Map
-        ? Map<String, dynamic>.from(drugRaw)
-        : null;
+    final drugMap = drugRaw is Map ? Map<String, dynamic>.from(drugRaw) : null;
     final category = serviceMap?['category'];
     final department = serviceMap?['department'];
     final drugDisplay = _billingDrugDisplayName(drugMap);
@@ -213,7 +317,11 @@ class BillingInvoiceItem {
       fallback: unitPrice * quantity,
     );
     final lineItemAmountPaid = _asDouble(json['amountPaid']);
-    final computedDue = lineTotal - lineItemAmountPaid;
+    final lineCovered = _asDouble(json['lineCovered']);
+    final lineEffectiveDue = json.containsKey('lineEffectiveDue')
+        ? _asDouble(json['lineEffectiveDue'])
+        : (lineTotal - lineCovered);
+    final computedDue = lineEffectiveDue - lineItemAmountPaid;
     final lineAmountDue = json.containsKey('lineAmountDue')
         ? _asDouble(json['lineAmountDue'])
         : (computedDue > 0 ? computedDue : 0.0);
@@ -235,6 +343,8 @@ class BillingInvoiceItem {
       isRecurringDaily: _asBool(json['isRecurringDaily']),
       lineTotal: lineTotal,
       lineItemAmountPaid: lineItemAmountPaid,
+      lineCovered: lineCovered,
+      lineEffectiveDue: lineEffectiveDue < 0 ? 0.0 : lineEffectiveDue,
       lineAmountDue: lineAmountDue < 0 ? 0.0 : lineAmountDue,
       usageSegments: segmentsRaw is List
           ? segmentsRaw
@@ -540,6 +650,82 @@ class DischargeAdmissionPayload {
   Map<String, dynamic> toJson() => {
     'dischargeDate': dischargeDate.toUtc().toIso8601String(),
   };
+}
+
+/// Human-readable HMO name from nested patient payload (tolerant of API shapes).
+String? _patientHmoDisplayName(Map<String, dynamic>? patient) {
+  if (patient == null) return null;
+  final hmo = patient['hmo'];
+  if (hmo is Map<String, dynamic>) {
+    final name = _nullableString(hmo['name'] ?? hmo['displayName']);
+    if (name != null) return name;
+  }
+  final hmoProvider = patient['hmoProvider'];
+  if (hmoProvider is Map<String, dynamic>) {
+    final name = _nullableString(
+      hmoProvider['name'] ?? hmoProvider['displayName'],
+    );
+    if (name != null) return name;
+  }
+  return _nullableString(
+    patient['hmoName'] ??
+        patient['hmo_name'] ??
+        patient['insuranceName'] ??
+        patient['insurance'],
+  );
+}
+
+String? _patientHmoIdFromMap(
+  Map<String, dynamic> payload,
+  Map<String, dynamic>? patient,
+) {
+  final direct = _nullableString(payload['hmoId'] ?? patient?['hmoId']);
+  if (direct != null) return direct;
+  final hmo = patient?['hmo'];
+  if (hmo is Map<String, dynamic>) {
+    final id = _nullableString(hmo['id']);
+    if (id != null) return id;
+  }
+  final hmoProvider = patient?['hmoProvider'];
+  if (hmoProvider is Map<String, dynamic>) {
+    return _nullableString(hmoProvider['id']);
+  }
+  return null;
+}
+
+double? _patientHmoDefaultCoveragePercent(
+  Map<String, dynamic> payload,
+  Map<String, dynamic>? patient,
+) {
+  double? read(dynamic raw) {
+    if (raw == null) return null;
+    final value = _asDouble(raw, fallback: -1);
+    if (value < 0) return null;
+    return value;
+  }
+
+  final direct = read(payload['defaultCoveragePercent']) ??
+      read(payload['hmoDefaultCoveragePercent']) ??
+      read(patient?['defaultCoveragePercent']) ??
+      read(patient?['hmoDefaultCoveragePercent']);
+  if (direct != null) return direct;
+
+  final hmo = patient?['hmo'];
+  if (hmo is Map<String, dynamic>) {
+    final percent = read(hmo['defaultCoveragePercent']) ??
+        read(hmo['coveragePercent']) ??
+        read(hmo['percent']);
+    if (percent != null) return percent;
+  }
+
+  final hmoProvider = patient?['hmoProvider'];
+  if (hmoProvider is Map<String, dynamic>) {
+    return read(hmoProvider['defaultCoveragePercent']) ??
+        read(hmoProvider['coveragePercent']) ??
+        read(hmoProvider['percent']);
+  }
+
+  return null;
 }
 
 Map<String, dynamic> _unwrapMap(Map<String, dynamic> json) {

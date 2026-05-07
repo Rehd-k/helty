@@ -36,7 +36,7 @@ class SummaryBills extends ConsumerWidget {
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 5),
 
             // The Grid Widget (Preserving your external widget)
             Container(
@@ -50,7 +50,7 @@ class SummaryBills extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
 
             // Financial Breakdown
             // _buildRow('Subtotal', patient.amountDue.toFinancial(isMoney: true)),

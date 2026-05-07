@@ -100,6 +100,7 @@ class HmoService {
     String? name,
     String? code,
     String? notes,
+    double? defaultCoveragePercent,
     List<HmoServicePriceRow>? servicePrices,
   }) async {
     try {
@@ -107,6 +108,9 @@ class HmoService {
       if (name != null) body['name'] = name;
       if (code != null) body['code'] = code;
       if (notes != null) body['notes'] = notes;
+      if (defaultCoveragePercent != null) {
+        body['defaultCoveragePercent'] = defaultCoveragePercent;
+      }
       if (servicePrices != null) body['servicePrices'] = servicePrices.map((e) => e.toCreatePatchJson()).toList();
 
       final resp = await _dio.patch('/hmos/$id', data: body);

@@ -48,6 +48,7 @@ class HmoListItem {
     required this.name,
     this.code,
     this.notes,
+    this.defaultCoveragePercent,
     this.counts,
   });
 
@@ -55,6 +56,7 @@ class HmoListItem {
   final String name;
   final String? code;
   final String? notes;
+  final double? defaultCoveragePercent;
   final HmoCounts? counts;
 
   factory HmoListItem.fromJson(Map<String, dynamic> json) {
@@ -63,6 +65,7 @@ class HmoListItem {
       name: '${json['name'] ?? ''}',
       code: json['code']?.toString(),
       notes: json['notes']?.toString(),
+      defaultCoveragePercent: _moneyFromJsonNullable(json['defaultCoveragePercent']),
       counts: HmoCounts.fromJson(json['_count'] as Map<String, dynamic>?),
     );
   }
@@ -159,6 +162,7 @@ class HmoDetail {
     required this.name,
     this.code,
     this.notes,
+    this.defaultCoveragePercent,
     this.servicePrices = const [],
     this.counts,
   });
@@ -167,6 +171,7 @@ class HmoDetail {
   final String name;
   final String? code;
   final String? notes;
+  final double? defaultCoveragePercent;
   final List<HmoServicePriceRow> servicePrices;
   final HmoCounts? counts;
 
@@ -185,6 +190,7 @@ class HmoDetail {
       name: '${json['name'] ?? ''}',
       code: json['code']?.toString(),
       notes: json['notes']?.toString(),
+      defaultCoveragePercent: _moneyFromJsonNullable(json['defaultCoveragePercent']),
       servicePrices: prices,
       counts: HmoCounts.fromJson(json['_count'] as Map<String, dynamic>?),
     );
@@ -195,6 +201,8 @@ class HmoDetail {
       'name': name,
       if (code != null && code!.trim().isNotEmpty) 'code': code!.trim(),
       if (notes != null && notes!.trim().isNotEmpty) 'notes': notes!.trim(),
+      if (defaultCoveragePercent != null)
+        'defaultCoveragePercent': defaultCoveragePercent,
       if (servicePrices != null && servicePrices.isNotEmpty)
         'servicePrices': servicePrices.map((e) => e.toCreatePatchJson()).toList(),
     };
@@ -204,12 +212,16 @@ class HmoDetail {
     String? name,
     String? code,
     String? notes,
+    double? defaultCoveragePercent,
     List<HmoServicePriceRow>? servicePrices,
   }) {
     final m = <String, dynamic>{};
     if (name != null) m['name'] = name;
     if (code != null) m['code'] = code;
     if (notes != null) m['notes'] = notes;
+    if (defaultCoveragePercent != null) {
+      m['defaultCoveragePercent'] = defaultCoveragePercent;
+    }
     if (servicePrices != null) {
       m['servicePrices'] = servicePrices.map((e) => e.toCreatePatchJson()).toList();
     }

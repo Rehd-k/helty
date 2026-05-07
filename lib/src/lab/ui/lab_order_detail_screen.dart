@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
@@ -273,50 +274,116 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
     LabOrder order,
     PdfPageFormat format,
   ) async {
+    final logoImageBytes = await rootBundle.load('assets/logo.png');
+    final logoImage = pw.MemoryImage(logoImageBytes.buffer.asUint8List());
+
+    final primaryColor = PdfColor.fromHex('#0D3B66');
+    final accentColor = PdfColor.fromHex('#D4AF37');
+    final headerBgColor = PdfColor.fromHex('#F4F4F4');
+
     final doc = pw.Document();
     doc.addPage(
       pw.MultiPage(
         pageFormat: format,
-        margin: const pw.EdgeInsets.all(24),
+        margin: const pw.EdgeInsets.all(32),
         build: (context) {
           return [
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Image(logoImage, width: 60, height: 60),
+                pw.SizedBox(width: 16),
+                pw.Text(
+                  'IBOM MULTISPECIALIST HOSPITAL',
+                  style: pw.TextStyle(
+                    fontSize: 22,
+                    fontWeight: pw.FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 24),
+            pw.Center(
+              child: pw.Text(
+                'LABORATORY REPORT',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                  color: accentColor,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 16),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'Laboratory Report',
-                      style: pw.TextStyle(
-                        fontSize: 20,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(10),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: accentColor, width: 1),
+                      borderRadius: pw.BorderRadius.circular(6),
                     ),
-                    pw.SizedBox(height: 4),
-                    pw.Text('Order #${order.id.substring(0, 8)}'),
-                  ],
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'PATIENT INFORMATION',
+                          style: pw.TextStyle(
+                            color: primaryColor,
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                        pw.Divider(color: accentColor, thickness: 0.5),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Full Name: ${order.patient?.displayName.toUpperCase() ?? 'N/A'}',
+                        ),
+                        pw.Text('Patient ID: ${order.patient?.id ?? 'N/A'}'),
+                        pw.Text(
+                          'Date: ${DateTime.now().toIso8601String().split('T').first}',
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    if (order.patient != null)
-                      pw.Text('Patient: ${order.patient!.displayName}'),
-                    if (order.doctor != null)
-                      pw.Text('Doctor: ${order.doctor!.displayName}'),
-                    if (order.createdAt != null)
-                      pw.Text(
-                        'Created: ${order.createdAt!.toIso8601String().split('T').first}',
-                      ),
-                    pw.Text('Status: ${order.status.apiValue}'),
-                  ],
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(10),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: accentColor, width: 1),
+                      borderRadius: pw.BorderRadius.circular(6),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'REPORT DETAILS',
+                          style: pw.TextStyle(
+                            color: primaryColor,
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                        pw.Divider(color: accentColor, thickness: 0.5),
+                        pw.SizedBox(height: 4),
+                        pw.Text('Order ID: #${_orderShortId(order.id)}'),
+                        pw.Text('Status: ${order.status.apiValue}'),
+                        if (order.doctor != null)
+                          pw.Text('Doctor: ${order.doctor!.displayName}'),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-            pw.SizedBox(height: 16),
-            pw.Divider(),
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 24),
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: order.items.map((item) {
@@ -336,6 +403,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                       style: pw.TextStyle(
                         fontSize: 14,
                         fontWeight: pw.FontWeight.bold,
+                        color: primaryColor,
                       ),
                     ),
                     if (sampleType.isNotEmpty)
@@ -343,17 +411,23 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                         'Sample: $sampleType${hasSample ? ' (collected)' : ''}',
                         style: const pw.TextStyle(fontSize: 10),
                       ),
-                    pw.SizedBox(height: 4),
+                    pw.SizedBox(height: 6),
                     if (reportResults.isEmpty)
                       pw.Text(
                         item.results.isEmpty
                             ? 'No results entered.'
-                            : 'No results on report (all lines hidden for this test).',
-                        style: const pw.TextStyle(fontSize: 10),
+                            : 'No results on report (all lines hidden).',
+                        style: const pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey600,
+                        ),
                       )
                     else
                       pw.Table(
-                        border: pw.TableBorder.all(width: 0.2),
+                        border: pw.TableBorder.all(
+                          color: PdfColors.grey400,
+                          width: 0.5,
+                        ),
                         columnWidths: const {
                           0: pw.FlexColumnWidth(3),
                           1: pw.FlexColumnWidth(2),
@@ -362,72 +436,28 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                         },
                         children: [
                           pw.TableRow(
-                            decoration: const pw.BoxDecoration(),
+                            decoration: pw.BoxDecoration(color: headerBgColor),
                             children: [
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(
-                                  'Parameter',
-                                  style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(
-                                  'Result',
-                                  style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(
-                                  'Unit',
-                                  style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(
-                                  'Ref. range',
-                                  style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold,
-                                  ),
-                                ),
-                              ),
+                              _buildTableHeaderCell('Parameter'),
+                              _buildTableHeaderCell('Result'),
+                              _buildTableHeaderCell('Unit'),
+                              _buildTableHeaderCell('Ref. range'),
                             ],
                           ),
                           ...reportResults.map((r) {
                             final field = r.field ?? fieldMap[r.fieldId];
                             return pw.TableRow(
                               children: [
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(4),
-                                  child: pw.Text(field?.label ?? r.fieldId),
-                                ),
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(4),
-                                  child: pw.Text(r.value),
-                                ),
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(4),
-                                  child: pw.Text(field?.unit ?? ''),
-                                ),
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(4),
-                                  child: pw.Text(field?.referenceRange ?? ''),
-                                ),
+                                _buildTableCell(field?.label ?? r.fieldId),
+                                _buildTableCell(r.value, isBold: true),
+                                _buildTableCell(field?.unit ?? ''),
+                                _buildTableCell(field?.referenceRange ?? ''),
                               ],
                             );
                           }),
                         ],
                       ),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 16),
                   ],
                 );
               }).toList(),
@@ -437,6 +467,31 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
       ),
     );
     return doc.save();
+  }
+
+  String _orderShortId(String id) => id.length > 8 ? id.substring(0, 8) : id;
+
+  pw.Widget _buildTableHeaderCell(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+      ),
+    );
+  }
+
+  pw.Widget _buildTableCell(String text, {bool isBold = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 10,
+          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
   }
 
   static String _statusLabel(LabOrderStatus s) {

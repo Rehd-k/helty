@@ -64,7 +64,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
     try {
       final invoices = await _invoiceService.getInvoices(
         patientId: _filter.patientId,
-        status: _filter.status,
+        status: "['PENDING','PARTIALLY_PAID']",
         query: _filter.query,
         category: _filter.category,
         from: _filter.from,
@@ -95,10 +95,14 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
 
   bool _canDeleteInvoice(Invoice invoice, String? currentStaffId) {
     if (currentStaffId == null || currentStaffId.isEmpty) return false;
-    return invoice.createdById == currentStaffId || invoice.staffId == currentStaffId;
+    return invoice.createdById == currentStaffId ||
+        invoice.staffId == currentStaffId;
   }
 
-  String _cleanErrorMessage(Object error, {String fallback = 'Unable to split invoice'}) {
+  String _cleanErrorMessage(
+    Object error, {
+    String fallback = 'Unable to split invoice',
+  }) {
     final raw = error.toString().trim();
     if (raw.isEmpty) return fallback;
     if (raw.startsWith('Exception:')) {
@@ -148,7 +152,11 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_cleanErrorMessage(e, fallback: 'Unable to delete invoice'))),
+        SnackBar(
+          content: Text(
+            _cleanErrorMessage(e, fallback: 'Unable to delete invoice'),
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -176,11 +184,15 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             final selectableItems = items
-                .where((it) => !it.settled && it.amountPaid <= 0.001 && it.id.isNotEmpty)
+                .where(
+                  (it) =>
+                      !it.settled && it.amountPaid <= 0.001 && it.id.isNotEmpty,
+                )
                 .toList();
             final selectableCount = selectableItems.length;
             final allSelectableChosen =
-                selectableCount > 0 && selectedItemIds.length == selectableCount;
+                selectableCount > 0 &&
+                selectedItemIds.length == selectableCount;
 
             Future<void> submitSplit() async {
               if (selectedItemIds.isEmpty || isSubmitting) return;
@@ -248,7 +260,10 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      _cleanErrorMessage(e, fallback: 'Unable to split invoice'),
+                      _cleanErrorMessage(
+                        e,
+                        fallback: 'Unable to split invoice',
+                      ),
                     ),
                   ),
                 );
@@ -280,7 +295,9 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                           final item = items[index];
                           final lineTotal = item.cost * (item.qty ?? 1);
                           final isSelectable =
-                              !item.settled && item.amountPaid <= 0.001 && item.id.isNotEmpty;
+                              !item.settled &&
+                              item.amountPaid <= 0.001 &&
+                              item.id.isNotEmpty;
                           final isSelected = selectedItemIds.contains(item.id);
                           final subtitle = isSelectable
                               ? lineTotal.toFinancial(isMoney: true)
@@ -302,7 +319,10 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                             title: Text(item.name),
                             subtitle: Text(subtitle),
                             secondary: !isSelectable
-                                ? const Icon(Icons.lock_outline, color: Colors.grey)
+                                ? const Icon(
+                                    Icons.lock_outline,
+                                    color: Colors.grey,
+                                  )
                                 : null,
                           );
                         },
@@ -329,11 +349,15 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.of(ctx).pop(),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.of(ctx).pop(),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: selectedItemIds.isEmpty || isSubmitting ? null : submitSplit,
+                  onPressed: selectedItemIds.isEmpty || isSubmitting
+                      ? null
+                      : submitSplit,
                   child: isSubmitting
                       ? const SizedBox(
                           width: 18,
@@ -500,50 +524,79 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                       const SizedBox(height: 10),
                                       Row(
                                         children: [
-                                          if (_canDeleteInvoice(invoice, currentStaffId))
+                                          if (_canDeleteInvoice(
+                                            invoice,
+                                            currentStaffId,
+                                          ))
                                             ElevatedButton.icon(
-                                              onPressed: _deletingInvoiceIds.contains(invoice.id)
+                                              onPressed:
+                                                  _deletingInvoiceIds.contains(
+                                                    invoice.id,
+                                                  )
                                                   ? null
-                                                  : () => _deleteInvoice(invoice),
-                                              icon: _deletingInvoiceIds.contains(invoice.id)
+                                                  : () =>
+                                                        _deleteInvoice(invoice),
+                                              icon:
+                                                  _deletingInvoiceIds.contains(
+                                                    invoice.id,
+                                                  )
                                                   ? const SizedBox(
                                                       width: 14,
                                                       height: 14,
-                                                      child: CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                          ),
                                                     )
-                                                  : const Icon(Icons.delete_outline, size: 16),
+                                                  : const Icon(
+                                                      Icons.delete_outline,
+                                                      size: 16,
+                                                    ),
                                               label: const Text('Delete'),
                                               style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red.shade600,
+                                                backgroundColor:
+                                                    Colors.red.shade600,
                                                 foregroundColor: Colors.white,
                                                 minimumSize: const Size(0, 34),
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                    ),
                                               ),
                                             ),
                                           const SizedBox(width: 8),
                                           OutlinedButton.icon(
-                                            onPressed: _splittingInvoiceIds.contains(invoice.id)
+                                            onPressed:
+                                                _splittingInvoiceIds.contains(
+                                                  invoice.id,
+                                                )
                                                 ? null
-                                                : () => _showSplitInvoiceDialog(invoice),
-                                            icon: _splittingInvoiceIds.contains(invoice.id)
+                                                : () => _showSplitInvoiceDialog(
+                                                    invoice,
+                                                  ),
+                                            icon:
+                                                _splittingInvoiceIds.contains(
+                                                  invoice.id,
+                                                )
                                                 ? const SizedBox(
                                                     width: 14,
                                                     height: 14,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
                                                   )
-                                                : const Icon(Icons.call_split, size: 16),
+                                                : const Icon(
+                                                    Icons.call_split,
+                                                    size: 16,
+                                                  ),
                                             label: const Text('Split'),
                                             style: OutlinedButton.styleFrom(
                                               minimumSize: const Size(0, 34),
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                  ),
                                             ),
                                           ),
                                         ],
@@ -668,6 +721,28 @@ void _showContextMenu(
   //   // Menu is now fully dismissed — safe to update state.
   if (selected == 'View Details') {
     handleSelect(invoice);
+  } else if (selected == 'HMO') {
+    final hmoId = invoice.patient.hmoId?.trim() ?? '';
+    if (hmoId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient has no registered HMO')),
+      );
+      return;
+    }
+    InvoiceService()
+        .applyHmoCoverage(invoiceId: invoice.id, scope: 'INVOICE')
+        .then((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('HMO coverage applied. Refresh list.'),
+            ),
+          );
+        })
+        .catchError((e) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.toString())));
+        });
   }
 }
 
@@ -706,6 +781,10 @@ void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
                   total: invoice.total,
                   staffId: staffId,
                   invoiceId: invoice.id,
+                  invoiceMaxPayable:
+                      ((invoice.totalAmount - invoice.amountPaid) > 0)
+                      ? (invoice.totalAmount - invoice.amountPaid)
+                      : 0,
                   preserveInvoiceOnDismiss: true,
                 ),
               ),

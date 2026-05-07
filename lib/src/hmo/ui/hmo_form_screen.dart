@@ -22,6 +22,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
   final _name = TextEditingController();
   final _code = TextEditingController();
   final _notes = TextEditingController();
+  final _defaultCoveragePercent = TextEditingController();
   final _listSearch = TextEditingController();
   final _svc = HmoService();
 
@@ -79,6 +80,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
       _name.text = d.name;
       _code.text = d.code ?? '';
       _notes.text = d.notes ?? '';
+      _defaultCoveragePercent.text = d.defaultCoveragePercent?.toString() ?? '';
       setState(() => _loadingDetail = false);
     } catch (e) {
       if (!mounted) return;
@@ -92,8 +94,15 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
     _name.dispose();
     _code.dispose();
     _notes.dispose();
+    _defaultCoveragePercent.dispose();
     _listSearch.dispose();
     super.dispose();
+  }
+
+  double? _parseCoveragePercent() {
+    final v = double.tryParse(_defaultCoveragePercent.text.trim());
+    if (v == null) return null;
+    return double.parse(v.toStringAsFixed(2));
   }
 
   Future<void> _save() async {
@@ -106,6 +115,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
           name: _name.text.trim(),
           code: _code.text.trim(),
           notes: _notes.text.trim(),
+          defaultCoveragePercent: _parseCoveragePercent(),
         );
       } else {
         await _svc.create(
@@ -114,6 +124,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
             name: _name.text.trim(),
             code: _code.text.trim().isEmpty ? null : _code.text.trim(),
             notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+            defaultCoveragePercent: _parseCoveragePercent(),
           ),
         );
       }
@@ -161,6 +172,23 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
             border: OutlineInputBorder(),
             hintText: 'e.g. NHIS-STD',
           ),
+        ),
+        TextFormField(
+          controller: _defaultCoveragePercent,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Default coverage percent *',
+            border: OutlineInputBorder(),
+            hintText: 'e.g. 80.00',
+          ),
+          validator: (v) {
+            final t = v?.trim() ?? '';
+            if (t.isEmpty) return 'Required';
+            final n = double.tryParse(t);
+            if (n == null) return 'Enter a valid decimal';
+            if (n < 0 || n > 100) return 'Must be between 0 and 100';
+            return null;
+          },
         ),
         TextFormField(
           controller: _notes,

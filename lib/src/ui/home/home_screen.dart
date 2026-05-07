@@ -371,6 +371,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icons.dashboard_customize_outlined,
             route: BillingDashboardRoute(),
           ),
+        const MenuItem(
+          label: 'Receivables',
+          icon: Icons.receipt_long_outlined,
+          route: ReceivablesHomeRoute(),
+        ),
       ]);
     }
 
@@ -385,6 +390,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icons.dashboard_customize_outlined,
             route: BillingDashboardRoute(),
           ),
+        const MenuItem(
+          label: 'Receivables',
+          icon: Icons.receipt_long_outlined,
+          route: ReceivablesHomeRoute(),
+        ),
+        const MenuItem(
+          label: 'Discount Policies',
+          icon: Icons.rule_folder_outlined,
+          route: DiscountPolicyManagementRoute(),
+        ),
         MenuItem(
           label: 'CMD Panel',
           icon: Icons.dashboard_customize_outlined,

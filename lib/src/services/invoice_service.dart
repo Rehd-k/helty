@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:helty/src/models/discount_policy_models.dart';
 import 'package:helty/src/models/service_model.dart';
 import '../models/invoice.dart';
 import '../models/invoice_billing_models.dart';
@@ -321,6 +322,121 @@ class InvoiceService {
       throw Exception(msg.isEmpty ? _kSplitInvoiceFallbackError : msg);
     } catch (_) {
       throw Exception(_kSplitInvoiceFallbackError);
+    }
+  }
+
+  Future<List<InvoiceCoverage>> getInvoiceCoverages(String invoiceId) async {
+    try {
+      final response = await _dio.get('/invoices/$invoiceId/coverages');
+      final list = _extractList(response.data, key: 'coverages');
+      return list
+          .whereType<Map>()
+          .map((e) => InvoiceCoverage.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load invoice coverages: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingInvoiceDetail> applyHmoCoverage({
+    required String invoiceId,
+    String scope = 'INVOICE',
+    List<String>? itemIds,
+    double? percentOverride,
+    String? notes,
+  }) async {
+    try {
+      final normalizedScope = scope.trim().toUpperCase();
+      final data = <String, dynamic>{'scope': normalizedScope};
+      if (normalizedScope == 'ITEM') {
+        final ids = (itemIds ?? const [])
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        if (ids.isEmpty) {
+          throw Exception('itemIds is required when scope is ITEM');
+        }
+        data['itemIds'] = ids;
+      }
+      if (percentOverride != null) data['percentOverride'] = percentOverride;
+      if (notes != null && notes.trim().isNotEmpty) {
+        data['notes'] = notes.trim();
+      }
+
+      await _dio.post('/invoices/$invoiceId/coverages/hmo', data: data);
+      return getBillingInvoice(invoiceId);
+    } on DioException catch (e) {
+      print(e.response?.data);
+      throw Exception(
+        'Failed to apply HMO coverage: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingInvoiceDetail> applyDiscountCoverage({
+    required String invoiceId,
+    required String policyId,
+    String scope = 'INVOICE',
+    List<String>? itemIds,
+    double? valueOverride,
+    String? notes,
+  }) async {
+    try {
+      await _dio.post(
+        '/invoices/$invoiceId/coverages/discount',
+        data: {
+          'policyId': policyId,
+          'scope': scope,
+          if (itemIds != null && itemIds.isNotEmpty) 'itemIds': itemIds,
+          if (valueOverride != null) 'valueOverride': valueOverride,
+          if (notes != null && notes.trim().isNotEmpty) 'notes': notes,
+        },
+      );
+      return getBillingInvoice(invoiceId);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to apply discount coverage: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingInvoiceDetail> reverseCoverage({
+    required String invoiceId,
+    required String coverageId,
+    String? reason,
+  }) async {
+    try {
+      await _dio.delete(
+        '/invoices/$invoiceId/coverages/$coverageId',
+        data: {
+          if (reason != null && reason.trim().isNotEmpty) 'reason': reason,
+        },
+      );
+      return getBillingInvoice(invoiceId);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to reverse coverage: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<List<DiscountPolicy>> getActiveDiscountPolicies() async {
+    try {
+      final response = await _dio.get(
+        '/discount-policies',
+        queryParameters: {'active': true},
+      );
+      final list = _extractList(response.data, key: 'discountPolicies');
+      return list
+          .whereType<Map>()
+          .map((e) => DiscountPolicy.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load active discount policies: ${_dioMessage(e, 'Unknown error')}',
+      );
     }
   }
 
