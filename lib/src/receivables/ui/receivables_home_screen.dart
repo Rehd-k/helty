@@ -1,8 +1,9 @@
-﻿import 'package:auto_route/annotations.dart';
+import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/receivables_models.dart';
+import 'package:helty/src/receivables/ui/receivables_analytics_screen.dart';
 import 'package:helty/src/services/receivables_service.dart';
 
 enum _ReceivableKind { hmo, discount }
@@ -51,9 +52,11 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
     super.initState();
     final now = DateTime.now();
     _selectedRange = DateTimeRange(
-      start: DateTime(now.year, now.month, now.day).subtract(
-        const Duration(days: 6),
-      ),
+      start: DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 6)),
       end: DateTime(now.year, now.month, now.day, 23, 59, 59, 999),
     );
     _load();
@@ -62,7 +65,11 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
   DateTime? _rangeFromUtc() {
     final range = _selectedRange;
     if (range == null) return null;
-    final local = DateTime(range.start.year, range.start.month, range.start.day);
+    final local = DateTime(
+      range.start.year,
+      range.start.month,
+      range.start.day,
+    );
     return local.toUtc();
   }
 
@@ -142,7 +149,11 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
     if (picked == null) return;
     setState(() {
       _selectedRange = DateTimeRange(
-        start: DateTime(picked.start.year, picked.start.month, picked.start.day),
+        start: DateTime(
+          picked.start.year,
+          picked.start.month,
+          picked.start.day,
+        ),
         end: DateTime(
           picked.end.year,
           picked.end.month,
@@ -345,7 +356,9 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ...items.take(10).map(
+                    ...items
+                        .take(10)
+                        .map(
                           (e) => CheckboxListTile(
                             title: Text(
                               e.remittanceSummaryLine,
@@ -458,6 +471,15 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
         automaticallyImplyLeading: false,
         title: Text(_title),
         actions: [
+          IconButton(
+            tooltip: 'Open receivables analytics',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ReceivablesAnalyticsScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.analytics_outlined),
+          ),
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
       ),
@@ -577,7 +599,8 @@ class _ReceivablesList extends StatelessWidget {
         final created = item.displayCreatedAt;
         final subLines = <String>[
           if (patientLine.isNotEmpty) patientLine,
-          if (invoiceRef != null && invoiceRef.isNotEmpty) 'Invoice $invoiceRef',
+          if (invoiceRef != null && invoiceRef.isNotEmpty)
+            'Invoice $invoiceRef',
           if (item.invoiceStatus != null && item.invoiceStatus!.isNotEmpty)
             item.invoiceStatus!,
           if (created != null) DateFormatter.dateTime(created.toLocal()),

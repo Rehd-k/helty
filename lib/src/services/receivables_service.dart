@@ -108,7 +108,9 @@ class ReceivablesService {
 
   Future<Map<String, dynamic>> getOwnerStatement(String staffId) async {
     try {
-      final response = await _dio.get('/receivables/discount/owner/$staffId/statement');
+      final response = await _dio.get(
+        '/receivables/discount/owner/$staffId/statement',
+      );
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
       throw Exception(
@@ -129,6 +131,72 @@ class ReceivablesService {
     } on DioException catch (e) {
       throw Exception(
         'Failed to record remittance: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Map<String, dynamic> _asMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const FormatException('Expected JSON object');
+  }
+
+  Future<HmoCoverageAnalytics> getHmoCoverageAnalytics({
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/receivables/analytics/hmo-coverage',
+        queryParameters: {
+          'fromDate': fromDate.toUtc().toIso8601String(),
+          'toDate': toDate.toUtc().toIso8601String(),
+        },
+      );
+      return HmoCoverageAnalytics.fromJson(_asMap(response.data));
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load HMO coverage analytics: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<DiscountCoverageAnalytics> getDiscountCoverageAnalytics({
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/receivables/analytics/discount-coverage',
+        queryParameters: {
+          'fromDate': fromDate.toUtc().toIso8601String(),
+          'toDate': toDate.toUtc().toIso8601String(),
+        },
+      );
+      return DiscountCoverageAnalytics.fromJson(_asMap(response.data));
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load discount coverage analytics: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<RemittanceCollectionsAnalytics> getRemittanceCollectionsAnalytics({
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/receivables/analytics/remittance-collections',
+        queryParameters: {
+          'fromDate': fromDate.toUtc().toIso8601String(),
+          'toDate': toDate.toUtc().toIso8601String(),
+        },
+      );
+      return RemittanceCollectionsAnalytics.fromJson(_asMap(response.data));
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load remittance collection analytics: ${_dioMessage(e, 'Unknown error')}',
       );
     }
   }
