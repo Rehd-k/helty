@@ -1,32 +1,84 @@
-import 'package:auto_route/annotations.dart';
+﻿import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/receivables_models.dart';
 import 'package:helty/src/services/receivables_service.dart';
 
+enum _ReceivableKind { hmo, discount }
+
 @RoutePage()
-class ReceivablesHomeScreen extends StatefulWidget {
-  const ReceivablesHomeScreen({super.key});
+class ReceivablesHmoScreen extends StatelessWidget {
+  const ReceivablesHmoScreen({super.key});
 
   @override
-  State<ReceivablesHomeScreen> createState() => _ReceivablesHomeScreenState();
+  Widget build(BuildContext context) {
+    return const _ReceivablesScreen(kind: _ReceivableKind.hmo);
+  }
 }
 
-class _ReceivablesHomeScreenState extends State<ReceivablesHomeScreen>
-    with SingleTickerProviderStateMixin {
+@RoutePage()
+class ReceivablesDiscountScreen extends StatelessWidget {
+  const ReceivablesDiscountScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ReceivablesScreen(kind: _ReceivableKind.discount);
+  }
+}
+
+class _ReceivablesScreen extends StatefulWidget {
+  const _ReceivablesScreen({required this.kind});
+
+  final _ReceivableKind kind;
+
+  @override
+  State<_ReceivablesScreen> createState() => _ReceivablesScreenState();
+}
+
+class _ReceivablesScreenState extends State<_ReceivablesScreen> {
   final _service = ReceivablesService();
-  late final TabController _tab;
   bool _loading = true;
   String? _error;
-  List<ReceivableItem> _hmo = const [];
-  List<ReceivableItem> _discount = const [];
+  List<ReceivableItem> _items = const [];
+  DateTimeRange? _selectedRange;
+
+  bool get _isHmo => widget.kind == _ReceivableKind.hmo;
+  String get _title => _isHmo ? 'HMO Receivables' : 'Discount Receivables';
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
+    final now = DateTime.now();
+    _selectedRange = DateTimeRange(
+      start: DateTime(now.year, now.month, now.day).subtract(
+        const Duration(days: 6),
+      ),
+      end: DateTime(now.year, now.month, now.day, 23, 59, 59, 999),
+    );
     _load();
+  }
+
+  DateTime? _rangeFromUtc() {
+    final range = _selectedRange;
+    if (range == null) return null;
+    final local = DateTime(range.start.year, range.start.month, range.start.day);
+    return local.toUtc();
+  }
+
+  DateTime? _rangeToUtc() {
+    final range = _selectedRange;
+    if (range == null) return null;
+    final local = DateTime(
+      range.end.year,
+      range.end.month,
+      range.end.day,
+      23,
+      59,
+      59,
+      999,
+    );
+    return local.toUtc();
   }
 
   Future<void> _load() async {
@@ -35,13 +87,19 @@ class _ReceivablesHomeScreenState extends State<ReceivablesHomeScreen>
       _error = null;
     });
     try {
-      final hmo = await _service.getHmoReceivables(take: 100);
-      final discount = await _service.getDiscountReceivables(take: 100);
+      final data = _isHmo
+          ? await _service.getHmoReceivables(
+              take: 100,
+              from: _rangeFromUtc(),
+              to: _rangeToUtc(),
+            )
+          : await _service.getDiscountReceivables(
+              take: 100,
+              from: _rangeFromUtc(),
+              to: _rangeToUtc(),
+            );
       if (!mounted) return;
-      setState(() {
-        _hmo = hmo;
-        _discount = discount;
-      });
+      setState(() => _items = data);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());
@@ -50,63 +108,187 @@ class _ReceivablesHomeScreenState extends State<ReceivablesHomeScreen>
     }
   }
 
-  @override
-  void dispose() {
-    _tab.dispose();
-    super.dispose();
-  }
-
-  String _statementPayerId(ReceivableItem item, {required bool hmo}) {
-    if (hmo) return item.payerId ?? '';
+  String _statementPayerId(ReceivableItem item) {
+    if (_isHmo) return item.payerId ?? '';
     return item.payerStaffId ?? item.payerId ?? '';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final currentItems = _tab.index == 0 ? _hmo : _discount;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Receivables'),
-        actions: [
-          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-        ],
-        bottom: TabBar(
-          controller: _tab,
-          tabs: const [
-            Tab(text: 'HMO'),
-            Tab(text: 'Discount'),
-          ],
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
+  String _humanName(Map<String, dynamic>? person) {
+    if (person == null) return 'Unknown';
+    final first = person['firstName']?.toString().trim() ?? '';
+    final last = person['surname']?.toString().trim() ?? '';
+    final full = [first, last].where((e) => e.isNotEmpty).join(' ');
+    return full.isEmpty ? 'Unknown' : full;
+  }
+
+  String _rangeLabel(DateTimeRange? range) {
+    if (range == null) return 'All dates';
+    return '${DateFormatter.shortDate(range.start)} - ${DateFormatter.shortDate(range.end)}';
+  }
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 3),
+      lastDate: DateTime(now.year + 1, 12, 31),
+      initialDateRange: _selectedRange,
+    );
+    if (picked == null) return;
+    setState(() {
+      _selectedRange = DateTimeRange(
+        start: DateTime(picked.start.year, picked.start.month, picked.start.day),
+        end: DateTime(
+          picked.end.year,
+          picked.end.month,
+          picked.end.day,
+          23,
+          59,
+          59,
+          999,
         ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(child: Text(_error!))
-          : TabBarView(
-              controller: _tab,
+      );
+    });
+    await _load();
+  }
+
+  Widget _summaryCard({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                _ReceivablesList(
-                  items: _hmo,
-                  onOpenStatement: (item) => _openStatement(item, hmo: true),
-                ),
-                _ReceivablesList(
-                  items: _discount,
-                  onOpenStatement: (item) => _openStatement(item, hmo: false),
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
-      floatingActionButton: currentItems.isEmpty
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _recordRemittance(currentItems),
-              icon: const Icon(Icons.request_quote_outlined),
-              label: const Text('Record remittance'),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
+          ],
+        ),
+      ),
     );
   }
 
-  Future<void> _openStatement(ReceivableItem item, {required bool hmo}) async {
-    final payerId = _statementPayerId(item, hmo: hmo);
+  Widget _buildStatementContent(Map<String, dynamic> data) {
+    final payer =
+        (data['hmo'] as Map?)?['name']?.toString() ??
+        (data['owner'] as Map?)?['name']?.toString() ??
+        'Unknown payer';
+    final from = _parseDate(data['from']);
+    final to = _parseDate(data['to']);
+    final totalAmount =
+        double.tryParse(data['totalAmount']?.toString() ?? '0') ?? 0;
+    final rows =
+        (data['rows'] as List?)?.whereType<Map>().toList() ?? const <Map>[];
+
+    return SizedBox(
+      width: 900,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Payer: $payer'),
+            if (from != null || to != null)
+              Text(
+                'Period: ${from != null ? DateFormatter.shortDate(from.toLocal()) : '-'}'
+                ' to ${to != null ? DateFormatter.shortDate(to.toLocal()) : '-'}',
+              ),
+            Text('Total amount: ${totalAmount.toFinancial(isMoney: true)}'),
+            Text('Items: ${rows.length}'),
+            const SizedBox(height: 12),
+            const Text(
+              'Entries',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            if (rows.isEmpty)
+              const Text('No entries found.')
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('#')),
+                    DataColumn(label: Text('Patient')),
+                    DataColumn(label: Text('Invoice')),
+                    DataColumn(label: Text('Amount')),
+                    DataColumn(label: Text('Date')),
+                  ],
+                  rows: List<DataRow>.generate(rows.length, (i) {
+                    final row = Map<String, dynamic>.from(rows[i]);
+                    final amount =
+                        double.tryParse(row['amount']?.toString() ?? '0') ?? 0;
+                    final invoice = row['invoice'] is Map
+                        ? Map<String, dynamic>.from(row['invoice'] as Map)
+                        : <String, dynamic>{};
+                    final invoiceId =
+                        invoice['invoiceID']?.toString() ??
+                        invoice['id']?.toString() ??
+                        '-';
+                    final patient = invoice['patient'] is Map
+                        ? Map<String, dynamic>.from(invoice['patient'] as Map)
+                        : <String, dynamic>{};
+                    final patientName = _humanName(patient);
+                    final createdAt = _parseDate(row['createdAt']);
+                    return DataRow(
+                      cells: [
+                        DataCell(Text('${i + 1}')),
+                        DataCell(Text(patientName)),
+                        DataCell(Text(invoiceId)),
+                        DataCell(Text(amount.toFinancial(isMoney: true))),
+                        DataCell(
+                          Text(
+                            createdAt != null
+                                ? DateFormatter.dateTime(createdAt.toLocal())
+                                : '-',
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openStatement(ReceivableItem item) async {
+    final payerId = _statementPayerId(item);
     if (payerId.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,7 +297,7 @@ class _ReceivablesHomeScreenState extends State<ReceivablesHomeScreen>
       return;
     }
     try {
-      final data = hmo
+      final data = _isHmo
           ? await _service.getHmoStatement(payerId)
           : await _service.getOwnerStatement(payerId);
       if (!mounted) return;
@@ -123,7 +305,7 @@ class _ReceivablesHomeScreenState extends State<ReceivablesHomeScreen>
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Statement'),
-          content: SingleChildScrollView(child: Text(data.toString())),
+          content: _buildStatementContent(data),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -163,9 +345,7 @@ class _ReceivablesHomeScreenState extends State<ReceivablesHomeScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ...items
-                        .take(10)
-                        .map(
+                    ...items.take(10).map(
                           (e) => CheckboxListTile(
                             title: Text(
                               e.remittanceSummaryLine,
@@ -237,14 +417,12 @@ class _ReceivablesHomeScreenState extends State<ReceivablesHomeScreen>
       );
       return;
     }
-    final hmoTab = _tab.index == 0;
-    final hmoId = hmoTab ? _statementPayerId(chosen.first, hmo: true) : null;
-    final payerStaffId = hmoTab
-        ? null
-        : _statementPayerId(chosen.first, hmo: false);
+
+    final hmoId = _isHmo ? _statementPayerId(chosen.first) : null;
+    final payerStaffId = _isHmo ? null : _statementPayerId(chosen.first);
     await _service.recordRemittance(
       RecordRemittancePayload(
-        payerType: hmoTab ? 'HMO' : 'STAFF',
+        payerType: _isHmo ? 'HMO' : 'STAFF',
         hmoId: hmoId?.isEmpty ?? true ? null : hmoId,
         payerStaffId: payerStaffId?.isEmpty ?? true ? null : payerStaffId,
         amount: total,
@@ -260,6 +438,111 @@ class _ReceivablesHomeScreenState extends State<ReceivablesHomeScreen>
       ),
     );
     await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalOutstanding = _items.fold<double>(
+      0,
+      (sum, e) => sum + e.outstandingAmount,
+    );
+    final totalAmount = _items.fold<double>(0, (sum, e) => sum + e.amount);
+    final uniquePayers = _items
+        .map((e) => (e.payerName ?? e.payerId ?? '').trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .length;
+
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(_title),
+        actions: [
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(child: Text(_error!))
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _pickDateRange,
+                          icon: const Icon(Icons.date_range),
+                          label: Text(
+                            _rangeLabel(_selectedRange),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'Clear date range',
+                        onPressed: () async {
+                          setState(() => _selectedRange = null);
+                          await _load();
+                        },
+                        icon: const Icon(Icons.clear),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                  child: Row(
+                    children: [
+                      _summaryCard(
+                        label: 'Records',
+                        value: '${_items.length}',
+                        icon: Icons.receipt_long,
+                        color: Colors.blue,
+                      ),
+                      const SizedBox(width: 8),
+                      _summaryCard(
+                        label: 'Outstanding',
+                        value: totalOutstanding.toFinancial(isMoney: true),
+                        icon: Icons.account_balance_wallet_outlined,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 8),
+                      _summaryCard(
+                        label: 'Total Amount',
+                        value: totalAmount.toFinancial(isMoney: true),
+                        icon: Icons.summarize_outlined,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 8),
+                      _summaryCard(
+                        label: 'Unique Payers',
+                        value: '$uniquePayers',
+                        icon: Icons.groups_outlined,
+                        color: Colors.purple,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _ReceivablesList(
+                    items: _items,
+                    onOpenStatement: _openStatement,
+                  ),
+                ),
+              ],
+            ),
+      floatingActionButton: _items.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _recordRemittance(_items),
+              icon: const Icon(Icons.request_quote_outlined),
+              label: const Text('Record remittance'),
+            ),
+    );
   }
 }
 
@@ -294,8 +577,7 @@ class _ReceivablesList extends StatelessWidget {
         final created = item.displayCreatedAt;
         final subLines = <String>[
           if (patientLine.isNotEmpty) patientLine,
-          if (invoiceRef != null && invoiceRef.isNotEmpty)
-            'Invoice $invoiceRef',
+          if (invoiceRef != null && invoiceRef.isNotEmpty) 'Invoice $invoiceRef',
           if (item.invoiceStatus != null && item.invoiceStatus!.isNotEmpty)
             item.invoiceStatus!,
           if (created != null) DateFormatter.dateTime(created.toLocal()),

@@ -4190,17 +4190,33 @@ class RadiologyWorklistRoute extends _i160.PageRouteInfo<void> {
 }
 
 /// generated route for
-/// [_i133.ReceivablesHomeScreen]
-class ReceivablesHomeRoute extends _i160.PageRouteInfo<void> {
-  const ReceivablesHomeRoute({List<_i160.PageRouteInfo>? children})
-    : super(ReceivablesHomeRoute.name, initialChildren: children);
+/// [_i133.ReceivablesDiscountScreen]
+class ReceivablesDiscountRoute extends _i160.PageRouteInfo<void> {
+  const ReceivablesDiscountRoute({List<_i160.PageRouteInfo>? children})
+    : super(ReceivablesDiscountRoute.name, initialChildren: children);
 
-  static const String name = 'ReceivablesHomeRoute';
+  static const String name = 'ReceivablesDiscountRoute';
 
   static _i160.PageInfo page = _i160.PageInfo(
     name,
     builder: (data) {
-      return const _i133.ReceivablesHomeScreen();
+      return const _i133.ReceivablesDiscountScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [_i133.ReceivablesHmoScreen]
+class ReceivablesHmoRoute extends _i160.PageRouteInfo<void> {
+  const ReceivablesHmoRoute({List<_i160.PageRouteInfo>? children})
+    : super(ReceivablesHmoRoute.name, initialChildren: children);
+
+  static const String name = 'ReceivablesHmoRoute';
+
+  static _i160.PageInfo page = _i160.PageInfo(
+    name,
+    builder: (data) {
+      return const _i133.ReceivablesHmoScreen();
     },
   );
 }

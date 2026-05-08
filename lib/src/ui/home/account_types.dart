@@ -101,11 +101,6 @@ final bills = <MenuItem>[
 /// HMO desk — same enlist → render-service workflow as billing (narrower than [bills]).
 final hmoDeskMenu = <MenuItem>[
   MenuItem(
-    label: 'Dashboard',
-    icon: Icons.dashboard_customize_outlined,
-    route: BillingDashboardRoute(),
-  ),
-  MenuItem(
     label: 'Pending Transaction',
     icon: Icons.pending_actions_outlined,
     route: PendingBillsRoute(),
@@ -120,10 +115,22 @@ final hmoDeskMenu = <MenuItem>[
     icon: Icons.access_time_filled_outlined,
     route: EnlistPaitientRoute(serviceName: 'inpatient'),
   ),
-  MenuItem(
-    label: 'Transaction',
-    icon: Icons.list_outlined,
-    route: TransactionsRoute(),
+  const MenuItem(
+    label: 'Receivables',
+    icon: Icons.receipt_long_outlined,
+    route: ReceivablesHmoRoute(),
+    children: [
+      MenuItem(
+        label: 'HMO Receivables',
+        icon: Icons.health_and_safety_outlined,
+        route: ReceivablesHmoRoute(),
+      ),
+      MenuItem(
+        label: 'Discount Receivables',
+        icon: Icons.sell_outlined,
+        route: ReceivablesDiscountRoute(),
+      ),
+    ],
   ),
 ];
 

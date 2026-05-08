@@ -36,6 +36,8 @@ class ReceivablesService {
     int? take,
     String? search,
     String? status,
+    DateTime? from,
+    DateTime? to,
   }) async {
     try {
       final response = await _dio.get(
@@ -45,6 +47,8 @@ class ReceivablesService {
           if (take != null) 'take': take,
           if (search != null && search.trim().isNotEmpty) 'search': search,
           if (status != null && status.trim().isNotEmpty) 'status': status,
+          if (from != null) 'from': from.toUtc().toIso8601String(),
+          if (to != null) 'to': to.toUtc().toIso8601String(),
         },
       );
       final list = _extractList(response.data);
@@ -64,6 +68,8 @@ class ReceivablesService {
     int? take,
     String? search,
     String? status,
+    DateTime? from,
+    DateTime? to,
   }) async {
     try {
       final response = await _dio.get(
@@ -73,6 +79,8 @@ class ReceivablesService {
           if (take != null) 'take': take,
           if (search != null && search.trim().isNotEmpty) 'search': search,
           if (status != null && status.trim().isNotEmpty) 'status': status,
+          if (from != null) 'from': from.toUtc().toIso8601String(),
+          if (to != null) 'to': to.toUtc().toIso8601String(),
         },
       );
       final list = _extractList(response.data);

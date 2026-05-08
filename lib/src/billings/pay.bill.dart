@@ -372,10 +372,9 @@ class PayBillState extends ConsumerState<PayBill> {
   bool get _canShowCoverButton =>
       _isHmoInvoiceFlow && _hasPatientHmoOnInvoice && !_hasActiveInvoiceHmoCoverage;
 
-  bool get _canShowPaymentMethods =>
-      !_isHmoInvoiceFlow || _hasActiveInvoiceHmoCoverage;
+  bool get _canShowPaymentMethods => !_isHmoStaff;
 
-  bool get _canShowPayButton => !_isHmoInvoiceFlow || _hasActiveInvoiceHmoCoverage;
+  bool get _canShowPayButton => !_isHmoStaff;
 
   bool get _isHmoDeskInvoicePayBlocked {
     if (!widget.isInvoice) return false;
@@ -561,6 +560,7 @@ class PayBillState extends ConsumerState<PayBill> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('HMO coverage applied.')),
       );
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isApplyingHmoCover = false);
@@ -1153,9 +1153,11 @@ class PayBillState extends ConsumerState<PayBill> {
                                 ] else ...[
                                   const SizedBox(height: 12),
                                   Text(
-                                    _isHmoDeskInvoicePayBlocked
-                                        ? 'Patient has no HMO on file.'
-                                        : 'Apply HMO cover to continue.',
+                                    _isHmoStaff
+                                        ? 'HMO desk cannot take direct payment here.'
+                                        : (_isHmoDeskInvoicePayBlocked
+                                              ? 'Patient has no HMO on file.'
+                                              : 'Apply HMO cover to continue.'),
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.orange.shade800,

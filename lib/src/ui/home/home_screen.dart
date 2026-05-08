@@ -374,7 +374,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         const MenuItem(
           label: 'Receivables',
           icon: Icons.receipt_long_outlined,
-          route: ReceivablesHomeRoute(),
+          route: ReceivablesHmoRoute(),
+          children: [
+            MenuItem(
+              label: 'HMO Receivables',
+              icon: Icons.health_and_safety_outlined,
+              route: ReceivablesHmoRoute(),
+            ),
+            MenuItem(
+              label: 'Discount Receivables',
+              icon: Icons.sell_outlined,
+              route: ReceivablesDiscountRoute(),
+            ),
+          ],
         ),
       ]);
     }
@@ -393,7 +405,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         const MenuItem(
           label: 'Receivables',
           icon: Icons.receipt_long_outlined,
-          route: ReceivablesHomeRoute(),
+          route: ReceivablesHmoRoute(),
+          children: [
+            MenuItem(
+              label: 'HMO Receivables',
+              icon: Icons.health_and_safety_outlined,
+              route: ReceivablesHmoRoute(),
+            ),
+            MenuItem(
+              label: 'Discount Receivables',
+              icon: Icons.sell_outlined,
+              route: ReceivablesDiscountRoute(),
+            ),
+          ],
         ),
         const MenuItem(
           label: 'Discount Policies',
