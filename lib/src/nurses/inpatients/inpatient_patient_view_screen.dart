@@ -8,13 +8,12 @@ import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
+import '../../admissions/discharge_admission_dialog.dart';
 import '../../helper/date.formatter.dart';
 import '../../../app_router.gr.dart';
 import '../../models/admission_model.dart';
 import '../../models/medication_order_model.dart';
-import '../../models/invoice.dart';
 import '../../services/admission_service.dart';
-import '../../services/invoice_service.dart';
 
 @RoutePage()
 class InpatientPatientViewScreen extends ConsumerStatefulWidget {
@@ -59,34 +58,6 @@ class _InpatientPatientViewScreenState
   void initState() {
     super.initState();
     _loadPatient();
-  }
-
-  Future<void> _openBilling() async {
-    final patient = _patient;
-    if (patient == null) return;
-    final apiPatientId = patient.id ?? patient.patientId;
-    try {
-      final invoices = await InvoiceService().getPatientInvoices(apiPatientId);
-      if (!mounted) return;
-      if (invoices.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No invoice found for this patient')),
-        );
-        return;
-      }
-      invoices.sort(
-        (Invoice a, Invoice b) => b.updatedAt.compareTo(a.updatedAt),
-      );
-      final name = '${patient.firstName} ${patient.surname}';
-      context.router.push(
-        PatientBillingRoute(invoiceId: invoices.first.id, patientName: name),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open billing: $e')));
-    }
   }
 
   /// Same identity labels as [PatientHeaderCard] / [_buildPatientHeader].
@@ -321,11 +292,6 @@ class _InpatientPatientViewScreenState
       alignment: compact ? WrapAlignment.start : WrapAlignment.end,
       children: [
         FilledButton.tonalIcon(
-          onPressed: _patient == null ? null : _openBilling,
-          icon: const Icon(Icons.receipt_long_outlined, size: 18),
-          label: const Text('Billing'),
-        ),
-        FilledButton.tonalIcon(
           onPressed: _admission == null ? null : _attemptDischarge,
           icon: const Icon(Icons.logout, size: 18),
           label: const Text('Discharge'),
@@ -396,28 +362,15 @@ class _InpatientPatientViewScreenState
   Future<void> _attemptDischarge() async {
     final admission = _admission;
     if (admission == null) return;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirm discharge'),
-        content: const Text(
-          'This will request discharge now. If unpaid invoices exist, discharge will be blocked.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Discharge'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true || !mounted) return;
+    final payload = await showDischargeAdmissionDialog(context);
+    if (payload == null || !mounted) return;
     try {
-      await _admissionService.dischargeAdmission(admission.id);
+      await _admissionService.dischargeAdmission(
+        admission.id,
+        outcome: payload.outcome,
+        dischargeSummary: payload.dischargeSummary,
+        otherImportantNotes: payload.otherImportantNotes,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Patient discharged successfully')),
@@ -428,7 +381,6 @@ class _InpatientPatientViewScreenState
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
-      await _openBilling();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

@@ -39,6 +39,7 @@ abstract class IPharmacyQueueService {
     String id,
     String itemId,
     Map<String, dynamic> payload,
+    {String? locationId}
   );
 
   /// Delete a specific item from an invoice-drug order.
@@ -139,11 +140,16 @@ class PharmacyQueueApiService implements IPharmacyQueueService {
     String id,
     String itemId,
     Map<String, dynamic> payload,
+    {String? locationId}
   ) async {
     try {
       final response = await _dio.patch(
         '/invoice-drugs/$id/items/$itemId',
         data: payload,
+        queryParameters: {
+          if (locationId != null && locationId.trim().isNotEmpty)
+            'locationId': locationId.trim(),
+        },
       );
       return QueueOrder.fromJson(_unwrapOrderPayload(response.data));
     } on DioException catch (e) {
@@ -285,6 +291,7 @@ class MockPharmacyQueueService implements IPharmacyQueueService {
     String id,
     String itemId,
     Map<String, dynamic> payload,
+    {String? locationId}
   ) async {
     return getInvoiceDrug(id);
   }

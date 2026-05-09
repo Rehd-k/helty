@@ -171,7 +171,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
-      final isInvalidCode = e is DioException &&
+      final isInvalidCode =
+          e is DioException &&
           (e.response?.statusCode == 401 || e.error is UnauthorizedException);
       final msg = isInvalidCode
           ? 'Invalid or expired code. Request a new code from your administrator.'

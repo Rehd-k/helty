@@ -187,12 +187,22 @@ class AdmissionService {
   Future<AdmissionModel> dischargeAdmission(
     String id, {
     DateTime? dischargeDate,
+    required String outcome,
+    required String dischargeSummary,
+    String? otherImportantNotes,
   }) {
-    return patch(id, {
+    final body = <String, dynamic>{
       'dischargeDate': (dischargeDate ?? DateTime.now())
           .toUtc()
           .toIso8601String(),
-    });
+      'outcome': outcome,
+      'dischargeSummary': dischargeSummary.trim(),
+    };
+    final other = otherImportantNotes?.trim();
+    if (other != null && other.isNotEmpty) {
+      body['otherImportantNotes'] = other;
+    }
+    return patch(id, body);
   }
 
   /// DELETE /admissions/:id — delete admission.

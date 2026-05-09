@@ -67,6 +67,7 @@ class AdmissionModel {
     this.updatedById,
     this.dischargeSummary,
     this.outcome,
+    this.otherImportantNotes,
     this.createdAt,
     this.updatedAt,
     this.wardEntity,
@@ -118,6 +119,7 @@ class AdmissionModel {
 
   final String? dischargeSummary;
   final String? outcome;
+  final String? otherImportantNotes;
 
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -145,10 +147,22 @@ class AdmissionModel {
     String str(dynamic v) => (v != null) ? v.toString() : '';
 
     final patientRaw = json['patient'];
-    if (patientRaw is! Map) {
-      throw StateError('Admission JSON missing `patient` map');
+    final Map<String, dynamic> patientMap;
+    if (patientRaw is Map) {
+      patientMap = Map<String, dynamic>.from(patientRaw);
+    } else {
+      // PATCH/PUT responses often omit nested `patient` and only return `patientId`.
+      final pid = str(json['patientId']);
+      if (pid.isEmpty) {
+        throw StateError(
+          'Admission JSON missing `patient` map and `patientId`',
+        );
+      }
+      patientMap = <String, dynamic>{
+        'id': pid,
+        'patientId': pid,
+      };
     }
-    final patientMap = Map<String, dynamic>.from(patientRaw);
 
     final bedRaw = json['bed'];
     final bedMap = bedRaw is Map ? Map<String, dynamic>.from(bedRaw) : null;
@@ -246,6 +260,7 @@ class AdmissionModel {
       updatedById: json['updatedById']?.toString(),
       dischargeSummary: json['dischargeSummary']?.toString(),
       outcome: json['outcome']?.toString(),
+      otherImportantNotes: json['otherImportantNotes']?.toString(),
       createdAt: parseDt(json['createdAt']),
       updatedAt: parseDt(json['updatedAt']),
       wardEntity: wardEntityMap,

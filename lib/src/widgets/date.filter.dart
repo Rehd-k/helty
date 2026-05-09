@@ -19,7 +19,7 @@ class FromToDateFilter extends StatefulWidget {
   final Function doRefresh;
   final bool dateFilter;
   final Function(String query, String category, DateTime? from, DateTime? to)
-      onFilterChanged;
+  onFilterChanged;
 
   /// Display style for From/To date text on **desktop / wide** layouts.
   /// Default is [DateFilterLabelStyle.full].
@@ -47,16 +47,8 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
     super.initState();
     doRefresh = widget.doRefresh;
     final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
-    _toDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      23,
-      59,
-      59,
-      999,
-    );
+    _fromDate = DateTime.now();
+    _toDate = DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _notifyParent();
     });
@@ -65,16 +57,8 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
   void _resetFilters() {
     setState(() {
       final now = DateTime.now();
-      _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
-      _toDate = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        23,
-        59,
-        59,
-        999,
-      );
+      _fromDate = DateTime.now();
+      _toDate = DateTime.now();
     });
     _notifyParent();
     doRefresh?.call();
@@ -238,10 +222,7 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
           compact: true,
         ),
         const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: _resetButton(scheme),
-        ),
+        Align(alignment: Alignment.centerRight, child: _resetButton(scheme)),
       ],
     );
   }

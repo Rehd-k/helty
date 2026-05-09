@@ -973,13 +973,20 @@ class PharmacyApiService {
   }
 
   Future<List<DrugLocationQuantity>> getDrugLocationQuantities(
-    String drugId,
-  ) async {
+    String drugId, {
+    String? locationId,
+  }) async {
     if (drugId.trim().isEmpty) {
       throw const ValidationException('Drug id is required.');
     }
     try {
-      final resp = await _dio.get('$_basePath/locations/drug/$drugId/quantity');
+      final resp = await _dio.get(
+        '$_basePath/locations/drug/$drugId/quantity',
+        queryParameters: {
+          if (locationId != null && locationId.trim().isNotEmpty)
+            'locationId': locationId.trim(),
+        },
+      );
       final payload = resp.data;
       final dynamic listData;
       if (payload is List) {

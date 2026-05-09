@@ -57,10 +57,10 @@ class AuthRepository {
     required String code,
     required String newPassword,
   }) => _authService.resetPassword(
-        email: email,
-        code: code,
-        newPassword: newPassword,
-      );
+    email: email,
+    code: code,
+    newPassword: newPassword,
+  );
 
   Future<Staff> getMe() => _authService.getMe();
 

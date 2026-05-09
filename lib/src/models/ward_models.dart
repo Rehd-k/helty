@@ -180,8 +180,9 @@ class InpatientCensus {
     final ward = wardRaw is Map<String, dynamic> ? wardRaw : null;
     final bed = bedRaw is Map<String, dynamic> ? bedRaw : null;
 
-    final firstName =
-        (patient?['firstName'] ?? patient?['firstname'] ?? '').toString().trim();
+    final firstName = (patient?['firstName'] ?? patient?['firstname'] ?? '')
+        .toString()
+        .trim();
     final lastName =
         (patient?['lastName'] ??
                 patient?['lastname'] ??
@@ -189,10 +190,10 @@ class InpatientCensus {
                 '')
             .toString()
             .trim();
-    final joinedPatientName = [firstName, lastName]
-        .where((e) => e.isNotEmpty)
-        .join(' ')
-        .trim();
+    final joinedPatientName = [
+      firstName,
+      lastName,
+    ].where((e) => e.isNotEmpty).join(' ').trim();
     final fullName = json['name'] ?? json['patientName'] ?? joinedPatientName;
 
     final age = json['age']?.toString() ?? patient?['age']?.toString();
@@ -227,9 +228,9 @@ class InpatientCensus {
     return InpatientCensus(
       id: json['id']?.toString() ?? '',
       patientId:
+          patient?['id']?.toString() ??
           json['patientId']?.toString() ??
           patient?['patientId']?.toString() ??
-          patient?['id']?.toString() ??
           '',
       name: (fullName is String && fullName.trim().isNotEmpty)
           ? fullName

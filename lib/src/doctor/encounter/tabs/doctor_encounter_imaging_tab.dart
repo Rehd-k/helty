@@ -624,8 +624,28 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
-
+                const SizedBox(height: 6),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text('No'),
+                      icon: Icon(Icons.close, size: 18),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text('Yes'),
+                      icon: Icon(Icons.check, size: 18),
+                    ),
+                  ],
+                  emptySelectionAllowed: true,
+                  selected: _contrast == null ? <bool>{} : <bool>{_contrast!},
+                  onSelectionChanged: (Set<bool> next) {
+                    setState(() {
+                      _contrast = next.isEmpty ? null : next.first;
+                    });
+                  },
+                ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _urgency,

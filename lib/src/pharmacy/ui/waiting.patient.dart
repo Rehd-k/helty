@@ -56,20 +56,37 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   String? _patientError;
   List<PastMedication> _invoiceHistoryMeds = [];
   final Map<String, int> _stockByItemId = {};
+  final List<PharmacyLocation> _dispensaryLocations = [];
+  String? _selectedDispensaryId;
+  bool _loadingDispensaryLocations = false;
+  String? _dispensaryLoadError;
 
   @override
   void initState() {
     super.initState();
     _queueService = widget.queueService ?? PharmacyQueueApiService();
+    _loadDispensaryLocations();
+  }
+
+  bool _isOrderCleared(QueueOrder order) {
+    if (!invoiceStatusIsPaid(order.invoiceStatus)) return false;
+    if (order.medications.isEmpty) return false;
+    return order.medications.every((m) => m.isDispensed || m.settled);
+  }
+
+  bool _isOrderUncleared(QueueOrder order) {
+    if (!invoiceStatusIsPaid(order.invoiceStatus)) return false;
+    if (order.medications.isEmpty) return true;
+    return order.medications.any((m) => !m.isDispensed && !m.settled);
   }
 
   List<QueueOrder> get _visibleOrders {
     switch (_selectedTabIndex) {
       case 1:
-        return _orders
-            .where((o) => invoiceStatusIsPaid(o.invoiceStatus))
-            .toList();
+        return _orders.where(_isOrderCleared).toList();
       case 2:
+        return _orders.where(_isOrderUncleared).toList();
+      case 3:
         return _orders
             .where((o) => !invoiceStatusIsPaid(o.invoiceStatus))
             .toList();
@@ -78,9 +95,10 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     }
   }
 
-  int get _clearedCount =>
-      _orders.where((o) => invoiceStatusIsPaid(o.invoiceStatus)).length;
-  int get _waitingCount => _orders.length - _clearedCount;
+  int get _clearedCount => _orders.where(_isOrderCleared).length;
+  int get _unclearedCount => _orders.where(_isOrderUncleared).length;
+  int get _pendingCount =>
+      _orders.where((o) => !invoiceStatusIsPaid(o.invoiceStatus)).length;
 
   int _effectiveStock(PrescribedMedication med) =>
       _stockByItemId[med.id] ?? med.stockAvailable;
@@ -95,11 +113,52 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   }
 
   bool _canDispense(QueueOrder order, PrescribedMedication med) =>
-      (invoiceStatusIsPaid(order.invoiceStatus) || _selectedPatientIsInpatient) &&
+      _selectedDispensaryId != null &&
+      (invoiceStatusIsPaid(order.invoiceStatus) ||
+          _selectedPatientIsInpatient) &&
       _medHasStock(med) &&
       !med.isDispensed &&
       !med.settled &&
       (med.drugId != null && med.drugId!.isNotEmpty);
+
+  Future<void> _loadDispensaryLocations() async {
+    if (mounted) {
+      setState(() {
+        _loadingDispensaryLocations = true;
+        _dispensaryLoadError = null;
+      });
+    }
+    try {
+      final page = await _pharmacyApi.getPharmacyLocations(
+        const PharmacyQueryParams(
+          pageSize: 100,
+          filters: {'locationType': 'DISPENSARY'},
+        ),
+      );
+      if (!mounted) return;
+      final dispensaries = page.items
+          .where((l) => l.type == PharmacyLocationType.DISPENSARY)
+          .toList();
+      setState(() {
+        _dispensaryLocations
+          ..clear()
+          ..addAll(dispensaries);
+        if (_selectedDispensaryId != null &&
+            !_dispensaryLocations.any((l) => l.id == _selectedDispensaryId)) {
+          _selectedDispensaryId = null;
+        }
+        _loadingDispensaryLocations = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _dispensaryLocations.clear();
+        _selectedDispensaryId = null;
+        _loadingDispensaryLocations = false;
+        _dispensaryLoadError = e.toString();
+      });
+    }
+  }
 
   int _ageFromDob(DateTime dob) {
     final now = DateTime.now();
@@ -124,15 +183,25 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   }
 
   Future<void> _loadStocksForOrder(QueueOrder order) async {
+    final selectedLocationId = _selectedDispensaryId;
     for (final m in order.medications) {
       final did = m.drugId;
       if (did == null || did.isEmpty) continue;
       try {
-        final drug = await _pharmacyApi.getDrugById(
-          did,
-          'id,genericName,brandName,quantity',
-        );
-        final q = drug.stock ?? drug.displayStock;
+        int q;
+        if (selectedLocationId != null) {
+          final quantities = await _pharmacyApi.getDrugLocationQuantities(
+            did,
+            locationId: selectedLocationId,
+          );
+          q = quantities.fold<int>(0, (sum, item) => sum + item.quantity);
+        } else {
+          final drug = await _pharmacyApi.getDrugById(
+            did,
+            'id,genericName,brandName,quantity',
+          );
+          q = drug.stock ?? drug.displayStock;
+        }
         if (!mounted) return;
         setState(() {
           _stockByItemId[m.id] = q;
@@ -306,12 +375,13 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     PrescribedMedication med,
   ) async {
     if (!_canDispense(order, med)) return;
+    final locationId = _selectedDispensaryId;
+    if (locationId == null) return;
     final did = med.drugId!;
     final qty = med.quantity;
     try {
-      final drug = await _pharmacyApi.getDrugById(did);
-      final current = drug.stock ?? drug.displayStock;
-      if (current < qty) {
+      final selectedStock = _effectiveStock(med);
+      if (selectedStock < qty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Insufficient stock to dispense')),
@@ -319,6 +389,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         }
         return;
       }
+      final drug = await _pharmacyApi.getDrugById(did);
+      final current = drug.stock ?? drug.displayStock;
       final newStock = current - qty;
       await _pharmacyApi.updateDrug(
         Drug(
@@ -348,7 +420,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       try {
         await _queueService.updateInvoiceDrugItem(order.id, med.id, {
           'settled': true,
-        });
+        }, locationId: locationId);
       } catch (_) {
         // Backend may not support this shape; stock was still adjusted.
       }
@@ -481,9 +553,29 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     }
 
     final unpaid = !invoiceStatusIsPaid(order.invoiceStatus);
-    final requiresPaymentBeforeDispense = unpaid && !_selectedPatientIsInpatient;
-    final oos = !_medHasStock(med);
+    final requiresPaymentBeforeDispense =
+        unpaid && !_selectedPatientIsInpatient;
     final hasDrug = med.drugId != null && med.drugId!.isNotEmpty;
+    final hasLocation = _selectedDispensaryId != null;
+    final oos = !_medHasStock(med);
+
+    if (!hasDrug) {
+      return IconButton(
+        onPressed: null,
+        icon: const Icon(Icons.link_off, size: 20),
+        tooltip: 'No drug id for this line',
+        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+      );
+    }
+
+    if (!hasLocation) {
+      return IconButton(
+        onPressed: null,
+        icon: const Icon(Icons.location_off, size: 20),
+        tooltip: 'Select dispensary location before dispense',
+        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+      );
+    }
 
     if (oos) {
       return Row(
@@ -528,15 +620,6 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         onPressed: null,
         icon: const Icon(Icons.lock_outline, size: 20),
         tooltip: 'Invoice must be paid before dispense',
-        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
-      );
-    }
-
-    if (!hasDrug) {
-      return IconButton(
-        onPressed: null,
-        icon: const Icon(Icons.link_off, size: 20),
-        tooltip: 'No drug id for this line',
         style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
       );
     }
@@ -690,7 +773,9 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
               const SizedBox(width: 8),
               _buildTab('Cleared ($_clearedCount)', 1, colorScheme),
               const SizedBox(width: 8),
-              _buildTab('Waiting ($_waitingCount)', 2, colorScheme),
+              _buildTab('Uncleared ($_unclearedCount)', 2, colorScheme),
+              const SizedBox(width: 8),
+              _buildTab('Pending ($_pendingCount)', 3, colorScheme),
             ],
           ),
         ),
@@ -956,17 +1041,68 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.print, size: 20),
-                      tooltip: 'Print label',
-                      style: IconButton.styleFrom(
-                        foregroundColor: colorScheme.onSurface,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                if (_loadingDispensaryLocations)
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Loading dispensaries...',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  DropdownButtonFormField<String>(
+                    value: _selectedDispensaryId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Dispensary location',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                    ),
+                    items: _dispensaryLocations
+                        .where((l) => l.id != null && l.id!.isNotEmpty)
+                        .map(
+                          (location) => DropdownMenuItem<String>(
+                            value: location.id!,
+                            child: Text(
+                              location.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedDispensaryId = value;
+                      });
+                      if (_selectedOrder != null) {
+                        _enrichSelectedOrder(_selectedOrder!);
+                      }
+                    },
+                  ),
+                  if (_dispensaryLoadError != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _dispensaryLoadError!,
+                      style: TextStyle(fontSize: 10, color: colorScheme.error),
+                    ),
+                  ],
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -1219,6 +1355,40 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     PrescribedMedication med,
     ColorScheme colorScheme,
   ) {
+    if (_selectedDispensaryId == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Qty remaining',
+            style: TextStyle(
+              fontSize: 8,
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colorScheme.outlineVariant),
+            ),
+            child: Text(
+              '--',
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     final rem = _effectiveStock(med);
     final ok = _medHasStock(med);
     return Column(

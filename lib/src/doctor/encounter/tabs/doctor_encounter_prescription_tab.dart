@@ -153,6 +153,9 @@ class _DoctorEncounterPrescriptionTabState
     final searchCtrl = TextEditingController();
     List<Drug> results = [];
     Drug? selected;
+    int? remainingStock;
+    bool stockLoading = false;
+    String? stockError;
     bool searchLoading = false;
     Timer? searchDebounce;
     final doseCtrl = TextEditingController();
@@ -193,9 +196,72 @@ class _DoctorEncounterPrescriptionTabState
                 startDateTime != null &&
                 endDateTime != null &&
                 endDateTime!.isBefore(startDateTime!);
+            final qDisp = qtyForDisplay;
+            final rStock = remainingStock;
+            final lowStock = qDisp != null && rStock != null && qDisp > rStock;
+            final theme = Theme.of(ctx);
+            final colorScheme = theme.colorScheme;
 
             return AlertDialog(
-              title: const Text('Add prescription'),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Add prescription',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                      ),
+                      if (selected != null) ...[
+                        const SizedBox(width: 8),
+                        if (stockLoading)
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          Material(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              child: Text(
+                                remainingStock != null
+                                    ? 'Qty remaining: ${remainingStock!}'
+                                    : 'Stock: —',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: colorScheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                  if (selected != null &&
+                      stockError != null &&
+                      stockError!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      stockError!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.error,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
               content: SizedBox(
                 width: 420,
                 child: SingleChildScrollView(
@@ -278,7 +344,41 @@ class _DoctorEncounterPrescriptionTabState
                             subtitle: e.genericName != e.brandName
                                 ? Text(e.genericName)
                                 : null,
-                            onTap: () => setState(() => selected = e),
+                            onTap: () async {
+                              setState(() {
+                                selected = e;
+                                remainingStock = null;
+                                stockError = null;
+                                stockLoading = true;
+                              });
+                              final id = e.id;
+                              if (id == null || id.isEmpty) {
+                                if (ctx.mounted) {
+                                  setState(() => stockLoading = false);
+                                }
+                                return;
+                              }
+                              try {
+                                final drug = await _pharmacyService.getDrugById(
+                                  id,
+                                  'id,quantity',
+                                );
+                                if (!ctx.mounted) return;
+                                setState(() {
+                                  stockLoading = false;
+                                  remainingStock =
+                                      drug.stock ?? drug.displayStock;
+                                  stockError = null;
+                                });
+                              } catch (err) {
+                                if (!ctx.mounted) return;
+                                setState(() {
+                                  stockLoading = false;
+                                  remainingStock = null;
+                                  stockError = err.toString();
+                                });
+                              }
+                            },
                           ),
                         ),
                       ],
@@ -297,7 +397,12 @@ class _DoctorEncounterPrescriptionTabState
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.clear),
-                            onPressed: () => setState(() => selected = null),
+                            onPressed: () => setState(() {
+                              selected = null;
+                              remainingStock = null;
+                              stockLoading = false;
+                              stockError = null;
+                            }),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -417,6 +522,55 @@ class _DoctorEncounterPrescriptionTabState
                             ),
                           ),
                         ),
+                        if (lowStock) ...[
+                          const SizedBox(height: 8),
+                          Material(
+                            color: colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: colorScheme.onErrorContainer,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Prescribed quantity exceeds available stock',
+                                          style: theme.textTheme.titleSmall
+                                              ?.copyWith(
+                                                color: colorScheme
+                                                    .onErrorContainer,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Prescribed: $qtyForDisplay units · Available: $remainingStock\n'
+                                          'Pharmacy may delay dispensing or need a substitute.',
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: colorScheme
+                                                    .onErrorContainer,
+                                                height: 1.35,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         TextField(
                           controller: routeCtrl,
@@ -472,7 +626,8 @@ class _DoctorEncounterPrescriptionTabState
                                 onPressed: () async {
                                   final picked = await showDateTimePicker(
                                     context: ctx,
-                                    initialDate: startDateTime ?? DateTime.now(),
+                                    initialDate:
+                                        startDateTime ?? DateTime.now(),
                                     firstDate: DateTime.now().subtract(
                                       const Duration(days: 3650),
                                     ),
@@ -560,6 +715,35 @@ class _DoctorEncounterPrescriptionTabState
                             durationValue: n,
                             durationUnit: durationUnit,
                           );
+                          if (remainingStock != null && qty > remainingStock!) {
+                            final proceed =
+                                await showDialog<bool>(
+                                  context: ctx,
+                                  builder: (c) => AlertDialog(
+                                    title: const Text('Insufficient stock'),
+                                    content: Text(
+                                      'Prescribed quantity ($qty) is greater than '
+                                      'available stock ($remainingStock). The pharmacy '
+                                      'may need to substitute or order stock.\n\n'
+                                      'Continue anyway?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(c).pop(false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.of(c).pop(true),
+                                        child: const Text('Continue anyway'),
+                                      ),
+                                    ],
+                                  ),
+                                ) ??
+                                false;
+                            if (!proceed) return;
+                          }
                           await _medicationOrderService.create(
                             staffId: scope.doctorId!,
                             encounterId: scope.encounterId,
@@ -659,7 +843,8 @@ class _DoctorEncounterPrescriptionTabState
                             [
                               if (o.dose != null && o.dose!.isNotEmpty) o.dose,
                               if (o.quantity != null) 'Qty ${o.quantity}',
-                              if (o.frequency != null && o.frequency!.isNotEmpty)
+                              if (o.frequency != null &&
+                                  o.frequency!.isNotEmpty)
                                 o.frequency,
                               if (o.duration != null && o.duration!.isNotEmpty)
                                 o.duration,

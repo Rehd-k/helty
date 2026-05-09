@@ -164,6 +164,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDoctor = _staffIsDoctor(ref.watch(authProvider).staff);
+
     final totalCount = _filteredRows.length;
 
     return Scaffold(
@@ -171,8 +172,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compact =
-                constraints.maxWidth < kInpatientCompactBreakpoint;
+            final compact = constraints.maxWidth < kInpatientCompactBreakpoint;
             final pad = compact ? 16.0 : 24.0;
 
             return Padding(
@@ -250,11 +250,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          titleBlock,
-          const SizedBox(height: 12),
-          countBadge,
-        ],
+        children: [titleBlock, const SizedBox(height: 12), countBadge],
       );
     }
 
@@ -274,10 +270,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       isExpanded: true,
       items: _wards
           .map(
-            (w) => DropdownMenuItem<String>(
-              value: w.id,
-              child: Text(w.name),
-            ),
+            (w) => DropdownMenuItem<String>(value: w.id, child: Text(w.name)),
           )
           .toList(),
       onChanged: (value) {
@@ -363,7 +356,9 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
               color: colorScheme.onSurface.withValues(alpha: 0.02),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
             child: Row(
               children: const [
@@ -427,8 +422,9 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                     children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundColor:
-                            colorScheme.primary.withValues(alpha: 0.12),
+                        backgroundColor: colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
                         child: Text(
                           row.initials,
                           style: TextStyle(
@@ -593,8 +589,9 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                     children: [
                       CircleAvatar(
                         radius: 18,
-                        backgroundColor:
-                            colorScheme.primary.withValues(alpha: 0.12),
+                        backgroundColor: colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
                         child: Text(
                           row.initials,
                           style: TextStyle(
@@ -624,8 +621,9 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                                 row.ageGender,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color:
-                                      colorScheme.onSurface.withValues(alpha: 0.7),
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.7,
+                                  ),
                                 ),
                               ),
                             ],

@@ -11,6 +11,7 @@ import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
+import 'package:helty/src/admissions/discharge_admission_dialog.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 
@@ -562,17 +563,20 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     }
     setState(() => _coverageBusy = true);
     try {
-      await _invoiceService.applyHmoCoverage(invoiceId: detail.id, scope: 'INVOICE');
+      await _invoiceService.applyHmoCoverage(
+        invoiceId: detail.id,
+        scope: 'INVOICE',
+      );
       await _loadBillingData();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('HMO split applied')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('HMO split applied')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _coverageBusy = false);
     }
@@ -581,7 +585,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   Future<void> _applyDiscountPolicy(String policyId) async {
     final detail = _billingDetail;
     final staff = ref.read(authProvider).staff;
-    if (detail == null || !canApplyDiscount(staff) || policyId.trim().isEmpty) return;
+    if (detail == null ||
+        !canApplyDiscount(staff) ||
+        policyId.trim().isEmpty) {
+      return;
+    }
     setState(() => _coverageBusy = true);
     try {
       await _invoiceService.applyDiscountCoverage(
@@ -591,14 +599,14 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       );
       await _loadBillingData();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Discount applied')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Discount applied')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _coverageBusy = false);
     }
@@ -640,9 +648,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       await _loadBillingData();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       reasonCtrl.dispose();
       if (mounted) setState(() => _coverageBusy = false);
@@ -1188,8 +1196,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 label: const Text('Add Service'),
               ),
               FilledButton.tonalIcon(
-                onPressed: invoiceDetail == null ||
-                        (invoiceDetail.effectivePayable - invoiceDetail.amountPaid) <= 0.001
+                onPressed:
+                    invoiceDetail == null ||
+                        (invoiceDetail.effectivePayable -
+                                invoiceDetail.amountPaid) <=
+                            0.001
                     ? null
                     : () {
                         final lines = _selectedLineIdsForPay.isEmpty
@@ -1744,10 +1755,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   Widget _buildCoveragePanel(BillingInvoiceDetail? detail) {
     if (detail == null) return const SizedBox.shrink();
     final staff = ref.read(authProvider).staff;
-    final canSplit = canSplitWithHmo(staff) &&
+    final canSplit =
+        canSplitWithHmo(staff) &&
         detail.status.toUpperCase() != 'PAID' &&
         (detail.patientHmoId ?? '').trim().isNotEmpty;
-    final canDiscount = canApplyDiscount(staff) && detail.status.toUpperCase() != 'PAID';
+    final canDiscount =
+        canApplyDiscount(staff) && detail.status.toUpperCase() != 'PAID';
     final canReverse = canReverseCoverage(staff);
 
     final policiesByReason = <String, List<DiscountPolicy>>{};
@@ -1771,7 +1784,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                   label: const Text('Split with HMO'),
                 ),
                 PopupMenuButton<String>(
-                  enabled: canDiscount && !_coverageBusy && _discountPolicies.isNotEmpty,
+                  enabled:
+                      canDiscount &&
+                      !_coverageBusy &&
+                      _discountPolicies.isNotEmpty,
                   onSelected: _applyDiscountPolicy,
                   itemBuilder: (context) {
                     final entries = <PopupMenuEntry<String>>[];
@@ -1780,7 +1796,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       entries.add(
                         PopupMenuItem<String>(
                           enabled: false,
-                          child: Text(reason, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          child: Text(
+                            reason,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       );
                       for (final policy in policiesByReason[reason]!) {
@@ -1821,7 +1840,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       if (canReverse && c.status.toUpperCase() != 'SETTLED')
                         IconButton(
                           tooltip: 'Reverse coverage',
-                          onPressed: _coverageBusy ? null : () => _reverseCoverage(c),
+                          onPressed: _coverageBusy
+                              ? null
+                              : () => _reverseCoverage(c),
                           icon: const Icon(Icons.undo_outlined),
                         ),
                     ],
@@ -2059,26 +2080,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     String patientId,
     String patientName,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Discharge patient'),
-        content: const Text(
-          'This will attempt discharge now. If invoice is unpaid, discharge is blocked.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Discharge'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    final payload = await showDischargeAdmissionDialog(context);
+    if (payload == null || !mounted) return;
     final admissionId = _billingDetail?.encounterId;
     if (admissionId == null || admissionId.isEmpty) {
       ScaffoldMessenger.of(this.context).showSnackBar(
@@ -2091,7 +2094,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       return;
     }
     try {
-      await _admissionService.dischargeAdmission(admissionId);
+      await _admissionService.dischargeAdmission(
+        admissionId,
+        outcome: payload.outcome,
+        dischargeSummary: payload.dischargeSummary,
+        otherImportantNotes: payload.otherImportantNotes,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(this.context).showSnackBar(
         const SnackBar(content: Text('Patient discharged successfully')),
