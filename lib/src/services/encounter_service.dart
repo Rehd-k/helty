@@ -11,9 +11,16 @@ class EncounterService {
   final Dio _dio;
 
   /// GET /encounters/:id — get one encounter (used by all encounter tabs).
-  Future<EncounterModel?> getById(String encounterId) async {
+  /// Optional [expand] e.g. `['specialtyModules','clinicalSections']` or `['*']`.
+  Future<EncounterModel?> getById(
+    String encounterId, {
+    List<String>? expand,
+  }) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/encounters/$encounterId',
+      queryParameters: expand != null && expand.isNotEmpty
+          ? {'expand': expand.join(',')}
+          : null,
     );
     final data = response.data;
     if (data == null) return null;

@@ -44,7 +44,6 @@ class ReusableAsyncTable<T> extends StatefulWidget {
 }
 
 class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
-  final PaginatorController _paginatorController = PaginatorController();
   late _GenericDataSource<T> _source;
 
   bool _initialized = false;
@@ -88,7 +87,6 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
 
   @override
   void dispose() {
-    _paginatorController.dispose();
     _source.dispose();
     super.dispose();
   }
@@ -97,7 +95,6 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
   Widget build(BuildContext context) {
     return AsyncPaginatedDataTable2(
       columns: widget.columns,
-      controller: _paginatorController,
       source: _source,
       rowsPerPage: widget.rowsPerPage,
       columnSpacing: 12,

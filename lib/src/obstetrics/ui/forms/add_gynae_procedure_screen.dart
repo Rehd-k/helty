@@ -21,8 +21,13 @@ const List<String> _procedureTypes = [
 @RoutePage()
 class ObstetricsAddGynaeProcedureScreen extends ConsumerStatefulWidget {
   final String? patientId;
+  final String? encounterId;
 
-  const ObstetricsAddGynaeProcedureScreen({super.key, this.patientId});
+  const ObstetricsAddGynaeProcedureScreen({
+    super.key,
+    this.patientId,
+    this.encounterId,
+  });
 
   @override
   ConsumerState<ObstetricsAddGynaeProcedureScreen> createState() =>
@@ -136,6 +141,8 @@ class _ObstetricsAddGynaeProcedureScreenState
         if (_complicationsCtrl.text.trim().isNotEmpty)
           'complications': _complicationsCtrl.text.trim(),
         if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
+        if (widget.encounterId != null && widget.encounterId!.isNotEmpty)
+          'encounterId': widget.encounterId,
       });
       if (!mounted) return;
       context.router.maybePop(true);

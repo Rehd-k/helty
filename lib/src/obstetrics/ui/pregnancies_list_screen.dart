@@ -14,9 +14,13 @@ class ObstetricsPregnanciesListScreen extends ConsumerStatefulWidget {
   /// When null, patient comes from [patientProvider].selectedPatient.
   final String? patientId;
 
+  /// Optional OPD encounter to link antenatal visits created from this flow.
+  final String? encounterId;
+
   const ObstetricsPregnanciesListScreen({
     super.key,
     this.patientId,
+    this.encounterId,
   });
 
   @override
@@ -93,7 +97,12 @@ class _ObstetricsPregnanciesListScreenState
   }
 
   void _openPregnancy(Pregnancy p) {
-    context.router.push(ObstetricsPregnancyViewRoute(pregnancyId: p.id));
+    context.router.push(
+      ObstetricsPregnancyViewRoute(
+        pregnancyId: p.id,
+        encounterId: widget.encounterId,
+      ),
+    );
   }
 
   void _addPregnancy() {
@@ -146,6 +155,27 @@ class _ObstetricsPregnanciesListScreenState
       ),
       body: Column(
         children: [
+          if (widget.encounterId != null && widget.encounterId!.isNotEmpty)
+            Material(
+              color: colorScheme.primaryContainer.withValues(alpha: 0.45),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(Icons.link, color: colorScheme.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Opened from an OPD visit. New antenatal visits will link to encounter ${widget.encounterId}.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (_error != null)
             Material(
               color: colorScheme.errorContainer,

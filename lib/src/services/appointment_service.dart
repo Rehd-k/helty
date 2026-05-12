@@ -41,28 +41,106 @@ class AppointmentService {
       );
       final raw = resp.data;
       if (raw is List) {
-        final items = raw
-            .map((e) => Appointment.fromJson(_asMap(e)))
-            .toList();
+        final items = raw.map((e) => Appointment.fromJson(_asMap(e))).toList();
         return (items: items, total: items.length);
       }
       if (raw is Map) {
         final m = Map<String, dynamic>.from(raw);
-        final listRaw = m['appointments'] ?? m['data'] ?? m['items'] ?? m['results'];
-        final total = (m['total'] as num?)?.toInt() ??
-            (m['count'] as num?)?.toInt();
+        final listRaw =
+            m['appointments'] ?? m['data'] ?? m['items'] ?? m['results'];
+        final total =
+            (m['total'] as num?)?.toInt() ?? (m['count'] as num?)?.toInt();
         final list = listRaw is List
             ? listRaw.map((e) => Appointment.fromJson(_asMap(e))).toList()
             : <Appointment>[];
-        return (
-          items: list,
-          total: total ?? list.length,
-        );
+        return (items: list, total: total ?? list.length);
       }
       return (items: <Appointment>[], total: 0);
     } on DioException catch (e) {
       throw Exception(_message(e));
     }
+  }
+
+  /// `GET /appointments/calendar-counts` — per-day counts for a date range.
+  /// Falls back to aggregating [findAll] when the route is missing (404).
+  Future<Map<DateTime, int>> getCalendarCounts({
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    try {
+      final resp = await _dio.get(
+        '/appointments/calendar-counts',
+        queryParameters: {
+          'fromDate': fromDate.toUtc().toIso8601String(),
+          'toDate': toDate.toUtc().toIso8601String(),
+        },
+      );
+      final raw = resp.data;
+      final out = <DateTime, int>{};
+      if (raw is Map) {
+        final m = Map<String, dynamic>.from(raw);
+        final listRaw = m['counts'] ?? m['data'] ?? m['items'];
+        if (listRaw is List) {
+          for (final e in listRaw) {
+            if (e is! Map) continue;
+            final row = Map<String, dynamic>.from(e);
+            final dateStr =
+                row['date']?.toString() ?? row['day']?.toString() ?? '';
+            final n = row['count'] ?? row['total'];
+            final c = n is num ? n.toInt() : int.tryParse(n?.toString() ?? '');
+            if (dateStr.isEmpty || c == null) continue;
+            final parsed = DateTime.tryParse(dateStr);
+            if (parsed != null) {
+              final local = parsed.toLocal();
+              final key = DateTime(local.year, local.month, local.day);
+              out[key] = c;
+            } else {
+              final parts = dateStr.split(RegExp(r'[-/]'));
+              if (parts.length >= 3) {
+                final y = int.tryParse(parts[0]);
+                final mo = int.tryParse(parts[1]);
+                final d = int.tryParse(parts[2]);
+                if (y != null && mo != null && d != null) {
+                  out[DateTime(y, mo, d)] = c;
+                }
+              }
+            }
+          }
+        }
+      }
+      return out;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return _calendarCountsFallback(fromDate: fromDate, toDate: toDate);
+      }
+      throw Exception(_message(e));
+    }
+  }
+
+  Future<Map<DateTime, int>> _calendarCountsFallback({
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    final out = <DateTime, int>{};
+    var skip = 0;
+    const take = 100;
+    while (true) {
+      final page = await findAll(
+        skip: skip,
+        take: take,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+      for (final a in page.items) {
+        final d = a.appointmentDate.toLocal();
+        final key = DateTime(d.year, d.month, d.day);
+        out[key] = (out[key] ?? 0) + 1;
+      }
+      if (page.items.length < take) break;
+      if (page.total > 0 && skip + page.items.length >= page.total) break;
+      skip += take;
+    }
+    return out;
   }
 
   /// `GET /appointments/upcoming`
@@ -100,6 +178,7 @@ class AppointmentService {
     required String patientId,
     required DateTime appointmentDate,
     String? staffId,
+
     /// Legacy body field — sent as `staffId` if [staffId] is null.
     String? doctorId,
     String status = 'SCHEDULED',
@@ -190,7 +269,9 @@ class AppointmentService {
       skip: skip,
       take: limit,
       fromDate: date != null ? DateTime(date.year, date.month, date.day) : null,
-      toDate: date != null ? DateTime(date.year, date.month, date.day, 23, 59, 59) : null,
+      toDate: date != null
+          ? DateTime(date.year, date.month, date.day, 23, 59, 59)
+          : null,
     );
     return r.items;
   }

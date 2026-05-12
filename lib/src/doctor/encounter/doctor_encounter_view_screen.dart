@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/doctor/specialty/encounter_specialty_forms_panel.dart';
+import 'package:helty/src/doctor/specialty/encounter_specialty_gate.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
@@ -67,6 +69,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   String? _patientError;
   PatientVitalsModel? _patientVitals;
   bool _completing = false;
+  bool _specialtyGateDismissed = false;
 
   @override
   void initState() {
@@ -174,22 +177,53 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                           const SizedBox(height: 16),
                           _buildPatientHeader(context),
                           const SizedBox(height: 20),
-                          _buildTabsStrip(context, tabsRouter),
-                          const SizedBox(height: 16),
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surface,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: child,
+                          if (!_specialtyGateDismissed) ...[
+                            Text(
+                              'Before you chart',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surface,
+                                    border: Border.all(
+                                      color: colorScheme.outline
+                                          .withValues(alpha: 0.12),
+                                    ),
+                                  ),
+                                  child: EncounterSpecialtyGate(
+                                    encounterId: widget.encounterId,
+                                    onFinished: () => setState(
+                                      () => _specialtyGateDismissed = true,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ] else ...[
+                            _buildTabsStrip(context, tabsRouter),
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surface,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4.0),
+                                    child: child,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -255,6 +289,21 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_specialtyGateDismissed && !isDone)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilledButton.tonalIcon(
+                  onPressed: () {
+                    EncounterSpecialtyFormsPanel.showSheet(
+                      context,
+                      encounterId: widget.encounterId,
+                      patientId: widget.patientId,
+                    );
+                  },
+                  icon: const Icon(Icons.grid_view_rounded, size: 20),
+                  label: const Text('Specialty forms'),
+                ),
+              ),
             if (isDone)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -277,7 +326,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                   ],
                 ),
               )
-            else
+            else if (_specialtyGateDismissed)
               FilledButton.icon(
                 onPressed: _completing ? null : _completeEncounter,
                 icon: _completing

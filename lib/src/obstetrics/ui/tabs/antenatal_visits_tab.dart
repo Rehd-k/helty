@@ -77,8 +77,14 @@ class _ObstetricsAntenatalVisitsTabState
   void _addVisit() {
     final id = _pregnancyId;
     if (id == null) return;
+    final enc = PregnancyViewScope.of(context)?.encounterId;
     context.router
-        .push(ObstetricsAddAntenatalVisitRoute(pregnancyId: id))
+        .push(
+          ObstetricsAddAntenatalVisitRoute(
+            pregnancyId: id,
+            encounterId: enc,
+          ),
+        )
         .then((_) => _load(id));
   }
 

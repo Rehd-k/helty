@@ -1064,7 +1064,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                   )
                 else ...[
                   DropdownButtonFormField<String>(
-                    value: _selectedDispensaryId,
+                    initialValue: _selectedDispensaryId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Dispensary location',

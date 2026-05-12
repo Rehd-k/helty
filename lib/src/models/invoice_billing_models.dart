@@ -240,6 +240,9 @@ class BillingInvoiceItem {
     this.serviceDepartmentName,
     this.drugId,
     this.drugDisplayName,
+    this.consumableId,
+    this.storeLocationId,
+    this.consumableDisplayName,
     this.customDescription,
   });
 
@@ -258,6 +261,11 @@ class BillingInvoiceItem {
 
   /// Human-readable drug label from nested `drug` (generic / brand).
   final String? drugDisplayName;
+
+  /// Billable consumable line (`consumableId` + FIFO `storeLocationId`).
+  final String? consumableId;
+  final String? storeLocationId;
+  final String? consumableDisplayName;
 
   /// Optional free-text line description from API.
   final String? customDescription;
@@ -278,10 +286,12 @@ class BillingInvoiceItem {
   /// Remaining due on this line for `allocate-item-payments` caps.
   final double lineAmountDue;
 
-  /// Invoice line title for UI and payments (custom → drug → service → id).
+  /// Invoice line title for UI and payments (custom → consumable → drug → service → id).
   String get displayLabel {
     final custom = customDescription?.trim();
     if (custom != null && custom.isNotEmpty) return custom;
+    final cons = consumableDisplayName?.trim();
+    if (cons != null && cons.isNotEmpty) return cons;
     final drug = drugDisplayName?.trim();
     if (drug != null && drug.isNotEmpty) return drug;
     final svc = serviceName?.trim();
@@ -298,6 +308,13 @@ class BillingInvoiceItem {
     return name.isNotEmpty;
   }
 
+  bool get isConsumableLine {
+    final c = consumableId?.trim() ?? '';
+    if (c.isNotEmpty) return true;
+    final n = consumableDisplayName?.trim() ?? '';
+    return n.isNotEmpty;
+  }
+
   factory BillingInvoiceItem.fromJson(Map<String, dynamic> json) {
     final service = json['service'];
     final serviceMap = service is Map
@@ -305,10 +322,20 @@ class BillingInvoiceItem {
         : null;
     final drugRaw = json['drug'];
     final drugMap = drugRaw is Map ? Map<String, dynamic>.from(drugRaw) : null;
+    final consumableRaw = json['consumable'];
+    final consumableMap = consumableRaw is Map
+        ? Map<String, dynamic>.from(consumableRaw)
+        : null;
     final category = serviceMap?['category'];
     final department = serviceMap?['department'];
     final drugDisplay = _billingDrugDisplayName(drugMap);
     final drugIdResolved = _nullableString(json['drugId'] ?? drugMap?['id']);
+    final consumableIdResolved =
+        _nullableString(json['consumableId'] ?? consumableMap?['id']);
+    final storeLocationIdResolved = _nullableString(json['storeLocationId']);
+    final consumableDisplay = consumableMap == null
+        ? null
+        : _nullableString(consumableMap['name'] ?? consumableMap['label']);
     final segmentsRaw = json['usageSegments'];
     final quantity = _asInt(json['quantity'], fallback: 1);
     final unitPrice = _asDouble(json['unitPrice'] ?? json['priceAtTime']);
@@ -337,6 +364,9 @@ class BillingInvoiceItem {
           : null,
       drugId: drugIdResolved,
       drugDisplayName: drugDisplay,
+      consumableId: consumableIdResolved,
+      storeLocationId: storeLocationIdResolved,
+      consumableDisplayName: consumableDisplay,
       customDescription: _nullableString(json['customDescription']),
       quantity: quantity,
       unitPrice: unitPrice,
@@ -509,19 +539,33 @@ class AddInvoiceItemPayload {
   AddInvoiceItemPayload({
     this.serviceId,
     this.drugId,
+    this.consumableId,
+    this.storeLocationId,
     required this.unitPrice,
     this.quantity = 1,
     this.isRecurringDaily = false,
     this.startedAt,
   }) : assert(
-         (serviceId?.trim().isNotEmpty ?? false) ||
-             (drugId?.trim().isNotEmpty ?? false),
-         'Provide serviceId or drugId',
-       );
+          () {
+            final hasSvc = serviceId?.trim().isNotEmpty ?? false;
+            final hasDrug = drugId?.trim().isNotEmpty ?? false;
+            final hasCons = (consumableId?.trim().isNotEmpty ?? false) &&
+                (storeLocationId?.trim().isNotEmpty ?? false);
+            final n =
+                (hasSvc ? 1 : 0) + (hasDrug ? 1 : 0) + (hasCons ? 1 : 0);
+            return n == 1;
+          }(),
+          'Provide exactly one of: serviceId, drugId, or consumableId+storeLocationId',
+        );
 
   /// Catalog service UUID (not human-readable service codes).
   final String? serviceId;
   final String? drugId;
+
+  /// Billable consumable line (mutually exclusive with [drugId] on server).
+  final String? consumableId;
+  final String? storeLocationId;
+
   final double unitPrice;
   final int quantity;
   final bool isRecurringDaily;
@@ -532,6 +576,9 @@ class AddInvoiceItemPayload {
   Map<String, dynamic> toJson() => {
     if (serviceId?.trim().isNotEmpty ?? false) 'serviceId': serviceId,
     if (drugId?.trim().isNotEmpty ?? false) 'drugId': drugId,
+    if (consumableId?.trim().isNotEmpty ?? false) 'consumableId': consumableId,
+    if (storeLocationId?.trim().isNotEmpty ?? false)
+      'storeLocationId': storeLocationId,
     'unitPrice': unitPrice,
     'quantity': quantity,
     'isRecurringDaily': isRecurringDaily,

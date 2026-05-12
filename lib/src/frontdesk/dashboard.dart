@@ -7,9 +7,12 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../app_router.gr.dart';
+import '../helper/date.formatter.dart';
+import '../models/appointment_model.dart';
 import '../models/frontdesk_dashboard_models.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
+import '../services/appointment_service.dart';
 import '../services/frontdesk_dashboard_service.dart';
 
 @RoutePage()
@@ -23,9 +26,15 @@ class FrontDeskDashboardScreen extends ConsumerStatefulWidget {
 
 class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   final FrontdeskDashboardService _api = FrontdeskDashboardService();
+  final AppointmentService _appointmentService = AppointmentService();
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+
+  final Map<DateTime, int> _calendarCounts = {};
+  final Set<String> _calendarMonthsLoaded = {};
+  int _calendarLoadsInFlight = 0;
+  bool _loadingCalendarCounts = false;
 
   FrontdeskDashboardSummary? _summary;
   List<FrontdeskQueueRow> _queue = [];
@@ -48,6 +57,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSummary();
       _loadQueue();
+      _ensureCalendarCountsForMonth(_focusedDay);
       _queuePoll = Timer.periodic(
         const Duration(seconds: _queuePollSeconds),
         (_) => _loadQueue(),
@@ -120,6 +130,152 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
 
   Future<void> _refreshAll() async {
     await Future.wait([_loadSummary(), _loadQueue()]);
+  }
+
+  static DateTime _calendarDateKey(DateTime d) =>
+      DateTime(d.year, d.month, d.day);
+
+  static String _calendarMonthKey(DateTime d) => '${d.year}-${d.month}';
+
+  int _appointmentCountOnDay(DateTime day) =>
+      _calendarCounts[_calendarDateKey(day)] ?? 0;
+
+  Future<void> _ensureCalendarCountsForMonth(DateTime month) async {
+    final key = _calendarMonthKey(month);
+    if (_calendarMonthsLoaded.contains(key)) return;
+
+    _calendarLoadsInFlight++;
+    if (_calendarLoadsInFlight == 1 && mounted) {
+      setState(() => _loadingCalendarCounts = true);
+    }
+
+    try {
+      final start = DateTime(month.year, month.month, 1);
+      final end = DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999);
+      final counts = await _appointmentService.getCalendarCounts(
+        fromDate: start,
+        toDate: end,
+      );
+      if (!mounted) return;
+      setState(() {
+        _calendarCounts.addAll(counts);
+        _calendarMonthsLoaded.add(key);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load appointment counts: $e')),
+      );
+    } finally {
+      _calendarLoadsInFlight--;
+      if (mounted && _calendarLoadsInFlight == 0) {
+        setState(() => _loadingCalendarCounts = false);
+      }
+    }
+  }
+
+  Future<void> _openDayAppointmentsSheet(DateTime day) async {
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) =>
+          _DayAppointmentsBottomSheet(day: day, service: _appointmentService),
+    );
+  }
+
+  Widget _buildCalendarDayCell(
+    BuildContext context,
+    DateTime day,
+    ColorScheme colorScheme, {
+    required bool isSelected,
+    required bool isToday,
+  }) {
+    final count = _appointmentCountOnDay(day);
+    final badge = count > 0
+        ? Positioned(
+            right: 2,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.92)
+                    : colorScheme.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                count > 99 ? '99+' : '$count',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? colorScheme.primary : Colors.white,
+                ),
+              ),
+            ),
+          )
+        : const SizedBox.shrink();
+
+    final number = Text(
+      '${day.day}',
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+        color: isSelected
+            ? Colors.white
+            : (isToday ? colorScheme.primary : colorScheme.onSurface),
+      ),
+    );
+
+    if (isSelected) {
+      return Stack(
+        clipBehavior: Clip.none,
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.all(6),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: number,
+            ),
+          ),
+          badge,
+        ],
+      );
+    }
+    if (isToday) {
+      return Stack(
+        clipBehavior: Clip.none,
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.all(6),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+              ),
+              child: number,
+            ),
+          ),
+          badge,
+        ],
+      );
+    }
+    return Stack(
+      clipBehavior: Clip.none,
+      fit: StackFit.expand,
+      children: [
+        Center(child: number),
+        badge,
+      ],
+    );
   }
 
   String _welcomeName(Staff? staff) {
@@ -244,26 +400,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
         context.router.push(const InpatientsListRoute());
       }
     });
-  }
-
-  void _showDayAppointments(DateTime day) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Appointments on ${DateFormat('MMM d, yyyy').format(day)}'),
-        content: const Text(
-          'Per-day appointment counts on the calendar are not provided by the '
-          'API. Use the "Today\'s Appointments" KPI for the current day\'s total.',
-          style: TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -792,6 +928,15 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_loadingCalendarCounts)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: LinearProgressIndicator(
+                              minHeight: 2,
+                              borderRadius: BorderRadius.circular(2),
+                              color: colorScheme.primary,
+                            ),
+                          ),
                         TableCalendar(
                           firstDay: DateTime.utc(2020, 10, 16),
                           lastDay: DateTime.utc(2030, 3, 14),
@@ -803,6 +948,13 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                               _selectedDay = selectedDay;
                               _focusedDay = focusedDay;
                             });
+                            _openDayAppointmentsSheet(selectedDay);
+                          },
+                          onPageChanged: (focusedDay) {
+                            setState(() {
+                              _focusedDay = focusedDay;
+                            });
+                            _ensureCalendarCountsForMonth(focusedDay);
                           },
                           calendarFormat: CalendarFormat.month,
                           headerStyle: HeaderStyle(
@@ -838,65 +990,36 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                           ),
                           calendarBuilders: CalendarBuilders(
                             defaultBuilder: (context, day, focusedDay) {
-                              return GestureDetector(
-                                onDoubleTap: () => _showDayAppointments(day),
-                                child: Container(
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    '${day.day}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ),
+                              return _buildCalendarDayCell(
+                                context,
+                                day,
+                                colorScheme,
+                                isSelected: false,
+                                isToday: isSameDay(day, DateTime.now()),
                               );
                             },
                             selectedBuilder: (context, day, focusedDay) {
-                              return GestureDetector(
-                                onDoubleTap: () => _showDayAppointments(day),
-                                child: Container(
-                                  margin: const EdgeInsets.all(6.0),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '${day.day}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
+                              return _buildCalendarDayCell(
+                                context,
+                                day,
+                                colorScheme,
+                                isSelected: true,
+                                isToday: isSameDay(day, DateTime.now()),
                               );
                             },
                             todayBuilder: (context, day, focusedDay) {
-                              return GestureDetector(
-                                onDoubleTap: () => _showDayAppointments(day),
-                                child: Container(
-                                  margin: const EdgeInsets.all(6.0),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primary.withValues(
-                                      alpha: 0.3,
-                                    ),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '${day.day}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colorScheme.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                              final sel = isSameDay(_selectedDay, day);
+                              return _buildCalendarDayCell(
+                                context,
+                                day,
+                                colorScheme,
+                                isSelected: sel,
+                                isToday: true,
                               );
                             },
                           ),
                         ),
+
                         const SizedBox(height: 12),
                         Text(
                           "Today's total appointments: "
@@ -999,6 +1122,147 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
       fontSize: 12,
       fontWeight: FontWeight.w600,
       color: colorScheme.onSurface.withValues(alpha: 0.5),
+    );
+  }
+}
+
+class _DayAppointmentsBottomSheet extends StatefulWidget {
+  const _DayAppointmentsBottomSheet({required this.day, required this.service});
+
+  final DateTime day;
+  final AppointmentService service;
+
+  @override
+  State<_DayAppointmentsBottomSheet> createState() =>
+      _DayAppointmentsBottomSheetState();
+}
+
+class _DayAppointmentsBottomSheetState
+    extends State<_DayAppointmentsBottomSheet> {
+  late final Future<({List<Appointment> items, int total})> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    final start = DateTime(widget.day.year, widget.day.month, widget.day.day);
+    final end = DateTime(
+      widget.day.year,
+      widget.day.month,
+      widget.day.day,
+      23,
+      59,
+      59,
+      999,
+    );
+    _future = widget.service.findAll(
+      skip: 0,
+      take: 200,
+      fromDate: start,
+      toDate: end,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final title = DateFormat('EEEE, MMM d, yyyy').format(widget.day);
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Text(
+                title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            Divider(height: 1, color: scheme.outlineVariant),
+            Expanded(
+              child: FutureBuilder<({List<Appointment> items, int total})>(
+                future: _future,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snap.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          '${snap.error}',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
+                  final data = snap.data!;
+                  final items = data.items;
+                  if (items.isEmpty) {
+                    return ListView(
+                      controller: scrollController,
+                      children: const [
+                        SizedBox(height: 48),
+                        Center(child: Text('No appointments on this day.')),
+                      ],
+                    );
+                  }
+                  return ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    itemCount:
+                        items.length + (data.total > items.length ? 1 : 0),
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                    itemBuilder: (context, i) {
+                      if (i == items.length) {
+                        return Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            '${data.total} total — showing first ${items.length}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        );
+                      }
+                      final a = items[i];
+                      final local = a.appointmentDate.toLocal();
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          a.patientDisplayName,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          '${DateFormatter.medicalDate(local)} · ${DateFormat.jm().format(local)}\n'
+                          '${a.doctorDisplayName} · ${a.status}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        isThreeLine: true,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

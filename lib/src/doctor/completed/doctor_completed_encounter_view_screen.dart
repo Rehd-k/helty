@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
+import 'package:helty/src/doctor/specialty/encounter_specialty_forms_panel.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
@@ -175,6 +176,32 @@ class _DoctorCompletedEncounterViewScreenState
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => context.router.maybePop(),
               ),
+              actions: [
+                IconButton(
+                  tooltip: 'Specialty forms',
+                  icon: const Icon(Icons.grid_view_rounded),
+                  onPressed: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      showDragHandle: true,
+                      builder: (ctx) => DraggableScrollableSheet(
+                        expand: false,
+                        initialChildSize: 0.92,
+                        minChildSize: 0.5,
+                        maxChildSize: 0.98,
+                        builder: (_, __) => EncounterSpecialtyFormsPanel(
+                          encounterId: widget.encounterId,
+                          patientId: widget.patientId,
+                          readOnly: true,
+                          title: 'Specialty forms (read-only)',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
             body: SafeArea(
               child: Center(

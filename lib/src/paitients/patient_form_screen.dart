@@ -260,9 +260,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         preferredLanguage: _preferredLanguageController.text.trim().isEmpty
             ? null
             : _preferredLanguageController.text.trim(),
-        phoneNumber: _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
         addressOfResidence: _addressOfResidenceController.text.trim().isEmpty
             ? null
             : _addressOfResidenceController.text.trim(),
@@ -370,10 +368,10 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         'preferredLanguage',
         p.preferredLanguage,
       ),
-      phoneNumber: _mergeOptionalField(
+      phoneNumber: _mergeRequiredField(
         _phoneController,
         'phoneNumber',
-        p.phoneNumber,
+        p.phoneNumber ?? '',
       ),
       addressOfResidence: _mergeOptionalField(
         _addressOfResidenceController,
@@ -812,8 +810,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         ),
                         _buildTextField(
                           _phoneController,
-                          'Phone',
+                          'Phone number *',
                           keyboardType: TextInputType.phone,
+                          required: true,
                         ),
                         _buildTextField(
                           _preferredLanguageController,

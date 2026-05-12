@@ -1,4 +1,5 @@
 import 'package:helty/src/models/appointment_model.dart';
+import 'package:helty/src/models/clinical_specialty_models.dart';
 
 /// One row from `diagnoses[]` on GET /encounters/:id (when not duplicated on flat fields).
 class EncounterDiagnosisSnapshot {
@@ -53,6 +54,8 @@ class EncounterModel {
     this.referral,
     this.visitAppointment,
     this.linkedDiagnoses = const [],
+    this.specialtyModules,
+    this.clinicalSections,
   });
 
   final String id;
@@ -99,6 +102,12 @@ class EncounterModel {
 
   /// Rows from `diagnoses` when the API returns a list.
   final List<EncounterDiagnosisSnapshot> linkedDiagnoses;
+
+  /// Present when `GET /encounters/:id?expand=specialtyModules` (or `expand=*`).
+  final List<EncounterSpecialtyModuleModel>? specialtyModules;
+
+  /// Present when `GET /encounters/:id?expand=clinicalSections` (or `expand=*`).
+  final List<EncounterClinicalSectionRowModel>? clinicalSections;
 
   factory EncounterModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
@@ -148,7 +157,49 @@ class EncounterModel {
             )
           : null,
       linkedDiagnoses: _parseLinkedDiagnoses(json['diagnoses']),
+      specialtyModules: _parseSpecialtyModules(json['specialtyModules']),
+      clinicalSections: _parseClinicalSections(json['clinicalSections']),
     );
+  }
+
+  static List<EncounterSpecialtyModuleModel>? _parseSpecialtyModules(
+    dynamic raw,
+  ) {
+    if (raw == null) return null;
+    if (raw is! List<dynamic>) return null;
+    final out = <EncounterSpecialtyModuleModel>[];
+    for (final e in raw) {
+      if (e is Map<String, dynamic>) {
+        out.add(EncounterSpecialtyModuleModel.fromJson(e));
+      } else if (e is Map) {
+        out.add(
+          EncounterSpecialtyModuleModel.fromJson(
+            Map<String, dynamic>.from(e),
+          ),
+        );
+      }
+    }
+    return out;
+  }
+
+  static List<EncounterClinicalSectionRowModel>? _parseClinicalSections(
+    dynamic raw,
+  ) {
+    if (raw == null) return null;
+    if (raw is! List<dynamic>) return null;
+    final out = <EncounterClinicalSectionRowModel>[];
+    for (final e in raw) {
+      if (e is Map<String, dynamic>) {
+        out.add(EncounterClinicalSectionRowModel.fromJson(e));
+      } else if (e is Map) {
+        out.add(
+          EncounterClinicalSectionRowModel.fromJson(
+            Map<String, dynamic>.from(e),
+          ),
+        );
+      }
+    }
+    return out;
   }
 
   static List<EncounterDiagnosisSnapshot> _parseLinkedDiagnoses(dynamic raw) {
@@ -239,6 +290,8 @@ class EncounterModel {
     String? referral,
     Appointment? visitAppointment,
     List<EncounterDiagnosisSnapshot>? linkedDiagnoses,
+    List<EncounterSpecialtyModuleModel>? specialtyModules,
+    List<EncounterClinicalSectionRowModel>? clinicalSections,
   }) {
     return EncounterModel(
       id: id,
@@ -278,6 +331,8 @@ class EncounterModel {
       referral: referral ?? this.referral,
       visitAppointment: visitAppointment ?? this.visitAppointment,
       linkedDiagnoses: linkedDiagnoses ?? this.linkedDiagnoses,
+      specialtyModules: specialtyModules ?? this.specialtyModules,
+      clinicalSections: clinicalSections ?? this.clinicalSections,
     );
   }
 }

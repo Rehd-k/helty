@@ -110,7 +110,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           role: _selectedRoleOption.role,
           password: _passwordCtrl.text,
           email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-          phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+          phone: _phoneCtrl.text.trim(),
           accountType: _selectedRoleOption.accountType,
         );
     if (ok && mounted) {
@@ -316,9 +316,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
-                      labelText: 'Phone number',
+                      labelText: 'Phone number *',
                       prefixIcon: Icon(Icons.phone_outlined),
                     ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Phone number is required';
+                      }
+                      final digits = v.replaceAll(RegExp(r'\D'), '');
+                      if (digits.length < 7) {
+                        return 'Enter a valid phone number';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 28),
 

@@ -12,10 +12,12 @@ import 'package:helty/src/services/staff_service.dart';
 @RoutePage()
 class ObstetricsAddAntenatalVisitScreen extends ConsumerStatefulWidget {
   final String pregnancyId;
+  final String? encounterId;
 
   const ObstetricsAddAntenatalVisitScreen({
     super.key,
     required this.pregnancyId,
+    this.encounterId,
   });
 
   @override
@@ -131,6 +133,8 @@ class _ObstetricsAddAntenatalVisitScreenState
         if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
         if (_ultrasoundCtrl.text.trim().isNotEmpty)
           'ultrasoundFindings': _ultrasoundCtrl.text.trim(),
+        if (widget.encounterId != null && widget.encounterId!.isNotEmpty)
+          'encounterId': widget.encounterId,
       });
       if (!mounted) return;
       context.router.maybePop(true);

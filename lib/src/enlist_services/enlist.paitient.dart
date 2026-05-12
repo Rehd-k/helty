@@ -225,6 +225,10 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                                     sendToBillOnly: true,
                                   );
                               context.router.push(RenderServiceRoute());
+                            } else if (serviceName == 'Consumables') {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
+                              context.router.push(NurseConsumableUsageRoute());
                             } else {
                               moduleFlowNotifier.state = defaultOrHmo;
                               context.router.push(RenderServiceRoute());

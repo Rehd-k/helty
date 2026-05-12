@@ -12,26 +12,32 @@ class PregnancyViewScope extends InheritedWidget {
   const PregnancyViewScope({
     super.key,
     required this.pregnancyId,
+    this.encounterId,
     required super.child,
   });
 
   final String pregnancyId;
+
+  /// When opened from an OPD encounter (e.g. specialty deep link), antenatal visits can link to this id.
+  final String? encounterId;
 
   static PregnancyViewScope? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<PregnancyViewScope>();
 
   @override
   bool updateShouldNotify(PregnancyViewScope old) =>
-      pregnancyId != old.pregnancyId;
+      pregnancyId != old.pregnancyId || encounterId != old.encounterId;
 }
 
 @RoutePage()
 class ObstetricsPregnancyViewScreen extends ConsumerStatefulWidget {
   final String pregnancyId;
+  final String? encounterId;
 
   const ObstetricsPregnancyViewScreen({
     super.key,
     required this.pregnancyId,
+    this.encounterId,
   });
 
   @override
@@ -121,6 +127,7 @@ class _ObstetricsPregnancyViewScreenState
     final p = _pregnancy!;
     return PregnancyViewScope(
       pregnancyId: widget.pregnancyId,
+      encounterId: widget.encounterId,
       child: AutoTabsRouter(
         routes: [
           ObstetricsPregnancyOverviewTab(),

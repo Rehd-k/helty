@@ -103,10 +103,110 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
     }
   }
 
+  void _viewAppointment(Appointment a) {
+    final local = a.appointmentDate.toLocal();
+    final when =
+        '${DateFormatter.medicalDate(local)} · ${DateFormat.jm().format(local)}';
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        Widget kv(String k, String v) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                k,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 2),
+              SelectableText(v),
+            ],
+          ),
+        );
+        return AlertDialog(
+          title: Text(a.patientDisplayName),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                kv('Patient ID', a.patientId),
+                kv('Clinician', a.doctorDisplayName),
+                kv('Date & time', when),
+                kv('Status', a.status),
+                if (a.notes != null && a.notes!.trim().isNotEmpty)
+                  kv('Notes', a.notes!.trim()),
+                if (a.referral != null && a.referral!.trim().isNotEmpty)
+                  kv('Referral', a.referral!.trim()),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _rescheduleAppointment(Appointment a) async {
+    final local = a.appointmentDate.toLocal();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: local,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+    );
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(local),
+    );
+    if (pickedTime == null || !mounted) return;
+
+    final newDt = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    try {
+      await _service.updateAppointment(a.id, appointmentDate: newDt);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Appointment rescheduled')));
+      setState(() => _tableEpoch++);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Reschedule failed: $e')));
+    }
+  }
+
   void _handleAction(String action, Appointment a) {
     switch (action) {
       case 'delete':
         _deleteAppointment(a);
+        break;
+      case 'view':
+        _viewAppointment(a);
+        break;
+      case 'edit':
+        _rescheduleAppointment(a);
         break;
       default:
         ScaffoldMessenger.of(
@@ -194,8 +294,7 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
                 child: Text(
                   narrow
                       ? 'Scheduled visits — pull down to refresh.'
-                      : 'Browse and manage scheduled visits. Date filters map to your API '
-                            '`fromDate` / `toDate` query params.',
+                      : 'Browse and manage scheduled visits.',
                   style: TextStyle(
                     fontSize: narrow ? 12.5 : 13,
                     color: colorScheme.onSurfaceVariant,

@@ -151,6 +151,11 @@ final nurses = <MenuItem>[
     route: InpatientsListRoute(),
   ),
   MenuItem(
+    label: 'Consumables (usage & billing)',
+    icon: Icons.medical_information_outlined,
+    route: EnlistPaitientRoute(serviceName: 'Consumables'),
+  ),
+  MenuItem(
     label: 'O&G Dashboard',
     icon: Icons.pregnant_woman_rounded,
     route: ObstetricsDashboardRoute(),
@@ -206,6 +211,11 @@ final doctors = <MenuItem>[
     route: WardRoundsRoute(),
   ),
   MenuItem(label: 'Inpatients', icon: Icons.bed, route: InpatientsListRoute()),
+  MenuItem(
+    label: 'Consumables (usage & billing)',
+    icon: Icons.medical_information_outlined,
+    route: NurseConsumableUsageRoute(),
+  ),
   MenuItem(
     label: 'O&G Dashboard',
     icon: Icons.pregnant_woman_rounded,
@@ -444,5 +454,15 @@ final storeMenu = <MenuItem>[
     label: 'Analytics',
     icon: Icons.analytics_outlined,
     route: StoreAnalyticsRoute(),
+  ),
+  MenuItem(
+    label: 'Consumables catalog',
+    icon: Icons.medical_services_outlined,
+    route: StoreConsumablesCatalogRoute(),
+  ),
+  MenuItem(
+    label: 'Consumable analytics',
+    icon: Icons.insights_outlined,
+    route: StoreConsumableAnalyticsRoute(),
   ),
 ];

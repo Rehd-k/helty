@@ -2,9 +2,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/store_models.dart';
 import '../services/store_api_service.dart';
+import '../services/store_consumable_api_service.dart';
+import '../../services/invoice_consumables_service.dart';
 
 final storeApiServiceProvider = Provider<StoreApiService>((ref) {
   return StoreApiService();
+});
+
+final storeConsumableApiServiceProvider =
+    Provider<StoreConsumableApiService>((ref) {
+  return StoreConsumableApiService();
+});
+
+final invoiceConsumablesApiServiceProvider =
+    Provider<InvoiceConsumablesApiService>((ref) {
+  return InvoiceConsumablesApiService();
 });
 
 final storeCategoriesFutureProvider =

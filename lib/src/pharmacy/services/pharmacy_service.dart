@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../services/api_service.dart';
+import '../../store/models/consumable_models.dart';
+import '../../store/services/store_consumable_api_service.dart';
 import '../models/pharmacy_model.dart';
 
 /// Common query parameters for paginated, sortable, filterable list endpoints.
@@ -47,7 +49,22 @@ class PharmacyApiService {
   PharmacyApiService() : _dio = ApiService().dio;
   final Dio _dio;
 
+  /// Canonical consumable HTTP API lives under `/store/consumables`.
+  final StoreConsumableApiService _storeConsumables = StoreConsumableApiService();
+
   static const String _basePath = '/pharmacy';
+
+  StoreConsumableListParams _consumableListParams(PharmacyQueryParams? q) {
+    final params = q ?? const PharmacyQueryParams();
+    return StoreConsumableListParams(
+      page: params.page,
+      pageSize: params.pageSize,
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder.name,
+      search: params.search,
+      filters: params.filters,
+    );
+  }
 
   Never _handleError(DioException e) {
     if (e.error is AppException) {
@@ -388,70 +405,25 @@ class PharmacyApiService {
 
   Future<PaginatedResponse<Consumable>> getConsumables([
     PharmacyQueryParams? q,
-  ]) async {
-    final params = q ?? const PharmacyQueryParams();
-    try {
-      final resp = await _dio.get(
-        '$_basePath/consumables',
-        queryParameters: _buildQuery(params),
-      );
-      return _parsePaginated(resp, (m) => Consumable.fromJson(m));
-    } on DioException catch (e) {
-      _handleError(e);
-    } on TypeError catch (e) {
-      throw UnknownException('Failed to parse consumables: ${e.toString()}');
-    }
-  }
+  ]) =>
+      _storeConsumables.listConsumables(_consumableListParams(q));
 
-  Future<Consumable> getConsumableById(String id) async {
-    try {
-      final resp = await _dio.get('$_basePath/consumables/$id');
-      return Consumable.fromJson(_mapFromResponse(resp));
-    } on DioException catch (e) {
-      _handleError(e);
-    } on TypeError catch (e) {
-      throw UnknownException('Failed to parse consumable: ${e.toString()}');
-    }
-  }
+  Future<Consumable> getConsumableById(String id) =>
+      _storeConsumables.getConsumable(id);
 
-  Future<Consumable> createConsumable(Consumable consumable) async {
-    try {
-      final resp = await _dio.post(
-        '$_basePath/consumables',
-        data: consumable.toJson(),
-      );
-      return Consumable.fromJson(_mapFromResponse(resp));
-    } on DioException catch (e) {
-      _handleError(e);
-    }
-  }
+  Future<Consumable> createConsumable(Consumable consumable) =>
+      _storeConsumables.createConsumable(consumable);
 
-  Future<Consumable> updateConsumable(Consumable consumable) async {
-    if (consumable.id == null || consumable.id!.isEmpty) {
-      throw const ValidationException('Consumable id required for update.');
-    }
-    try {
-      final resp = await _dio.patch(
-        '$_basePath/consumables/${consumable.id}',
-        data: consumable.toJson(),
-      );
-      return Consumable.fromJson(_mapFromResponse(resp));
-    } on DioException catch (e) {
-      _handleError(e);
-    }
-  }
+  Future<Consumable> updateConsumable(Consumable consumable) =>
+      _storeConsumables.updateConsumable(consumable);
 
-  Future<void> deleteConsumable(String id) async {
-    try {
-      await _dio.delete('$_basePath/consumables/$id');
-    } on DioException catch (e) {
-      _handleError(e);
-    }
-  }
+  Future<void> deleteConsumable(String id) =>
+      _storeConsumables.deleteConsumable(id);
 
-  Future<DrugBatch> createConsumableBatch(
+  /// Creates a consumable batch at a [StoreLocation] (`storeLocationId` on [batch]).
+  Future<ConsumableBatch> createConsumableBatch(
     String consumableId,
-    DrugBatch batch,
+    ConsumableBatch batch,
   ) async {
     if (consumableId.trim().isEmpty) {
       throw const ValidationException('Consumable id required.');
@@ -462,42 +434,23 @@ class PharmacyApiService {
     if (batch.quantityReceived < 0 || (batch.quantityRemaining ?? 0) < 0) {
       throw const ValidationException('Batch quantities must be >= 0.');
     }
-    try {
-      final resp = await _dio.post(
-        '$_basePath/consumables/${consumableId.trim()}/batches',
-        data: batch.toJson(),
-      );
-      return DrugBatch.fromJson(_mapFromResponse(resp));
-    } on DioException catch (e) {
-      _handleError(e);
-    } on TypeError catch (e) {
-      throw UnknownException(
-        'Failed to parse consumable batch response: ${e.toString()}',
-      );
+    if (batch.storeLocationId == null || batch.storeLocationId!.trim().isEmpty) {
+      throw const ValidationException('storeLocationId is required for consumable batch.');
     }
+    return _storeConsumables.createBatch(consumableId.trim(), batch);
   }
 
-  Future<PaginatedResponse<DrugBatch>> getConsumableBatches(
+  Future<PaginatedResponse<ConsumableBatch>> getConsumableBatches(
     String consumableId, [
     PharmacyQueryParams? q,
   ]) async {
     if (consumableId.trim().isEmpty) {
       throw const ValidationException('Consumable id required.');
     }
-    final params = q ?? const PharmacyQueryParams();
-    try {
-      final resp = await _dio.get(
-        '$_basePath/consumables/${consumableId.trim()}/batches',
-        queryParameters: _buildBatchSearchQuery(params),
-      );
-      return _parsePaginated(resp, (m) => DrugBatch.fromJson(m));
-    } on DioException catch (e) {
-      _handleError(e);
-    } on TypeError catch (e) {
-      throw UnknownException(
-        'Failed to parse consumable batches: ${e.toString()}',
-      );
-    }
+    return _storeConsumables.listBatches(
+      consumableId.trim(),
+      _consumableListParams(q),
+    );
   }
 
   Future<PaginatedResponse<DispenseHistoryItem>> getDispenseHistory(

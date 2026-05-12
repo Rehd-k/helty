@@ -294,6 +294,19 @@ class _StoreDashboardScreenState extends ConsumerState<StoreDashboardScreen> {
                   label: 'Analytics',
                   onTap: () => context.router.push(const StoreAnalyticsRoute()),
                 ),
+                _ActionChip(
+                  icon: Icons.medical_services_outlined,
+                  label: 'Consumables',
+                  onTap: () =>
+                      context.router.push(const StoreConsumablesCatalogRoute()),
+                ),
+                _ActionChip(
+                  icon: Icons.insights_outlined,
+                  label: 'Consumable analytics',
+                  onTap: () => context.router.push(
+                    const StoreConsumableAnalyticsRoute(),
+                  ),
+                ),
               ],
             ),
           ],
