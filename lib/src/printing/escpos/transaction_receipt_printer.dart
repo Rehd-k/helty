@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'receipt_escpos_service.dart';
+import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
 
 class TransactionReceiptPrinter extends StatefulWidget {
   final Map<String, dynamic> data;

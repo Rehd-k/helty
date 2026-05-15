@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'receipt_escpos_service.dart';
-import 'windows_default_raw_printer.dart';
+import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
+import 'package:helty/src/printing/escpos/windows_default_raw_printer.dart';
 
 /// Shows a bottom sheet listing active Windows printers; prints when one is chosen.
 Future<void> showReceiptPrinterPickerSheet(

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
+import '../../auth/billing_permissions.dart';
 import '../../helper/theme.dart';
 import '../../chat/services/internal_chat_socket.dart';
 import '../../models/staff_model.dart';
@@ -486,17 +487,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final isHmoDesk = at == 'hmo' || r == 'hmo_staff' || r == 'hmo_desk';
     if (isHmoDesk) {
-      common.addAll(
-        canBillingDash
-            ? hmoDeskMenu
-            : hmoDeskMenu
-                  .where((m) => m.route is! BillingDashboardRoute)
-                  .toList(),
-      );
+      common.addAll(hmoDeskMenu);
     }
 
-    if (canBillingDash) {
+    // Billing / accounting heads — HMO desk gets these from [hmoDeskMenu] instead.
+    if (canManageHmos(staff) && !isHmoDesk) {
       common.addAll([
+        MenuItem(
+          label: 'HMO plans',
+          icon: Icons.health_and_safety_outlined,
+          route: HmoListRoute(),
+        ),
         MenuItem(
           label: 'Add HMO',
           icon: Icons.add_business_outlined,

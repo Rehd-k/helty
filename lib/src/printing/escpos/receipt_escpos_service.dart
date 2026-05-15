@@ -8,7 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 import 'package:qr/qr.dart';
 
-import '../helper/date.formatter.dart';
+import '../../helper/date.formatter.dart';
 import 'windows_default_raw_printer.dart';
 
 /// Header lines printed under the logo.

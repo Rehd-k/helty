@@ -41,10 +41,18 @@ class BillingInvoiceDetail {
     this.patientHmoId,
     this.patientHmoName,
     this.patientHmoDefaultCoveragePercent,
+    this.invoiceDisplayId,
+    this.patientDisplayId,
   });
 
   final String id;
   final String patientId;
+
+  /// Human-facing bill code (`invoiceID` from API), when present.
+  final String? invoiceDisplayId;
+
+  /// Hospital / MRN-style id from nested `patient.patientId`, when present.
+  final String? patientDisplayId;
   final String status;
   final double totalAmount;
   final double amountPaid;
@@ -91,10 +99,18 @@ class BillingInvoiceDetail {
         ? patientRaw
         : (patientRaw is Map ? Map<String, dynamic>.from(patientRaw) : null);
     final patientHmoName = _patientHmoDisplayName(patientMap);
+    final invoiceDisplayRaw = _nullableString(
+      payload['invoiceID'] ?? payload['invoiceId'],
+    );
+    final patientDisplayRaw = patientMap != null
+        ? _nullableString(patientMap['patientId'])
+        : null;
 
     return BillingInvoiceDetail(
       id: _asString(payload['id']),
       patientId: _asString(payload['patientId']),
+      invoiceDisplayId: invoiceDisplayRaw,
+      patientDisplayId: patientDisplayRaw,
       status: _asString(payload['status'], fallback: 'PENDING'),
       totalAmount: _asDouble(payload['totalAmount']),
       amountPaid: _asDouble(payload['amountPaid']),

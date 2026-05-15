@@ -25,8 +25,8 @@ import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
 import '../../services/service_service.dart';
 import '../../services/ward_service.dart';
-import '../../widgets/receipt_escpos_service.dart';
-import '../../widgets/receipt_printer_picker_sheet.dart';
+import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
+import 'package:helty/src/printing/escpos/receipt_printer_picker_sheet.dart';
 
 @RoutePage()
 class RenderServiceScreen extends ConsumerStatefulWidget {

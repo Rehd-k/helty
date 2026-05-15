@@ -57,7 +57,16 @@ bool canViewReceivables(Staff? staff) =>
       'SUPER_ADMIN',
       'HMO',
       'HMO_STAFF',
+      'HMO_DESK',
     });
+
+/// Create, edit, delete HMO plans and configure HMO service pricing.
+bool canManageHmos(Staff? staff) {
+  if (staff == null) return false;
+  if (staffCanAccessPrivilegedBilling(staff)) return true;
+  return _hasAccountType(staff, {AccountType.hmo}) ||
+      _hasRole(staff, {'HMO', 'HMO_STAFF', 'HMO_DESK'});
+}
 
 bool canRecordRemittance(Staff? staff) =>
     _hasAccountType(staff, {AccountType.accounting, AccountType.super_admin}) ||

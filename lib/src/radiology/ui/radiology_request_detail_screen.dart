@@ -12,7 +12,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
-import 'package:helty/src/radiology/ui/radiology_report_pdf.dart';
+import 'package:helty/src/printing/pdf/radiology_report_pdf.dart';
 import 'package:helty/src/radiology/ui/radiology_ui_helpers.dart';
 import 'package:printing/printing.dart';
 

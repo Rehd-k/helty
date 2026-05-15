@@ -14,8 +14,8 @@ import '../providers/auth_provider.dart';
 import '../services/bank_service.dart';
 import '../services/invoice_service.dart';
 import '../services/transaction_service.dart';
-import '../widgets/receipt_escpos_service.dart';
-import '../widgets/receipt_printer_picker_sheet.dart';
+import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
+import 'package:helty/src/printing/escpos/receipt_printer_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // These payment methods require a bank to be selected before paying.

@@ -19,8 +19,7 @@ Future<List<int>> buildRadiologyOrderReportPdf(
   final border = PdfColor.fromHex('#CBD5E1');
   final textMuted = PdfColor.fromHex('#64748B');
 
-  final generatedStr =
-      DateTime.now().toIso8601String().split('T').first;
+  final generatedStr = DateTime.now().toIso8601String().split('T').first;
   final orderDateStr = order.createdAt != null && order.createdAt!.isNotEmpty
       ? order.createdAt!.split('T').first
       : '—';
@@ -43,8 +42,9 @@ Future<List<int>> buildRadiologyOrderReportPdf(
               value,
               style: pw.TextStyle(
                 fontSize: 9.5,
-                fontWeight:
-                    emphasize ? pw.FontWeight.bold : pw.FontWeight.normal,
+                fontWeight: emphasize
+                    ? pw.FontWeight.bold
+                    : pw.FontWeight.normal,
                 color: PdfColors.grey900,
               ),
             ),
@@ -114,7 +114,7 @@ Future<List<int>> buildRadiologyOrderReportPdf(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'IBOM MULTISPECIALIST HOSPITAL',
+                        'IBOM MULTISPECIALITY HOSPITAL',
                         style: pw.TextStyle(
                           color: PdfColors.white,
                           fontSize: 14,

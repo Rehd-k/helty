@@ -101,6 +101,21 @@ final bills = <MenuItem>[
 /// HMO desk — same enlist → render-service workflow as billing (narrower than [bills]).
 final hmoDeskMenu = <MenuItem>[
   MenuItem(
+    label: 'HMO plans',
+    icon: Icons.health_and_safety_outlined,
+    route: HmoListRoute(),
+  ),
+  MenuItem(
+    label: 'Add HMO',
+    icon: Icons.add_business_outlined,
+    route: HmoFormRoute(),
+  ),
+  MenuItem(
+    label: 'HMO service pricing',
+    icon: Icons.price_change_outlined,
+    route: HmoServicePricingRoute(),
+  ),
+  MenuItem(
     label: 'Pending Transaction',
     icon: Icons.pending_actions_outlined,
     route: PendingBillsRoute(),

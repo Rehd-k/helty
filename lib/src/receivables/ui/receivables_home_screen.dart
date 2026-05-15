@@ -1,6 +1,9 @@
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/auth/billing_permissions.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/receivables_models.dart';
 import 'package:helty/src/receivables/ui/receivables_analytics_screen.dart';
@@ -9,22 +12,53 @@ import 'package:helty/src/services/receivables_service.dart';
 enum _ReceivableKind { hmo, discount }
 
 @RoutePage()
-class ReceivablesHmoScreen extends StatelessWidget {
+class ReceivablesHmoScreen extends ConsumerWidget {
   const ReceivablesHmoScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!canViewReceivables(ref.watch(authProvider).staff)) {
+      return _ReceivablesAccessDenied(title: 'HMO Receivables');
+    }
     return const _ReceivablesScreen(kind: _ReceivableKind.hmo);
   }
 }
 
 @RoutePage()
-class ReceivablesDiscountScreen extends StatelessWidget {
+class ReceivablesDiscountScreen extends ConsumerWidget {
   const ReceivablesDiscountScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!canViewReceivables(ref.watch(authProvider).staff)) {
+      return _ReceivablesAccessDenied(title: 'Discount Receivables');
+    }
     return const _ReceivablesScreen(kind: _ReceivableKind.discount);
+  }
+}
+
+class _ReceivablesAccessDenied extends StatelessWidget {
+  const _ReceivablesAccessDenied({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(title),
+      ),
+      body: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Your account does not have permission to view receivables.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
   }
 }
 
