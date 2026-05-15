@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -17,12 +19,80 @@ class EncounterSpecialtyGate extends ConsumerStatefulWidget {
   final String encounterId;
   final void Function() onFinished;
 
+  /// Non-dismissible dialog (width ≥ [narrowWidthBreakpoint]) or bottom sheet
+  /// (narrower). Pops the overlay route then invokes [onUserFinished].
+  static Future<void> showBlockingOverlay(
+    BuildContext context, {
+    required String encounterId,
+    required VoidCallback onUserFinished,
+    double narrowWidthBreakpoint = 720,
+  }) async {
+    if (!context.mounted) return;
+    final size = MediaQuery.sizeOf(context);
+    final useDialog = size.width >= narrowWidthBreakpoint;
+
+    if (useDialog) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          final w = math.min(920.0, size.width * 0.9).clamp(480.0, 920.0);
+          final h = math.min(900.0, size.height * 0.85).clamp(400.0, 900.0);
+          return Dialog(
+            clipBehavior: Clip.antiAlias,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 24,
+            ),
+            child: SizedBox(
+              width: w,
+              height: h,
+              child: EncounterSpecialtyGate(
+                encounterId: encounterId,
+                onFinished: () {
+                  Navigator.of(ctx).pop();
+                  onUserFinished();
+                },
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        isDismissible: false,
+        enableDrag: false,
+        showDragHandle: false,
+        builder: (ctx) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.92,
+            minChildSize: 0.5,
+            maxChildSize: 0.98,
+            builder: (_, __) => EncounterSpecialtyGate(
+              encounterId: encounterId,
+              onFinished: () {
+                Navigator.of(ctx).pop();
+                onUserFinished();
+              },
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   ConsumerState<EncounterSpecialtyGate> createState() =>
       _EncounterSpecialtyGateState();
 }
 
-class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate> {
+class _EncounterSpecialtyGateState
+    extends ConsumerState<EncounterSpecialtyGate> {
   final _searchCtrl = TextEditingController();
   final _svc = ClinicalSpecialtyService();
   int _step = 0;
@@ -139,8 +209,9 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
           }
         }
         if (spec != null) {
-          _sectionKeysBySpecialty[code] =
-              spec.sections.map((s) => s.key).toSet();
+          _sectionKeysBySpecialty[code] = spec.sections
+              .map((s) => s.key)
+              .toSet();
         }
       }
     });
@@ -185,9 +256,9 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
       widget.onFinished();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save specialties: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save specialties: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -215,8 +286,10 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
             children: [
               Icon(Icons.cloud_off_rounded, size: 48, color: scheme.error),
               const Gap(12),
-              Text('Could not load specialty catalog: $e',
-                  textAlign: TextAlign.center),
+              Text(
+                'Could not load specialty catalog: $e',
+                textAlign: TextAlign.center,
+              ),
               const Gap(16),
               FilledButton(
                 onPressed: _skip,
@@ -267,8 +340,11 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.grid_view_rounded,
-                              color: scheme.primary, size: 28),
+                          Icon(
+                            Icons.grid_view_rounded,
+                            color: scheme.primary,
+                            size: 28,
+                          ),
                           const Gap(12),
                           Expanded(
                             child: Text(
@@ -299,8 +375,7 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                           Expanded(
                             child: Container(
                               height: 2,
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 8),
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
                               color: scheme.outline.withValues(alpha: 0.25),
                             ),
                           ),
@@ -319,8 +394,9 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                         hintText: 'Search specialties',
                         prefixIcon: const Icon(Icons.search_rounded),
                         filled: true,
-                        fillColor:
-                            scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        fillColor: scheme.surfaceContainerHighest.withValues(
+                          alpha: 0.5,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -336,11 +412,11 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxis,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 1.05,
-                          ),
+                                crossAxisCount: crossAxis,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 1.05,
+                              ),
                           itemCount: specs.length,
                           itemBuilder: (ctx, i) {
                             final s = specs[i];
@@ -358,20 +434,23 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                                     border: Border.all(
                                       color: on
                                           ? scheme.primary
-                                          : scheme.outline
-                                              .withValues(alpha: 0.2),
+                                          : scheme.outline.withValues(
+                                              alpha: 0.2,
+                                            ),
                                       width: on ? 2.5 : 1,
                                     ),
                                     color: on
-                                        ? scheme.primaryContainer
-                                            .withValues(alpha: 0.65)
+                                        ? scheme.primaryContainer.withValues(
+                                            alpha: 0.65,
+                                          )
                                         : scheme.surfaceContainerHighest
-                                            .withValues(alpha: 0.45),
+                                              .withValues(alpha: 0.45),
                                     boxShadow: on
                                         ? [
                                             BoxShadow(
-                                              color: scheme.primary
-                                                  .withValues(alpha: 0.22),
+                                              color: scheme.primary.withValues(
+                                                alpha: 0.22,
+                                              ),
                                               blurRadius: 14,
                                               offset: const Offset(0, 6),
                                             ),
@@ -408,9 +487,9 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                                             overflow: TextOverflow.ellipsis,
                                             style: theme.textTheme.titleSmall
                                                 ?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                              color: scheme.onSurface,
-                                            ),
+                                                  fontWeight: FontWeight.w800,
+                                                  color: scheme.onSurface,
+                                                ),
                                           ),
                                           const Gap(4),
                                           Expanded(
@@ -420,10 +499,12 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                                               overflow: TextOverflow.ellipsis,
                                               style: theme.textTheme.bodySmall
                                                   ?.copyWith(
-                                                color: scheme.onSurface
-                                                    .withValues(alpha: 0.65),
-                                                height: 1.25,
-                                              ),
+                                                    color: scheme.onSurface
+                                                        .withValues(
+                                                          alpha: 0.65,
+                                                        ),
+                                                    height: 1.25,
+                                                  ),
                                             ),
                                           ),
                                         ],
@@ -515,15 +596,16 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                                 border: Border.all(
                                   color: isOn
                                       ? scheme.primary
-                                      : scheme.outline
-                                          .withValues(alpha: 0.18),
+                                      : scheme.outline.withValues(alpha: 0.18),
                                   width: isOn ? 2 : 1,
                                 ),
                                 color: isOn
-                                    ? scheme.primaryContainer
-                                        .withValues(alpha: 0.5)
-                                    : scheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.35),
+                                    ? scheme.primaryContainer.withValues(
+                                        alpha: 0.5,
+                                      )
+                                    : scheme.surfaceContainerHighest.withValues(
+                                        alpha: 0.35,
+                                      ),
                               ),
                               child: Row(
                                 children: [
@@ -542,15 +624,18 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
                                       sec.label,
                                       style: theme.textTheme.labelLarge
                                           ?.copyWith(
-                                        fontWeight: isOn
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                      ),
+                                            fontWeight: isOn
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                          ),
                                     ),
                                   ),
                                   if (isOn)
-                                    Icon(Icons.check_rounded,
-                                        size: 18, color: scheme.primary),
+                                    Icon(
+                                      Icons.check_rounded,
+                                      size: 18,
+                                      color: scheme.primary,
+                                    ),
                                 ],
                               ),
                             ),
@@ -600,9 +685,7 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
             const Spacer(),
             if (_step == 1)
               OutlinedButton(
-                onPressed: _saving
-                    ? null
-                    : () => setState(() => _step = 0),
+                onPressed: _saving ? null : () => setState(() => _step = 0),
                 child: const Text('Back'),
               ),
             const Gap(12),
@@ -638,8 +721,8 @@ class _EncounterSpecialtyGateState extends ConsumerState<EncounterSpecialtyGate>
               label: Text(
                 _step == 0
                     ? (_selectedCodes.isEmpty
-                        ? 'Continue without specialties'
-                        : 'Next: choose sections')
+                          ? 'Continue without specialties'
+                          : 'Next: choose sections')
                     : 'Save & open chart',
               ),
             ),

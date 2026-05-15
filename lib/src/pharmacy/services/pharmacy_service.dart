@@ -50,7 +50,8 @@ class PharmacyApiService {
   final Dio _dio;
 
   /// Canonical consumable HTTP API lives under `/store/consumables`.
-  final StoreConsumableApiService _storeConsumables = StoreConsumableApiService();
+  final StoreConsumableApiService _storeConsumables =
+      StoreConsumableApiService();
 
   static const String _basePath = '/pharmacy';
 
@@ -405,8 +406,7 @@ class PharmacyApiService {
 
   Future<PaginatedResponse<Consumable>> getConsumables([
     PharmacyQueryParams? q,
-  ]) =>
-      _storeConsumables.listConsumables(_consumableListParams(q));
+  ]) => _storeConsumables.listConsumables(_consumableListParams(q));
 
   Future<Consumable> getConsumableById(String id) =>
       _storeConsumables.getConsumable(id);
@@ -434,8 +434,11 @@ class PharmacyApiService {
     if (batch.quantityReceived < 0 || (batch.quantityRemaining ?? 0) < 0) {
       throw const ValidationException('Batch quantities must be >= 0.');
     }
-    if (batch.storeLocationId == null || batch.storeLocationId!.trim().isEmpty) {
-      throw const ValidationException('storeLocationId is required for consumable batch.');
+    if (batch.storeLocationId == null ||
+        batch.storeLocationId!.trim().isEmpty) {
+      throw const ValidationException(
+        'storeLocationId is required for consumable batch.',
+      );
     }
     return _storeConsumables.createBatch(consumableId.trim(), batch);
   }
@@ -589,6 +592,7 @@ class PharmacyApiService {
   }
 
   Future<DrugBatch> createDrugBatch(DrugBatch batch) async {
+    print(batch);
     try {
       final resp = await _dio.post('$_basePath/batches', data: batch.toJson());
       return DrugBatch.fromJson(_mapFromResponse(resp));

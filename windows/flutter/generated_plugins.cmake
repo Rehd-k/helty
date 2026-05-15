@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   bitsdojo_window_windows
   charset_converter
+  file_selector_windows
   flutter_secure_storage_windows
   printing
   screen_retriever_windows

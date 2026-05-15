@@ -171,6 +171,23 @@ class RadiologyService {
     }
   }
 
+  Future<RadiologyOrderItem> updateOrderItem(
+    String orderItemId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final resp = await _dio.patch<Map<String, dynamic>>(
+        '$_base/order-items/$orderItemId',
+        data: body,
+      );
+      final data = resp.data;
+      if (data == null) throw const UnknownException('Empty response');
+      return RadiologyOrderItem.fromJson(data);
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
   // ─── Schedule ───────────────────────────────────────────────────────────
 
   Future<RadiologySchedule> createSchedule(

@@ -266,6 +266,10 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
       _showError('Please search and select a medicine.');
       return;
     }
+    if (_locations.isNotEmpty && _selectedLocation?.id == null) {
+      _showError('Please select a storage location.');
+      return;
+    }
     if (_mfgDate == null || _expiryDate == null) {
       _showError('Please select both Manufacturing and Expiry dates.');
       return;
@@ -346,6 +350,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
           manufacturingDate: entry.mfgDate,
           costPrice: entry.costPrice,
           supplierId: entry.supplierId,
+          toLocationId: entry.locationId,
         );
         await _apiService.createDrugBatch(batch);
       }

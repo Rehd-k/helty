@@ -70,6 +70,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   PatientVitalsModel? _patientVitals;
   bool _completing = false;
   bool _specialtyGateDismissed = false;
+  bool _specialtyGateOverlayScheduled = false;
 
   @override
   void initState() {
@@ -77,6 +78,22 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
     _parseVitals();
     _loadPatient();
     _loadEncounter();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _specialtyGateDismissed ||
+          _specialtyGateOverlayScheduled) {
+        return;
+      }
+      _specialtyGateOverlayScheduled = true;
+      EncounterSpecialtyGate.showBlockingOverlay(
+        context,
+        encounterId: widget.encounterId,
+        onUserFinished: () {
+          if (!mounted) return;
+          setState(() => _specialtyGateDismissed = true);
+        },
+      );
+    });
   }
 
   Future<void> _loadEncounter() async {
@@ -119,9 +136,9 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         _loadingPatient = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load patient: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load patient: $e')));
       }
     }
   }
@@ -156,81 +173,64 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
             backgroundColor: colorScheme.surface,
             body: SafeArea(
               child: LayoutBuilder(
-              builder: (context, constraints) {
-                final double horizontalPadding =
-                    constraints.maxWidth > 1400 ? 32 : 20;
+                builder: (context, constraints) {
+                  final double horizontalPadding = constraints.maxWidth > 1400
+                      ? 32
+                      : 20;
 
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalPadding,
-                        24,
-                        horizontalPadding,
-                        24,
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: _contentMaxWidth,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildHeaderRow(context),
-                          const SizedBox(height: 16),
-                          _buildPatientHeader(context),
-                          const SizedBox(height: 20),
-                          if (!_specialtyGateDismissed) ...[
-                            Text(
-                              'Before you chart',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.surface,
-                                    border: Border.all(
-                                      color: colorScheme.outline
-                                          .withValues(alpha: 0.12),
-                                    ),
-                                  ),
-                                  child: EncounterSpecialtyGate(
-                                    encounterId: widget.encounterId,
-                                    onFinished: () => setState(
-                                      () => _specialtyGateDismissed = true,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            _buildTabsStrip(context, tabsRouter),
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          24,
+                          horizontalPadding,
+                          24,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildHeaderRow(context),
                             const SizedBox(height: 16),
+                            _buildPatientHeader(context),
+                            const SizedBox(height: 20),
                             Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.surface,
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(4.0),
-                                    child: child,
-                                  ),
+                              child: AbsorbPointer(
+                                absorbing: !_specialtyGateDismissed,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _buildTabsStrip(context, tabsRouter),
+                                    const SizedBox(height: 16),
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.surface,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(4.0),
+                                            child: child,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
             ),
           ),
         );
@@ -247,7 +247,9 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
       if (!mounted) return;
       setState(() => _completing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Encounter completed. Patient file closed.')),
+        const SnackBar(
+          content: Text('Encounter completed. Patient file closed.'),
+        ),
       );
       context.router.maybePop();
     } catch (e) {
@@ -306,7 +308,10 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
               ),
             if (isDone)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: scheme.tertiary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(999),
@@ -314,7 +319,11 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle_outline, size: 18, color: scheme.tertiary),
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 18,
+                      color: scheme.tertiary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Completed',
@@ -333,10 +342,15 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.done_all, size: 18),
-                label: Text(_completing ? 'Completing…' : 'Finish with patient'),
+                label: Text(
+                  _completing ? 'Completing…' : 'Finish with patient',
+                ),
               ),
             const SizedBox(width: 12),
             Container(
@@ -348,7 +362,11 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.medical_services_outlined, size: 18, color: scheme.primary),
+                  Icon(
+                    Icons.medical_services_outlined,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Doctor module • OPD',
@@ -381,7 +399,10 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         child: SizedBox(
           height: 64,
           child: Center(
-            child: CircularProgressIndicator(strokeWidth: 2.6, color: scheme.primary),
+            child: CircularProgressIndicator(
+              strokeWidth: 2.6,
+              color: scheme.primary,
+            ),
           ),
         ),
       );
@@ -402,7 +423,9 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
             Expanded(
               child: Text(
                 _patientError!,
-                style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.error,
+                ),
               ),
             ),
             TextButton.icon(
@@ -419,14 +442,16 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
     final name = patient != null
         ? '${patient.title} ${patient.firstName} ${patient.surname}'
         : 'Unknown Patient';
-    final ageYears =
-        patient != null ? DateTime.now().year - patient.dob.year : null;
+    final ageYears = patient != null
+        ? DateTime.now().year - patient.dob.year
+        : null;
     final ageGender = [
       if (ageYears != null) '$ageYears yrs',
       if (patient != null && patient.gender.isNotEmpty) patient.gender,
     ].join(' • ');
-    final hospitalNumber =
-        patient != null ? patient.patientId : widget.patientId;
+    final hospitalNumber = patient != null
+        ? patient.patientId
+        : widget.patientId;
     // Patient model has no allergies/chronic/past admissions; use placeholders until API supports
     final allergies = <String>[];
     final chronicConditions = <String>[];
@@ -482,7 +507,10 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: selected ? scheme.primary : Colors.transparent,
                     borderRadius: BorderRadius.circular(999),

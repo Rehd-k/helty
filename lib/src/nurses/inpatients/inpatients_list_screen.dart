@@ -17,6 +17,11 @@ class InpatientsListScreen extends ConsumerStatefulWidget {
       _InpatientsListScreenState();
 }
 
+/// Outpatient department is not an inpatient ward; hide from this census UI.
+bool _wardExcludedFromInpatientList(Ward w) {
+  return w.name.trim().toUpperCase() == 'OPD';
+}
+
 bool _staffIsDoctor(Staff? staff) {
   final role = staff?.role.toLowerCase() ?? '';
   final accountType = staff?.accountType?.name.toLowerCase() ?? '';
@@ -64,15 +69,26 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       _isLoadingWards = true;
     });
     try {
-      final wards = await _wardService.fetchWards();
+      final fetched = await _wardService.fetchWards();
+      final wards = fetched
+          .where((w) => !_wardExcludedFromInpatientList(w))
+          .toList(growable: false);
       setState(() {
         _wards = wards;
-        if (wards.isNotEmpty) {
-          _selectedWard ??= wards.first;
+        final currentId = _selectedWard?.id;
+        final stillValid =
+            currentId != null && wards.any((w) => w.id == currentId);
+        if (!stillValid) {
+          _selectedWard = wards.isNotEmpty ? wards.first : null;
         }
       });
       if (_selectedWard != null) {
         await _loadWardDetails(_selectedWard!.id);
+      } else if (mounted) {
+        setState(() {
+          _rows = const [];
+          _filteredRows = const [];
+        });
       }
     } catch (e) {
       _showError('Failed to load wards, $e');

@@ -7,6 +7,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
+import 'package:helty/src/radiology/ui/radiology_ui_helpers.dart';
 
 @RoutePage()
 class RadiologyWorklistScreen extends ConsumerStatefulWidget {
@@ -17,12 +18,15 @@ class RadiologyWorklistScreen extends ConsumerStatefulWidget {
       _RadiologyWorklistScreenState();
 }
 
-class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScreen> {
+class _RadiologyWorklistScreenState
+    extends ConsumerState<RadiologyWorklistScreen> {
   List<RadiologyOrder> _orders = [];
   int _total = 0;
   bool _loading = true;
   String? _error;
   RadiologyOrderStatus? _filterStatus;
+  DateTime? _fromDate;
+  DateTime? _toDate;
   static const int _take = 20;
   int _skip = 0;
 
@@ -42,6 +46,8 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
     try {
       final res = await _service.listOrders(
         status: _filterStatus,
+        fromDate: _fromDate == null ? null : _asIsoDate(_fromDate!),
+        toDate: _toDate == null ? null : _asIsoDate(_toDate!),
         skip: _skip,
         take: _take,
       );
@@ -69,6 +75,55 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
   void _setFilter(RadiologyOrderStatus? status) {
     setState(() {
       _filterStatus = status;
+      _skip = 0;
+    });
+    _load();
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final now = DateTime.now();
+    final initial = isFrom ? (_fromDate ?? now) : (_toDate ?? _fromDate ?? now);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 2),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isFrom) {
+        _fromDate = DateUtils.dateOnly(picked);
+        if (_toDate != null && _toDate!.isBefore(_fromDate!)) {
+          _toDate = _fromDate;
+        }
+      } else {
+        _toDate = DateUtils.dateOnly(picked);
+      }
+      _skip = 0;
+    });
+  }
+
+  void _applyDateFilter() {
+    if (_fromDate != null && _toDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select both from and to dates.')),
+      );
+      return;
+    }
+    if (_toDate != null && _fromDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select both from and to dates.')),
+      );
+      return;
+    }
+    _load();
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _filterStatus = null;
+      _fromDate = null;
+      _toDate = null;
       _skip = 0;
     });
     _load();
@@ -122,19 +177,84 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
             ),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Wrap(
-              spacing: 8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StatusChip(
-                  label: 'All',
-                  selected: _filterStatus == null,
-                  onTap: () => _setFilter(null),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _StatusChip(
+                      label: 'All',
+                      selected: _filterStatus == null,
+                      onTap: () => _setFilter(null),
+                    ),
+                    ...RadiologyOrderStatus.values.map(
+                      (s) => _StatusChip(
+                        label: orderStatusLabel(s),
+                        selected: _filterStatus == s,
+                        onTap: () => _setFilter(s),
+                      ),
+                    ),
+                  ],
                 ),
-                ...RadiologyOrderStatus.values.map((s) => _StatusChip(
-                      label: _statusLabel(s),
-                      selected: _filterStatus == s,
-                      onTap: () => _setFilter(s),
-                    )),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => _pickDate(isFrom: true),
+                      icon: const Icon(Icons.calendar_month_outlined),
+                      label: Text(
+                        _fromDate == null
+                            ? 'From date'
+                            : DateFormatter.shortDate(_fromDate!),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => _pickDate(isFrom: false),
+                      icon: const Icon(Icons.event_outlined),
+                      label: Text(
+                        _toDate == null
+                            ? 'To date'
+                            : DateFormatter.shortDate(_toDate!),
+                      ),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: _loading ? null : _applyDateFilter,
+                      child: const Text('Apply dates'),
+                    ),
+                    TextButton(
+                      onPressed: _loading ? null : _clearFilters,
+                      child: const Text('Clear filters'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Text(
+                  '$_total request(s)',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const Spacer(),
+                if (_loading)
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorScheme.primary,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -203,18 +323,7 @@ class _RadiologyWorklistScreenState extends ConsumerState<RadiologyWorklistScree
     );
   }
 
-  static String _statusLabel(RadiologyOrderStatus s) {
-    switch (s) {
-      case RadiologyOrderStatus.PENDING:
-        return 'Pending';
-      case RadiologyOrderStatus.ACTIVE:
-        return 'Active';
-      case RadiologyOrderStatus.COMPLETED:
-        return 'Completed';
-      case RadiologyOrderStatus.CANCELLED:
-        return 'Cancelled';
-    }
-  }
+  String _asIsoDate(DateTime value) => value.toIso8601String().split('T').first;
 }
 
 class _StatusChip extends StatelessWidget {
@@ -262,7 +371,7 @@ class _OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final statusColor = _statusColor(theme, order.status);
+    final statusColor = orderStatusColor(theme, order.status);
     final firstItem = order.items.isNotEmpty ? order.items.first : null;
 
     return Card(
@@ -297,7 +406,7 @@ class _OrderCard extends StatelessWidget {
                     Text(
                       firstItem == null
                           ? 'Order with no items'
-                          : '${firstItem.scanType.name}${firstItem.bodyPart != null && firstItem.bodyPart!.isNotEmpty ? ' · ${firstItem.bodyPart}' : ''}',
+                          : '${firstItem.scanType.displayLabel}${firstItem.bodyPart != null && firstItem.bodyPart!.isNotEmpty ? ' · ${firstItem.bodyPart}' : ''}',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -315,6 +424,14 @@ class _OrderCard extends StatelessWidget {
                         color: colorScheme.outline,
                       ),
                     ),
+                    if (firstItem != null)
+                      Text(
+                        'Priority: ${firstItem.priority.name}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: priorityColor(firstItem.priority),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     if (order.createdAt != null)
                       Text(
                         DateFormatter.formatFromBackend(
@@ -335,7 +452,7 @@ class _OrderCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  order.status.name.replaceAll('_', ' '),
+                  orderStatusLabel(order.status),
                   style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: statusColor,
@@ -354,16 +471,4 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  static Color _statusColor(ThemeData theme, RadiologyOrderStatus s) {
-    switch (s) {
-      case RadiologyOrderStatus.PENDING:
-        return theme.colorScheme.tertiary;
-      case RadiologyOrderStatus.ACTIVE:
-        return theme.colorScheme.primary;
-      case RadiologyOrderStatus.COMPLETED:
-        return theme.colorScheme.primaryContainer;
-      case RadiologyOrderStatus.CANCELLED:
-        return theme.colorScheme.error;
-    }
-  }
 }

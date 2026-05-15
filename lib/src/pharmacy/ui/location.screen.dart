@@ -160,7 +160,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
       _showSnack('Location name is required', isError: true);
       return;
     }
-    final type = _typeFromLabel(_selectedType?.toUpperCase());
+    final type = _typeFromLabel(_selectedType);
     final description = _descriptionCtrl.text.trim();
     final staffId = _selectedStaffId?.trim().isEmpty == true
         ? null
