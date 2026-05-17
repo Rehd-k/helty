@@ -14,6 +14,7 @@ class InternalChatSocket {
 
   final String _baseUrl;
   io.Socket? _socket;
+  Timer? _presenceHeartbeatTimer;
 
   final _receiveMessageController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -66,10 +67,21 @@ class InternalChatSocket {
       _chatErrorController.add(msg);
     });
 
+    _socket!.onConnect((_) {
+      presenceHeartbeat();
+      _presenceHeartbeatTimer?.cancel();
+      _presenceHeartbeatTimer = Timer.periodic(
+        const Duration(seconds: 45),
+        (_) => presenceHeartbeat(),
+      );
+    });
+
     _socket!.connect();
   }
 
   Future<void> disconnect() async {
+    _presenceHeartbeatTimer?.cancel();
+    _presenceHeartbeatTimer = null;
     _socket?.dispose();
     _socket = null;
   }

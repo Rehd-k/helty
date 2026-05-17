@@ -102,12 +102,82 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     }
   }
 
+  bool _canDeleteRadiologyOrder(RadiologyOrder order, EncounterScope scope) {
+    if (order.id.isEmpty) return false;
+    final encounterId = order.encounterId?.trim();
+    return encounterId != null &&
+        encounterId.isNotEmpty &&
+        encounterId == scope.encounterId;
+  }
+
+  Future<bool> _confirmDeleteRequest(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                  foregroundColor: Theme.of(ctx).colorScheme.onError,
+                ),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  String _radiologyOrderLabel(RadiologyOrder order) {
+    if (order.items.isNotEmpty) {
+      return order.items.first.scanType.displayLabel;
+    }
+    return 'Imaging order';
+  }
+
+  Future<void> _deleteRadiologyOrder(RadiologyOrder order) async {
+    final label = _radiologyOrderLabel(order);
+    final confirmed = await _confirmDeleteRequest(
+      context,
+      title: 'Delete imaging request?',
+      message: 'Remove "$label" from this encounter? This cannot be undone.',
+    );
+    if (!confirmed || !mounted) return;
+
+    try {
+      await _orderService.deleteOrder(order.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imaging request "$label" deleted')),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete imaging request: $e')),
+      );
+    }
+  }
+
   void _showImagingOrderResults(
     BuildContext context,
     RadiologyOrder order,
     ThemeData theme,
+    EncounterScope scope,
   ) {
     final firstItem = order.items.isNotEmpty ? order.items.first : null;
+    final canDelete = _canDeleteRadiologyOrder(order, scope);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -162,6 +232,17 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
           ),
         ),
         actions: [
+          if (canDelete)
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await _deleteRadiologyOrder(order);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+              child: const Text('Delete'),
+            ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Close'),
@@ -265,8 +346,12 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                             label: Text(o.status.name),
                             backgroundColor: theme.colorScheme.primaryContainer,
                           ),
-                          onTap: () =>
-                              _showImagingOrderResults(context, o, theme),
+                          onTap: () => _showImagingOrderResults(
+                            context,
+                            o,
+                            theme,
+                            scope,
+                          ),
                         ),
                       );
                     },

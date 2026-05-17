@@ -171,6 +171,14 @@ class RadiologyService {
     }
   }
 
+  Future<void> deleteOrder(String id) async {
+    try {
+      await _dio.delete('$_base/orders/$id');
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
   Future<RadiologyOrderItem> updateOrderItem(
     String orderItemId,
     Map<String, dynamic> body,

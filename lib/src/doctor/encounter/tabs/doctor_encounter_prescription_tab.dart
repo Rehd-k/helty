@@ -115,6 +115,7 @@ class _DoctorEncounterPrescriptionTabState
   List<MedicationOrderModel> _orders = [];
   bool _loading = true;
   bool _loadScheduled = false;
+  final Set<String> _updatingOrderIds = {};
 
   @override
   void initState() {
@@ -144,6 +145,43 @@ class _DoctorEncounterPrescriptionTabState
       _orders = list;
       _loading = false;
     });
+  }
+
+  Future<void> _toggleAdministrationStatus(MedicationOrderModel order) async {
+    if (order.id.isEmpty || _updatingOrderIds.contains(order.id)) return;
+
+    final next = order.administrationStatus ==
+            MedicationAdministrationStatus.active
+        ? MedicationAdministrationStatus.stopped
+        : MedicationAdministrationStatus.active;
+
+    setState(() => _updatingOrderIds.add(order.id));
+    try {
+      await _medicationOrderService.update(
+        id: order.id,
+        administrationStatus: next,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            next == MedicationAdministrationStatus.active
+                ? '${order.drugName} activated for nursing administration'
+                : '${order.drugName} deactivated — nurses cannot administer',
+          ),
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update prescription: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updatingOrderIds.remove(order.id));
+      }
+    }
   }
 
   Future<void> _openAddModal() async {
@@ -835,6 +873,9 @@ class _DoctorEncounterPrescriptionTabState
                     itemCount: _orders.length,
                     itemBuilder: (_, i) {
                       final o = _orders[i];
+                      final isActive = o.administrationStatus ==
+                          MedicationAdministrationStatus.active;
+                      final isUpdating = _updatingOrderIds.contains(o.id);
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
@@ -848,13 +889,13 @@ class _DoctorEncounterPrescriptionTabState
                                 o.frequency,
                               if (o.duration != null && o.duration!.isNotEmpty)
                                 o.duration,
-                              if (o.administrationStatus.label.isNotEmpty)
-                                'Clinical ${o.administrationStatus.label}',
+                              'Admin ${o.administrationStatus.label}',
                             ].join(' · '),
                             style: theme.textTheme.bodySmall,
                           ),
                           trailing: Wrap(
                             spacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Chip(
                                 label: Text(o.status),
@@ -863,12 +904,36 @@ class _DoctorEncounterPrescriptionTabState
                               ),
                               Chip(
                                 label: Text(o.administrationStatus.label),
-                                backgroundColor:
-                                    o.administrationStatus ==
-                                        MedicationAdministrationStatus.active
+                                backgroundColor: isActive
                                     ? Colors.green.withValues(alpha: 0.15)
                                     : Colors.grey.withValues(alpha: 0.2),
                               ),
+                              if (isUpdating)
+                                const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              else
+                                OutlinedButton.icon(
+                                  onPressed: o.id.isEmpty
+                                      ? null
+                                      : () => _toggleAdministrationStatus(o),
+                                  icon: Icon(
+                                    isActive
+                                        ? Icons.pause_circle_outline
+                                        : Icons.play_circle_outline,
+                                    size: 18,
+                                  ),
+                                  label: Text(isActive ? 'Deactivate' : 'Activate'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: isActive
+                                        ? theme.colorScheme.error
+                                        : theme.colorScheme.primary,
+                                  ),
+                                ),
                             ],
                           ),
                         ),

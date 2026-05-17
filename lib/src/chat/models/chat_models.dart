@@ -1,3 +1,64 @@
+/// Staff chat presence from `GET /chat/presence/:staffId` or online-users list.
+enum ChatPresenceStatus { online, away, offline, unknown }
+
+extension ChatPresenceStatusX on ChatPresenceStatus {
+  static ChatPresenceStatus fromApi(String? value) {
+    if (value == null || value.trim().isEmpty) return ChatPresenceStatus.unknown;
+    switch (value.trim().toUpperCase()) {
+      case 'ONLINE':
+        return ChatPresenceStatus.online;
+      case 'AWAY':
+        return ChatPresenceStatus.away;
+      case 'OFFLINE':
+        return ChatPresenceStatus.offline;
+      default:
+        return ChatPresenceStatus.unknown;
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case ChatPresenceStatus.online:
+        return 'Online';
+      case ChatPresenceStatus.away:
+        return 'Away';
+      case ChatPresenceStatus.offline:
+        return 'Offline';
+      case ChatPresenceStatus.unknown:
+        return '';
+    }
+  }
+}
+
+class ChatStaffPresence {
+  const ChatStaffPresence({
+    required this.staffId,
+    this.status = ChatPresenceStatus.unknown,
+  });
+
+  final String staffId;
+  final ChatPresenceStatus status;
+
+  static ChatStaffPresence? tryParse(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final staffId = json['staffId']?.toString() ??
+        json['id']?.toString() ??
+        json['userId']?.toString();
+    if (staffId == null || staffId.isEmpty) return null;
+    final statusRaw = json['status'] ??
+        json['presence'] ??
+        json['presenceStatus'] ??
+        json['state'];
+    return ChatStaffPresence(
+      staffId: staffId,
+      status: ChatPresenceStatusX.fromApi(statusRaw?.toString()),
+    );
+  }
+
+  static ChatStaffPresence offline(String staffId) =>
+      ChatStaffPresence(staffId: staffId, status: ChatPresenceStatus.offline);
+}
+
 /// Staff snapshot attached to a conversation member (API `members[].staff`).
 class ChatPeerStaff {
   const ChatPeerStaff({
@@ -55,6 +116,16 @@ class ChatConversationSummary {
       if (p.fullName.isNotEmpty) return p.fullName;
     }
     return 'Conversation';
+  }
+
+  /// Other participant in a 1:1 chat (for presence / direct thread).
+  String? peerStaffId(String? myStaffId) {
+    if (isGroup) return null;
+    for (final p in members) {
+      if (myStaffId != null && p.id == myStaffId) continue;
+      if (p.id.isNotEmpty) return p.id;
+    }
+    return null;
   }
 
   static ChatConversationSummary? tryParse(Map<String, dynamic>? json) {

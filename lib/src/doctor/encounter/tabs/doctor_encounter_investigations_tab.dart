@@ -64,11 +64,75 @@ class _DoctorEncounterInvestigationsTabState
     });
   }
 
+  bool _canDeleteLabOrder(LabOrderModel order, EncounterScope scope) {
+    if (order.id.isEmpty) return false;
+    return order.encounterId.isNotEmpty &&
+        order.encounterId == scope.encounterId;
+  }
+
+  Future<bool> _confirmDeleteRequest(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                  foregroundColor: Theme.of(ctx).colorScheme.onError,
+                ),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _deleteLabOrder(LabOrderModel order) async {
+    final confirmed = await _confirmDeleteRequest(
+      context,
+      title: 'Delete lab request?',
+      message:
+          'Remove "${order.testType}" from this encounter? This cannot be undone.',
+    );
+    if (!confirmed || !mounted) return;
+
+    try {
+      await _labOrderService.delete(order.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lab request "${order.testType}" deleted')),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete lab request: $e')),
+      );
+    }
+  }
+
   void _showLabOrderResults(
-      BuildContext context, LabOrderModel order, ThemeData theme) {
+    BuildContext context,
+    LabOrderModel order,
+    ThemeData theme,
+    EncounterScope scope,
+  ) {
     final lines = order.resultLines;
     final hasLegacyMap =
         order.resultValues != null && order.resultValues!.isNotEmpty;
+    final canDelete = _canDeleteLabOrder(order, scope);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -179,6 +243,17 @@ class _DoctorEncounterInvestigationsTabState
           ),
         ),
         actions: [
+          if (canDelete)
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await _deleteLabOrder(order);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+              child: const Text('Delete'),
+            ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Close'),
@@ -310,7 +385,8 @@ class _DoctorEncounterInvestigationsTabState
                             label: Text(o.status),
                             backgroundColor: theme.colorScheme.primaryContainer,
                           ),
-                          onTap: () => _showLabOrderResults(context, o, theme),
+                          onTap: () =>
+                              _showLabOrderResults(context, o, theme, scope),
                         ),
                       );
                     },

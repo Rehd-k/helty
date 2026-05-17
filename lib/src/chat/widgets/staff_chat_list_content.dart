@@ -11,6 +11,7 @@ import '../../widgets/notifications/app_notification_provider.dart';
 import '../models/chat_models.dart';
 import '../services/chat_api_service.dart';
 import '../services/internal_chat_socket.dart';
+import 'chat_presence_widgets.dart';
 
 /// Conversation list for staff chat (embedded panel or full-screen shell).
 class StaffChatListContent extends ConsumerStatefulWidget {
@@ -21,7 +22,11 @@ class StaffChatListContent extends ConsumerStatefulWidget {
   });
 
   /// [title] is the peer / conversation label for the thread screen (when known).
-  final void Function(String conversationId, {String? title}) onOpenConversation;
+  final void Function(
+    String conversationId, {
+    String? title,
+    String? peerStaffId,
+  }) onOpenConversation;
   final bool dense;
 
   @override
@@ -31,6 +36,7 @@ class StaffChatListContent extends ConsumerStatefulWidget {
 
 class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
   List<ChatConversationSummary> _conversations = [];
+  Map<String, ChatPresenceStatus> _presenceByStaffId = {};
   bool _loading = true;
   String? _error;
   StreamSubscription<Map<String, dynamic>>? _chatSocketSub;
@@ -87,15 +93,27 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
     }
     try {
       final api = ref.read(chatApiServiceProvider);
-      final list = await api.listConversations();
+      final results = await Future.wait([
+        api.listConversations(),
+        api.listOnlineUsers().catchError((_) => <ChatStaffPresence>[]),
+      ]);
+      final list = results[0] as List<ChatConversationSummary>;
+      final online = results[1] as List<ChatStaffPresence>;
       if (!mounted) return;
       list.sort((a, b) {
         final ta = a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final tb = b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         return tb.compareTo(ta);
       });
+      final presence = <String, ChatPresenceStatus>{};
+      for (final u in online) {
+        presence[u.staffId] = u.status == ChatPresenceStatus.unknown
+            ? ChatPresenceStatus.online
+            : u.status;
+      }
       setState(() {
         _conversations = list;
+        _presenceByStaffId = presence;
         _loading = false;
         _error = null;
       });
@@ -232,6 +250,11 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
                           itemBuilder: (context, i) {
                             final c = _conversations[i];
                             final title = c.displayTitle(myStaffId);
+                            final peerId = c.peerStaffId(myStaffId);
+                            final peerPresence = peerId != null
+                                ? (_presenceByStaffId[peerId] ??
+                                    ChatPresenceStatus.offline)
+                                : ChatPresenceStatus.unknown;
                             return Material(
                               color: cs.surfaceContainerHighest.withValues(
                                   alpha: 0.45),
@@ -241,6 +264,7 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
                                 onTap: () => widget.onOpenConversation(
                                       c.id,
                                       title: title,
+                                      peerStaffId: peerId,
                                     ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
@@ -249,18 +273,12 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
                                   ),
                                   child: Row(
                                     children: [
-                                      CircleAvatar(
-                                        backgroundColor:
-                                            cs.primaryContainer,
-                                        foregroundColor:
-                                            cs.onPrimaryContainer,
-                                        child: Text(
-                                          _initials(title),
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
+                                      StaffAvatarWithPresence(
+                                        initials: _initials(title),
+                                        status: peerPresence,
+                                        radius: 18,
+                                        backgroundColor: cs.primaryContainer,
+                                        foregroundColor: cs.onPrimaryContainer,
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
@@ -337,15 +355,22 @@ class _StaffDirectPickerSheet extends ConsumerStatefulWidget {
 }
 
 class _StaffDirectPickerSheetState
-    extends ConsumerState<_StaffDirectPickerSheet> {
+    extends ConsumerState<_StaffDirectPickerSheet>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _search = TextEditingController();
+  late final TabController _tabCtrl;
   List<Staff> _staff = [];
+  Map<String, ChatPresenceStatus> _presenceByStaffId = {};
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl.addListener(() {
+      if (!_tabCtrl.indexIsChanging) setState(() {});
+    });
     _search.addListener(_onSearchChanged);
     _loadStaff();
   }
@@ -354,6 +379,7 @@ class _StaffDirectPickerSheetState
 
   @override
   void dispose() {
+    _tabCtrl.dispose();
     _search.removeListener(_onSearchChanged);
     _search.dispose();
     super.dispose();
@@ -365,17 +391,31 @@ class _StaffDirectPickerSheetState
       _error = null;
     });
     try {
-      final list = await ref.read(staffServiceProvider).fetchStaff(
+      final staffFuture = ref.read(staffServiceProvider).fetchStaff(
             page: 1,
             limit: 400,
             isActive: true,
           );
+      final onlineFuture = ref
+          .read(chatApiServiceProvider)
+          .listOnlineUsers()
+          .catchError((_) => <ChatStaffPresence>[]);
+      final results = await Future.wait([staffFuture, onlineFuture]);
+      final list = results[0] as List<Staff>;
+      final online = results[1] as List<ChatStaffPresence>;
       if (!mounted) return;
       final me = ref.read(currentStaffProvider)?.id;
+      final presence = <String, ChatPresenceStatus>{};
+      for (final u in online) {
+        presence[u.staffId] = u.status == ChatPresenceStatus.unknown
+            ? ChatPresenceStatus.online
+            : u.status;
+      }
       setState(() {
         _staff = me != null
             ? list.where((s) => s.id != me).toList()
             : list;
+        _presenceByStaffId = presence;
         _loading = false;
       });
     } catch (e) {
@@ -387,10 +427,20 @@ class _StaffDirectPickerSheetState
     }
   }
 
+  ChatPresenceStatus _presenceFor(String staffId) =>
+      _presenceByStaffId[staffId] ?? ChatPresenceStatus.offline;
+
+  bool _isOnlineOrAway(ChatPresenceStatus s) =>
+      s == ChatPresenceStatus.online || s == ChatPresenceStatus.away;
+
   List<Staff> get _filtered {
     final q = _search.text.trim().toLowerCase();
-    if (q.isEmpty) return _staff;
-    return _staff.where((s) {
+    Iterable<Staff> base = _staff;
+    if (_tabCtrl.index == 1) {
+      base = base.where((s) => _isOnlineOrAway(_presenceFor(s.id)));
+    }
+    if (q.isEmpty) return base.toList();
+    return base.where((s) {
       return s.fullName.toLowerCase().contains(q) ||
           s.role.toLowerCase().contains(q) ||
           s.staffId.toLowerCase().contains(q) ||
@@ -437,7 +487,14 @@ class _StaffDirectPickerSheetState
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          TabBar(
+            controller: _tabCtrl,
+            tabs: const [
+              Tab(text: 'All'),
+              Tab(text: 'Online'),
+            ],
+          ),
+          const SizedBox(height: 4),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -456,7 +513,9 @@ class _StaffDirectPickerSheetState
                           child: Text(
                             _staff.isEmpty
                                 ? 'No staff found.'
-                                : 'No matches for your search.',
+                                : _tabCtrl.index == 1
+                                    ? 'No colleagues online right now.'
+                                    : 'No matches for your search.',
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: cs.onSurfaceVariant,
@@ -470,7 +529,10 @@ class _StaffDirectPickerSheetState
                         separatorBuilder: (_, __) => const SizedBox(height: 6),
                         itemBuilder: (context, i) {
                           final s = _filtered[i];
+                          final presence = _presenceFor(s.id);
+                          final presenceLabel = presence.label;
                           final sub = [
+                            if (presenceLabel.isNotEmpty) presenceLabel,
                             if (s.role.isNotEmpty) s.role,
                             if (s.departmentName != null &&
                                 s.departmentName!.isNotEmpty)
@@ -491,16 +553,12 @@ class _StaffDirectPickerSheetState
                                 ),
                                 child: Row(
                                   children: [
-                                    CircleAvatar(
+                                    StaffAvatarWithPresence(
+                                      initials: _initials(s),
+                                      status: presence,
                                       radius: 24,
                                       backgroundColor: cs.tertiaryContainer,
                                       foregroundColor: cs.onTertiaryContainer,
-                                      child: Text(
-                                        _initials(s),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
                                     ),
                                     const SizedBox(width: 14),
                                     Expanded(

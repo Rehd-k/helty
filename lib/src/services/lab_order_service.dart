@@ -97,4 +97,9 @@ class LabOrderService {
     if (data == null) throw StateError('Update lab order returned no data');
     return LabOrderModel.fromJson(data);
   }
+
+  /// DELETE /lab-requests/:id — remove a lab request (e.g. doctor cancels before processing).
+  Future<void> delete(String id) async {
+    await _dio.delete('/lab-requests/$id');
+  }
 }

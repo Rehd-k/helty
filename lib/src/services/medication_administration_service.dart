@@ -43,6 +43,7 @@ class MedicationAdministrationService {
     required DateTime scheduledTime,
     DateTime? actualTime,
     required String status,
+    double? quantity,
     String? reasonIfNotGiven,
     String? remarks,
   }) async {
@@ -52,6 +53,7 @@ class MedicationAdministrationService {
       'status': status,
       if (actualTime != null)
         'actualTime': actualTime.toUtc().toIso8601String(),
+      if (quantity != null) 'quantity': quantity,
       if (reasonIfNotGiven != null && reasonIfNotGiven.isNotEmpty)
         'reasonIfNotGiven': reasonIfNotGiven,
       if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,

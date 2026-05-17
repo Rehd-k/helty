@@ -66,9 +66,12 @@ class MedicationOrderService {
       if (route != null && route.isNotEmpty) 'route': route,
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,
-      if (admissionId != null && admissionId.isNotEmpty) 'admissionId': admissionId,
-      if (startDateTime != null) 'startDateTime': startDateTime.toUtc().toIso8601String(),
-      if (endDateTime != null) 'endDateTime': endDateTime.toUtc().toIso8601String(),
+      if (admissionId != null && admissionId.isNotEmpty)
+        'admissionId': admissionId,
+      if (startDateTime != null)
+        'startDateTime': startDateTime.toUtc().toIso8601String(),
+      if (endDateTime != null)
+        'endDateTime': endDateTime.toUtc().toIso8601String(),
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       'administrationStatus': administrationStatus.apiValue,
     };
@@ -114,8 +117,10 @@ class MedicationOrderService {
       if (route != null && route.isNotEmpty) 'route': route,
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,
-      if (startDateTime != null) 'startDateTime': startDateTime.toUtc().toIso8601String(),
-      if (endDateTime != null) 'endDateTime': endDateTime.toUtc().toIso8601String(),
+      if (startDateTime != null)
+        'startDateTime': startDateTime.toUtc().toIso8601String(),
+      if (endDateTime != null)
+        'endDateTime': endDateTime.toUtc().toIso8601String(),
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (administrationStatus != null)
         'administrationStatus': administrationStatus.apiValue,

@@ -16,7 +16,7 @@ class StaffChatScreen extends ConsumerWidget {
         title: const Text('Staff chat'),
       ),
       body: StaffChatListContent(
-        onOpenConversation: (id, {String? title}) {
+        onOpenConversation: (id, {String? title, String? peerStaffId}) {
           context.router.push(
             StaffChatThreadRoute(
               conversationId: id,

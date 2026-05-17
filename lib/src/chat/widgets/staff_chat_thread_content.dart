@@ -8,6 +8,7 @@ import '../../widgets/notifications/app_notification_provider.dart';
 import '../models/chat_models.dart';
 import '../services/chat_api_service.dart';
 import '../services/internal_chat_socket.dart';
+import 'chat_presence_widgets.dart';
 
 /// Message thread UI (embedded or inside [Scaffold]).
 class StaffChatThreadContent extends ConsumerStatefulWidget {
@@ -17,6 +18,7 @@ class StaffChatThreadContent extends ConsumerStatefulWidget {
     this.embedded = false,
     this.compactChrome = false,
     this.conversationTitle,
+    this.peerStaffId,
     this.onBack,
     this.maxBubbleWidthFraction = 0.78,
   });
@@ -27,6 +29,8 @@ class StaffChatThreadContent extends ConsumerStatefulWidget {
   final bool compactChrome;
   /// Shown above the thread when [embedded] (e.g. side panel) so the peer is clear.
   final String? conversationTitle;
+  /// Direct-chat peer; used for `GET /chat/presence/:staffId`.
+  final String? peerStaffId;
   final VoidCallback? onBack;
   final double maxBubbleWidthFraction;
 
@@ -43,26 +47,65 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
   String? _error;
   StreamSubscription<Map<String, dynamic>>? _recvSub;
   StreamSubscription<String>? _errSub;
+  Timer? _presenceTimer;
   InternalChatSocket? _socket;
+  String? _resolvedPeerStaffId;
+  ChatPresenceStatus _peerPresence = ChatPresenceStatus.unknown;
 
   @override
   void initState() {
     super.initState();
+    _resolvedPeerStaffId = widget.peerStaffId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _socket = ref.read(internalChatSocketProvider);
       _load();
+      _refreshPeerPresence();
+      _presenceTimer = Timer.periodic(
+        const Duration(seconds: 45),
+        (_) => _refreshPeerPresence(),
+      );
     });
   }
 
   @override
   void dispose() {
+    _presenceTimer?.cancel();
     _recvSub?.cancel();
     _errSub?.cancel();
     _socket?.leaveConversation(widget.conversationId);
     _scrollController.dispose();
     _messageCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _resolvePeerStaffIdIfNeeded() async {
+    if (_resolvedPeerStaffId != null && _resolvedPeerStaffId!.isNotEmpty) {
+      return;
+    }
+    final me = ref.read(currentStaffProvider)?.id;
+    try {
+      final list = await ref.read(chatApiServiceProvider).listConversations();
+      ChatConversationSummary? match;
+      for (final c in list) {
+        if (c.id == widget.conversationId) {
+          match = c;
+          break;
+        }
+      }
+      _resolvedPeerStaffId = match?.peerStaffId(me);
+    } catch (_) {}
+  }
+
+  Future<void> _refreshPeerPresence() async {
+    await _resolvePeerStaffIdIfNeeded();
+    final peerId = _resolvedPeerStaffId;
+    if (peerId == null || peerId.isEmpty || !mounted) return;
+    try {
+      final p = await ref.read(chatApiServiceProvider).getPresence(peerId);
+      if (!mounted) return;
+      setState(() => _peerPresence = p.status);
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -164,6 +207,8 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
     return 'Chat';
   }
 
+  String? _presenceLine() => chatPresenceSubtitle(_peerPresence);
+
   Future<void> _send() async {
     final text = _messageCtrl.text.trim();
     if (text.isEmpty) return;
@@ -203,6 +248,7 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
         children: [
           _EmbeddedHeader(
             title: _headerLabel(),
+            presence: _peerPresence,
             onBack: widget.onBack,
           ),
           Expanded(child: _buildBody(theme, staffId, maxW)),
@@ -247,13 +293,29 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
         if (peerLine)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-            child: Text(
-              widget.conversationTitle!.trim(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.conversationTitle!.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (_presenceLine() != null)
+                  Text(
+                    _presenceLine()!,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: chatPresenceColor(
+                        _peerPresence,
+                        theme.colorScheme,
+                      ),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
             ),
           ),
         Expanded(
@@ -332,14 +394,21 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
 }
 
 class _EmbeddedHeader extends StatelessWidget {
-  const _EmbeddedHeader({required this.title, this.onBack});
+  const _EmbeddedHeader({
+    required this.title,
+    this.presence = ChatPresenceStatus.unknown,
+    this.onBack,
+  });
 
   final String title;
+  final ChatPresenceStatus presence;
   final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final line = chatPresenceSubtitle(presence);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -351,11 +420,26 @@ class _EmbeddedHeader extends StatelessWidget {
               icon: const Icon(Icons.arrow_back_rounded),
             ),
           Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (line != null)
+                  Text(
+                    line,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: chatPresenceColor(presence, cs),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],

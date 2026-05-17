@@ -29,7 +29,11 @@ Future<Drug?> showSubstituteMedicationDialog(
   final durationCtrl = TextEditingController(
     text: currentLine.duration.trim() == '—' ? '' : currentLine.duration,
   );
-  final routeCtrl = TextEditingController(text: 'Oral');
+  final routeCtrl = TextEditingController(
+    text: currentLine.route.trim().isEmpty || currentLine.route.trim() == '—'
+        ? 'Oral'
+        : currentLine.route,
+  );
   final instructionsCtrl = TextEditingController();
 
   final result = await showDialog<Drug?>(

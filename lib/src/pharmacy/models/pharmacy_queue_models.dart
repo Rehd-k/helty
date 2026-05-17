@@ -24,6 +24,7 @@ class PrescribedMedication {
   final String dosage;
   final String frequency;
   final String duration;
+  final String route;
   final int quantity;
   /// Pharmacy inventory count (loaded via [PharmacyApiService.getDrugById]).
   int stockAvailable;
@@ -39,6 +40,7 @@ class PrescribedMedication {
     required this.dosage,
     required this.frequency,
     required this.duration,
+    this.route = '',
     required this.quantity,
     this.stockAvailable = 0,
     this.isDispensed = false,
@@ -57,6 +59,7 @@ class PrescribedMedication {
       dosage: json['dosage'] as String? ?? '',
       frequency: json['frequency'] as String? ?? '',
       duration: json['duration'] as String? ?? '',
+      route: json['route'] as String? ?? '',
       quantity: _parseInt(json['quantity']) ?? 0,
       stockAvailable: _parseInt(json['stockAvailable']) ?? 0,
       isDispensed: json['isDispensed'] as bool? ?? false,
@@ -76,23 +79,35 @@ class PrescribedMedication {
     final name = _drugDisplayName(drug, json);
     final strength = drug?['strength']?.toString();
     final form = drug?['dosageForm']?.toString();
-    final dosage = <String>[
+    final catalogDosage = <String>[
       if (strength != null && strength.isNotEmpty) strength,
       if (form != null && form.isNotEmpty) form,
     ].join(' · ');
 
     final moRaw = json['medicationOrderId'] ?? json['medicationOrder'];
-    final medicationOrderId = moRaw is Map
-        ? moRaw['id']?.toString()
+    final mo = moRaw is Map<String, dynamic> ? moRaw : null;
+    final medicationOrderId = mo != null
+        ? mo['id']?.toString()
         : moRaw?.toString();
+
+    final dose = _rxString(json, mo, 'dose', catalogDosage);
+    final frequency = _rxString(json, mo, 'frequency');
+    final duration = _rxString(json, mo, 'duration');
+    final route = _rxString(json, mo, 'route');
+
+    var quantity = _parseInt(json['quantity']) ?? 0;
+    if (quantity <= 0) {
+      quantity = _parseInt(json['orderQuantity']) ?? 0;
+    }
 
     return PrescribedMedication(
       id: json['id']?.toString() ?? '',
       name: name,
-      dosage: dosage.isNotEmpty ? dosage : '—',
-      frequency: '—',
-      duration: '—',
-      quantity: _parseInt(json['quantity']) ?? 0,
+      dosage: dose,
+      frequency: frequency,
+      duration: duration,
+      route: route,
+      quantity: quantity,
       stockAvailable: 0,
       drugId: drugId?.isNotEmpty == true ? drugId : null,
       settled: json['settled'] as bool? ?? false,
@@ -101,6 +116,21 @@ class PrescribedMedication {
           ? medicationOrderId
           : null,
     );
+  }
+
+  static String _rxString(
+    Map<String, dynamic> json,
+    Map<String, dynamic>? medicationOrder,
+    String key, [
+    String catalogFallback = '',
+  ]) {
+    for (final source in [json, medicationOrder]) {
+      if (source == null) continue;
+      final v = source[key]?.toString().trim() ?? '';
+      if (v.isNotEmpty) return v;
+    }
+    final fb = catalogFallback.trim();
+    return fb.isNotEmpty ? fb : '—';
   }
 
   static String _drugDisplayName(
@@ -130,6 +160,7 @@ class PrescribedMedication {
     'dosage': dosage,
     'frequency': frequency,
     'duration': duration,
+    'route': route,
     'quantity': quantity,
     'stockAvailable': stockAvailable,
     'isDispensed': isDispensed,

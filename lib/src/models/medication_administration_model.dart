@@ -5,6 +5,7 @@ class MedicationAdministrationModel {
     this.scheduledTime,
     this.actualTime,
     required this.status,
+    this.quantity,
     this.reasonIfNotGiven,
     this.drugName,
     this.dose,
@@ -16,6 +17,9 @@ class MedicationAdministrationModel {
   final DateTime? scheduledTime;
   final DateTime? actualTime;
   final String status;
+
+  /// Units administered when [status] is GIVEN (API: Decimal 12,3).
+  final double? quantity;
   final String? reasonIfNotGiven;
   final String? drugName;
   final String? dose;
@@ -28,6 +32,12 @@ class MedicationAdministrationModel {
   }
 
   static String _str(dynamic v) => v?.toString() ?? '';
+
+  static double? _parseQuantity(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
 
   factory MedicationAdministrationModel.fromJson(Map<String, dynamic> json) {
     Map<String, dynamic>? asMap(dynamic e) =>
@@ -76,6 +86,7 @@ class MedicationAdministrationModel {
       scheduledTime: _parseDt(json['scheduledTime'] ?? json['scheduled_time']),
       actualTime: _parseDt(json['actualTime'] ?? json['actual_time']),
       status: _str(json['status']),
+      quantity: _parseQuantity(json['quantity']),
       reasonIfNotGiven: json['reasonIfNotGiven']?.toString() ??
           json['reason_if_not_given']?.toString(),
       drugName: drugName.isEmpty ? null : drugName,

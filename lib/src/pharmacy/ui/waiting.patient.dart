@@ -1283,6 +1283,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                                   colorScheme,
                                 ),
                                 _buildMedChip('Dur', med.duration, colorScheme),
+                                _buildMedChip('Route', med.route, colorScheme),
                                 _buildMedChip(
                                   'Qty',
                                   '${med.quantity}',
@@ -1306,6 +1307,11 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                                 _buildMedDetailColumn(
                                   'DUR',
                                   med.duration,
+                                  colorScheme,
+                                ),
+                                _buildMedDetailColumn(
+                                  'ROUTE',
+                                  med.route,
                                   colorScheme,
                                 ),
                                 _buildMedDetailColumn(
