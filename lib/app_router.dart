@@ -38,6 +38,8 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: FrontDeskDashboardRoute.page),
         AutoRoute(page: PatientListRoute.page),
         AutoRoute(page: PatientFormRoute.page),
+        AutoRoute(page: PatientChartSelectRoute.page),
+        AutoRoute(page: PatientChartRoute.page),
         AutoRoute(page: AppointmentListRoute.page),
         AutoRoute(page: TodayPatientsRoute.page),
         AutoRoute(page: PendingBillsRoute.page),

@@ -14,6 +14,7 @@ import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/appointment_service.dart';
 import '../services/frontdesk_dashboard_service.dart';
+import 'widgets/check_in_patient_dialog.dart';
 
 @RoutePage()
 class FrontDeskDashboardScreen extends ConsumerStatefulWidget {
@@ -171,6 +172,16 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
       if (mounted && _calendarLoadsInFlight == 0) {
         setState(() => _loadingCalendarCounts = false);
       }
+    }
+  }
+
+  Future<void> _openCheckInPatientDialog(BuildContext context) async {
+    final reEnlisted = await showDialog<bool>(
+      context: context,
+      builder: (_) => CheckInPatientDialog(onReEnlisted: _loadQueue),
+    );
+    if (reEnlisted == true && mounted) {
+      await _loadQueue();
     }
   }
 
@@ -892,7 +903,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
-                          onPressed: () {},
+                          onPressed: () => _openCheckInPatientDialog(context),
                           icon: Icon(
                             Icons.login,
                             size: 18,

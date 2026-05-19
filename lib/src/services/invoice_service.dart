@@ -3,6 +3,7 @@ import 'package:helty/src/models/discount_policy_models.dart';
 import 'package:helty/src/models/service_model.dart';
 import '../models/invoice.dart';
 import '../models/invoice_billing_models.dart';
+import '../models/paid_without_encounter_invoice.dart';
 import 'api_service.dart';
 
 class InvoiceService {
@@ -78,6 +79,37 @@ class InvoiceService {
     } on DioException catch (e) {
       throw Exception(
         'Failed to load invoices: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  /// Paid invoices for a patient that have no encounter yet (check-in / re-enlist).
+  Future<List<PaidWithoutEncounterInvoice>> fetchPaidWithoutEncounter({
+    required String patientId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/paid-without-encounter',
+        queryParameters: {'patientId': patientId.trim()},
+      );
+      final list = _extractList(response.data, key: 'invoices');
+      final results = <PaidWithoutEncounterInvoice>[];
+      for (final entry in list) {
+        if (entry is! Map) continue;
+        try {
+          results.add(
+            PaidWithoutEncounterInvoice.fromJson(
+              Map<String, dynamic>.from(entry),
+            ),
+          );
+        } catch (_) {
+          // Skip malformed rows.
+        }
+      }
+      return results;
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load paid invoices: ${_dioMessage(e, 'Unknown error')}',
       );
     }
   }

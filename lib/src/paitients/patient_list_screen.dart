@@ -4,20 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app_router.gr.dart';
 import '../helper/date.formatter.dart';
+import '../providers/auth_provider.dart';
 import 'patient_model.dart';
 import 'patient_providers.dart';
 import 'patient_service.dart';
 import '../widgets/filter.patients.dart';
 
 @RoutePage()
-class PatientListScreen extends StatefulWidget {
+class PatientListScreen extends ConsumerStatefulWidget {
   const PatientListScreen({super.key});
 
   @override
-  State<PatientListScreen> createState() => _PatientListScreenState();
+  ConsumerState<PatientListScreen> createState() => _PatientListScreenState();
 }
 
-class _PatientListScreenState extends State<PatientListScreen> {
+class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   final PatientService _patientService = PatientService();
   static const int _take = 20;
 
@@ -119,6 +120,14 @@ class _PatientListScreenState extends State<PatientListScreen> {
   }
 
   void _showPatientDetailsDialog(Patient patient) {
+    final staff = ref.read(authProvider).staff;
+    final at = staff?.accountType?.name.toLowerCase() ?? '';
+    final r = staff?.role.toLowerCase() ?? '';
+    final showChartLink =
+        (at == 'medical_records' || r == 'medical_records') &&
+        patient.id != null &&
+        patient.id!.isNotEmpty;
+
     showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -217,6 +226,17 @@ class _PatientListScreenState extends State<PatientListScreen> {
               onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('Close'),
             ),
+            if (showChartLink)
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  context.router.push(
+                    PatientChartRoute(patientUuid: patient.id!),
+                  );
+                },
+                icon: const Icon(Icons.folder_shared_outlined),
+                label: const Text('Open chart'),
+              ),
             FilledButton.icon(
               onPressed: () async {
                 Navigator.of(ctx).pop();

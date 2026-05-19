@@ -49,4 +49,12 @@ class ConsultingRoomModel {
     if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
   };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConsultingRoomModel && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

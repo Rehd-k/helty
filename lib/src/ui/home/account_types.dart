@@ -54,6 +54,11 @@ final frontDesk = <MenuItem>[
 final medicalRecordsMenu = <MenuItem>[
   ...frontDesk,
   MenuItem(
+    label: 'Patient chart',
+    icon: Icons.folder_shared_outlined,
+    route: PatientChartSelectRoute(),
+  ),
+  MenuItem(
     label: 'Completed Encounters',
     icon: Icons.check_circle_outline,
     route: DoctorCompletedEncountersRoute(),
@@ -154,6 +159,11 @@ final nurses = <MenuItem>[
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
     route: NursesDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Patient chart',
+    icon: Icons.folder_shared_outlined,
+    route: PatientChartSelectRoute(),
   ),
   MenuItem(
     label: 'Waiting Patients',

@@ -144,8 +144,13 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     try {
       final rooms = await _waitingService.fetchConsultingRooms();
       if (!mounted) return;
+      final unique = <String, ConsultingRoomModel>{};
+      for (final r in rooms) {
+        if (r.id.isNotEmpty) unique[r.id] = r;
+      }
       setState(() {
-        _consultingRooms = rooms;
+        _consultingRooms = unique.values.toList();
+        _selectedRoom = _roomFromList(_selectedRoom);
       });
     } catch (e) {
       if (!mounted) return;
@@ -155,9 +160,119 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     }
   }
 
-  void _openVitalsBottomSheet(WaitingPatientModel waiting) {
-    if (waiting.status != 'Waiting') return;
+  bool _isUnassigned(WaitingPatientModel waiting) =>
+      waiting.status == 'Waiting';
 
+  /// Dropdown items must use the same instances as [value]/[initialValue].
+  ConsultingRoomModel? _roomFromList(ConsultingRoomModel? room) {
+    if (room == null || room.id.isEmpty) return null;
+    for (final r in _consultingRooms) {
+      if (r.id == room.id) return r;
+    }
+    return null;
+  }
+
+  ConsultingRoomModel? _roomFromListById(String? roomId) {
+    if (roomId == null || roomId.isEmpty) return null;
+    for (final r in _consultingRooms) {
+      if (r.id == roomId) return r;
+    }
+    return null;
+  }
+
+  void _selectWaitingPatient(WaitingPatientModel waiting) {
+    final room =
+        _roomFromList(waiting.consultingRoom) ??
+        _roomFromListById(waiting.consultingRoomId);
+    setState(() {
+      _selectedPatient = waiting;
+      _selectedRoom = room;
+    });
+    _applyVitalsFrom(waiting.patientVitals);
+    if (MediaQuery.sizeOf(context).width < _vitalsSidePanelMinWidth) {
+      _openVitalsBottomSheet(waiting);
+    }
+  }
+
+  void _clearVitalsControllers() {
+    _sysCtrl.clear();
+    _diaCtrl.clear();
+    _tempCtrl.clear();
+    _heightCtrl.clear();
+    _weightCtrl.clear();
+    _bmiCtrl.clear();
+    _pulseCtrl.clear();
+    _spo2Ctrl.clear();
+  }
+
+  void _applyVitalsFrom(PatientVitalsModel? vitals) {
+    _clearVitalsControllers();
+    if (vitals == null) return;
+    void setInt(TextEditingController c, int? v) {
+      if (v != null) c.text = v.toString();
+    }
+
+    void setDouble(TextEditingController c, double? v) {
+      if (v != null) c.text = v.toString();
+    }
+
+    setInt(_sysCtrl, vitals.systolic);
+    setInt(_diaCtrl, vitals.diastolic);
+    setDouble(_tempCtrl, vitals.temperature);
+    setDouble(_heightCtrl, vitals.height);
+    setDouble(_weightCtrl, vitals.weight);
+    setDouble(_bmiCtrl, vitals.bmi);
+    setInt(_pulseCtrl, vitals.pulseRate);
+    setDouble(_spo2Ctrl, vitals.spo2);
+  }
+
+  Future<void> _saveVitalsFor(WaitingPatientModel waiting) async {
+    int? parseInt(String value) {
+      final v = value.trim();
+      if (v.isEmpty) return null;
+      return int.tryParse(v);
+    }
+
+    double? parseDouble(String value) {
+      final v = value.trim();
+      if (v.isEmpty) return null;
+      return double.tryParse(v);
+    }
+
+    final existing = waiting.patientVitals;
+    if (existing != null && existing.id.isNotEmpty) {
+      await _waitingService.updatePatientVitals(
+        existing.id,
+        UpdatePatientVitalsDto(
+          systolic: parseInt(_sysCtrl.text),
+          diastolic: parseInt(_diaCtrl.text),
+          temperature: parseDouble(_tempCtrl.text),
+          height: parseDouble(_heightCtrl.text),
+          weight: parseDouble(_weightCtrl.text),
+          bmi: parseDouble(_bmiCtrl.text),
+          pulseRate: parseInt(_pulseCtrl.text),
+          spo2: parseDouble(_spo2Ctrl.text),
+        ),
+      );
+    } else {
+      await _waitingService.createPatientVitals(
+        CreatePatientVitalsDto(
+          invoiceId: waiting.invoiceId,
+          patientId: waiting.patientId,
+          systolic: parseInt(_sysCtrl.text),
+          diastolic: parseInt(_diaCtrl.text),
+          temperature: parseDouble(_tempCtrl.text),
+          height: parseDouble(_heightCtrl.text),
+          weight: parseDouble(_weightCtrl.text),
+          bmi: parseDouble(_bmiCtrl.text),
+          pulseRate: parseInt(_pulseCtrl.text),
+          spo2: parseDouble(_spo2Ctrl.text),
+        ),
+      );
+    }
+  }
+
+  void _openVitalsBottomSheet(WaitingPatientModel waiting) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -251,50 +366,36 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   }
 
   Future<void> _sendToConsulting(
-    String waitingPatientId, {
+    WaitingPatientModel waiting, {
     BuildContext? popAfterSuccessContext,
     StateSetter? refreshModal,
   }) async {
-    if (_selectedPatient == null || _selectedRoom == null) {
+    if (_selectedRoom == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Please fill vitals and select a consulting room."),
+          content: Text('Please select a consulting room.'),
         ),
       );
       return;
     }
 
-    int? parseInt(String value) {
-      final v = value.trim();
-      if (v.isEmpty) return null;
-      return int.tryParse(v);
-    }
-
-    double? parseDouble(String value) {
-      final v = value.trim();
-      if (v.isEmpty) return null;
-      return double.tryParse(v);
-    }
-
-    final vitalsDto = CreatePatientVitalsDto(
-      invoiceId: waitingPatientId,
-      systolic: parseInt(_sysCtrl.text),
-      diastolic: parseInt(_diaCtrl.text),
-      temperature: parseDouble(_tempCtrl.text),
-      height: parseDouble(_heightCtrl.text),
-      weight: parseDouble(_weightCtrl.text),
-      bmi: parseDouble(_bmiCtrl.text),
-      pulseRate: parseInt(_pulseCtrl.text),
-      spo2: parseDouble(_spo2Ctrl.text),
-    );
+    final invoiceId = waiting.invoiceId;
+    final assigned = !_isUnassigned(waiting);
 
     setState(() => _sending = true);
     refreshModal?.call(() {});
     try {
-      await _waitingService.createPatientVitals(vitalsDto);
-      await _waitingService.updateWaitingPatient(waitingPatientId, {
-        "consultingRoomId": _selectedRoom!.id,
-      });
+      await _saveVitalsFor(waiting);
+      if (assigned) {
+        await _waitingService.updateWaitingPatientAssignment(
+          invoiceId: invoiceId,
+          consultingRoomId: _selectedRoom!.id,
+        );
+      } else {
+        await _waitingService.updateWaitingPatient(invoiceId, {
+          'consultingRoomId': _selectedRoom!.id,
+        });
+      }
 
       if (!mounted) return;
 
@@ -305,31 +406,32 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
       setState(() {
         _selectedPatient = null;
         _selectedRoom = null;
-        _sysCtrl.clear();
-        _diaCtrl.clear();
-        _tempCtrl.clear();
-        _heightCtrl.clear();
-        _weightCtrl.clear();
-        _bmiCtrl.clear();
-        _pulseCtrl.clear();
-        _spo2Ctrl.clear();
+        _clearVitalsControllers();
         _currentPage = 0;
       });
       await _loadPage(reset: true);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            "Patient vitals saved and sent to consulting room.",
-            style: TextStyle(color: Colors.green),
+            assigned
+                ? 'Room and vitals updated.'
+                : 'Patient vitals saved and sent to consulting room.',
+            style: const TextStyle(color: Colors.green),
           ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send to consulting room: $e')),
+        SnackBar(
+          content: Text(
+            assigned
+                ? 'Failed to update room and vitals: $e'
+                : 'Failed to send to consulting room: $e',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -337,6 +439,13 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
         refreshModal?.call(() {});
       }
     }
+  }
+
+  String _sendButtonLabel(WaitingPatientModel waiting) {
+    if (_sending) return 'Saving…';
+    return _isUnassigned(waiting)
+        ? 'Send to consulting room'
+        : 'Update room & vitals';
   }
 
   Widget _buildQueuePanel(ColorScheme colorScheme, bool tableHScroll) {
@@ -565,17 +674,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                                 final roomLabel = waiting.status;
 
                                 return InkWell(
-                                  onTap: isUnassigned
-                                      ? () {
-                                          setState(
-                                            () => _selectedPatient = waiting,
-                                          );
-                                          if (MediaQuery.sizeOf(context).width <
-                                              _vitalsSidePanelMinWidth) {
-                                            _openVitalsBottomSheet(waiting);
-                                          }
-                                        }
-                                      : null,
+                                  onTap: () => _selectWaitingPatient(waiting),
                                   child: Container(
                                     color: isSelected
                                         ? colorScheme.primary.withValues(
@@ -787,12 +886,15 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
       backgroundColor: colorScheme.surface,
       floatingActionButton:
           MediaQuery.sizeOf(context).width < _vitalsSidePanelMinWidth &&
-              _selectedPatient != null &&
-              _selectedPatient!.status == 'Waiting'
+              _selectedPatient != null
           ? FloatingActionButton.extended(
               onPressed: () => _openVitalsBottomSheet(_selectedPatient!),
               icon: const Icon(Icons.monitor_heart_outlined),
-              label: const Text('Vitals'),
+              label: Text(
+                _isUnassigned(_selectedPatient!)
+                    ? 'Vitals'
+                    : 'Update vitals / room',
+              ),
             )
           : null,
       body: LayoutBuilder(
@@ -978,7 +1080,6 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     required bool isSidePanel,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    final id = waiting.id;
     final patient = waiting.patient;
     final displayName = patient != null
         ? '${patient.title} ${patient.firstName} ${patient.surname}'
@@ -1293,7 +1394,10 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<ConsultingRoomModel>(
-                    initialValue: _selectedRoom,
+                    key: ValueKey(
+                      'room-${waiting.invoiceId}-${_selectedRoom?.id ?? 'none'}',
+                    ),
+                    initialValue: _roomFromList(_selectedRoom),
                     decoration: InputDecoration(
                       hintText: "Select Room",
                       hintStyle: TextStyle(
@@ -1365,7 +1469,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                 onPressed: _sending
                     ? null
                     : () async {
-                        await _sendToConsulting(id);
+                        await _sendToConsulting(waiting);
                       },
                 icon: const Icon(
                   Icons.send_rounded,
@@ -1373,7 +1477,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                   color: Colors.white,
                 ),
                 label: Text(
-                  _sending ? "Sending..." : "Send to Consulting",
+                  _sendButtonLabel(waiting),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -1405,7 +1509,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                       ? null
                       : () async {
                           await _sendToConsulting(
-                            id,
+                            waiting,
                             popAfterSuccessContext: sheetContext,
                             refreshModal: setModalState,
                           );
@@ -1416,7 +1520,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                     color: Colors.white,
                   ),
                   label: Text(
-                    _sending ? "Sending..." : "Send to Consulting",
+                    _sendButtonLabel(waiting),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

@@ -250,6 +250,28 @@ class WaitingPatientService {
     return WaitingPatientModel.fromJson(resp.data as Map<String, dynamic>);
   }
 
+  /// PATCH first; on 404 create queue row via send-to-room.
+  Future<WaitingPatientModel> reEnlistToRoom({
+    required String invoiceId,
+    required String consultingRoomId,
+    String? staffId,
+  }) async {
+    try {
+      return await updateWaitingPatientAssignment(
+        invoiceId: invoiceId,
+        consultingRoomId: consultingRoomId,
+        staffId: staffId,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 404) rethrow;
+      return sendInvoiceToRoom(
+        invoiceId: invoiceId,
+        consultingRoomId: consultingRoomId,
+        staffId: staffId,
+      );
+    }
+  }
+
   /// Backward-compatible wrapper for older callers.
   /// Prefer [updateWaitingPatientAssignment] in new code.
   Future<WaitingPatientModel> updateWaitingPatient(

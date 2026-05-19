@@ -10,7 +10,9 @@ import 'api_service.dart';
 /// ignoring any path prefix on that base (e.g. `/api`). See `docs/flutter-helty-desktop-updater.md`.
 Uri heltyDesktopBaseUri() {
   final raw = ApiService().apiBaseUrl.trim();
-  final api = Uri.parse(raw.isEmpty ? 'http://192.168.2.120:3000' : raw);
+  final api = Uri.parse(
+    raw.isEmpty ? kApiCandidateBaseUrls.first : raw,
+  );
   return Uri(
     scheme: api.scheme,
     host: api.host,

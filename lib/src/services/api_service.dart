@@ -5,14 +5,12 @@ import '../core/interceptors/auth_interceptor.dart';
 import '../core/interceptors/error_interceptor.dart';
 import '../core/interceptors/refresh_token_interceptor.dart';
 
-// /// Base URL for every API call. Change to your server address.
-const _kBaseUrl = 'http://localhost:3000';
-
-// const _kBaseUrl = 'http://192.168.2.120:3000';
-
-// const _kBaseUrl = 'http://192.168.1.180:3000';
-
-// const _kBaseUrl = 'http://10.99.4.205:3000';
+/// Candidate API origins probed at startup; the fastest `/server-time` wins.
+const kApiCandidateBaseUrls = <String>[
+  'http://localhost:3000',
+  'http://192.168.2.121:3000',
+  'http://192.168.2.120:3000',
+];
 
 /// Singleton Dio client, pre-configured with auth + refresh + error interceptors.
 class ApiService {
@@ -21,13 +19,16 @@ class ApiService {
 
   late final Dio dio;
 
+  /// Set by [ClockSyncGate] after the startup endpoint race.
+  String? resolvedBaseUrl;
+
   /// Same origin as [dio] `baseUrl` (scheme + host + port). Use for public routes like `/helty-desktop`.
   String get apiBaseUrl => dio.options.baseUrl;
 
   ApiService._internal() {
     dio = Dio(
       BaseOptions(
-        baseUrl: _kBaseUrl,
+        baseUrl: kApiCandidateBaseUrls.first,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
         sendTimeout: const Duration(seconds: 15),
@@ -49,5 +50,12 @@ class ApiService {
           logPrint: (o) => debugPrint(o.toString()),
         ),
     ]);
+  }
+
+  /// Called after startup (or Retry) endpoint selection.
+  void setBaseUrl(String url) {
+    final normalized = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    dio.options.baseUrl = normalized;
+    resolvedBaseUrl = normalized;
   }
 }

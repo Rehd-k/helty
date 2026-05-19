@@ -1,10 +1,11 @@
-import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../core/errors/app_exception.dart';
 import '../helper/theme.dart';
 import '../models/server_time_model.dart';
+import '../services/api_endpoint_selector.dart';
+import '../services/api_service.dart';
 import '../services/server_time_service.dart';
 
 /// Runs before [child] is built: calls `GET /server-time` and blocks the app if
@@ -36,10 +37,21 @@ class _ClockSyncGateState extends State<ClockSyncGate> {
       _serverTime = null;
     });
 
-    final service = ServerTimeService();
+    final timeService = ServerTimeService();
     try {
-      final server = await service.fetch();
-      final skew = service.skewMsIfInvalid(server);
+      final probe = await ApiEndpointSelector.selectFastest(
+        kApiCandidateBaseUrls,
+      );
+      ApiService().setBaseUrl(probe.baseUrl);
+      if (kDebugMode) {
+        debugPrint(
+          'ClockSyncGate: using ${probe.baseUrl} '
+          '(${probe.latency.inMilliseconds}ms)',
+        );
+      }
+
+      final server = probe.serverTime;
+      final skew = timeService.skewMsIfInvalid(server);
       if (!mounted) return;
       if (skew != null) {
         setState(() {
@@ -53,18 +65,6 @@ class _ClockSyncGateState extends State<ClockSyncGate> {
         return;
       }
       setState(() => _phase = _GatePhase.ok);
-    } on DioException catch (e) {
-      if (!mounted) return;
-      final err = e.error;
-      final text = err is AppException
-          ? err.message
-          : (e.message ?? e.toString());
-      setState(() {
-        _phase = _GatePhase.error;
-        _message =
-            'Could not verify the time with the server: $text\n\n'
-            'Check the API address, network, and firewall, then retry.';
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
