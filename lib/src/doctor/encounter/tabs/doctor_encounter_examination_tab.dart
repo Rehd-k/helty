@@ -1,6 +1,10 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/questionnaire/encounter_narrative_compiler.dart';
+import 'package:helty/src/doctor/encounter/questionnaire/encounter_question_models.dart';
+import 'package:helty/src/doctor/encounter/questionnaire/encounter_questionnaire_section.dart';
+import 'package:helty/src/doctor/encounter/questionnaire/examination_questionnaire_defs.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
@@ -15,15 +19,12 @@ class DoctorEncounterExaminationTab extends StatefulWidget {
 class _DoctorEncounterExaminationTabState
     extends State<DoctorEncounterExaminationTab> {
   final _encounterService = EncounterService();
-  late final TextEditingController _generalAppearanceCtrl;
-  late final TextEditingController _cardiovascularCtrl;
-  late final TextEditingController _respiratoryCtrl;
-  late final TextEditingController _abdomenCtrl;
-  late final TextEditingController _cnsCtrl;
-  late final TextEditingController _musculoskeletalCtrl;
-  late final TextEditingController _entCtrl;
-  late final TextEditingController _skinCtrl;
-  late final TextEditingController _notesCtrl;
+  late final TextEditingController _additionalNotesCtrl;
+
+  final _answers = <String, QuestionnaireAnswers>{};
+  final _savedNotes = <String, String?>{};
+  final _directEditControllers = <String, TextEditingController>{};
+  final _useDirectEditOnSave = <String, bool>{};
 
   bool _loading = false;
   bool _loaded = false;
@@ -33,15 +34,12 @@ class _DoctorEncounterExaminationTabState
   @override
   void initState() {
     super.initState();
-    _generalAppearanceCtrl = TextEditingController();
-    _cardiovascularCtrl = TextEditingController();
-    _respiratoryCtrl = TextEditingController();
-    _abdomenCtrl = TextEditingController();
-    _cnsCtrl = TextEditingController();
-    _musculoskeletalCtrl = TextEditingController();
-    _entCtrl = TextEditingController();
-    _skinCtrl = TextEditingController();
-    _notesCtrl = TextEditingController();
+    _additionalNotesCtrl = TextEditingController();
+    for (final section in examinationQuestionnaireSections) {
+      _answers[section.id] = {};
+      _directEditControllers[section.id] = TextEditingController();
+      _useDirectEditOnSave[section.id] = false;
+    }
   }
 
   @override
@@ -78,16 +76,38 @@ class _DoctorEncounterExaminationTabState
 
   @override
   void dispose() {
-    _generalAppearanceCtrl.dispose();
-    _cardiovascularCtrl.dispose();
-    _respiratoryCtrl.dispose();
-    _abdomenCtrl.dispose();
-    _cnsCtrl.dispose();
-    _musculoskeletalCtrl.dispose();
-    _entCtrl.dispose();
-    _skinCtrl.dispose();
-    _notesCtrl.dispose();
+    for (final c in _directEditControllers.values) {
+      c.dispose();
+    }
+    _additionalNotesCtrl.dispose();
     super.dispose();
+  }
+
+  void _applyLoadedExaminationNotes(String? notes) {
+    final parsed = parseExaminationNotes(notes);
+    for (final section in examinationQuestionnaireSections) {
+      final text = parsed[section.id];
+      _savedNotes[section.id] = text;
+      if (text != null && text.isNotEmpty) {
+        _directEditControllers[section.id]?.text = text;
+        _useDirectEditOnSave[section.id] = true;
+      }
+    }
+    if (notes != null && notes.trim().isNotEmpty) {
+      final labeledKeys = parsed.keys.toSet();
+      if (labeledKeys.isEmpty) {
+        _additionalNotesCtrl.text = notes.trim();
+      }
+    }
+  }
+
+  String? _noteForSection(EncounterSectionDef section) {
+    return resolveSectionNote(
+      section: section,
+      answers: _answers[section.id] ?? {},
+      directEditController: _directEditControllers[section.id],
+      useDirectEdit: _useDirectEditOnSave[section.id] ?? false,
+    );
   }
 
   Future<void> _loadDraft() async {
@@ -97,9 +117,7 @@ class _DoctorEncounterExaminationTabState
     try {
       final enc = await _encounterService.getById(scope.encounterId);
       if (!mounted) return;
-      if (enc?.examinationNotes != null && enc!.examinationNotes!.isNotEmpty) {
-        _notesCtrl.text = enc.examinationNotes!;
-      }
+      _applyLoadedExaminationNotes(enc?.examinationNotes);
       setState(() {
         _loading = false;
         _loaded = true;
@@ -113,22 +131,31 @@ class _DoctorEncounterExaminationTabState
     final scope = EncounterScope.of(context);
     if (scope == null) return;
     setState(() => _loading = true);
-    final notes = [
-      'General: ${_generalAppearanceCtrl.text.trim()}',
-      'CVS: ${_cardiovascularCtrl.text.trim()}',
-      'Resp: ${_respiratoryCtrl.text.trim()}',
-      'Abdomen: ${_abdomenCtrl.text.trim()}',
-      'CNS: ${_cnsCtrl.text.trim()}',
-      'MSK: ${_musculoskeletalCtrl.text.trim()}',
-      'ENT: ${_entCtrl.text.trim()}',
-      'Skin: ${_skinCtrl.text.trim()}',
-      if (_notesCtrl.text.trim().isNotEmpty) _notesCtrl.text.trim(),
-    ].where((e) => e.split(':').last.trim().isNotEmpty).join('\n\n');
+
+    final sectionTexts = <String, String>{};
+    for (final section in examinationQuestionnaireSections) {
+      final note = _noteForSection(section);
+      if (note != null && note.isNotEmpty) {
+        sectionTexts[section.id] = note;
+      }
+    }
+
+    final notes = buildExaminationNotesBlob(
+      sectionTexts: sectionTexts,
+      additionalNotes: _additionalNotesCtrl.text.trim().isEmpty
+          ? null
+          : _additionalNotesCtrl.text.trim(),
+    );
+
     try {
       await _encounterService.update(scope.encounterId, {
         'examinationNotes': notes.isEmpty ? null : notes,
       });
       if (!mounted) return;
+      for (final section in examinationQuestionnaireSections) {
+        _savedNotes[section.id] = sectionTexts[section.id];
+        _useDirectEditOnSave[section.id] = false;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Examination draft saved')),
       );
@@ -186,16 +213,48 @@ class _DoctorEncounterExaminationTabState
             ),
             const SizedBox(height: 24),
           ],
-          _section('General Appearance', _generalAppearanceCtrl),
-          _section('Cardiovascular', _cardiovascularCtrl),
-          _section('Respiratory', _respiratoryCtrl),
-          _section('Abdomen', _abdomenCtrl),
-          _section('CNS', _cnsCtrl),
-          _section('Musculoskeletal', _musculoskeletalCtrl),
-          _section('ENT', _entCtrl),
-          _section('Skin', _skinCtrl),
-          _section('Additional notes', _notesCtrl, maxLines: 4),
-          const SizedBox(height: 16),
+          for (final section in examinationQuestionnaireSections)
+            EncounterQuestionnaireSection(
+              key: ValueKey(section.id),
+              section: section,
+              answers: _answers[section.id] ?? {},
+              savedNote: _savedNotes[section.id],
+              directEditController: _directEditControllers[section.id],
+              onAnswersChanged: (next) {
+                _answers[section.id] = next;
+                _useDirectEditOnSave[section.id] = false;
+              },
+              onDirectEditChanged: () {
+                _useDirectEditOnSave[section.id] = true;
+              },
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Additional notes',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _additionalNotesCtrl,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Extra examination findings not covered above',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Align(
             alignment: Alignment.centerRight,
             child: FilledButton.icon(
@@ -208,37 +267,6 @@ class _DoctorEncounterExaminationTabState
                     )
                   : const Icon(Icons.save_outlined, size: 18),
               label: const Text('Save draft'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _section(String label, TextEditingController ctrl, {int maxLines = 2}) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: ctrl,
-            maxLines: maxLines,
-            decoration: InputDecoration(
-              hintText: 'Enter $label',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
             ),
           ),
         ],

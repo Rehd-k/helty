@@ -7,6 +7,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
+import 'package:helty/src/radiology/ui/widgets/radiology_image_viewer.dart';
 import 'package:helty/src/services/service_category_service.dart';
 import 'package:helty/src/services/service_service.dart';
 
@@ -176,78 +177,18 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     ThemeData theme,
     EncounterScope scope,
   ) {
-    final firstItem = order.items.isNotEmpty ? order.items.first : null;
-    final canDelete = _canDeleteRadiologyOrder(order, scope);
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Order ${order.id.substring(0, 8)}'),
-        content: SizedBox(
-          width: 440,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _ResultRow(
-                  label: 'Ordered',
-                  value: DateFormatter.formatFromBackend(
-                    order.createdAt,
-                    DateFormatter.dateTime,
-                  ),
-                ),
-                if (order.encounterId != null &&
-                    order.encounterId!.trim().isNotEmpty)
-                  _ResultRow(label: 'Encounter', value: order.encounterId!),
-                _ResultRow(label: 'Status', value: order.status.name),
-                _ResultRow(label: 'Items', value: '${order.items.length}'),
-                if (firstItem != null) ...[
-                  _ResultRow(
-                    label: 'Modality',
-                    value: firstItem.scanType.displayLabel,
-                  ),
-                  if (firstItem.bodyPart != null &&
-                      firstItem.bodyPart!.trim().isNotEmpty)
-                    _ResultRow(label: 'Area', value: firstItem.bodyPart!),
-                  if (firstItem.contrast != null)
-                    _ResultRow(
-                      label: 'Contrast',
-                      value: firstItem.contrast! ? 'Yes' : 'No',
-                    ),
-                ],
-                const SizedBox(height: 16),
-                Text(
-                  'Results',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Open radiology detail screen for full item schedule/procedure/images/report.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          if (canDelete)
-            TextButton(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                await _deleteRadiologyOrder(order);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.error,
-              ),
-              child: const Text('Delete'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
-          ),
-        ],
+      builder: (ctx) => _ImagingOrderResultsDialog(
+        order: order,
+        orderService: _orderService,
+        theme: theme,
+        scope: scope,
+        canDelete: _canDeleteRadiologyOrder(order, scope),
+        onDelete: () async {
+          Navigator.of(ctx).pop();
+          await _deleteRadiologyOrder(order);
+        },
       ),
     );
   }
@@ -772,6 +713,154 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(onPressed: _submitOrder, child: const Text('Order')),
+      ],
+    );
+  }
+}
+
+class _ImagingOrderResultsDialog extends StatefulWidget {
+  const _ImagingOrderResultsDialog({
+    required this.order,
+    required this.orderService,
+    required this.theme,
+    required this.scope,
+    required this.canDelete,
+    required this.onDelete,
+  });
+
+  final RadiologyOrder order;
+  final RadiologyService orderService;
+  final ThemeData theme;
+  final EncounterScope scope;
+  final bool canDelete;
+  final Future<void> Function() onDelete;
+
+  @override
+  State<_ImagingOrderResultsDialog> createState() =>
+      _ImagingOrderResultsDialogState();
+}
+
+class _ImagingOrderResultsDialogState
+    extends State<_ImagingOrderResultsDialog> {
+  bool _loadingImages = true;
+  String? _imagesError;
+  List<RadiologyImage> _images = [];
+  Map<String, String> _itemLabels = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImages();
+  }
+
+  Future<void> _loadImages() async {
+    setState(() {
+      _loadingImages = true;
+      _imagesError = null;
+    });
+    try {
+      final full = await widget.orderService.getOrder(widget.order.id);
+      if (!mounted) return;
+      _itemLabels = radiologyOrderItemLabels(full);
+      final images = await fetchRadiologyOrderImages(widget.orderService, full);
+      if (!mounted) return;
+      setState(() {
+        _images = images;
+        _loadingImages = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _imagesError = e.toString();
+        _loadingImages = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    final theme = widget.theme;
+    final firstItem = order.items.isNotEmpty ? order.items.first : null;
+
+    return AlertDialog(
+      title: Text('Order ${order.id.substring(0, 8)}'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ResultRow(
+                label: 'Ordered',
+                value: DateFormatter.formatFromBackend(
+                  order.createdAt,
+                  DateFormatter.dateTime,
+                ),
+              ),
+              if (order.encounterId != null &&
+                  order.encounterId!.trim().isNotEmpty)
+                _ResultRow(label: 'Encounter', value: order.encounterId!),
+              _ResultRow(label: 'Status', value: order.status.name),
+              _ResultRow(label: 'Items', value: '${order.items.length}'),
+              if (firstItem != null) ...[
+                _ResultRow(
+                  label: 'Modality',
+                  value: firstItem.scanType.displayLabel,
+                ),
+                if (firstItem.bodyPart != null &&
+                    firstItem.bodyPart!.trim().isNotEmpty)
+                  _ResultRow(label: 'Area', value: firstItem.bodyPart!),
+                if (firstItem.contrast != null)
+                  _ResultRow(
+                    label: 'Contrast',
+                    value: firstItem.contrast! ? 'Yes' : 'No',
+                  ),
+              ],
+              const SizedBox(height: 16),
+              Text(
+                'Results',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_loadingImages)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_imagesError != null)
+                Text(
+                  'Could not load images: $_imagesError',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                )
+              else
+                RadiologyImageCarousel(
+                  service: widget.orderService,
+                  images: _images,
+                  itemLabels: _itemLabels,
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        if (widget.canDelete)
+          TextButton(
+            onPressed: widget.onDelete,
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
       ],
     );
   }

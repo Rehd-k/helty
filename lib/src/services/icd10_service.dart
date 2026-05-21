@@ -1,35 +1,79 @@
+import 'package:dio/dio.dart';
+
 import 'package:helty/src/models/icd10_model.dart';
+import 'package:helty/src/services/api_service.dart';
 
-/// ICD-10 search (mock list until API exists).
+/// Paginated ICD-10 search result from `GET /icd10/search`.
+class Icd10PagedResult {
+  const Icd10PagedResult({
+    required this.items,
+    required this.total,
+    required this.skip,
+    required this.take,
+  });
+
+  final List<Icd10Model> items;
+  final int total;
+  final int skip;
+  final int take;
+}
+
+/// ICD-10 lookup via backend `/icd10` endpoints.
 class Icd10Service {
-  static final List<Icd10Model> _mockList = [
-    const Icd10Model(code: 'A09', description: 'Infectious gastroenteritis and colitis, unspecified'),
-    const Icd10Model(code: 'A15.0', description: 'Tuberculosis of lung'),
-    const Icd10Model(code: 'E11.9', description: 'Type 2 diabetes mellitus without complications'),
-    const Icd10Model(code: 'E78.5', description: 'Hyperlipidemia, unspecified'),
-    const Icd10Model(code: 'G43.9', description: 'Migraine, unspecified'),
-    const Icd10Model(code: 'I10', description: 'Essential (primary) hypertension'),
-    const Icd10Model(code: 'J00', description: 'Acute nasopharyngitis [common cold]'),
-    const Icd10Model(code: 'J06.9', description: 'Acute upper respiratory infection, unspecified'),
-    const Icd10Model(code: 'J18.9', description: 'Pneumonia, unspecified organism'),
-    const Icd10Model(code: 'K21.9', description: 'Gastro-oesophageal reflux disease without oesophagitis'),
-    const Icd10Model(code: 'K29.70', description: 'Gastritis, unspecified, without bleeding'),
-    const Icd10Model(code: 'M54.5', description: 'Low back pain'),
-    const Icd10Model(code: 'R10.4', description: 'Other and unspecified abdominal pain'),
-    const Icd10Model(code: 'R11.0', description: 'Nausea'),
-    const Icd10Model(code: 'R51', description: 'Headache'),
-    const Icd10Model(code: 'R53', description: 'Malaise and fatigue'),
-  ];
+  Icd10Service() : _dio = ApiService().dio;
 
-  /// Search by code or description (case-insensitive substring).
-  Future<List<Icd10Model>> search(String query) async {
-    await Future.delayed(const Duration(milliseconds: 150));
-    if (query.trim().isEmpty) return List.from(_mockList);
-    final q = query.trim().toLowerCase();
-    return _mockList
-        .where((e) =>
-            e.code.toLowerCase().contains(q) ||
-            e.description.toLowerCase().contains(q))
+  final Dio _dio;
+
+  /// Typeahead search — `GET /icd10/search`.
+  Future<Icd10PagedResult> search(
+    String q, {
+    int take = 20,
+    int skip = 0,
+    String? specialty,
+    String? icdGroup,
+  }) async {
+    final trimmed = q.trim();
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/icd10/search',
+      queryParameters: {
+        if (trimmed.isNotEmpty) 'q': trimmed,
+        'skip': skip,
+        'take': take,
+        if (specialty != null && specialty.trim().isNotEmpty)
+          'specialty': specialty.trim(),
+        if (icdGroup != null && icdGroup.trim().isNotEmpty)
+          'icdGroup': icdGroup.trim(),
+      },
+    );
+    return _parsePaged(resp.data);
+  }
+
+  /// Convenience wrapper returning only [Icd10PagedResult.items].
+  Future<List<Icd10Model>> searchList(
+    String q, {
+    int take = 20,
+    int skip = 0,
+  }) async {
+    final page = await search(q, take: take, skip: skip);
+    return page.items;
+  }
+
+  Icd10PagedResult _parsePaged(Map<String, dynamic>? data) {
+    if (data == null) {
+      return const Icd10PagedResult(items: [], total: 0, skip: 0, take: 0);
+    }
+    final rawList = data['items'] as List<dynamic>? ?? [];
+    final items = rawList
+        .map((e) => Icd10Model.fromJson(e as Map<String, dynamic>))
         .toList();
+    final total = (data['total'] as num?)?.toInt() ?? items.length;
+    final skip = (data['skip'] as num?)?.toInt() ?? 0;
+    final take = (data['take'] as num?)?.toInt() ?? items.length;
+    return Icd10PagedResult(
+      items: items,
+      total: total,
+      skip: skip,
+      take: take,
+    );
   }
 }

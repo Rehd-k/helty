@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/models/icd10_model.dart';
 import 'package:helty/src/services/encounter_service.dart';
@@ -34,12 +37,7 @@ class _DoctorEncounterDiagnosisTabState
   bool _loaded = false;
   bool _saving = false;
   bool _draftLoadScheduled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _runSearch('');
-  }
+  Timer? _searchDebounce;
 
   @override
   void didChangeDependencies() {
@@ -54,8 +52,24 @@ class _DoctorEncounterDiagnosisTabState
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _primarySearchCtrl.dispose();
     super.dispose();
+  }
+
+  String _errorMessage(Object e) {
+    if (e is DioException && e.error is AppException) {
+      return (e.error as AppException).message;
+    }
+    if (e is AppException) return e.message;
+    return e.toString();
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _loadDraft() async {
@@ -99,13 +113,50 @@ class _DoctorEncounterDiagnosisTabState
   }
 
   Future<void> _runSearch(String q) async {
+    final query = q.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _searching = false;
+      });
+      return;
+    }
     setState(() => _searching = true);
-    final results = await _icd10Service.search(q);
-    if (!mounted) return;
+    try {
+      final page = await _icd10Service.search(query, take: 20);
+      if (!mounted) return;
+      setState(() {
+        _searchResults = page.items;
+        _searching = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _searchResults = [];
+        _searching = false;
+      });
+      _showErrorSnackBar('ICD-10 search failed: ${_errorMessage(e)}');
+    }
+  }
+
+  void _onPrimarySearchChanged(String v) {
+    _searchDebounce?.cancel();
+    final query = v.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _searching = false;
+      });
+      return;
+    }
     setState(() {
-      _searchResults = results;
-      _searching = false;
+      _searching = true;
+      _searchResults = [];
     });
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _runSearch(v),
+    );
   }
 
   Future<void> _save() async {
@@ -139,11 +190,27 @@ class _DoctorEncounterDiagnosisTabState
       setState(() => _saving = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: ${_errorMessage(e)}')),
+      );
       setState(() => _saving = false);
     }
+  }
+
+  Widget _icd10ResultTile(Icd10Model e, VoidCallback onTap) {
+    final specialty = e.specialty?.trim();
+    return ListTile(
+      title: Text(
+        e.displayLabel,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: specialty != null && specialty.isNotEmpty
+          ? Text(specialty, maxLines: 1, overflow: TextOverflow.ellipsis)
+          : null,
+      onTap: onTap,
+    );
   }
 
   @override
@@ -160,6 +227,12 @@ class _DoctorEncounterDiagnosisTabState
     if (_loading && !_loaded) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    final showSearchHint =
+        _primary == null &&
+        _primarySearchCtrl.text.trim().isEmpty &&
+        !_searching &&
+        _searchResults.isEmpty;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -193,8 +266,18 @@ class _DoctorEncounterDiagnosisTabState
               ),
               filled: true,
             ),
-            onChanged: (v) => _runSearch(v),
+            onChanged: _onPrimarySearchChanged,
           ),
+          if (showSearchHint) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Type a code or description to search ICD-10',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontStyle: FontStyle.italic,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
@@ -214,7 +297,8 @@ class _DoctorEncounterDiagnosisTabState
                 borderRadius: BorderRadius.circular(12),
               ),
               title: Text(
-                _primary!.code == DoctorEncounterDiagnosisTab.customDiagnosisCode
+                _primary!.code ==
+                        DoctorEncounterDiagnosisTab.customDiagnosisCode
                     ? 'Custom diagnosis'
                     : _primary!.code,
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -231,26 +315,16 @@ class _DoctorEncounterDiagnosisTabState
           ],
           if (_searchResults.isNotEmpty && _primary == null) ...[
             const SizedBox(height: 8),
-            ..._searchResults
-                .take(8)
-                .map(
-                  (e) => ListTile(
-                    title: Text(
-                      e.code,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      e.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () => setState(() {
-                      _primary = e;
-                      _primarySearchCtrl.clear();
-                      _searchResults = [];
-                    }),
-                  ),
-                ),
+            ..._searchResults.map(
+              (e) => _icd10ResultTile(e, () {
+                setState(() {
+                  _primary = e;
+                  _primarySearchCtrl.clear();
+                  _searchResults = [];
+                  _searching = false;
+                });
+              }),
+            ),
           ],
           const SizedBox(height: 24),
           Text(
@@ -266,7 +340,7 @@ class _DoctorEncounterDiagnosisTabState
               title: Text(
                 e.code == DoctorEncounterDiagnosisTab.customDiagnosisCode
                     ? e.description
-                    : '${e.code} — ${e.description}',
+                    : e.displayLabel,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -305,70 +379,12 @@ class _DoctorEncounterDiagnosisTabState
   }
 
   Future<void> _showAddSecondary(BuildContext context) async {
-    Icd10Model? selected;
-    await showDialog<void>(
+    final selected = await showDialog<Icd10Model>(
       context: context,
-      builder: (ctx) {
-        final searchCtrl = TextEditingController();
-        List<Icd10Model> results = [];
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return AlertDialog(
-              title: const Text('Add secondary diagnosis (ICD-10)'),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: searchCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Search ICD-10',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (v) async {
-                        final r = await _icd10Service.search(v);
-                        setDialogState(() => results = r);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Flexible(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: results.take(6).length,
-                        itemBuilder: (_, i) {
-                          final e = results[i];
-                          return ListTile(
-                            title: Text(e.code),
-                            subtitle: Text(
-                              e.description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () {
-                              selected = e;
-                              Navigator.of(ctx).pop();
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (ctx) => _AddSecondaryIcd10Dialog(icd10Service: _icd10Service),
     );
     if (selected != null && mounted) {
-      setState(() => _secondaries.add(selected!));
+      setState(() => _secondaries.add(selected));
     }
   }
 
@@ -409,10 +425,8 @@ class _DoctorEncounterDiagnosisTabState
       ),
     );
     final text = ctrl.text.trim();
-    // Dialog route may still be animating; defer dispose until after the field
-    // is detached so the TextField does not touch a disposed controller.
     WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
-    if (ok != true || !mounted) {
+    if (ok != true || !context.mounted) {
       return;
     }
     if (text.isEmpty) {
@@ -428,6 +442,7 @@ class _DoctorEncounterDiagnosisTabState
       );
       _primarySearchCtrl.clear();
       _searchResults = [];
+      _searching = false;
     });
   }
 
@@ -464,7 +479,7 @@ class _DoctorEncounterDiagnosisTabState
     );
     final text = ctrl.text.trim();
     WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
-    if (ok != true || !mounted) {
+    if (ok != true || !context.mounted) {
       return;
     }
     if (text.isEmpty) {
@@ -481,5 +496,167 @@ class _DoctorEncounterDiagnosisTabState
         ),
       );
     });
+  }
+}
+
+class _AddSecondaryIcd10Dialog extends StatefulWidget {
+  const _AddSecondaryIcd10Dialog({required this.icd10Service});
+
+  final Icd10Service icd10Service;
+
+  @override
+  State<_AddSecondaryIcd10Dialog> createState() =>
+      _AddSecondaryIcd10DialogState();
+}
+
+class _AddSecondaryIcd10DialogState extends State<_AddSecondaryIcd10Dialog> {
+  final _searchCtrl = TextEditingController();
+  List<Icd10Model> _results = [];
+  bool _searching = false;
+  Timer? _searchDebounce;
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  String _errorMessage(Object e) {
+    if (e is DioException && e.error is AppException) {
+      return (e.error as AppException).message;
+    }
+    if (e is AppException) return e.message;
+    return e.toString();
+  }
+
+  Future<void> _runSearch(String q) async {
+    final query = q.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _results = [];
+        _searching = false;
+      });
+      return;
+    }
+    setState(() => _searching = true);
+    try {
+      final page = await widget.icd10Service.search(query, take: 20);
+      if (!mounted) return;
+      setState(() {
+        _results = page.items;
+        _searching = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _results = [];
+        _searching = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ICD-10 search failed: ${_errorMessage(e)}')),
+      );
+    }
+  }
+
+  void _onSearchChanged(String v) {
+    _searchDebounce?.cancel();
+    final query = v.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _results = [];
+        _searching = false;
+      });
+      return;
+    }
+    setState(() {
+      _searching = true;
+      _results = [];
+    });
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _runSearch(v),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final showHint =
+        _searchCtrl.text.trim().isEmpty && !_searching && _results.isEmpty;
+
+    return AlertDialog(
+      title: const Text('Add secondary diagnosis (ICD-10)'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Search ICD-10 by code or description',
+                border: const OutlineInputBorder(),
+                suffixIcon: _searching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : const Icon(Icons.search),
+              ),
+              onChanged: _onSearchChanged,
+            ),
+            if (showHint) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Type a code or description to search ICD-10',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Flexible(
+              child: _results.isEmpty && !_searching
+                  ? const SizedBox.shrink()
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _results.length,
+                      itemBuilder: (_, i) {
+                        final e = _results[i];
+                        final specialty = e.specialty?.trim();
+                        return ListTile(
+                          title: Text(
+                            e.displayLabel,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: specialty != null && specialty.isNotEmpty
+                              ? Text(
+                                  specialty,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : null,
+                          onTap: () => Navigator.of(context).pop(e),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
   }
 }

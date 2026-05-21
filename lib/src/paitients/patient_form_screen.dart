@@ -24,6 +24,7 @@ class PatientFormScreen extends ConsumerStatefulWidget {
 class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   final _formKey = GlobalKey<FormState>();
   static const String _nigeriaName = 'Nigeria';
+  static const String _lgaOtherOption = 'Other';
   static const List<String> _titleOptions = <String>[
     'Mr',
     'Miss',
@@ -86,6 +87,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   List<sac.LGA> _availableLgas = const [];
   sac.State? _selectedNigerianState;
   String? _selectedLgaName;
+  bool _lgaIsOther = false;
 
   /// Text field values as they were after [initState] (for merge-on-save when editing).
   late Map<String, String> _fieldSnapshot;
@@ -743,17 +745,18 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                           options: _titleOptions,
                         ),
                         _buildTextField(
-                          _surnameController,
-                          'Surname *',
-                          required: true,
-                          readOnly: widget.patient?.lockNames ?? false,
-                        ),
-                        _buildTextField(
                           _firstNameController,
                           'First Name *',
                           required: true,
                           readOnly: widget.patient?.lockNames ?? false,
                         ),
+                        _buildTextField(
+                          _surnameController,
+                          'Surname *',
+                          required: true,
+                          readOnly: widget.patient?.lockNames ?? false,
+                        ),
+
                         _buildTextField(_otherNameController, 'Other Name'),
                       ],
                     ),
@@ -1118,6 +1121,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       _selectedNigerianState = null;
       _availableLgas = const [];
       _selectedLgaName = null;
+      _lgaIsOther = false;
       return;
     }
 
@@ -1139,6 +1143,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     if (selectedState == null) {
       _availableLgas = const [];
       _selectedLgaName = null;
+      _lgaIsOther = false;
       _lgaController.clear();
       return;
     }
@@ -1153,113 +1158,204 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
     if (keepCurrentLga) {
       final normalizedLga = _lgaController.text.trim().toLowerCase();
+      if (normalizedLga.isEmpty) {
+        _selectedLgaName = null;
+        _lgaIsOther = false;
+        return;
+      }
       final match = _availableLgas.where(
         (lga) => lga.name.toLowerCase() == normalizedLga,
       );
-      _selectedLgaName = match.isNotEmpty ? match.first.name : null;
+      if (match.isNotEmpty) {
+        _selectedLgaName = match.first.name;
+        _lgaIsOther = false;
+      } else {
+        _selectedLgaName = _lgaOtherOption;
+        _lgaIsOther = true;
+      }
       return;
     }
 
     _selectedLgaName = null;
+    _lgaIsOther = false;
     _lgaController.clear();
   }
 
-  Widget _buildNationalityDropdown() {
-    final selectedNationality = _countries.where(
-      (country) =>
-          country.name.toLowerCase() ==
-          _nationalityController.text.trim().toLowerCase(),
+  Iterable<T> _optionsStartingWith<T>(
+    String query,
+    List<T> options,
+    String Function(T) label,
+  ) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) return Iterable<T>.empty();
+    return options.where(
+      (option) => label(option).toLowerCase().startsWith(normalized),
     );
+  }
 
-    return DropdownButtonFormField<String>(
-      initialValue: selectedNationality.isNotEmpty
-          ? selectedNationality.first.name
-          : null,
-      decoration: const InputDecoration(
-        labelText: 'Nationality',
-        border: OutlineInputBorder(),
-      ),
-      validator: (value) =>
-          (value == null || value.trim().isEmpty) ? 'Required' : null,
-      isExpanded: true,
-      items: _countries
-          .map(
-            (country) => DropdownMenuItem<String>(
-              value: country.name,
-              child: Text(country.name),
-            ),
-          )
-          .toList(),
-      onChanged: (value) {
-        if (value == null) return;
-        setState(() {
-          _nationalityController.text = value;
-          if (_equalsIgnoreCase(value, _nigeriaName)) {
-            _selectedNigerianState = _findNigerianStateByName(
-              _stateController.text,
+  Widget _buildPrefixAutocompleteField<T extends Object>({
+    required TextEditingController controller,
+    required String labelText,
+    required List<T> options,
+    required String Function(T) label,
+    required void Function(T selection) onSelected,
+    void Function(String value)? onTyped,
+    bool required = false,
+    String? requiredMessage,
+  }) {
+    return Autocomplete<T>(
+      initialValue: TextEditingValue(text: controller.text),
+      displayStringForOption: label,
+      optionsBuilder: (value) =>
+          _optionsStartingWith(value.text, options, label),
+      onSelected: (selection) {
+        controller.text = label(selection);
+        onSelected(selection);
+      },
+      fieldViewBuilder:
+          (context, textEditingController, focusNode, onSubmitted) {
+            if (textEditingController.text != controller.text) {
+              textEditingController.value = TextEditingValue(
+                text: controller.text,
+                selection: TextSelection.collapsed(
+                  offset: controller.text.length,
+                ),
+              );
+            }
+            return TextFormField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: labelText,
+                border: const OutlineInputBorder(),
+              ),
+              validator: required
+                  ? (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return requiredMessage ?? 'Required';
+                      }
+                      return null;
+                    }
+                  : null,
+              onChanged: (value) {
+                controller.text = value;
+                onTyped?.call(value);
+              },
+              onFieldSubmitted: (_) => onSubmitted(),
             );
-            _refreshLgasForSelectedState(keepCurrentLga: true);
-          } else {
-            _selectedNigerianState = null;
-            _selectedLgaName = null;
+          },
+    );
+  }
+
+  void _applyNationalitySelection(String value) {
+    setState(() {
+      _nationalityController.text = value;
+      if (_equalsIgnoreCase(value, _nigeriaName)) {
+        _selectedNigerianState = _findNigerianStateByName(
+          _stateController.text,
+        );
+        _refreshLgasForSelectedState(keepCurrentLga: true);
+      } else {
+        _selectedNigerianState = null;
+        _selectedLgaName = null;
+        _lgaIsOther = false;
+        _availableLgas = const [];
+        _stateController.clear();
+        _lgaController.clear();
+      }
+    });
+  }
+
+  void _onNationalityTyped(String value) {
+    setState(() => _nationalityController.text = value);
+    final match = _countries.where(
+      (country) => _equalsIgnoreCase(country.name, value.trim()),
+    );
+    if (match.isNotEmpty) {
+      _applyNationalitySelection(match.first.name);
+    }
+  }
+
+  Widget _buildNationalityDropdown() {
+    return _buildPrefixAutocompleteField<cp.Country>(
+      controller: _nationalityController,
+      labelText: 'Nationality',
+      options: _countries,
+      label: (country) => country.name,
+      required: true,
+      onSelected: (country) => _applyNationalitySelection(country.name),
+      onTyped: _onNationalityTyped,
+    );
+  }
+
+  Widget _buildNigerianStateDropdown() {
+    return _buildPrefixAutocompleteField<sac.State>(
+      controller: _stateController,
+      labelText: 'State of Origin',
+      options: _nigerianStates,
+      label: (state) => state.name,
+      required: true,
+      onSelected: (state) {
+        setState(() {
+          _selectedNigerianState = state;
+          _stateController.text = state.name;
+          _refreshLgasForSelectedState(keepCurrentLga: false);
+        });
+      },
+      onTyped: (value) {
+        setState(() {
+          _stateController.text = value;
+          _selectedNigerianState = _findNigerianStateByName(value);
+          if (_selectedNigerianState == null) {
             _availableLgas = const [];
-            _stateController.clear();
+            _selectedLgaName = null;
+            _lgaIsOther = false;
             _lgaController.clear();
+          } else {
+            _refreshLgasForSelectedState(keepCurrentLga: true);
           }
         });
       },
     );
   }
 
-  Widget _buildNigerianStateDropdown() {
-    return DropdownButtonFormField<sac.State>(
-      initialValue: _selectedNigerianState,
-      decoration: const InputDecoration(
-        labelText: 'State of Origin',
-        border: OutlineInputBorder(),
-      ),
-      validator: (value) => value == null ? 'Required' : null,
-      isExpanded: true,
-      items: _nigerianStates
-          .map(
-            (state) => DropdownMenuItem<sac.State>(
-              value: state,
-              child: Text(state.name),
-            ),
-          )
-          .toList(),
-      onChanged: (value) {
-        setState(() {
-          _selectedNigerianState = value;
-          _stateController.text = value?.name ?? '';
-          _refreshLgasForSelectedState(keepCurrentLga: false);
-        });
-      },
-    );
-  }
-
   Widget _buildNigerianLgaDropdown() {
+    if (_lgaIsOther) {
+      return _buildTextField(_lgaController, 'LGA (Other)');
+    }
+
     return DropdownButtonFormField<String>(
+      key: ValueKey('lga-${_selectedNigerianState?.stateId}-$_selectedLgaName'),
       initialValue: _selectedLgaName,
       decoration: const InputDecoration(
         labelText: 'LGA',
         border: OutlineInputBorder(),
       ),
       isExpanded: true,
-      items: _availableLgas
-          .map(
-            (lga) => DropdownMenuItem<String>(
-              value: lga.name,
-              child: Text(lga.name),
-            ),
-          )
-          .toList(),
-      onChanged: _availableLgas.isEmpty
+      items: [
+        ..._availableLgas.map(
+          (lga) =>
+              DropdownMenuItem<String>(value: lga.name, child: Text(lga.name)),
+        ),
+        const DropdownMenuItem<String>(
+          value: _lgaOtherOption,
+          child: Text(_lgaOtherOption),
+        ),
+      ],
+      onChanged: _selectedNigerianState == null
           ? null
           : (value) {
+              if (value == null) return;
               setState(() {
-                _selectedLgaName = value;
-                _lgaController.text = value ?? '';
+                if (value == _lgaOtherOption) {
+                  _lgaIsOther = true;
+                  _selectedLgaName = _lgaOtherOption;
+                  _lgaController.clear();
+                } else {
+                  _lgaIsOther = false;
+                  _selectedLgaName = value;
+                  _lgaController.text = value;
+                }
               });
             },
     );

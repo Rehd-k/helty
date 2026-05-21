@@ -14,6 +14,7 @@ import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/printing/pdf/radiology_report_pdf.dart';
 import 'package:helty/src/radiology/ui/radiology_ui_helpers.dart';
+import 'package:helty/src/radiology/ui/widgets/radiology_image_viewer.dart';
 import 'package:printing/printing.dart';
 
 @RoutePage()
@@ -440,7 +441,10 @@ class _RadiologyRequestDetailScreenState
                     ...item.images!.map(
                       (img) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: _RadiologyAttachmentPreview(image: img),
+                        child: RadiologyImageSlide(
+                          service: ref.read(radiologyServiceProvider),
+                          image: img,
+                        ),
                       ),
                     ),
                   ],
@@ -532,205 +536,6 @@ class _RadiologyRequestDetailScreenState
   String _fmt(String? value) {
     if (value == null || value.isEmpty) return '-';
     return DateFormatter.formatFromBackend(value, DateFormatter.dateTime);
-  }
-}
-
-class _RadiologyAttachmentPreview extends ConsumerStatefulWidget {
-  const _RadiologyAttachmentPreview({required this.image});
-
-  final RadiologyImage image;
-
-  @override
-  ConsumerState<_RadiologyAttachmentPreview> createState() =>
-      _RadiologyAttachmentPreviewState();
-}
-
-class _RadiologyAttachmentPreviewState
-    extends ConsumerState<_RadiologyAttachmentPreview> {
-  Future<Uint8List>? _bytesFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _bytesFuture = _loadBytes();
-  }
-
-  @override
-  void didUpdateWidget(covariant _RadiologyAttachmentPreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.image.id != widget.image.id) {
-      _bytesFuture = _loadBytes();
-    }
-  }
-
-  Future<Uint8List> _loadBytes() async {
-    final raw =
-        await ref.read(radiologyServiceProvider).getImageFileBytes(widget.image.id);
-    return Uint8List.fromList(raw);
-  }
-
-  String _uploadedLabel() {
-    final at = widget.image.uploadedAt;
-    final when = at == null || at.isEmpty
-        ? '-'
-        : DateFormatter.formatFromBackend(at, DateFormatter.dateTime);
-    final by = widget.image.uploadedBy?.displayName.isNotEmpty == true
-        ? widget.image.uploadedBy!.displayName
-        : 'staff';
-    return '${widget.image.mimeType ?? 'file'} · $when · $by';
-  }
-
-  void _openImageFullScreen(BuildContext context, Uint8List bytes) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        final size = MediaQuery.sizeOf(ctx);
-        return Dialog(
-          insetPadding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: size.width * 0.92,
-            height: size.height * 0.88,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.image.fileName,
-                          style: Theme.of(ctx).textTheme.titleSmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: InteractiveViewer(
-                    minScale: 0.5,
-                    maxScale: 4,
-                    child: Center(
-                      child: Image.memory(bytes, fit: BoxFit.contain),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isPdf = radiologyImageIsLikelyPdf(widget.image);
-    final isRaster = radiologyImageIsLikelyRaster(widget.image);
-
-    if (!isPdf && !isRaster) {
-      return Card(
-        child: ListTile(
-          leading: Icon(Icons.insert_drive_file_outlined,
-              color: theme.colorScheme.primary),
-          title: Text(widget.image.fileName),
-          subtitle: Text(_uploadedLabel()),
-        ),
-      );
-    }
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: FutureBuilder<Uint8List>(
-        future: _bytesFuture,
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return ListTile(
-              leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
-              title: Text(widget.image.fileName),
-              subtitle: Text('Could not load file.\n${snap.error}'),
-            );
-          }
-          if (!snap.hasData) {
-            return ListTile(
-              leading: const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              title: Text(widget.image.fileName),
-              subtitle: Text(_uploadedLabel()),
-            );
-          }
-          final bytes = snap.data!;
-
-          if (isPdf) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListTile(
-                  dense: true,
-                  leading: Icon(Icons.picture_as_pdf,
-                      color: theme.colorScheme.error),
-                  title: Text(widget.image.fileName),
-                  subtitle: Text(_uploadedLabel()),
-                ),
-                SizedBox(
-                  height: 320,
-                  child: PdfPreview(
-                    build: (_) async => bytes,
-                    canChangePageFormat: false,
-                    canChangeOrientation: false,
-                    pdfFileName: widget.image.fileName,
-                  ),
-                ),
-              ],
-            );
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.image_outlined),
-                title: Text(widget.image.fileName),
-                subtitle: Text(_uploadedLabel()),
-              ),
-              Material(
-                color: theme.colorScheme.surfaceContainerHighest,
-                child: InkWell(
-                  onTap: () => _openImageFullScreen(context, bytes),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 240),
-                    child: Center(
-                      child: Image.memory(
-                        bytes,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            'Preview not available for this file.',
-                            style: theme.textTheme.bodySmall,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
   }
 }
 
