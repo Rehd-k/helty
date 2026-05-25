@@ -54,6 +54,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   final _bmiCtrl = TextEditingController();
   final _pulseCtrl = TextEditingController();
   final _spo2Ctrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -75,6 +76,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     _bmiCtrl.dispose();
     _pulseCtrl.dispose();
     _spo2Ctrl.dispose();
+    _notesCtrl.dispose();
     super.dispose();
   }
 
@@ -203,6 +205,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     _bmiCtrl.clear();
     _pulseCtrl.clear();
     _spo2Ctrl.clear();
+    _notesCtrl.clear();
   }
 
   void _applyVitalsFrom(PatientVitalsModel? vitals) {
@@ -224,6 +227,9 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     setDouble(_bmiCtrl, vitals.bmi);
     setInt(_pulseCtrl, vitals.pulseRate);
     setDouble(_spo2Ctrl, vitals.spo2);
+    if (vitals.notes != null && vitals.notes!.isNotEmpty) {
+      _notesCtrl.text = vitals.notes!;
+    }
   }
 
   Future<void> _saveVitalsFor(WaitingPatientModel waiting) async {
@@ -239,6 +245,13 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
       return double.tryParse(v);
     }
 
+    String? parseNotes(String value) {
+      final v = value.trim();
+      if (v.isEmpty) return null;
+      return v;
+    }
+
+    final notes = parseNotes(_notesCtrl.text);
     final existing = waiting.patientVitals;
     if (existing != null && existing.id.isNotEmpty) {
       await _waitingService.updatePatientVitals(
@@ -252,6 +265,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
           bmi: parseDouble(_bmiCtrl.text),
           pulseRate: parseInt(_pulseCtrl.text),
           spo2: parseDouble(_spo2Ctrl.text),
+          notes: notes,
         ),
       );
     } else {
@@ -267,6 +281,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
           bmi: parseDouble(_bmiCtrl.text),
           pulseRate: parseInt(_pulseCtrl.text),
           spo2: parseDouble(_spo2Ctrl.text),
+          notes: notes,
         ),
       );
     }
@@ -372,9 +387,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
   }) async {
     if (_selectedRoom == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a consulting room.'),
-        ),
+        const SnackBar(content: Text('Please select a consulting room.')),
       );
       return;
     }
@@ -1383,6 +1396,8 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                         ),
                       ],
                     ),
+                  const SizedBox(height: 20),
+                  _buildNotesInput(colorScheme),
                   const SizedBox(height: 24),
                   Text(
                     "Assign Consulting Room",
@@ -1538,6 +1553,51 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildNotesInput(ColorScheme colorScheme) {
+    return TextField(
+      controller: _notesCtrl,
+      maxLines: 3,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      decoration: InputDecoration(
+        labelText: 'Notes',
+        alignLabelWithHint: true,
+        labelStyle: TextStyle(
+          fontSize: 12,
+          color: colorScheme.onSurface.withValues(alpha: 0.6),
+        ),
+        hintText: 'Optional observations, alerts, or context',
+        hintStyle: TextStyle(
+          fontSize: 13,
+          color: colorScheme.onSurface.withValues(alpha: 0.4),
+        ),
+        filled: true,
+        fillColor: colorScheme.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colorScheme.primary),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+      ),
+      style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
     );
   }
 

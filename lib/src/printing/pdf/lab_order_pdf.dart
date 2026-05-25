@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/services.dart' show rootBundle;
 import 'package:helty/src/lab/models/lab_models.dart';
+import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -645,6 +646,14 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
                                   final rowIndex = e.key;
                                   final r = e.value;
                                   final field = r.field ?? fieldMap[r.fieldId];
+                                  final eval = r.referenceEvaluation;
+                                  final resultText = labPdfResultValueText(r);
+                                  final resultColor = labPdfReferenceValueColor(
+                                        eval,
+                                        abnormalColor:
+                                            PdfColor.fromHex('#DC2626'),
+                                      ) ??
+                                      primary;
                                   final stripe = rowIndex.isEven
                                       ? PdfColors.white
                                       : surface;
@@ -655,9 +664,9 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
                                         field?.label ?? r.fieldId,
                                       ),
                                       _labBuildTableCell(
-                                        r.value,
+                                        resultText,
                                         isBold: true,
-                                        valueColor: primary,
+                                        valueColor: resultColor,
                                       ),
                                       _labBuildTableCell(field?.unit ?? ''),
                                       _labBuildTableCell(

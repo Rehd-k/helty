@@ -124,16 +124,16 @@ class SelectedPatientCard extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                _detailBadge(
-                                  Icons.badge_outlined,
-                                  selectedPatient.patientId == ''
-                                      ? 'No ID'
-                                      : selectedPatient.patientId,
-                                ),
-                                const SizedBox(width: 8),
-                              ],
+                            _detailBadge(
+                              Icons.badge_outlined,
+                              selectedPatient.patientId == ''
+                                  ? 'No ID'
+                                  : selectedPatient.patientId,
+                            ),
+                            const SizedBox(height: 4),
+                            _detailBadge(
+                              Icons.local_hospital_outlined,
+                              selectedPatient.wardHmoDisplayLine,
                             ),
                           ],
                         ),
@@ -160,20 +160,19 @@ class SelectedPatientCard extends ConsumerWidget {
   }
 
   Widget _detailBadge(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(6)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12),
-          const SizedBox(width: 4),
-          Text(
+    return Row(
+      children: [
+        Icon(icon, size: 12),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
             text,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

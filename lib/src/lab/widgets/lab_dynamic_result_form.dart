@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/lab_models.dart';
+import '../utils/lab_reference_evaluation.dart';
 
 /// Renders a dynamic result-entry form from backend-defined [LabTestField]s.
 /// Values are keyed by field id; use [initialValues] to pre-fill (e.g. from GET /lab/results/:orderItemId).
@@ -11,6 +12,7 @@ class LabDynamicResultForm extends StatefulWidget {
     required this.fields,
     required this.onChanged,
     this.initialValues = const {},
+    this.fieldEvaluations = const {},
     this.hiddenFieldIds = const {},
     this.onFieldHidden,
     this.autovalidateMode = AutovalidateMode.disabled,
@@ -18,6 +20,9 @@ class LabDynamicResultForm extends StatefulWidget {
 
   final List<LabTestField> fields;
   final Map<String, String> initialValues;
+
+  /// Per-field reference evaluation from GET /lab/results (shown after reload).
+  final Map<String, ReferenceEvaluation?> fieldEvaluations;
 
   /// Field IDs hidden for this result entry only (not removed from template).
   final Set<String> hiddenFieldIds;
@@ -132,12 +137,26 @@ class LabDynamicResultFormState extends State<LabDynamicResultForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: visible.map((field) {
+        final evaluation = widget.fieldEvaluations[field.id];
         return Padding(
           padding: const EdgeInsets.only(bottom: 20),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _buildField(context, theme, field)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildField(context, theme, field),
+                    if (labResultIsAbnormal(evaluation)) ...[
+                      const SizedBox(height: 6),
+                      _ReferenceFlagChip(
+                        label: labReferenceFlagLabel(evaluation)!,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               if (widget.onFieldHidden != null) ...[
                 const SizedBox(width: 4),
                 Tooltip(
@@ -649,6 +668,45 @@ class _ModernDateField extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _ReferenceFlagChip extends StatelessWidget {
+  const _ReferenceFlagChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 16,
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.error,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

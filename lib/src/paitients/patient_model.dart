@@ -276,7 +276,7 @@ class Patient {
         return t;
       }(),
       hmoId: json['hmoId']?.toString(),
-      hmoProvider: json['hmoProvider'] is Map<String, dynamic>
+      hmoProvider: json['hmoProvider'] is Map
           ? HmoProviderSummary.fromJson(
               Map<String, dynamic>.from(json['hmoProvider'] as Map),
             )
@@ -490,5 +490,27 @@ class Patient {
       allergies: allergies,
       prescriptionHistory: prescriptionHistory,
     );
+  }
+
+  /// Ward label for UI (defaults to OPD when missing).
+  String get wardDisplayName {
+    final w = ward?.trim();
+    return (w != null && w.isNotEmpty) ? w : 'OPD';
+  }
+
+  /// HMO name when known; null when patient has no HMO.
+  String? get hmoDisplayName {
+    final fromProvider = hmoProvider?.name.trim();
+    if (fromProvider != null && fromProvider.isNotEmpty) return fromProvider;
+    final fromField = hmo?.trim();
+    if (fromField != null && fromField.isNotEmpty) return fromField;
+    return null;
+  }
+
+  /// e.g. `OPD - CBN` or `OPD` when no HMO.
+  String get wardHmoDisplayLine {
+    final hmoName = hmoDisplayName;
+    if (hmoName == null) return wardDisplayName;
+    return '$wardDisplayName - $hmoName';
   }
 }

@@ -7,13 +7,18 @@ import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
+import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/invoice_service.dart';
+import 'package:helty/src/services/ward_service.dart';
 
 import '../../paitients/patient_model.dart';
 import '../../paitients/patient_providers.dart';
+
+/// Ward name used for drug pricing when an OPD patient has HMO coverage.
+const String kInpatientWardPriceName = 'Inpatient Ward';
 
 // -----------------------------------------------------------------------------
 // CART MODEL (uses Drug from pharmacy_model)
@@ -22,7 +27,7 @@ class CartItem {
   final Drug drug;
   int quantity;
   final int maxQuantity;
-  final double unitPrice;
+  double unitPrice;
 
   CartItem({
     required this.drug,
@@ -67,8 +72,14 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   String ward = '';
 
   final PharmacyApiService _drugService = PharmacyApiService();
+  final WardService _wardService = WardService();
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+
+  List<Ward> _wards = [];
+
+  /// When set, overrides automatic ward-based pricing.
+  String? _pricingWardOverride;
 
   /// Categories map to API therapeuticClass. "All" = no filter.
   static const List<String> categories = [
@@ -246,6 +257,85 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
       () => _onSearchChanged(_searchController.text),
     );
     _loadDrugs();
+    _loadWards();
+  }
+
+  Future<void> _loadWards() async {
+    try {
+      final wards = await _wardService.fetchWards();
+      if (!mounted) return;
+      setState(() => _wards = wards);
+    } catch (_) {
+      // Ward list is optional for manual override; pricing still uses drug price rows.
+    }
+  }
+
+  static bool _isOpdWard(String wardName) =>
+      wardName.trim().toUpperCase() == 'OPD';
+
+  static bool _patientHasHmo(Patient? patient) {
+    if (patient == null) return false;
+    if (patient.hmoId != null && patient.hmoId!.trim().isNotEmpty) return true;
+    if (patient.hmoProvider != null) return true;
+    final hmo = patient.hmo?.trim();
+    return hmo != null && hmo.isNotEmpty;
+  }
+
+  String _inpatientPricingWardName() {
+    for (final w in _wards) {
+      if (w.name.trim().toLowerCase() ==
+          kInpatientWardPriceName.toLowerCase()) {
+        return w.name;
+      }
+    }
+    for (final w in _wards) {
+      if (!_isOpdWard(w.name)) return w.name;
+    }
+    return kInpatientWardPriceName;
+  }
+
+  String _defaultPricingWardName(Patient? patient) {
+    final patientWard = patient?.wardDisplayName ?? 'OPD';
+    if (_isOpdWard(patientWard) && _patientHasHmo(patient)) {
+      return _inpatientPricingWardName();
+    }
+    return patientWard;
+  }
+
+  String _effectivePricingWardName(Patient? patient) =>
+      _pricingWardOverride ?? _defaultPricingWardName(patient);
+
+  static DrugPrice? _wardPriceForDrug(Drug drug, String wardName) {
+    final prices = drug.prices;
+    if (prices == null || prices.isEmpty) return null;
+    final target = wardName.trim().toLowerCase();
+    for (final p in prices) {
+      final name = (p.wardName ?? '').trim().toLowerCase();
+      if (name == target) return p;
+    }
+    if (!_isOpdWard(wardName)) {
+      for (final p in prices) {
+        final name = (p.wardName ?? '').trim();
+        if (name.isNotEmpty && !_isOpdWard(name)) return p;
+      }
+    }
+    return prices.first;
+  }
+
+  double _unitPriceForDrug(Drug drug, String pricingWard) =>
+      _wardPriceForDrug(drug, pricingWard)?.price ?? 0;
+
+  void _applyPricingWardToCart(String pricingWard) {
+    for (final item in cart) {
+      item.unitPrice = _unitPriceForDrug(item.drug, pricingWard);
+    }
+  }
+
+  void _onPricingWardChanged(String? wardName, Patient? patient) {
+    setState(() {
+      _pricingWardOverride = wardName;
+      _applyPricingWardToCart(_effectivePricingWardName(patient));
+    });
   }
 
   @override
@@ -434,10 +524,54 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   // LEFT PANEL: Search, Categories, Drugs Grid
   // ---------------------------------------------------------------------------
   Widget _buildLeftPanel(ColorScheme colorScheme, Patient? selectedPatient) {
+    final pricingWard = _effectivePricingWardName(selectedPatient);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: 220,
+            child: DropdownButtonFormField<String?>(
+              value: _pricingWardOverride,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Price ward',
+                filled: true,
+                fillColor: colorScheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              hint: Text(
+                'Auto ($pricingWard)',
+                overflow: TextOverflow.ellipsis,
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Auto (patient rules)'),
+                ),
+                ..._wards.map(
+                  (w) => DropdownMenuItem<String?>(
+                    value: w.name,
+                    child: Text(w.name, overflow: TextOverflow.ellipsis),
+                  ),
+                ),
+              ],
+              onChanged: (value) =>
+                  _onPricingWardChanged(value, selectedPatient),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
         // Search Bar
         TextField(
           controller: _searchController,
@@ -555,16 +689,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   itemCount: _drugs.length,
                   itemBuilder: (context, index) {
                     final drug = _drugs[index];
-
-                    final patientWard = selectedPatient?.ward ?? 'OPD';
-                    final wardPrice =
-                        (drug.prices != null && drug.prices!.isNotEmpty)
-                        ? drug.prices!.firstWhere(
-                            (p) => p.wardName == patientWard,
-                            orElse: () => drug.prices!.first,
-                          )
-                        : null;
-                    final price = wardPrice?.price ?? 0;
+                    final price = _unitPriceForDrug(drug, pricingWard);
                     final availableStock = drug.displayStock;
                     return InkWell(
                       onTap: availableStock > 0
@@ -932,7 +1057,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    selectedPatient?.ward ?? 'OPD',
+                    selectedPatient?.wardHmoDisplayLine ?? 'OPD',
                     style: TextStyle(fontSize: 12, color: colorScheme.primary),
                   ),
                 ],

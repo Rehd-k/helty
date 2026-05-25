@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
+import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/lab/ui/lab_record_sample_sheet.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -499,6 +500,10 @@ class _OrderItemCard extends StatelessWidget {
                       final label = field?.label ?? r.fieldId;
                       final unit = field?.unit;
                       final ref = field?.referenceRange;
+                      final eval = r.referenceEvaluation;
+                      final abnormal = labResultIsAbnormal(eval);
+                      final flagLabel = labReferenceFlagShortLabel(eval);
+                      final valueColor = labReferenceValueColor(theme, eval);
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Row(
@@ -515,9 +520,30 @@ class _OrderItemCard extends StatelessWidget {
                             ),
                             Expanded(
                               flex: 2,
-                              child: Text(
-                                r.value,
-                                style: theme.textTheme.bodySmall,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    r.value,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: valueColor,
+                                      fontWeight: abnormal
+                                          ? FontWeight.w700
+                                          : null,
+                                    ),
+                                  ),
+                                  if (flagLabel != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      labReferenceFlagLabel(eval)!,
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                        color: theme.colorScheme.error,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                             Expanded(

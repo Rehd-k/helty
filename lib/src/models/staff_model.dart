@@ -132,24 +132,81 @@ class Staff {
     return null;
   }
 
-  static String? _passwordResetCodeFromJson(Map<String, dynamic> json) {
-    return _optionalString(
-          json['passwordResetCode'],
-        ) ??
+  /// Top-level reset fields, or the latest non-expired entry in [passwordResets].
+  static ({String code, DateTime? expiresAt})? _passwordResetFromJson(
+    Map<String, dynamic> json,
+  ) {
+    final topCode =
+        _optionalString(json['passwordResetCode']) ??
         _optionalString(json['password_reset_code']) ??
         _optionalString(json['resetCode']) ??
         _optionalString(json['reset_code']) ??
         _optionalString(json['pendingPasswordResetCode']) ??
         _optionalString(json['forgotPasswordCode']);
+    if (topCode != null && topCode.trim().isNotEmpty) {
+      return (
+        code: topCode.trim(),
+        expiresAt:
+            _optionalDateTime(json['passwordResetCodeExpiresAt']) ??
+            _optionalDateTime(json['password_reset_code_expires_at']) ??
+            _optionalDateTime(json['passwordResetExpiresAt']) ??
+            _optionalDateTime(json['resetCodeExpiresAt']),
+      );
+    }
+    return _activePasswordResetFromResets(json);
   }
 
-  static DateTime? _passwordResetExpiresFromJson(Map<String, dynamic> json) {
-    return _optionalDateTime(
-          json['passwordResetCodeExpiresAt'],
-        ) ??
-        _optionalDateTime(json['password_reset_code_expires_at']) ??
-        _optionalDateTime(json['passwordResetExpiresAt']) ??
-        _optionalDateTime(json['resetCodeExpiresAt']);
+  static ({String code, DateTime? expiresAt})? _activePasswordResetFromResets(
+    Map<String, dynamic> json,
+  ) {
+    final resets = json['passwordResets'] ?? json['password_resets'];
+    if (resets is! List || resets.isEmpty) return null;
+
+    final now = DateTime.now().toUtc();
+    ({String code, DateTime? expiresAt, DateTime createdAt})? best;
+
+    for (final raw in resets) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      final code =
+          _optionalString(m['code']) ??
+          _optionalString(m['resetCode']) ??
+          _optionalString(m['reset_code']);
+      if (code == null || code.trim().isEmpty) continue;
+
+      final expiresAt =
+          _optionalDateTime(m['expiresAt']) ??
+          _optionalDateTime(m['expires_at']);
+      if (expiresAt != null && !expiresAt.toUtc().isAfter(now)) continue;
+
+      final createdAt =
+          _optionalDateTime(m['createdAt']) ??
+          _optionalDateTime(m['created_at']) ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+
+      final candidate = (
+        code: code.trim(),
+        expiresAt: expiresAt,
+        createdAt: createdAt,
+      );
+
+      if (best == null) {
+        best = candidate;
+        continue;
+      }
+
+      final bestExpiry = best.expiresAt ?? DateTime.utc(9999, 12, 31);
+      final candidateExpiry = candidate.expiresAt ?? DateTime.utc(9999, 12, 31);
+      if (candidateExpiry.isAfter(bestExpiry)) {
+        best = candidate;
+      } else if (candidateExpiry == bestExpiry &&
+          candidate.createdAt.isAfter(best.createdAt)) {
+        best = candidate;
+      }
+    }
+
+    if (best == null) return null;
+    return (code: best.code, expiresAt: best.expiresAt);
   }
 
   factory Staff.fromJson(Map<String, dynamic> json) {
@@ -161,6 +218,7 @@ class Staff {
         _optionalString(json['pharmacyRole']) ??
         _optionalString(json['staffRole']) ??
         _optionalString(json['role']);
+    final passwordReset = _passwordResetFromJson(json);
 
     return Staff(
       id: _requiredString(json['id']),
@@ -182,8 +240,8 @@ class Staff {
       email: json['email'] as String?,
       phone: json['phone']?.toString(), // API may return int or string
       isActive: (json['isActive'] as bool?) ?? true,
-      passwordResetCode: _passwordResetCodeFromJson(json),
-      passwordResetCodeExpiresAt: _passwordResetExpiresFromJson(json),
+      passwordResetCode: passwordReset?.code,
+      passwordResetCodeExpiresAt: passwordReset?.expiresAt,
     );
   }
 

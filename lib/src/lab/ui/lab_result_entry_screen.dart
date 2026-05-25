@@ -27,6 +27,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       GlobalKey<LabDynamicResultFormState>();
   List<LabTestField>? _fields;
   Map<String, String> _initialValues = {};
+  Map<String, ReferenceEvaluation?> _fieldEvaluations = {};
   final Set<String> _hiddenFieldIds = {};
   bool _loading = true;
   String? _error;
@@ -71,10 +72,12 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       final fields = await api.getTestFields(_testVersionId!);
       final results = await api.getResults(item.id);
       final initialValues = <String, String>{};
+      final evaluations = <String, ReferenceEvaluation?>{};
       final hidden = <String>{};
       for (final r in results) {
         if (r.fieldId.isNotEmpty) {
           initialValues[r.fieldId] = r.value;
+          evaluations[r.fieldId] = r.referenceEvaluation;
           if (r.hiddenFromReport) hidden.add(r.fieldId);
         }
       }
@@ -82,6 +85,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
         setState(() {
           _fields = fields;
           _initialValues = initialValues;
+          _fieldEvaluations = evaluations;
           _hiddenFieldIds
             ..clear()
             ..addAll(hidden);
@@ -232,6 +236,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
                   key: _formKey,
                   fields: _fields!,
                   initialValues: _initialValues,
+                  fieldEvaluations: _fieldEvaluations,
                   hiddenFieldIds: _hiddenFieldIds,
                   onFieldHidden: (fieldId) {
                     setState(() => _hiddenFieldIds.add(fieldId));

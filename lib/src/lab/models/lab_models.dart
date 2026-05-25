@@ -519,6 +519,57 @@ class LabSample {
       };
 }
 
+/// Direction when a numeric result is outside the reference range.
+enum ReferenceFlag {
+  low,
+  high;
+
+  static ReferenceFlag? fromString(String? value) {
+    if (value == null) return null;
+    switch (value.toUpperCase()) {
+      case 'LOW':
+        return ReferenceFlag.low;
+      case 'HIGH':
+        return ReferenceFlag.high;
+      default:
+        return null;
+    }
+  }
+}
+
+/// Server-computed comparison of a result value to the field reference range.
+class ReferenceEvaluation {
+  const ReferenceEvaluation({
+    this.inRange,
+    this.flag,
+    this.parsedValue,
+    this.referenceRange,
+  });
+
+  final bool? inRange;
+  final ReferenceFlag? flag;
+  final double? parsedValue;
+  final String? referenceRange;
+
+  bool get isAbnormal => inRange == false;
+
+  factory ReferenceEvaluation.fromJson(Map<String, dynamic> json) =>
+      ReferenceEvaluation(
+        inRange: json['inRange'] as bool?,
+        flag: ReferenceFlag.fromString(json['flag'] as String?),
+        parsedValue: (json['parsedValue'] as num?)?.toDouble(),
+        referenceRange: json['referenceRange'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (inRange != null) 'inRange': inRange,
+        if (flag != null)
+          'flag': flag == ReferenceFlag.low ? 'LOW' : 'HIGH',
+        if (parsedValue != null) 'parsedValue': parsedValue,
+        if (referenceRange != null) 'referenceRange': referenceRange,
+      };
+}
+
 /// Single result value for a field.
 class LabResult {
   const LabResult({
@@ -529,6 +580,7 @@ class LabResult {
     this.field,
     this.enteredBy,
     this.hiddenFromReport = false,
+    this.referenceEvaluation,
   });
 
   final String id;
@@ -542,6 +594,9 @@ class LabResult {
   /// When true, field is omitted from print/PDF and typically not shown on the
   /// report view for this order item only (template fields are unchanged).
   final bool hiddenFromReport;
+
+  /// Computed on read from field reference range and numeric value.
+  final ReferenceEvaluation? referenceEvaluation;
 
   static String? _enteredByStaffIdFromJson(Map<String, dynamic> json) {
     final direct = json['enteredById']?.toString().trim();
@@ -580,6 +635,11 @@ class LabResult {
         hiddenFromReport: (json['hiddenFromReport'] as bool?) ??
             (json['excludeFromPrint'] as bool?) ??
             false,
+        referenceEvaluation: json['referenceEvaluation'] != null
+            ? ReferenceEvaluation.fromJson(
+                json['referenceEvaluation'] as Map<String, dynamic>,
+              )
+            : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -590,5 +650,7 @@ class LabResult {
         if (field != null) 'field': field!.toJson(),
         if (enteredBy != null) 'enteredBy': enteredBy,
         'hiddenFromReport': hiddenFromReport,
+        if (referenceEvaluation != null)
+          'referenceEvaluation': referenceEvaluation!.toJson(),
       };
 }

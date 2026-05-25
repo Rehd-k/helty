@@ -65,6 +65,11 @@ class PatientTile extends StatelessWidget {
                     'Patient ID: ${patient.patientId}',
                     style: TextStyle(fontSize: 12),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    patient.wardHmoDisplayLine,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
                   if (patient.phoneNumber != null &&
                       patient.phoneNumber!.isNotEmpty) ...[
                     const SizedBox(height: 2),

@@ -174,6 +174,7 @@ class UpdatePatientVitalsDto {
     this.respRate,
     this.pulseRate,
     this.spo2,
+    this.notes,
   });
 
   final int? systolic;
@@ -185,6 +186,7 @@ class UpdatePatientVitalsDto {
   final int? respRate;
   final int? pulseRate;
   final double? spo2;
+  final String? notes;
 
   Map<String, dynamic> toJson() => {
     if (systolic != null) 'systolic': systolic,
@@ -196,5 +198,6 @@ class UpdatePatientVitalsDto {
     if (respRate != null) 'respRate': respRate,
     if (pulseRate != null) 'pulseRate': pulseRate,
     if (spo2 != null) 'spo2': spo2,
+    if (notes != null) 'notes': notes,
   };
 }
