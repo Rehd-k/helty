@@ -8,6 +8,7 @@ import '../core/interceptors/refresh_token_interceptor.dart';
 /// Candidate API origins probed at startup; the fastest `/server-time` wins.
 const kApiCandidateBaseUrls = <String>[
   'http://localhost:3000',
+  'http://10.92.9.205:3000',
   'http://192.168.2.121:3000',
   'http://192.168.2.120:3000',
 ];
@@ -54,7 +55,9 @@ class ApiService {
 
   /// Called after startup (or Retry) endpoint selection.
   void setBaseUrl(String url) {
-    final normalized = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    final normalized = url.endsWith('/')
+        ? url.substring(0, url.length - 1)
+        : url;
     dio.options.baseUrl = normalized;
     resolvedBaseUrl = normalized;
   }

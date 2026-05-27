@@ -662,7 +662,7 @@ class _AdministerMedicationDialogState
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _status,
+              initialValue: _status,
               decoration: const InputDecoration(labelText: 'Status'),
               items: const [
                 DropdownMenuItem(value: 'Given', child: Text('Given')),

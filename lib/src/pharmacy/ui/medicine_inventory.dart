@@ -229,7 +229,10 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   }
 
   void _selectDrug(Drug drug) {
-    setState(() => _selectedDrug = drug);
+    setState(() {
+      _selectedDrug = drug;
+      if (_isFiltersOpen) _isFiltersOpen = false;
+    });
     final id = drug.id;
     if (id != null && id.isNotEmpty) {
       _fetchDrugLocationQuantities(id);
@@ -862,8 +865,8 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                 onPressed: drug.id == null || drug.id!.trim().isEmpty
                     ? null
                     : () => context.router.push(
-                          BatchesPreviewWardPricingRoute(id: drug.id!),
-                        ),
+                        BatchesPreviewWardPricingRoute(id: drug.id!),
+                      ),
               ),
             ],
           ),

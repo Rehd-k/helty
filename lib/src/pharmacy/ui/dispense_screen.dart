@@ -534,7 +534,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
           child: SizedBox(
             width: 220,
             child: DropdownButtonFormField<String?>(
-              value: _pricingWardOverride,
+              initialValue: _pricingWardOverride,
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: 'Price ward',

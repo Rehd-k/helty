@@ -47,6 +47,91 @@ class MenuItem {
   });
 }
 
+/// CMAC oversight analytics — top-level for CMAC logins only.
+const cmacExecutiveMenuItems = <MenuItem>[
+  MenuItem(
+    label: 'Oversight overview',
+    icon: Icons.dashboard_rounded,
+    route: CmacOverviewRoute(),
+    accent: MenuAccent.primary,
+  ),
+  MenuItem(
+    label: 'Insights',
+    icon: Icons.lightbulb_outline_rounded,
+    route: CmacInsightsRoute(),
+    accent: MenuAccent.tertiary,
+  ),
+  MenuItem(
+    label: 'Patient activity',
+    icon: Icons.people_alt_rounded,
+    route: CmacPatientActivityRoute(),
+    accent: MenuAccent.secondary,
+  ),
+  MenuItem(
+    label: 'Clinical',
+    icon: Icons.medical_information_outlined,
+    route: CmacClinicalRoute(),
+    accent: MenuAccent.primary,
+  ),
+  MenuItem(
+    label: 'Laboratory',
+    icon: Icons.biotech_rounded,
+    route: CmacLaboratoryRoute(),
+    accent: MenuAccent.tertiary,
+  ),
+  MenuItem(
+    label: 'Pharmacy',
+    icon: Icons.medication_rounded,
+    route: CmacPharmacyRoute(),
+    accent: MenuAccent.secondary,
+  ),
+  MenuItem(
+    label: 'Operations',
+    icon: Icons.schedule_rounded,
+    route: CmacOperationsRoute(),
+    accent: MenuAccent.primary,
+  ),
+  MenuItem(
+    label: 'Quality analytics',
+    icon: Icons.verified_user_rounded,
+    route: CmacQualityRoute(),
+    accent: MenuAccent.errorTone,
+  ),
+  MenuItem(
+    label: 'Staff',
+    icon: Icons.groups_rounded,
+    route: CmacStaffRoute(),
+    accent: MenuAccent.secondary,
+  ),
+  MenuItem(
+    label: 'Quality capture',
+    icon: Icons.edit_note_rounded,
+    route: CmacQualitySafetyHubRoute(),
+    children: [
+      MenuItem(
+        label: 'Referrals',
+        icon: Icons.swap_horiz_rounded,
+        route: CmacQualityReferralsRoute(),
+      ),
+      MenuItem(
+        label: 'Complaints',
+        icon: Icons.record_voice_over_rounded,
+        route: CmacQualityComplaintsRoute(),
+      ),
+      MenuItem(
+        label: 'Incidents',
+        icon: Icons.report_problem_rounded,
+        route: CmacQualityIncidentsRoute(),
+      ),
+      MenuItem(
+        label: 'Infections',
+        icon: Icons.coronavirus_rounded,
+        route: CmacQualityInfectionsRoute(),
+      ),
+    ],
+  ),
+];
+
 /// CMD (chief medical director) executive sidebar — top-level for CMD logins;
 /// also nested under "CMD Panel" for full admins.
 const cmdExecutiveMenuItems = <MenuItem>[
@@ -252,6 +337,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final r = role.toLowerCase();
     final at = accountType.toLowerCase();
     final canBillingDash = staffCanAccessPrivilegedBilling(staff);
+
+    final isCmacAccount = at == 'cmac' || r == 'cmac';
+    if (isCmacAccount) {
+      common.addAll(cmacExecutiveMenuItems);
+      return common;
+    }
 
     final isCmdAccount = at == 'cmd' || r == 'cmd';
     if (isCmdAccount) {

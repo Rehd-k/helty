@@ -61,6 +61,19 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
       ? 'Send to Consulting Room'
       : 'Open Patient';
 
+  bool _footerPrimaryEnabled(_UnregisteredPatientTxn patient) {
+    if (_isRegisterUse) return true;
+    if (_isNursingQueueUse) {
+      return patient.isPaid && patient.hasPatientId;
+    }
+    return patient.isPaid;
+  }
+
+  String _footerPrimaryLabel(_UnregisteredPatientTxn patient) {
+    if (!_isRegisterUse && !patient.isPaid) return 'Bill Not Paid';
+    return _primaryButtonLabel;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -846,24 +859,27 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed:
-                        (_isNursingQueueUse &&
-                            (!patient.isPaid || !patient.hasPatientId))
-                        ? null
-                        : () => _goToRegister(patient),
+                    onPressed: _footerPrimaryEnabled(patient)
+                        ? () => _goToRegister(patient)
+                        : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
+                      backgroundColor: _footerPrimaryEnabled(patient)
+                          ? colorScheme.primary
+                          : colorScheme.surfaceContainerHighest,
+                      foregroundColor: _footerPrimaryEnabled(patient)
+                          ? colorScheme.onPrimary
+                          : colorScheme.onSurfaceVariant,
+                      disabledBackgroundColor:
+                          colorScheme.surfaceContainerHighest,
+                      disabledForegroundColor: colorScheme.onSurfaceVariant,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     child: Text(
-                      _primaryButtonLabel,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      _footerPrimaryLabel(patient),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -882,6 +898,16 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
     }
 
     if (!_isRegisterUse) {
+      if (!patient.isPaid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'This bill is not paid yet. Open the patient after payment is complete.',
+            ),
+          ),
+        );
+        return;
+      }
       final resolvedPatientId = patient.patientId?.trim() ?? '';
       // if (resolvedPatientId.isEmpty) {
       //   ScaffoldMessenger.of(context).showSnackBar(
@@ -1144,6 +1170,7 @@ class _UnregisteredPatientTxn {
   final bool rowAppearsPaid;
   final String invoiceUuid;
   final bool hasVitals;
+
   /// Invoice requesting / billing staff id when returned by the API.
   final String? invoiceStaffId;
   final String surname;
@@ -1275,6 +1302,12 @@ class _UnregisteredPatientTxn {
             .trim()
             .toUpperCase() ??
         '';
+    if (status == 'PENDING' ||
+        status == 'UNPAID' ||
+        status == 'PARTIAL' ||
+        status == 'OVERDUE') {
+      return false;
+    }
     if (status == 'PAID' || status == 'FULLY_PAID') return true;
     if (json['isPaid'] == true || root['isPaid'] == true) return true;
     if (json['fullyPaid'] == true || root['fullyPaid'] == true) return true;
