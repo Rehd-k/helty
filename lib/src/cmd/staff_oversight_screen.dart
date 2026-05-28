@@ -90,7 +90,7 @@ class CMDStaffOversightScreen extends ConsumerWidget {
                   _StaffingTable(rows: data.byDepartment),
                   const SizedBox(height: 28),
                   Text(
-                    'Performance (sample teams)',
+                    'Performance',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),

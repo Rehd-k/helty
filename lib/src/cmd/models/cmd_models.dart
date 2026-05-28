@@ -192,7 +192,7 @@ class CmdDepartmentScorecard {
     required this.departmentId,
     required this.name,
     required this.patientsSeen,
-    required this.revenueDummy,
+    required this.revenue,
     required this.slaBreaches,
     required this.status,
   });
@@ -200,7 +200,7 @@ class CmdDepartmentScorecard {
   final String departmentId;
   final String name;
   final int patientsSeen;
-  final double revenueDummy;
+  final double revenue;
   final int slaBreaches;
   final String status;
 }
@@ -250,7 +250,7 @@ class CmdHospitalOverview {
   final String weeklySummary;
 }
 
-// ── Financial (dummy figures) ─────────────────────────────────────────────
+// ── Financial ─────────────────────────────────────────────────────────────
 
 @immutable
 class CmdRevenueByDepartment {
@@ -298,13 +298,13 @@ class CmdLeakFlag {
   const CmdLeakFlag({
     required this.id,
     required this.description,
-    required this.estimatedExposureDummy,
+    required this.estimatedExposure,
     required this.status,
   });
 
   final String id;
   final String description;
-  final double estimatedExposureDummy;
+  final double estimatedExposure;
   final String status;
 }
 
@@ -313,7 +313,7 @@ class CmdFinancialOverview {
   const CmdFinancialOverview({
     required this.outstandingPayments,
     required this.profitMarginPercent,
-    required this.forecastNextMonthDummy,
+    required this.forecastNextMonth,
     required this.byDepartment,
     required this.paymentMix,
     required this.expenses,
@@ -322,7 +322,7 @@ class CmdFinancialOverview {
 
   final double outstandingPayments;
   final double profitMarginPercent;
-  final double forecastNextMonthDummy;
+  final double forecastNextMonth;
   final List<CmdRevenueByDepartment> byDepartment;
   final CmdPaymentMix paymentMix;
   final List<CmdExpenseLine> expenses;
@@ -589,7 +589,7 @@ class CmdApprovalRequest {
   const CmdApprovalRequest({
     required this.id,
     required this.type,
-    required this.amountDummy,
+    required this.amount,
     required this.requester,
     required this.status,
     required this.submittedAt,
@@ -597,7 +597,7 @@ class CmdApprovalRequest {
 
   final String id;
   final String type;
-  final double amountDummy;
+  final double amount;
   final String requester;
   final String status;
   final DateTime submittedAt;

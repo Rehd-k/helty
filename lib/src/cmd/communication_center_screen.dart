@@ -69,7 +69,7 @@ class _CMDCommunicationCenterScreenState extends ConsumerState<CMDCommunicationC
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Compose broadcast (stub → POST ${CmdEndpoints.communicationsBroadcast})',
+                    'Compose broadcast (POST ${CmdEndpoints.communicationsBroadcast})',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
@@ -121,12 +121,12 @@ class _CMDCommunicationCenterScreenState extends ConsumerState<CMDCommunicationC
                                 if (context.mounted) {
                                   ref.invalidate(cmdAnnouncementsProvider);
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Broadcast queued (mock)')),
+                                    const SnackBar(content: Text('Broadcast sent')),
                                   );
                                 }
                               },
                               icon: const Icon(Icons.campaign_outlined),
-                              label: const Text('Send (mock)'),
+                              label: const Text('Send'),
                             ),
                           ),
                         ],

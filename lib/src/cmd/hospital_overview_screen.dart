@@ -153,7 +153,7 @@ class _DeptTable extends StatelessWidget {
           columns: const [
             DataColumn2(label: Text('Department'), size: ColumnSize.L),
             DataColumn2(label: Text('Patients seen'), numeric: true),
-            DataColumn2(label: Text('Revenue (dummy)'), numeric: true),
+            DataColumn2(label: Text('Revenue'), numeric: true),
             DataColumn2(label: Text('SLA breaches'), numeric: true),
             DataColumn2(label: Text('Status'), size: ColumnSize.S),
           ],
@@ -163,7 +163,7 @@ class _DeptTable extends StatelessWidget {
               cells: [
                 DataCell(Text(r.name)),
                 DataCell(Text('${r.patientsSeen}')),
-                DataCell(Text(fmt.format(r.revenueDummy))),
+                DataCell(Text(fmt.format(r.revenue))),
                 DataCell(Text('${r.slaBreaches}')),
                 DataCell(
                   Text(

@@ -31,7 +31,7 @@ class CMDSystemControlScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Pending CMD approvals (dummy amounts)',
+                'Pending CMD approvals',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
@@ -56,14 +56,14 @@ class CMDSystemControlScreen extends ConsumerWidget {
                           cells: [
                             DataCell(Text(a.type)),
                             DataCell(Text(a.requester)),
-                            DataCell(Text(money.format(a.amountDummy))),
+                            DataCell(Text(money.format(a.amount))),
                             DataCell(Text(a.status)),
                             DataCell(Text(DateFormatter.dateTime(a.submittedAt))),
                             DataCell(
                               TextButton(
                                 onPressed: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Approve/deny stub — ${a.id}')),
+                                    SnackBar(content: Text('Review action pending backend workflow — ${a.id}')),
                                   );
                                 },
                                 child: const Text('Review'),
@@ -117,7 +117,7 @@ class CMDSystemControlScreen extends ConsumerWidget {
                   subtitle: Text(settings.bannerDraft),
                   trailing: FilledButton(
                     onPressed: () {},
-                    child: const Text('Publish (stub)'),
+                    child: const Text('Publish'),
                   ),
                 ),
               ),

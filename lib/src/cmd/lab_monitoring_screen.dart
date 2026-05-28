@@ -38,7 +38,7 @@ class CMDLabMonitoringScreen extends ConsumerWidget {
                     runSpacing: 16,
                     children: [
                       _MiniTile(
-                        label: 'Delayed samples',
+                        label: 'Delayed tests',
                         value: '${data.delayedCount}',
                         color: theme.colorScheme.error,
                         width: tileW,

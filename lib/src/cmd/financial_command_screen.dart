@@ -20,7 +20,7 @@ class CMDFinancialCommandScreen extends ConsumerWidget {
     final async = ref.watch(cmdFinancialOverviewProvider);
     return CmdAsyncScaffold<CmdFinancialOverview>(
       title: 'Financial command center',
-      subtitle: 'All figures in Nigerian Naira (₦) · dummy data until live billing',
+      subtitle: 'All figures in Nigerian Naira (₦) · live billing overview',
       asyncValue: async,
       builder: (context, data) {
         final fmt = cmdNairaFormat();
@@ -37,13 +37,13 @@ class CMDFinancialCommandScreen extends ConsumerWidget {
               _KpiGrid(
                 outstanding: fmt.format(data.outstandingPayments),
                 marginLabel: '${data.profitMarginPercent.toStringAsFixed(1)}%',
-                forecast: fmt.format(data.forecastNextMonthDummy),
+                forecast: fmt.format(data.forecastNextMonth),
               ),
               SizedBox(height: narrow ? 20 : 28),
               _SectionHeader(
                 icon: Icons.pie_chart_outline_rounded,
                 title: 'Revenue by department',
-                subtitle: 'Dummy split for planning',
+                subtitle: 'Live split by contribution',
               ),
               SizedBox(height: narrow ? 10 : 14),
               SizedBox(
@@ -75,7 +75,7 @@ class CMDFinancialCommandScreen extends ConsumerWidget {
               _SectionHeader(
                 icon: Icons.shield_outlined,
                 title: 'Leak detection',
-                subtitle: 'Dummy exposure — review with finance',
+                subtitle: 'Estimated exposure — review with finance',
               ),
               SizedBox(height: narrow ? 10 : 14),
               _LeakList(leaks: data.leaks, fmt: fmt),
@@ -187,7 +187,7 @@ class _KpiGrid extends StatelessWidget {
               icon: Icons.request_quote_outlined,
             ),
             _MoneyTile(
-              title: 'Profit margin (dummy)',
+              title: 'Profit margin',
               value: marginLabel,
               accent: cs.secondary,
               icon: Icons.trending_up_rounded,
@@ -537,7 +537,7 @@ class _PaymentMixCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Total inflow (dummy)',
+              'Total inflow',
               style: theme.textTheme.labelMedium?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
@@ -758,7 +758,7 @@ class _LeakList extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      fmt.format(l.estimatedExposureDummy),
+                      fmt.format(l.estimatedExposure),
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: cs.error,

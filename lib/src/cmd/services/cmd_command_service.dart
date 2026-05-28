@@ -1,24 +1,16 @@
 import 'package:dio/dio.dart';
 
 import '../../services/api_service.dart';
-import '../data/cmd_mock_data.dart';
 import '../models/cmd_from_json.dart';
 import '../models/cmd_models.dart';
 import 'cmd_endpoints.dart';
 
-/// Command-center API facade. Uses [CmdMockData] when [useMockData] is true;
-/// otherwise parses JSON from [CmdEndpoints] using [parseCmd*] in [cmd_from_json.dart].
+/// Command-center API facade that parses live JSON from [CmdEndpoints]
+/// using [parseCmd*] in [cmd_from_json.dart].
 class CmdCommandService {
-  CmdCommandService({Dio? dio, this.useMockData = true}) : _dio = dio ?? ApiService().dio;
+  CmdCommandService({Dio? dio}) : _dio = dio ?? ApiService().dio;
 
   final Dio _dio;
-  final bool useMockData;
-
-  Future<T> _mockOr<T>(Future<T> Function() real, T mock) async {
-    await Future<void>.delayed(const Duration(milliseconds: 140));
-    if (useMockData) return mock;
-    return real();
-  }
 
   Map<String, dynamic> _asMap(dynamic data) {
     if (data is Map<String, dynamic>) return data;
@@ -31,146 +23,84 @@ class CmdCommandService {
   }
 
   /// GET [CmdEndpoints.dashboard]
-  Future<CmdExecutiveDashboardBundle> fetchExecutiveDashboard() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.dashboard);
-        return parseCmdExecutiveDashboardBundle(_asMap(response.data));
-      },
-      CmdMockData.executiveDashboard(),
-    );
+  Future<CmdExecutiveDashboardBundle> fetchExecutiveDashboard() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.dashboard);
+    return parseCmdExecutiveDashboardBundle(_asMap(response.data));
   }
 
   /// GET [CmdEndpoints.hospitalOverview]
-  Future<CmdHospitalOverview> fetchHospitalOverview() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.hospitalOverview);
-        return parseCmdHospitalOverview(_asMap(response.data));
-      },
-      CmdMockData.hospitalOverview(),
-    );
+  Future<CmdHospitalOverview> fetchHospitalOverview() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.hospitalOverview);
+    return parseCmdHospitalOverview(_asMap(response.data));
   }
 
   /// GET [CmdEndpoints.financialOverview]
-  Future<CmdFinancialOverview> fetchFinancialOverview() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.financialOverview);
-        return parseCmdFinancialOverview(_asMap(response.data));
-      },
-      CmdMockData.financialOverview(),
-    );
+  Future<CmdFinancialOverview> fetchFinancialOverview() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.financialOverview);
+    return parseCmdFinancialOverview(_asMap(response.data));
   }
 
   /// GET [CmdEndpoints.staffOversight]
-  Future<CmdStaffOversight> fetchStaffOversight() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.staffOversight);
-        return parseCmdStaffOversight(_asMap(response.data));
-      },
-      CmdMockData.staffOversight(),
-    );
+  Future<CmdStaffOversight> fetchStaffOversight() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.staffOversight);
+    return parseCmdStaffOversight(_asMap(response.data));
   }
 
   /// GET [CmdEndpoints.bedsSnapshot]
-  Future<CmdBedsSnapshot> fetchBedsSnapshot() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.bedsSnapshot);
-        return parseCmdBedsSnapshot(_asMap(response.data));
-      },
-      CmdMockData.bedsSnapshot(),
-    );
+  Future<CmdBedsSnapshot> fetchBedsSnapshot() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.bedsSnapshot);
+    return parseCmdBedsSnapshot(_asMap(response.data));
   }
 
   /// GET [CmdEndpoints.labMonitoring]
-  Future<CmdLabMonitoring> fetchLabMonitoring() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.labMonitoring);
-        return parseCmdLabMonitoring(_asMap(response.data));
-      },
-      CmdMockData.labMonitoring(),
-    );
+  Future<CmdLabMonitoring> fetchLabMonitoring() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.labMonitoring);
+    return parseCmdLabMonitoring(_asMap(response.data));
   }
 
   /// GET [CmdEndpoints.alerts]
-  Future<List<CmdIncident>> fetchIncidents() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.alerts);
-        return parseCmdIncidentList(_asList(response.data));
-      },
-      CmdMockData.incidents(),
-    );
+  Future<List<CmdIncident>> fetchIncidents() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.alerts);
+    return parseCmdIncidentList(_asList(response.data));
   }
 
   /// GET [CmdEndpoints.reportTemplates]
-  Future<List<CmdReportTemplate>> fetchReportTemplates() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.reportTemplates);
-        return parseCmdReportTemplateList(_asList(response.data));
-      },
-      CmdMockData.reportTemplates(),
-    );
+  Future<List<CmdReportTemplate>> fetchReportTemplates() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.reportTemplates);
+    return parseCmdReportTemplateList(_asList(response.data));
   }
 
-  /// GET [CmdEndpoints.auditLogs] + [CmdEndpoints.complianceChecklist] (combined in mock)
-  Future<CmdAuditComplianceBundle> fetchAuditCompliance() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.auditLogs);
-        return parseCmdAuditComplianceBundle(_asMap(response.data));
-      },
-      CmdMockData.auditCompliance(),
-    );
+  /// GET [CmdEndpoints.auditLogs]
+  Future<CmdAuditComplianceBundle> fetchAuditCompliance() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.auditLogs);
+    return parseCmdAuditComplianceBundle(_asMap(response.data));
   }
 
   /// GET [CmdEndpoints.approvalsPending]
-  Future<List<CmdApprovalRequest>> fetchPendingApprovals() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.approvalsPending);
-        return parseCmdApprovalRequestList(_asList(response.data));
-      },
-      CmdMockData.approvals(),
-    );
+  Future<List<CmdApprovalRequest>> fetchPendingApprovals() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.approvalsPending);
+    return parseCmdApprovalRequestList(_asList(response.data));
   }
 
   /// GET [CmdEndpoints.settingsOverview]
-  Future<CmdSettingsOverview> fetchSettingsOverview() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.settingsOverview);
-        return parseCmdSettingsOverview(_asMap(response.data));
-      },
-      CmdMockData.settingsOverview(),
-    );
+  Future<CmdSettingsOverview> fetchSettingsOverview() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.settingsOverview);
+    return parseCmdSettingsOverview(_asMap(response.data));
   }
 
   /// GET [CmdEndpoints.communications]
-  Future<List<CmdAnnouncement>> fetchAnnouncements() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.communications);
-        return parseCmdAnnouncementList(_asList(response.data));
-      },
-      CmdMockData.announcements(),
-    );
+  Future<List<CmdAnnouncement>> fetchAnnouncements() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.communications);
+    return parseCmdAnnouncementList(_asList(response.data));
   }
 
-  /// POST [CmdEndpoints.communicationsBroadcast] — stub
+  /// POST [CmdEndpoints.communicationsBroadcast]
   Future<void> sendBroadcast({
     required String title,
     required String body,
     required String audience,
     required String priority,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    if (useMockData) return;
     await _dio.post<void>(
       CmdEndpoints.communicationsBroadcast,
       data: {
@@ -183,13 +113,8 @@ class CmdCommandService {
   }
 
   /// GET [CmdEndpoints.patientExperience]
-  Future<CmdPatientExperienceOverview> fetchPatientExperience() {
-    return _mockOr(
-      () async {
-        final response = await _dio.get<dynamic>(CmdEndpoints.patientExperience);
-        return parseCmdPatientExperienceOverview(_asMap(response.data));
-      },
-      CmdMockData.patientExperience(),
-    );
+  Future<CmdPatientExperienceOverview> fetchPatientExperience() async {
+    final response = await _dio.get<dynamic>(CmdEndpoints.patientExperience);
+    return parseCmdPatientExperienceOverview(_asMap(response.data));
   }
 }

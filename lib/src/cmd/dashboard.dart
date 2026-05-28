@@ -3,6 +3,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/cmac/cmac_palette.dart';
+import 'package:helty/src/cmac/widgets/cmac_vibrant_backdrop.dart';
 
 import 'cmd_breakpoints.dart';
 import 'cmd_money_format.dart';
@@ -20,7 +22,8 @@ class CMDDashboardScreen extends ConsumerWidget {
 
     return asyncDash.when(
       loading: () => Scaffold(
-        body: _CmdDashboardBackdrop(
+        body: CmacVibrantBackdrop(
+          colors: CmacPalette.operations,
           child: Column(
             children: [
               AppBar(
@@ -36,7 +39,8 @@ class CMDDashboardScreen extends ConsumerWidget {
         ),
       ),
       error: (e, _) => Scaffold(
-        body: _CmdDashboardBackdrop(
+        body: CmacVibrantBackdrop(
+          colors: CmacPalette.operations,
           child: Column(
             children: [
               AppBar(
@@ -76,7 +80,8 @@ class CMDDashboardScreen extends ConsumerWidget {
     final cs = theme.colorScheme;
 
     return Scaffold(
-      body: _CmdDashboardBackdrop(
+      body: CmacVibrantBackdrop(
+        colors: CmacPalette.operations,
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
@@ -169,7 +174,7 @@ class CMDDashboardScreen extends ConsumerWidget {
                           context,
                           'Alerts & risk panel',
                           Icons.shield_moon_rounded,
-                          cs.primary,
+                          CmacPalette.quality.first,
                         ),
                         const SizedBox(height: 14),
                         _buildAlertsSection(context, bundle.alerts),
@@ -178,7 +183,7 @@ class CMDDashboardScreen extends ConsumerWidget {
                           context,
                           'Live activity feed',
                           Icons.bolt_rounded,
-                          cs.secondary,
+                          CmacPalette.overview.first,
                         ),
                         const SizedBox(height: 14),
                         _buildActivityFeed(context, bundle.activityFeed),
@@ -187,7 +192,7 @@ class CMDDashboardScreen extends ConsumerWidget {
                           context,
                           'Executive summary',
                           Icons.insights_rounded,
-                          cs.primary,
+                          CmacPalette.insights.first,
                         ),
                         const SizedBox(height: 14),
                         _buildExecutiveSummary(
@@ -715,7 +720,7 @@ class CMDDashboardScreen extends ConsumerWidget {
 
     final nairaCompact = cmdNairaCompactFormat();
     return _DashboardCard(
-      title: 'Revenue analytics (dummy, this week · ₦ thousands)',
+      title: 'Revenue analytics (this week · ₦ thousands)',
       accent: theme.colorScheme.primary,
       icon: Icons.show_chart_rounded,
       child: SizedBox(
@@ -1654,35 +1659,6 @@ class _LabStat extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Full-screen mesh gradient behind dashboard content.
-class _CmdDashboardBackdrop extends StatelessWidget {
-  final Widget child;
-
-  const _CmdDashboardBackdrop({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
-
-    final cs = theme.colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(cs.surface, cs.primary, dark ? 0.08 : 0.06)!,
-            Color.lerp(cs.surface, cs.secondary, dark ? 0.06 : 0.05)!,
-            cs.surface,
-          ],
-        ),
-      ),
-      child: child,
     );
   }
 }

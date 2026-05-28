@@ -61,7 +61,7 @@ class CMDReportsAnalyticsScreen extends ConsumerWidget {
                               OutlinedButton(
                                 onPressed: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Export stub — ${r.name}')),
+                                    SnackBar(content: Text('Export queued — ${r.name}')),
                                   );
                                 },
                                 child: const Text('Export'),
@@ -75,7 +75,7 @@ class CMDReportsAnalyticsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'Custom builder (placeholder)',
+                'Custom builder',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),

@@ -146,7 +146,7 @@ CmdDepartmentScorecard _deptScore(Map<String, dynamic> j) => CmdDepartmentScorec
       departmentId: _str(j['departmentId']),
       name: _str(j['name']),
       patientsSeen: _int(j['patientsSeen']),
-      revenueDummy: _num(j['revenueDummy']),
+      revenue: _num(j['revenue'] ?? j['revenueDummy']),
       slaBreaches: _int(j['slaBreaches']),
       status: _str(j['status']),
     );
@@ -194,14 +194,14 @@ CmdExpenseLine _expLine(Map<String, dynamic> j) => CmdExpenseLine(
 CmdLeakFlag _leak(Map<String, dynamic> j) => CmdLeakFlag(
       id: _str(j['id']),
       description: _str(j['description']),
-      estimatedExposureDummy: _num(j['estimatedExposureDummy']),
+      estimatedExposure: _num(j['estimatedExposure'] ?? j['estimatedExposureDummy']),
       status: _str(j['status']),
     );
 
 CmdFinancialOverview parseCmdFinancialOverview(Map<String, dynamic> j) => CmdFinancialOverview(
       outstandingPayments: _num(j['outstandingPayments']),
       profitMarginPercent: _num(j['profitMarginPercent']),
-      forecastNextMonthDummy: _num(j['forecastNextMonthDummy']),
+      forecastNextMonth: _num(j['forecastNextMonth'] ?? j['forecastNextMonthDummy']),
       byDepartment: _list(j['byDepartment'], _revDept),
       paymentMix: _payMix(_map(j['paymentMix'])),
       expenses: _list(j['expenses'], _expLine),
@@ -330,7 +330,7 @@ CmdAuditComplianceBundle parseCmdAuditComplianceBundle(Map<String, dynamic> j) =
 CmdApprovalRequest _approval(Map<String, dynamic> j) => CmdApprovalRequest(
       id: _str(j['id']),
       type: _str(j['type']),
-      amountDummy: _num(j['amountDummy']),
+      amount: _num(j['amount'] ?? j['amountDummy']),
       requester: _str(j['requester']),
       status: _str(j['status']),
       submittedAt: _dt(j['submittedAt']),

@@ -47,7 +47,7 @@ class CMDAuditComplianceScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 28),
               Text(
-                'Recent audit log (sample)',
+                'Recent audit log',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
