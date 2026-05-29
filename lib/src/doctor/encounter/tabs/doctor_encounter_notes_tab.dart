@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
@@ -89,22 +90,27 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
     if (scope == null) return;
     setState(() => _saving = true);
     try {
-      await _encounterService.update(scope.encounterId, {
-        'soapSubjective': _subjectiveCtrl.text.trim().isEmpty
-            ? null
-            : _subjectiveCtrl.text.trim(),
-        'soapObjective': _objectiveCtrl.text.trim().isEmpty
-            ? null
-            : _objectiveCtrl.text.trim(),
-        'soapAssessment': _assessmentCtrl.text.trim().isEmpty
-            ? null
-            : _assessmentCtrl.text.trim(),
-        'soapPlan':
-            _planCtrl.text.trim().isEmpty ? null : _planCtrl.text.trim(),
-      });
+      await _encounterService.update(
+        scope.encounterId,
+        encounterPatchWithAmend(scope, {
+          'soapSubjective': _subjectiveCtrl.text.trim().isEmpty
+              ? null
+              : _subjectiveCtrl.text.trim(),
+          'soapObjective': _objectiveCtrl.text.trim().isEmpty
+              ? null
+              : _objectiveCtrl.text.trim(),
+          'soapAssessment': _assessmentCtrl.text.trim().isEmpty
+              ? null
+              : _assessmentCtrl.text.trim(),
+          'soapPlan':
+              _planCtrl.text.trim().isEmpty ? null : _planCtrl.text.trim(),
+        }),
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('SOAP note saved')),
+      showEncounterSaveSnackBar(
+        context,
+        scope: scope,
+        ongoingMessage: 'SOAP note saved',
       );
       setState(() => _saving = false);
     } catch (e) {
@@ -122,20 +128,23 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
     setState(() => _saving = true);
     try {
       final now = DateTime.now();
-      await _encounterService.update(scope.encounterId, {
-        'soapSubjective': _subjectiveCtrl.text.trim().isEmpty
-            ? null
-            : _subjectiveCtrl.text.trim(),
-        'soapObjective': _objectiveCtrl.text.trim().isEmpty
-            ? null
-            : _objectiveCtrl.text.trim(),
-        'soapAssessment': _assessmentCtrl.text.trim().isEmpty
-            ? null
-            : _assessmentCtrl.text.trim(),
-        'soapPlan':
-            _planCtrl.text.trim().isEmpty ? null : _planCtrl.text.trim(),
-        'soapLockedAt': now.toIso8601String(),
-      });
+      await _encounterService.update(
+        scope.encounterId,
+        encounterPatchWithAmend(scope, {
+          'soapSubjective': _subjectiveCtrl.text.trim().isEmpty
+              ? null
+              : _subjectiveCtrl.text.trim(),
+          'soapObjective': _objectiveCtrl.text.trim().isEmpty
+              ? null
+              : _objectiveCtrl.text.trim(),
+          'soapAssessment': _assessmentCtrl.text.trim().isEmpty
+              ? null
+              : _assessmentCtrl.text.trim(),
+          'soapPlan':
+              _planCtrl.text.trim().isEmpty ? null : _planCtrl.text.trim(),
+          'soapLockedAt': now.toIso8601String(),
+        }),
+      );
       if (!mounted) return;
       setState(() {
         _lockedAt = now;

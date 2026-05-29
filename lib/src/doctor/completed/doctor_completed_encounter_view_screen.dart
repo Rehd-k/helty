@@ -1,7 +1,10 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/doctor/completed/edit_history/encounter_edit_history_sheet.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
+import 'package:helty/src/models/encounter_edit_meta.dart';
+import 'package:intl/intl.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_forms_panel.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
 import 'package:helty/src/models/encounter_model.dart';
@@ -49,7 +52,10 @@ class _DoctorCompletedEncounterViewScreenState
       _error = null;
     });
     try {
-      final enc = await _encounterService.getById(widget.encounterId);
+      final enc = await _encounterService.getById(
+        widget.encounterId,
+        expand: const ['specialtyModules', 'clinicalSections'],
+      );
       Patient? patient;
       try {
         patient = await _patientService.getPatientById(widget.patientId);
@@ -141,6 +147,7 @@ class _DoctorCompletedEncounterViewScreenState
     return CompletedEncounterScope(
       encounter: encounter,
       patient: patient,
+      onRefresh: _load,
       child: AutoTabsRouter(
         routes: const [
           CompletedEncounterSummaryTab(),
@@ -177,6 +184,7 @@ class _DoctorCompletedEncounterViewScreenState
                 onPressed: () => context.router.maybePop(),
               ),
               actions: [
+                ..._buildEditMetaActions(context, encounter),
                 IconButton(
                   tooltip: 'Specialty forms',
                   icon: const Icon(Icons.grid_view_rounded),
@@ -221,6 +229,10 @@ class _DoctorCompletedEncounterViewScreenState
                           pastAdmissionsCount: 0,
                           insurance: patient?.hmo,
                         ),
+                        if (encounter.editMeta != null) ...[
+                          const SizedBox(height: 12),
+                          _buildEditMetaBanner(context, encounter.editMeta!),
+                        ],
                         const SizedBox(height: 16),
                         _buildTabsStrip(context, tabsRouter, theme, colorScheme),
                         const SizedBox(height: 16),
@@ -246,6 +258,98 @@ class _DoctorCompletedEncounterViewScreenState
             ),
           );
         },
+      ),
+    );
+  }
+
+  List<Widget> _buildEditMetaActions(
+    BuildContext context,
+    EncounterModel encounter,
+  ) {
+    final meta = encounter.editMeta;
+    if (meta == null) return [];
+
+    return [
+      if (meta.hasEdits)
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Center(
+            child: Tooltip(
+              message: _editedTooltip(meta),
+              child: Chip(
+                label: Text(
+                  meta.editCount > 1
+                      ? 'Edited (${meta.editCount})'
+                      : 'Edited',
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ),
+        ),
+      TextButton.icon(
+        onPressed: () => EncounterEditHistorySheet.show(
+          context,
+          encounterId: widget.encounterId,
+          encounter: encounter,
+        ),
+        icon: const Icon(Icons.history, size: 18),
+        label: const Text('Edit history'),
+      ),
+      if (meta.canEdit)
+        FilledButton.icon(
+          onPressed: () async {
+            await context.router.push(
+              DoctorEncounterViewRoute(
+                encounterId: widget.encounterId,
+                patientId: widget.patientId,
+                amendMode: true,
+              ),
+            );
+            if (mounted) await _load();
+          },
+          icon: const Icon(Icons.edit, size: 18),
+          label: const Text('Amend'),
+        ),
+    ];
+  }
+
+  String _editedTooltip(EncounterEditMeta meta) {
+    final parts = <String>[
+      'Amended ${meta.editCount} time(s)',
+    ];
+    if (meta.lastEditedAt != null) {
+      parts.add(
+        'Last: ${DateFormat('d MMM yyyy, HH:mm').format(meta.lastEditedAt!)}',
+      );
+    }
+    return parts.join('\n');
+  }
+
+  Widget _buildEditMetaBanner(BuildContext context, EncounterEditMeta meta) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 20, color: scheme.secondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              meta.hasEdits
+                  ? 'This encounter has been amended after completion. '
+                      'Use Edit history to review prior versions.'
+                  : 'You can amend this completed encounter if corrections are needed.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ],
       ),
     );
   }

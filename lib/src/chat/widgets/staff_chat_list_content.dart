@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/staff_model.dart';
@@ -10,6 +9,7 @@ import '../../providers/staff_providers.dart';
 import '../../widgets/notifications/app_notification_provider.dart';
 import '../models/chat_models.dart';
 import '../services/chat_api_service.dart';
+import '../providers/staff_chat_shell_provider.dart';
 import '../services/internal_chat_socket.dart';
 import 'chat_presence_widgets.dart';
 
@@ -61,25 +61,7 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
   }
 
   void _onIncomingChatSocket(dynamic data) {
-    if (data is Map) {
-      final map = Map<String, dynamic>.from(data);
-      Map<String, dynamic> msgMap;
-      if (map['message'] is Map) {
-        msgMap = Map<String, dynamic>.from(map['message'] as Map);
-      } else {
-        msgMap = map;
-      }
-      final m = ChatMessage.tryParse(msgMap);
-      if (m != null) {
-        final me = ref.read(currentStaffProvider)?.id;
-        final fromOther = me == null ||
-            m.senderStaffId == null ||
-            m.senderStaffId != me;
-        if (fromOther) {
-          unawaited(SystemSound.play(SystemSoundType.alert));
-        }
-      }
-    }
+    ref.read(staffChatShellProvider.notifier).refresh();
     if (mounted) unawaited(_load(silent: true));
   }
 

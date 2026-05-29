@@ -592,7 +592,6 @@ class PharmacyApiService {
   }
 
   Future<DrugBatch> createDrugBatch(DrugBatch batch) async {
-    print(batch);
     try {
       final resp = await _dio.post('$_basePath/batches', data: batch.toJson());
       return DrugBatch.fromJson(_mapFromResponse(resp));

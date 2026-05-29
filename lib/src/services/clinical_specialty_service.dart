@@ -74,12 +74,16 @@ class ClinicalSpecialtyService {
   /// PUT /encounters/:id/specialty-modules — full replacement.
   Future<List<EncounterSpecialtyModuleModel>> syncModules(
     String encounterId,
-    List<EncounterSpecialtyModuleModel> modules,
-  ) async {
+    List<EncounterSpecialtyModuleModel> modules, {
+    String? editReason,
+  }) async {
     try {
-      final body = {
+      final body = <String, dynamic>{
         'modules': modules.map((m) => m.toSyncBody()).toList(),
       };
+      if (editReason != null && editReason.isNotEmpty) {
+        body['editReason'] = editReason;
+      }
       final resp = await _dio.put<dynamic>(
         '/encounters/$encounterId/specialty-modules',
         data: body,
@@ -141,14 +145,19 @@ class ClinicalSpecialtyService {
     String sectionKey,
     Map<String, dynamic> data, {
     int schemaVersion = 1,
+    String? editReason,
   }) async {
     try {
+      final payload = <String, dynamic>{
+        'data': data,
+        'schemaVersion': schemaVersion,
+      };
+      if (editReason != null && editReason.isNotEmpty) {
+        payload['editReason'] = editReason;
+      }
       final resp = await _dio.put<Map<String, dynamic>>(
         '/encounters/$encounterId/clinical-sections/$specialty/$sectionKey',
-        data: {
-          'data': data,
-          'schemaVersion': schemaVersion,
-        },
+        data: payload,
       );
       final row = resp.data;
       if (row == null) throw const UnknownException('Empty response');

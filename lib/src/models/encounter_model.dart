@@ -1,5 +1,6 @@
 import 'package:helty/src/models/appointment_model.dart';
 import 'package:helty/src/models/clinical_specialty_models.dart';
+import 'package:helty/src/models/encounter_edit_meta.dart';
 
 /// One row from `diagnoses[]` on GET /encounters/:id (when not duplicated on flat fields).
 class EncounterDiagnosisSnapshot {
@@ -56,6 +57,7 @@ class EncounterModel {
     this.linkedDiagnoses = const [],
     this.specialtyModules,
     this.clinicalSections,
+    this.editMeta,
   });
 
   final String id;
@@ -109,6 +111,15 @@ class EncounterModel {
   /// Present when `GET /encounters/:id?expand=clinicalSections` (or `expand=*`).
   final List<EncounterClinicalSectionRowModel>? clinicalSections;
 
+  /// Post-completion edit metadata from GET /encounters/:id.
+  final EncounterEditMeta? editMeta;
+
+  /// True when status is completed (API `COMPLETED` or legacy `done`).
+  bool get isCompleted {
+    final s = status.toUpperCase();
+    return s == 'COMPLETED' || s == 'DONE';
+  }
+
   factory EncounterModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
 
@@ -159,6 +170,11 @@ class EncounterModel {
       linkedDiagnoses: _parseLinkedDiagnoses(json['diagnoses']),
       specialtyModules: _parseSpecialtyModules(json['specialtyModules']),
       clinicalSections: _parseClinicalSections(json['clinicalSections']),
+      editMeta: json['editMeta'] is Map
+          ? EncounterEditMeta.fromJson(
+              Map<String, dynamic>.from(json['editMeta'] as Map),
+            )
+          : null,
     );
   }
 
@@ -292,6 +308,7 @@ class EncounterModel {
     List<EncounterDiagnosisSnapshot>? linkedDiagnoses,
     List<EncounterSpecialtyModuleModel>? specialtyModules,
     List<EncounterClinicalSectionRowModel>? clinicalSections,
+    EncounterEditMeta? editMeta,
   }) {
     return EncounterModel(
       id: id,
@@ -333,6 +350,7 @@ class EncounterModel {
       linkedDiagnoses: linkedDiagnoses ?? this.linkedDiagnoses,
       specialtyModules: specialtyModules ?? this.specialtyModules,
       clinicalSections: clinicalSections ?? this.clinicalSections,
+      editMeta: editMeta ?? this.editMeta,
     );
   }
 }

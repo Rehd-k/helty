@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
@@ -10,6 +11,7 @@ import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
+import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 const double _contentMaxWidth = 1440;
@@ -22,6 +24,8 @@ class EncounterScope extends InheritedWidget {
     required this.patientId,
     this.doctorId,
     this.patientVitals,
+    this.amendMode = false,
+    this.editReason,
     required super.child,
   });
 
@@ -29,6 +33,12 @@ class EncounterScope extends InheritedWidget {
   final String patientId;
   final String? doctorId;
   final PatientVitalsModel? patientVitals;
+
+  /// Amending a completed encounter (versioned saves + optional editReason).
+  final bool amendMode;
+
+  /// Stored on each history row when amending a completed encounter.
+  final String? editReason;
 
   static EncounterScope? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<EncounterScope>();
@@ -38,7 +48,9 @@ class EncounterScope extends InheritedWidget {
       encounterId != old.encounterId ||
       patientId != old.patientId ||
       doctorId != old.doctorId ||
-      patientVitals != old.patientVitals;
+      patientVitals != old.patientVitals ||
+      amendMode != old.amendMode ||
+      editReason != old.editReason;
 }
 
 @RoutePage()
@@ -47,11 +59,15 @@ class DoctorEncounterViewScreen extends StatefulWidget {
   final String patientId;
   final String? patientVitalsJson;
 
+  /// When true, amends a completed encounter (no complete button, versioned saves).
+  final bool amendMode;
+
   const DoctorEncounterViewScreen({
     super.key,
     required this.encounterId,
     required this.patientId,
     this.patientVitalsJson,
+    this.amendMode = false,
   });
 
   @override
@@ -71,19 +87,26 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   bool _completing = false;
   bool _specialtyGateDismissed = false;
   bool _specialtyGateOverlayScheduled = false;
+  String? _editReason;
+  bool _amendReasonPrompted = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.amendMode) {
+      _specialtyGateDismissed = true;
+    }
     _parseVitals();
     _loadPatient();
     _loadEncounter();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted ||
-          _specialtyGateDismissed ||
-          _specialtyGateOverlayScheduled) {
+      if (!mounted) return;
+      if (widget.amendMode && !_amendReasonPrompted) {
+        _amendReasonPrompted = true;
+        unawaited(_promptAmendReason());
         return;
       }
+      if (_specialtyGateDismissed || _specialtyGateOverlayScheduled) return;
       _specialtyGateOverlayScheduled = true;
       EncounterSpecialtyGate.showBlockingOverlay(
         context,
@@ -94,6 +117,21 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         },
       );
     });
+  }
+
+  Future<void> _promptAmendReason() async {
+    final reason = await showAmendReasonDialog(context);
+    if (!mounted) return;
+    setState(() => _editReason = reason);
+  }
+
+  Future<void> _changeAmendReason() async {
+    final reason = await showChangeAmendReasonDialog(
+      context,
+      currentReason: _editReason,
+    );
+    if (!mounted || reason == null) return;
+    setState(() => _editReason = reason);
   }
 
   Future<void> _loadEncounter() async {
@@ -169,6 +207,8 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
           patientId: widget.patientId,
           doctorId: _encounter?.doctorId,
           patientVitals: _patientVitals,
+          amendMode: widget.amendMode,
+          editReason: _editReason,
           child: Scaffold(
             backgroundColor: colorScheme.surface,
             body: SafeArea(
@@ -264,7 +304,8 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   Widget _buildHeaderRow(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final isDone = _encounter?.status == 'done';
+    final isCompleted = _encounter?.isCompleted == true;
+    final isAmend = widget.amendMode;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -273,7 +314,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Encounter',
+              isAmend ? 'Amend encounter' : 'Encounter',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: scheme.onSurface,
@@ -281,7 +322,9 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'OPD encounter view',
+              isAmend
+                  ? 'Changes are saved to edit history'
+                  : 'OPD encounter view',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurface.withValues(alpha: 0.7),
               ),
@@ -291,7 +334,20 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_specialtyGateDismissed && !isDone)
+            if (isAmend)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: OutlinedButton.icon(
+                  onPressed: _changeAmendReason,
+                  icon: const Icon(Icons.edit_note, size: 18),
+                  label: Text(
+                    _editReason != null && _editReason!.isNotEmpty
+                        ? 'Reason set'
+                        : 'Set reason',
+                  ),
+                ),
+              ),
+            if (_specialtyGateDismissed && !isCompleted && !isAmend)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: FilledButton.tonalIcon(
@@ -300,13 +356,30 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                       context,
                       encounterId: widget.encounterId,
                       patientId: widget.patientId,
+                      editReason: _editReason,
                     );
                   },
                   icon: const Icon(Icons.grid_view_rounded, size: 20),
                   label: const Text('Specialty forms'),
                 ),
               ),
-            if (isDone)
+            if (isAmend)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilledButton.tonalIcon(
+                  onPressed: () {
+                    EncounterSpecialtyFormsPanel.showSheet(
+                      context,
+                      encounterId: widget.encounterId,
+                      patientId: widget.patientId,
+                      editReason: _editReason,
+                    );
+                  },
+                  icon: const Icon(Icons.grid_view_rounded, size: 20),
+                  label: const Text('Specialty forms'),
+                ),
+              ),
+            if (isCompleted || isAmend)
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -335,7 +408,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                   ],
                 ),
               )
-            else if (_specialtyGateDismissed)
+            else if (_specialtyGateDismissed && !isAmend)
               FilledButton.icon(
                 onPressed: _completing ? null : _completeEncounter,
                 icon: _completing

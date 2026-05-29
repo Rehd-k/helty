@@ -5,11 +5,7 @@ import '../models/cmac_period.dart';
 import '../providers/cmac_providers.dart';
 
 class CmacPeriodToolbar extends ConsumerWidget {
-  const CmacPeriodToolbar({
-    super.key,
-    this.onRefresh,
-    this.accentColor,
-  });
+  const CmacPeriodToolbar({super.key, this.onRefresh, this.accentColor});
 
   final VoidCallback? onRefresh;
   final Color? accentColor;
@@ -43,8 +39,8 @@ class CmacPeriodToolbar extends ConsumerWidget {
                 label: Text(p.label),
                 selected: selected,
                 onSelected: (_) {
-                  ref.read(cmacAnalyticsQueryProvider.notifier).state =
-                      query.copyWith(period: p);
+                  ref.read(cmacAnalyticsQueryProvider.notifier).state = query
+                      .copyWith(period: p);
                 },
                 selectedColor: accent.withValues(alpha: 0.25),
                 checkmarkColor: accent,
@@ -84,7 +80,7 @@ class CmacPeriodToolbar extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<int>(
-                    value: limit,
+                    initialValue: limit,
                     decoration: const InputDecoration(labelText: 'Top-N limit'),
                     items: const [5, 10, 20, 50]
                         .map(
@@ -97,9 +93,7 @@ class CmacPeriodToolbar extends ConsumerWidget {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      asOf == null
-                          ? 'As-of: now'
-                          : 'As-of: ${asOf!.toLocal()}',
+                      asOf == null ? 'As-of: now' : 'As-of: ${asOf!.toLocal()}',
                     ),
                     trailing: TextButton(
                       onPressed: () async {
@@ -130,8 +124,8 @@ class CmacPeriodToolbar extends ConsumerWidget {
                 ),
                 FilledButton(
                   onPressed: () {
-                    ref.read(cmacAnalyticsQueryProvider.notifier).state =
-                        query.copyWith(
+                    ref.read(cmacAnalyticsQueryProvider.notifier).state = query
+                        .copyWith(
                           limit: limit,
                           asOf: asOf,
                           clearAsOf: asOf == null && query.asOf != null,

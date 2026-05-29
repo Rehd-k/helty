@@ -337,9 +337,25 @@ class _DoctorCompletedEncountersScreenState
                       ),
                     ],
                   ),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (e.editMeta?.hasEdits == true)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Chip(
+                            label: const Text('Edited'),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ],
                   ),
                   onTap: () => _openEncounter(e),
                 ),

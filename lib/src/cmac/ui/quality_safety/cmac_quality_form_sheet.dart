@@ -105,9 +105,9 @@ class _QualityFormSheetState extends ConsumerState<_QualityFormSheet> {
 
   Future<void> _save() async {
     if (_patientId == null || _patientId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select a patient')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select a patient')));
       return;
     }
     setState(() => _saving = true);
@@ -118,9 +118,9 @@ class _QualityFormSheetState extends ConsumerState<_QualityFormSheet> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -135,14 +135,10 @@ class _QualityFormSheetState extends ConsumerState<_QualityFormSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'New record',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('New record', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             CmacPatientPickerField(
-              onSelected: (id, _) =>
-                  _patientId = id.isEmpty ? null : id,
+              onSelected: (id, _) => _patientId = id.isEmpty ? null : id,
             ),
             const SizedBox(height: 12),
             TextField(
@@ -175,7 +171,7 @@ class _QualityFormSheetState extends ConsumerState<_QualityFormSheet> {
       case QualitySafetyEntity.referrals:
         return [
           DropdownButtonFormField<String>(
-            value: _direction,
+            initialValue: _direction,
             decoration: const InputDecoration(labelText: 'Direction'),
             items: const [
               DropdownMenuItem(value: 'IN', child: Text('IN')),
@@ -209,7 +205,7 @@ class _QualityFormSheetState extends ConsumerState<_QualityFormSheet> {
             maxLines: 3,
           ),
           DropdownButtonFormField<String>(
-            value: _severity,
+            initialValue: _severity,
             decoration: const InputDecoration(labelText: 'Severity'),
             items: const [
               DropdownMenuItem(value: 'LOW', child: Text('LOW')),
@@ -231,7 +227,7 @@ class _QualityFormSheetState extends ConsumerState<_QualityFormSheet> {
             maxLines: 3,
           ),
           DropdownButtonFormField<String>(
-            value: _severity,
+            initialValue: _severity,
             decoration: const InputDecoration(labelText: 'Severity'),
             items: const [
               DropdownMenuItem(value: 'LOW', child: Text('LOW')),

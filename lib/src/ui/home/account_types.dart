@@ -231,6 +231,11 @@ final doctors = <MenuItem>[
     route: DoctorWalkInQueueRoute(),
   ),
   MenuItem(
+    label: 'Emergency start',
+    icon: Icons.emergency_outlined,
+    route: DoctorEmergencyStartRoute(),
+  ),
+  MenuItem(
     label: 'Ward Rounds',
     icon: Icons.medical_services_outlined,
     route: WardRoundsRoute(),

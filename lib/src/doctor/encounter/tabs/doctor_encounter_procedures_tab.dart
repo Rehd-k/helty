@@ -5,6 +5,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/services/encounter_service.dart';
@@ -200,9 +201,12 @@ class _DoctorEncounterProceduresTabState
     }
     _procedures.add(procedureMap);
     try {
-      await _encounterService.update(scope.encounterId, {
-        'proceduresJson': jsonEncode(_procedures),
-      });
+      await _encounterService.update(
+        scope.encounterId,
+        encounterPatchWithAmend(scope, {
+          'proceduresJson': jsonEncode(_procedures),
+        }),
+      );
       final usageErrors = <String>[];
       for (final c in pendingCopy) {
         if (c['isBillable'] == true) continue;

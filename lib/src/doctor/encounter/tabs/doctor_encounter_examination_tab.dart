@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_narrative_compiler.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_question_models.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_questionnaire_section.dart';
@@ -148,16 +149,21 @@ class _DoctorEncounterExaminationTabState
     );
 
     try {
-      await _encounterService.update(scope.encounterId, {
-        'examinationNotes': notes.isEmpty ? null : notes,
-      });
+      await _encounterService.update(
+        scope.encounterId,
+        encounterPatchWithAmend(scope, {
+          'examinationNotes': notes.isEmpty ? null : notes,
+        }),
+      );
       if (!mounted) return;
       for (final section in examinationQuestionnaireSections) {
         _savedNotes[section.id] = sectionTexts[section.id];
         _useDirectEditOnSave[section.id] = false;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Examination draft saved')),
+      showEncounterSaveSnackBar(
+        context,
+        scope: scope,
+        ongoingMessage: 'Examination draft saved',
       );
       setState(() => _loading = false);
     } catch (e) {

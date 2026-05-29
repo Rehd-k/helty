@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/notifications/app_notification_provider.dart';
 import '../models/chat_models.dart';
 import '../services/chat_api_service.dart';
+import '../providers/staff_chat_shell_provider.dart';
 import '../services/internal_chat_socket.dart';
 import 'chat_presence_widgets.dart';
 
@@ -58,6 +59,9 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
     _resolvedPeerStaffId = widget.peerStaffId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      ref
+          .read(staffChatShellProvider.notifier)
+          .setActiveConversationId(widget.conversationId);
       _socket = ref.read(internalChatSocketProvider);
       _load();
       _refreshPeerPresence();
@@ -66,6 +70,12 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
         (_) => _refreshPeerPresence(),
       );
     });
+  }
+
+  @override
+  void deactivate() {
+    ref.read(staffChatShellProvider.notifier).setActiveConversationId(null);
+    super.deactivate();
   }
 
   @override
@@ -188,6 +198,7 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
       conversationId: widget.conversationId,
       lastReadMessageId: last.id,
     );
+    unawaited(ref.read(staffChatShellProvider.notifier).refresh());
   }
 
   void _scrollToEnd() {

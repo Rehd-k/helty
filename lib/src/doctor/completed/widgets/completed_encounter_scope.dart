@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/models/encounter_edit_meta.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 
@@ -8,16 +9,22 @@ class CompletedEncounterScope extends InheritedWidget {
     super.key,
     required this.encounter,
     this.patient,
+    this.onRefresh,
     required super.child,
   });
 
   final EncounterModel encounter;
   final Patient? patient;
+  final VoidCallback? onRefresh;
+
+  EncounterEditMeta? get editMeta => encounter.editMeta;
 
   static CompletedEncounterScope? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<CompletedEncounterScope>();
 
   @override
   bool updateShouldNotify(CompletedEncounterScope old) =>
-      encounter.id != old.encounter.id || patient?.patientId != old.patient?.patientId;
+      encounter.id != old.encounter.id ||
+      patient?.patientId != old.patient?.patientId ||
+      encounter.editMeta != old.encounter.editMeta;
 }

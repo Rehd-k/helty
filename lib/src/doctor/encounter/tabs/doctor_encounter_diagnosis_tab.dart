@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/models/icd10_model.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/icd10_service.dart';
@@ -178,15 +179,21 @@ class _DoctorEncounterDiagnosisTabState
             .toList(),
       );
 
-      await _encounterService.saveDiagnosis(scope.encounterId, {
-        'primaryIcdCode': _primary!.code,
-        'primaryIcdDescription': _primary!.description,
-        'secondaryDiagnosesJson': secondaryJson,
-      });
+      await _encounterService.saveDiagnosis(
+        scope.encounterId,
+        {
+          'primaryIcdCode': _primary!.code,
+          'primaryIcdDescription': _primary!.description,
+          'secondaryDiagnosesJson': secondaryJson,
+        },
+        editReason: amendEditReason(scope),
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showEncounterSaveSnackBar(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Diagnosis saved')));
+        scope: scope,
+        ongoingMessage: 'Diagnosis saved',
+      );
       setState(() => _saving = false);
     } catch (e) {
       if (!mounted) return;

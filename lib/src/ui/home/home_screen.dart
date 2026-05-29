@@ -9,7 +9,9 @@ import 'package:helty/app_router.gr.dart';
 
 import '../../auth/billing_permissions.dart';
 import '../../helper/theme.dart';
+import '../../chat/providers/staff_chat_shell_provider.dart';
 import '../../chat/services/internal_chat_socket.dart';
+import '../../chat/widgets/staff_messages_shell_action.dart';
 import '../../models/staff_model.dart';
 import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
@@ -616,6 +618,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(internalChatSocketProvider);
+    ref.watch(staffChatShellProvider);
     final state = ref.watch(authProvider);
     final auth = ref.watch(authProvider);
     final staff = auth.staff;
@@ -659,6 +662,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             .read(shellSidePanelProvider.notifier)
             .toggle(ShellSidePanelTab.chat);
       }
+      ref.read(staffChatShellProvider.notifier).refresh();
     }
 
     final shell = AppShellTheme.of(context);
@@ -942,10 +946,10 @@ class _WindowsShellHelpChatButtons extends StatelessWidget {
           onTap: onHelpCenter,
         ),
         const SizedBox(width: 4),
-        _WindowsTitleBarIconAction(
-          tooltip: 'Staff chat',
-          icon: Icons.chat_bubble_outline_rounded,
+        StaffMessagesShellAction(
           onTap: onStaffChat,
+          iconSize: 18,
+          dense: true,
         ),
       ],
     );
@@ -1021,11 +1025,7 @@ class _NonWindowsShellActions extends StatelessWidget {
               icon: const Icon(Icons.help_outline_rounded),
               onPressed: onHelpCenter,
             ),
-            IconButton(
-              tooltip: 'Staff chat',
-              icon: const Icon(Icons.chat_bubble_outline_rounded),
-              onPressed: onStaffChat,
-            ),
+            StaffMessagesShellAction(onTap: onStaffChat),
           ],
         ),
       ),
@@ -1783,9 +1783,11 @@ class _MobileTopBar extends ConsumerWidget {
           // ),
           const Spacer(),
           _IconButton(icon: Icons.help_outline_rounded, onTap: onHelpCenter),
-          _IconButton(
-            icon: Icons.chat_bubble_outline_rounded,
+          StaffMessagesShellAction(
             onTap: onStaffChat,
+            dense: true,
+            iconSize: 22,
+            iconColor: shell.sidebarOnBackground,
           ),
           PopupMenuButton<ThemeMode>(
             tooltip: 'Theme',

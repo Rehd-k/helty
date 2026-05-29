@@ -20,6 +20,7 @@ class EncounterSpecialtyFormsPanel extends ConsumerStatefulWidget {
     this.readOnly = false,
     this.showAppBar = true,
     this.title = 'Specialty forms',
+    this.editReason,
   });
 
   final String encounterId;
@@ -27,11 +28,13 @@ class EncounterSpecialtyFormsPanel extends ConsumerStatefulWidget {
   final bool readOnly;
   final bool showAppBar;
   final String title;
+  final String? editReason;
 
   static Future<void> showSheet(
     BuildContext context, {
     required String encounterId,
     required String patientId,
+    String? editReason,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -47,6 +50,7 @@ class EncounterSpecialtyFormsPanel extends ConsumerStatefulWidget {
           encounterId: encounterId,
           patientId: patientId,
           showAppBar: true,
+          editReason: editReason,
         ),
       ),
     );
@@ -102,7 +106,11 @@ class _EncounterSpecialtyFormsPanelState
       encounterId: encounterId,
       initialModules: current,
       onSync: (next) async {
-        await _svc.syncModules(encounterId, next);
+        await _svc.syncModules(
+          encounterId,
+          next,
+          editReason: widget.editReason,
+        );
         ref.invalidate(encounterSpecialtyModulesProvider(encounterId));
       },
     );
@@ -162,6 +170,7 @@ class _EncounterSpecialtyFormsPanelState
           sectionKey,
           data,
           schemaVersion: _schemaVersions[ck] ?? 1,
+          editReason: widget.editReason,
         );
         _schemaVersions[ck] = row.schemaVersion;
         if (mounted) {

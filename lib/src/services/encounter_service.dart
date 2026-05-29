@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import 'api_service.dart';
 import 'appointment_service.dart';
+import '../models/encounter_edit_meta.dart';
 import '../models/encounter_model.dart';
 
 /// Encounter (OPD visit) CRUD. All methods use the real API.
@@ -117,31 +118,103 @@ class EncounterService {
     return EncounterModel.fromJson(data);
   }
 
-  /// PATCH /encounters/:id — partial update (any subset of encounter fields).
+  /// POST /encounters/:encounterId/diagnoses
   Future<EncounterModel> saveDiagnosis(
-    String id,
-    Map<String, dynamic> patch,
-  ) async {
-    // Serialize DateTime fields to ISO strings for API
+    String encounterId,
+    Map<String, dynamic> patch, {
+    String? editReason,
+  }) async {
     final body = Map<String, dynamic>.from(patch);
+    if (editReason != null && editReason.isNotEmpty) {
+      body['editReason'] = editReason;
+    }
 
     final response = await _dio.post<Map<String, dynamic>>(
-      '/encounters/$id/diagnoses',
+      '/encounters/$encounterId/diagnoses',
       data: body,
     );
     final data = response.data;
-    if (data == null) throw StateError('Update encounter returned no data');
+    if (data == null) throw StateError('Create diagnosis returned no data');
     return EncounterModel.fromJson(data);
   }
 
-  /// Marks encounter as done and sets closedAt. Use when the doctor finishes with the patient.
-  /// PATCH /encounters/:id with status: 'done', closedAt: now.
+  /// PATCH /encounters/:encounterId/diagnoses/:diagnosisId
+  Future<EncounterModel> patchDiagnosis(
+    String encounterId,
+    String diagnosisId,
+    Map<String, dynamic> patch, {
+    String? editReason,
+  }) async {
+    final body = Map<String, dynamic>.from(patch);
+    if (editReason != null && editReason.isNotEmpty) {
+      body['editReason'] = editReason;
+    }
+
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/encounters/$encounterId/diagnoses/$diagnosisId',
+      data: body,
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Update diagnosis returned no data');
+    return EncounterModel.fromJson(data);
+  }
+
+  /// DELETE /encounters/:encounterId/diagnoses/:diagnosisId
+  Future<void> deleteDiagnosis(
+    String encounterId,
+    String diagnosisId, {
+    String? editReason,
+  }) async {
+    await _dio.delete<void>(
+      '/encounters/$encounterId/diagnoses/$diagnosisId',
+      queryParameters: editReason != null && editReason.isNotEmpty
+          ? {'editReason': editReason}
+          : null,
+    );
+  }
+
+  /// GET /encounters/:id/edit-history — newest first.
+  Future<List<EncounterEditHistorySummary>> listEditHistory(
+    String encounterId,
+  ) async {
+    final response = await _dio.get<dynamic>(
+      '/encounters/$encounterId/edit-history',
+    );
+    final raw = response.data;
+    if (raw is! List) return [];
+    return raw
+        .whereType<Map>()
+        .map(
+          (e) => EncounterEditHistorySummary.fromJson(
+            Map<String, dynamic>.from(e),
+          ),
+        )
+        .toList();
+  }
+
+  /// GET /encounters/:id/edit-history/:historyId
+  Future<EncounterEditHistoryDetail> getEditHistoryDetail(
+    String encounterId,
+    String historyId,
+  ) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/encounters/$encounterId/edit-history/$historyId',
+    );
+    final data = response.data;
+    if (data == null) {
+      throw StateError('Edit history detail returned no data');
+    }
+    return EncounterEditHistoryDetail.fromJson(data);
+  }
+
+  /// PATCH /encounters/:id/complete — treating doctor only.
   Future<EncounterModel> complete(String encounterId) async {
-    final now = DateTime.now();
-    return update(encounterId, {
-      'status': 'COMPLETED',
-      'closedAt': now.toIso8601String(),
-    });
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/encounters/$encounterId/complete',
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Complete encounter returned no data');
+    return EncounterModel.fromJson(data);
   }
 
   /// Persists follow-up via [Appointment] when a date is set or an existing

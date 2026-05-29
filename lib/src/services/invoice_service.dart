@@ -400,7 +400,6 @@ class InvoiceService {
       await _dio.post('/invoices/$invoiceId/coverages/hmo', data: data);
       return getBillingInvoice(invoiceId);
     } on DioException catch (e) {
-      print(e.response?.data);
       throw Exception(
         'Failed to apply HMO coverage: ${_dioMessage(e, 'Unknown error')}',
       );
