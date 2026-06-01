@@ -38,10 +38,12 @@ class IvFluidOrderService {
     String? complications,
     DateTime? stoppedAt,
     String? reasonStopped,
+    String? nurseId,
   }) async {
     final body = <String, dynamic>{
       'currentRate': currentRate,
       'insertionSiteCondition': insertionSiteCondition,
+      if (nurseId != null && nurseId.isNotEmpty) 'nurseId': nurseId,
       if (complications != null && complications.isNotEmpty)
         'complications': complications,
       if (stoppedAt != null) 'stoppedAt': stoppedAt.toUtc().toIso8601String(),

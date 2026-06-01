@@ -1,3 +1,5 @@
+import 'staff_attribution.dart';
+
 /// Row from GET `/admissions/:admissionId/monitoring-charts`.
 class MonitoringChartModel {
   const MonitoringChartModel({
@@ -6,6 +8,7 @@ class MonitoringChartModel {
     this.value,
     this.createdAt,
     this.updatedAt,
+    this.recorderDisplayName,
   });
 
   final String id;
@@ -13,6 +16,7 @@ class MonitoringChartModel {
   final Map<String, dynamic>? value;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? recorderDisplayName;
 
   static String _str(dynamic v) => v?.toString() ?? '';
 
@@ -28,6 +32,7 @@ class MonitoringChartModel {
       val = Map<String, dynamic>.from(raw);
     }
 
+    final recorder = staffDisplayNameFromJson(json);
     return MonitoringChartModel(
       id: _str(json['id']),
       chartType:
@@ -35,6 +40,7 @@ class MonitoringChartModel {
       value: val,
       createdAt: _dt(json['createdAt'] ?? json['created_at']),
       updatedAt: _dt(json['updatedAt'] ?? json['updated_at']),
+      recorderDisplayName: recorder.isEmpty ? null : recorder,
     );
   }
 }

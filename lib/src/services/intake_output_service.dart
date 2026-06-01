@@ -34,6 +34,7 @@ class IntakeOutputService {
   /// POST `/admissions/:admissionId/intake-output-records`
   Future<IntakeOutputRecordModel> create({
     required String admissionId,
+    required String nurseId,
     required String type,
     required String category,
     required double amountMl,
@@ -41,6 +42,7 @@ class IntakeOutputService {
     String? notes,
   }) async {
     final body = <String, dynamic>{
+      'nurseId': nurseId,
       'type': type,
       'category': category,
       'amountMl': amountMl,

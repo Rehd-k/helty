@@ -253,9 +253,14 @@ class _CarePlanProblemTile extends StatelessWidget {
               ),
         ),
         subtitle: Text(
-          plan.goal?.isNotEmpty == true
-              ? 'Goal: ${plan.goal}'
-              : 'Goal: —',
+          [
+            if (plan.recorderDisplayName != null &&
+                plan.recorderDisplayName!.isNotEmpty)
+              'Recorded by ${plan.recorderDisplayName}',
+            plan.goal?.isNotEmpty == true
+                ? 'Goal: ${plan.goal}'
+                : 'Goal: —',
+          ].join(' · '),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         children: [

@@ -38,7 +38,6 @@ class SupportTicketDetailContent extends ConsumerStatefulWidget {
 class _SupportTicketDetailContentState
     extends ConsumerState<SupportTicketDetailContent> {
   final _scrollController = ScrollController();
-  final _messageCtrl = TextEditingController();
   SupportTicketDetail? _detail;
   bool _loading = true;
   String? _error;
@@ -56,7 +55,6 @@ class _SupportTicketDetailContentState
     _ticketSub?.cancel();
     _errSub?.cancel();
     _scrollController.dispose();
-    _messageCtrl.dispose();
     super.dispose();
   }
 
@@ -133,10 +131,8 @@ class _SupportTicketDetailContentState
     });
   }
 
-  Future<void> _send() async {
-    final text = _messageCtrl.text.trim();
+  Future<void> _send(String text) async {
     if (text.isEmpty) return;
-    _messageCtrl.clear();
     final socket = ref.read(internalChatSocketProvider);
     if (socket.isConnected) {
       socket.sendTicketMessage(ticketId: widget.ticketId, content: text);
@@ -420,33 +416,64 @@ class _SupportTicketDetailContentState
           ),
         ),
         const Divider(height: 1),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Message…',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _send,
-                icon: const Icon(Icons.send_rounded),
-              ),
-            ],
-          ),
-        ),
+        _TicketMessageComposer(onSend: _send),
       ],
+    );
+  }
+}
+
+class _TicketMessageComposer extends StatefulWidget {
+  const _TicketMessageComposer({required this.onSend});
+
+  final Future<void> Function(String text) onSend;
+
+  @override
+  State<_TicketMessageComposer> createState() => _TicketMessageComposerState();
+}
+
+class _TicketMessageComposerState extends State<_TicketMessageComposer> {
+  final _messageCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _messageCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final text = _messageCtrl.text.trim();
+    if (text.isEmpty) return;
+    _messageCtrl.clear();
+    await widget.onSend(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Message…',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              minLines: 1,
+              maxLines: 4,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _submit(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            onPressed: _submit,
+            icon: const Icon(Icons.send_rounded),
+          ),
+        ],
+      ),
     );
   }
 }

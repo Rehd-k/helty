@@ -8,6 +8,7 @@ import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/encounter_service.dart';
+import 'package:helty/src/services/staff_service.dart';
 import 'package:helty/src/widgets/date.filter.dart';
 import 'package:intl/intl.dart';
 
@@ -24,9 +25,11 @@ class _DoctorCompletedEncountersScreenState
     extends ConsumerState<DoctorCompletedEncountersScreen> {
   final _encounterService = EncounterService();
   final _patientService = PatientService();
+  final _staffService = StaffService();
 
   List<EncounterModel> _encounters = [];
   final Map<String, Patient> _patientCache = {};
+  final Map<String, String> _doctorNameCache = {};
   bool _loading = true;
   String? _error;
   final _searchCtrl = TextEditingController();
@@ -123,6 +126,7 @@ class _DoctorCompletedEncountersScreenState
         _loading = false;
       });
       _loadPatientsForEncounters(list);
+      _loadDoctorsForEncounters(list);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -155,6 +159,39 @@ class _DoctorCompletedEncountersScreenState
     }
   }
 
+  Future<void> _loadDoctorsForEncounters(List<EncounterModel> list) async {
+    final ids = <String>{};
+    for (final e in list) {
+      if (e.doctorDisplayName?.trim().isNotEmpty == true) continue;
+      final id = e.doctorId.trim();
+      if (id.isEmpty || _doctorNameCache.containsKey(id)) continue;
+      ids.add(id);
+    }
+    if (ids.isEmpty) return;
+    final updates = <String, String>{};
+    for (final id in ids) {
+      try {
+        final staff = await _staffService.getStaffById(id);
+        updates[id] = staff.fullName;
+      } catch (_) {
+        // skip failed staff load
+      }
+      if (!mounted) return;
+    }
+    if (updates.isNotEmpty && mounted) {
+      setState(() => _doctorNameCache.addAll(updates));
+    }
+  }
+
+  String _doctorLabel(EncounterModel encounter) {
+    final nested = encounter.doctorDisplayName?.trim();
+    if (nested != null && nested.isNotEmpty) return 'Dr $nested';
+    final cached = _doctorNameCache[encounter.doctorId.trim()];
+    if (cached != null && cached.isNotEmpty) return 'Dr $cached';
+    final id = encounter.doctorId.trim();
+    return id.isNotEmpty ? id : '—';
+  }
+
   void _filterDisplayed() {
     setState(() {});
   }
@@ -178,8 +215,10 @@ class _DoctorCompletedEncountersScreenState
             ? '${patient.firstName} ${patient.surname}'.toLowerCase()
             : e.patientId.toLowerCase();
         final complaint = (e.chiefComplaint ?? '').toLowerCase();
+        final doctor = _doctorLabel(e).toLowerCase();
         return name.contains(q) ||
             complaint.contains(q) ||
+            doctor.contains(q) ||
             e.patientId.toLowerCase().contains(q);
       }).toList();
     }
@@ -330,6 +369,14 @@ class _DoctorCompletedEncountersScreenState
                       ),
                       const SizedBox(height: 4),
                       Text(
+                        _doctorLabel(e),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.65),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
                         '${DateFormat.yMMMd().format(closed)} • ${e.primaryIcdDescription ?? e.status}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurface.withValues(alpha: 0.6),
@@ -427,7 +474,7 @@ class _DoctorCompletedEncountersScreenState
                           controller: _searchCtrl,
                           decoration: InputDecoration(
                             hintText:
-                                'Search by patient name, ID, or chief complaint',
+                                'Search by patient, doctor, ID, or chief complaint',
                             prefixIcon: Icon(
                               Icons.search,
                               size: 20,

@@ -1,6 +1,7 @@
 import 'package:helty/src/models/appointment_model.dart';
 import 'package:helty/src/models/clinical_specialty_models.dart';
 import 'package:helty/src/models/encounter_edit_meta.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 /// One row from `diagnoses[]` on GET /encounters/:id (when not duplicated on flat fields).
 class EncounterDiagnosisSnapshot {
@@ -25,10 +26,14 @@ class EncounterModel {
     required this.patientId,
     this.appointmentId,
     required this.doctorId,
+    this.doctorDisplayName,
     required this.status,
     required this.startedAt,
     this.closedAt,
     this.visitType,
+    this.encounterType,
+    this.admissionId,
+    this.triageNotes,
     this.insurance,
     this.chiefComplaint,
     this.hpi,
@@ -64,10 +69,14 @@ class EncounterModel {
   final String patientId;
   final String? appointmentId;
   final String doctorId;
+  final String? doctorDisplayName;
   final String status;
   final DateTime startedAt;
   final DateTime? closedAt;
   final String? visitType;
+  final String? encounterType;
+  final String? admissionId;
+  final String? triageNotes;
   final String? insurance;
   // History tab
   final String? chiefComplaint;
@@ -120,22 +129,49 @@ class EncounterModel {
     return s == 'COMPLETED' || s == 'DONE';
   }
 
+  /// True when this encounter is an emergency department visit.
+  bool get isEmergency {
+    final t = encounterType?.trim().toUpperCase();
+    return t == 'EMERGENCY';
+  }
+
+  /// Treating clinician label for UI (nested doctor, flat name, or id fallback).
+  String get doctorLabel {
+    final name = doctorDisplayName?.trim();
+    if (name != null && name.isNotEmpty) return 'Dr $name';
+    if (doctorId.trim().isNotEmpty) return doctorId.trim();
+    return '—';
+  }
+
   factory EncounterModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
 
     DateTime? parseDt(dynamic v) =>
         v == null ? null : DateTime.tryParse(v.toString());
 
+    final doctorName = staffDisplayNameFromJson(json);
+    final doctorObj = json['doctor'];
+    final nestedDoctorId = doctorObj is Map
+        ? (doctorObj['id'] ?? doctorObj['staffId'])?.toString()
+        : null;
+    final doctorId = str(json['doctorId']).isNotEmpty
+        ? str(json['doctorId'])
+        : str(nestedDoctorId);
+
     return EncounterModel(
       id: str(json['id']),
       patientId: str(json['patientId']),
       appointmentId: json['appointmentId']?.toString(),
-      doctorId: str(json['doctorId']),
+      doctorId: doctorId,
+      doctorDisplayName: doctorName.isEmpty ? null : doctorName,
       status: (json['status']?.toString()) ?? 'open',
       startedAt: parseDt(json['startedAt'] ?? json['startTime']) ??
           DateTime.now(),
       closedAt: parseDt(json['closedAt'] ?? json['endTime']),
       visitType: json['visitType'] as String?,
+      encounterType: json['encounterType'] as String?,
+      admissionId: json['admissionId']?.toString(),
+      triageNotes: json['triageNotes'] as String?,
       insurance: json['insurance'] as String?,
       chiefComplaint: json['chiefComplaint'] as String?,
       hpi: json['hpi'] as String?,
@@ -247,10 +283,14 @@ class EncounterModel {
     'patientId': patientId,
     if (appointmentId != null) 'appointmentId': appointmentId,
     'doctorId': doctorId,
+    if (doctorDisplayName != null) 'doctorDisplayName': doctorDisplayName,
     'status': status,
     'startedAt': startedAt.toIso8601String(),
     if (closedAt != null) 'closedAt': closedAt!.toIso8601String(),
     if (visitType != null) 'visitType': visitType,
+    if (encounterType != null) 'encounterType': encounterType,
+    if (admissionId != null) 'admissionId': admissionId,
+    if (triageNotes != null) 'triageNotes': triageNotes,
     if (insurance != null) 'insurance': insurance,
     if (chiefComplaint != null) 'chiefComplaint': chiefComplaint,
     if (hpi != null) 'hpi': hpi,
@@ -281,6 +321,7 @@ class EncounterModel {
   };
 
   EncounterModel copyWith({
+    String? doctorDisplayName,
     String? chiefComplaint,
     String? hpi,
     String? pmh,
@@ -315,6 +356,7 @@ class EncounterModel {
       patientId: patientId,
       appointmentId: appointmentId,
       doctorId: doctorId,
+      doctorDisplayName: doctorDisplayName ?? this.doctorDisplayName,
       status: status,
       startedAt: startedAt,
       closedAt: closedAt,

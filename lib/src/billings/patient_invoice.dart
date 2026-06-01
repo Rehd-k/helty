@@ -5,7 +5,7 @@ import '../models/ward_models.dart';
 import '../services/ward_service.dart';
 import '../widgets/text_field.dart';
 
-void showNewPatientInvoiceForm(
+Future<void> showNewPatientInvoiceForm(
   BuildContext context,
   TextEditingController firstName,
   TextEditingController surname,
@@ -18,7 +18,7 @@ void showNewPatientInvoiceForm(
   final wardService = WardService();
   final wardsFuture = wardService.fetchWards();
 
-  showDialog(
+  return showDialog<void>(
     context: context,
     builder: (context) {
       return AlertDialog(

@@ -217,6 +217,51 @@ class DispenseHistoryQuery {
   };
 }
 
+/// Staff who performed a dispense (history API: `{ id, name }`; invoice lines: `{ id, firstName, lastName }`).
+class DispenseAuditStaff {
+  const DispenseAuditStaff({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory DispenseAuditStaff.fromJson(Map<String, dynamic> json) {
+    final directName = json['name']?.toString().trim() ?? '';
+    if (directName.isNotEmpty) {
+      return DispenseAuditStaff(
+        id: json['id']?.toString() ?? '',
+        name: directName,
+      );
+    }
+    final fn = json['firstName']?.toString().trim() ?? '';
+    final ln = json['lastName']?.toString().trim() ?? '';
+    final combined = '$fn $ln'.trim();
+    return DispenseAuditStaff(
+      id: json['id']?.toString() ?? '',
+      name: combined.isNotEmpty ? combined : 'Unknown staff',
+    );
+  }
+}
+
+/// Dispensary location used for a dispense (history: `dispensary`; invoice line: `dispensaryLocation`).
+class DispenseAuditLocation {
+  const DispenseAuditLocation({
+    required this.id,
+    required this.name,
+    this.locationType,
+  });
+
+  final String id;
+  final String name;
+  final String? locationType;
+
+  factory DispenseAuditLocation.fromJson(Map<String, dynamic> json) =>
+      DispenseAuditLocation(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? 'Unknown location',
+        locationType: json['locationType']?.toString(),
+      );
+}
+
 class DispenseHistoryPatient {
   const DispenseHistoryPatient({
     required this.id,
@@ -261,6 +306,8 @@ class DispenseHistoryItem {
     required this.amountPaid,
     required this.drug,
     required this.patient,
+    this.dispensedBy,
+    this.dispensary,
   });
 
   final String invoiceUUID;
@@ -273,6 +320,8 @@ class DispenseHistoryItem {
   final double amountPaid;
   final DispenseHistoryDrug drug;
   final DispenseHistoryPatient patient;
+  final DispenseAuditStaff? dispensedBy;
+  final DispenseAuditLocation? dispensary;
 
   factory DispenseHistoryItem.fromJson(Map<String, dynamic> json) =>
       DispenseHistoryItem(
@@ -305,6 +354,16 @@ class DispenseHistoryItem {
         patient: DispenseHistoryPatient.fromJson(
           Map<String, dynamic>.from((json['patient'] as Map?) ?? const {}),
         ),
+        dispensedBy: json['dispensedBy'] is Map
+            ? DispenseAuditStaff.fromJson(
+                Map<String, dynamic>.from(json['dispensedBy'] as Map),
+              )
+            : null,
+        dispensary: json['dispensary'] is Map
+            ? DispenseAuditLocation.fromJson(
+                Map<String, dynamic>.from(json['dispensary'] as Map),
+              )
+            : null,
       );
 }
 

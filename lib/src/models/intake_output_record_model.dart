@@ -1,3 +1,5 @@
+import 'staff_attribution.dart';
+
 /// Row from GET `/admissions/:admissionId/intake-output-records`.
 class IntakeOutputRecordModel {
   const IntakeOutputRecordModel({
@@ -8,6 +10,8 @@ class IntakeOutputRecordModel {
     this.recordedAt,
     this.notes,
     this.createdAt,
+    this.nurseId,
+    this.nurseDisplayName,
   });
 
   final String id;
@@ -17,6 +21,8 @@ class IntakeOutputRecordModel {
   final DateTime? recordedAt;
   final String? notes;
   final DateTime? createdAt;
+  final String? nurseId;
+  final String? nurseDisplayName;
 
   static String _str(dynamic v) => v?.toString() ?? '';
 
@@ -32,6 +38,7 @@ class IntakeOutputRecordModel {
   }
 
   factory IntakeOutputRecordModel.fromJson(Map<String, dynamic> json) {
+    final nurseName = staffDisplayNameFromJson(json);
     return IntakeOutputRecordModel(
       id: _str(json['id']),
       type: json['type']?.toString(),
@@ -40,6 +47,8 @@ class IntakeOutputRecordModel {
       recordedAt: _dt(json['recordedAt'] ?? json['recorded_at'] ?? json['time']),
       notes: json['notes']?.toString(),
       createdAt: _dt(json['createdAt'] ?? json['created_at']),
+      nurseId: json['nurseId']?.toString() ?? json['nurse_id']?.toString(),
+      nurseDisplayName: nurseName.isEmpty ? null : nurseName,
     );
   }
 }

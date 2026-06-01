@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/nursing_note_model.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/nursing_note_service.dart';
@@ -98,12 +99,15 @@ class _InpatientNotesScreenState extends State<InpatientNotesScreen> {
       );
       return;
     }
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
     setState(() => _saving = true);
     try {
       await _service.create(
         admissionId: admissionId,
         noteType: _noteType,
         content: text,
+        nurseId: nurseId,
       );
       _noteCtrl.clear();
       if (!context.mounted) return;
@@ -251,15 +255,22 @@ class _InpatientNotesScreenState extends State<InpatientNotesScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        if (n.createdAt != null)
-                                          Text(
-                                            DateFormatter.dateTime(
-                                              n.createdAt!,
-                                            ),
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelSmall,
+                                        Text(
+                                          [
+                                            if (n.authorName != null &&
+                                                n.authorName!.isNotEmpty)
+                                              'Recorded by ${n.authorName}',
+                                            if (n.createdAt != null)
+                                              DateFormatter.dateTime(
+                                                n.createdAt!,
+                                              ),
+                                          ].where((s) => s.isNotEmpty).join(
+                                            ' · ',
                                           ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall,
+                                        ),
                                         const SizedBox(height: 4),
                                         Text(n.content ?? ''),
                                       ],

@@ -24,7 +24,6 @@ class CmacInsightsScreen extends ConsumerWidget {
       accent: CmacPalette.insights.first,
       asyncValue: async,
       onRefresh: refresh,
-      pollInterval: const Duration(seconds: 60),
       builder: (context, raw) {
         final data = raw as CmacInsightsResponse;
         return CmacInsightList(insights: data.insights);

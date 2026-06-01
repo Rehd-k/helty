@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,7 +5,7 @@ import '../../cmd/cmd_breakpoints.dart';
 import 'cmac_period_toolbar.dart';
 import 'cmac_vibrant_backdrop.dart';
 
-class CmacAnalyticsScaffold extends ConsumerStatefulWidget {
+class CmacAnalyticsScaffold extends ConsumerWidget {
   const CmacAnalyticsScaffold({
     super.key,
     required this.title,
@@ -17,7 +15,6 @@ class CmacAnalyticsScaffold extends ConsumerStatefulWidget {
     required this.asyncValue,
     required this.onRefresh,
     required this.builder,
-    this.pollInterval,
   });
 
   final String title;
@@ -27,39 +24,15 @@ class CmacAnalyticsScaffold extends ConsumerStatefulWidget {
   final AsyncValue<dynamic> asyncValue;
   final VoidCallback onRefresh;
   final Widget Function(BuildContext context, dynamic data) builder;
-  final Duration? pollInterval;
 
   @override
-  ConsumerState<CmacAnalyticsScaffold> createState() =>
-      _CmacAnalyticsScaffoldState();
-}
-
-class _CmacAnalyticsScaffoldState extends ConsumerState<CmacAnalyticsScaffold> {
-  Timer? _poll;
-
-  @override
-  void initState() {
-    super.initState();
-    final interval = widget.pollInterval;
-    if (interval != null) {
-      _poll = Timer.periodic(interval, (_) => widget.onRefresh());
-    }
-  }
-
-  @override
-  void dispose() {
-    _poll?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
     return Scaffold(
       body: CmacVibrantBackdrop(
-        colors: widget.colors,
+        colors: colors,
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
@@ -71,14 +44,14 @@ class _CmacAnalyticsScaffoldState extends ConsumerState<CmacAnalyticsScaffold> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.title,
+                    title,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: widget.accent,
+                      color: accent,
                     ),
                   ),
                   Text(
-                    widget.subtitle,
+                    subtitle,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
                     ),
@@ -107,12 +80,12 @@ class _CmacAnalyticsScaffoldState extends ConsumerState<CmacAnalyticsScaffold> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             CmacPeriodToolbar(
-                              accentColor: widget.accent,
-                              onRefresh: widget.onRefresh,
+                              accentColor: accent,
+                              onRefresh: onRefresh,
                             ),
                             const SizedBox(height: 16),
-                            widget.asyncValue.when(
-                              data: (data) => widget.builder(context, data),
+                            asyncValue.when(
+                              data: (data) => builder(context, data),
                               loading: () => const Padding(
                                 padding: EdgeInsets.all(48),
                                 child: Center(
@@ -121,7 +94,7 @@ class _CmacAnalyticsScaffoldState extends ConsumerState<CmacAnalyticsScaffold> {
                               ),
                               error: (e, _) => _ErrorPanel(
                                 error: e.toString(),
-                                onRetry: widget.onRefresh,
+                                onRetry: onRefresh,
                               ),
                             ),
                           ],

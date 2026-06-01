@@ -1,15 +1,20 @@
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
+import 'package:helty/src/models/procedure_record_model.dart';
 import 'package:helty/src/models/service_model.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
 import 'package:helty/src/providers/service_providers.dart';
+import 'package:helty/src/services/procedure_record_service.dart';
 import 'package:helty/src/services/service_service.dart';
 
 @RoutePage()
@@ -23,8 +28,144 @@ class InpatientProceduresScreen extends ConsumerStatefulWidget {
 
 class _InpatientProceduresScreenState
     extends ConsumerState<InpatientProceduresScreen> {
+  final _procedureService = ProcedureRecordService();
+  List<ProcedureRecordModel> _records = [];
+  bool _loading = true;
+  String? _error;
+  String? _lastAdmissionId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final id = InpatientViewScope.of(context)?.admissionId;
+    if (id == null || id.isEmpty) {
+      if (_lastAdmissionId != null) {
+        setState(() {
+          _records = [];
+          _loading = false;
+          _error = null;
+          _lastAdmissionId = null;
+        });
+      }
+      return;
+    }
+    if (id != _lastAdmissionId) {
+      _lastAdmissionId = id;
+      _load(id);
+    }
+  }
+
+  Future<void> _load(String admissionId) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await _procedureService.list(admissionId);
+      list.sort((a, b) {
+        final ta = a.recordedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final tb = b.recordedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return tb.compareTo(ta);
+      });
+      if (!mounted) return;
+      setState(() {
+        _records = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _records = [];
+        _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  String _dioMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map && data['message'] != null) {
+      return data['message'].toString();
+    }
+    return e.message ?? 'Request failed';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final admissionId = InpatientViewScope.of(context)?.admissionId;
+
+    if (admissionId == null || admissionId.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(
+          child: Text('Open this patient with an admission to view procedures.'),
+        ),
+      );
+    }
+
+    Widget tableChild;
+    if (_loading) {
+      tableChild = const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    } else if (_error != null) {
+      tableChild = Column(
+        children: [
+          Text(_error!, textAlign: TextAlign.center),
+          TextButton(
+            onPressed: () => _load(admissionId),
+            child: const Text('Retry'),
+          ),
+        ],
+      );
+    } else {
+      tableChild = SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: [
+            'Date/Time',
+            'Type',
+            'Description',
+            'Outcome',
+            'Complications',
+            'Recorded by',
+          ]
+              .map(
+                (c) => DataColumn(
+                  label: Text(
+                    c,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              )
+              .toList(),
+          rows: _records
+              .map(
+                (r) => DataRow(
+                  cells: [
+                    DataCell(
+                      Text(
+                        DateFormatter.dateTime(
+                          r.recordedAt ?? r.createdAt ?? DateTime.now(),
+                        ),
+                      ),
+                    ),
+                    DataCell(Text(r.procedureType ?? '—')),
+                    DataCell(Text(r.description ?? '—')),
+                    DataCell(Text(r.outcome ?? '—')),
+                    DataCell(Text(r.complications ?? '—')),
+                    DataCell(Text(r.nurseDisplayName ?? '—')),
+                  ],
+                ),
+              )
+              .toList(),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: SectionCard(
@@ -32,7 +173,7 @@ class _InpatientProceduresScreenState
         subtitle: 'Bedside and theatre procedures for this admission',
         actions: [
           FilledButton.icon(
-            onPressed: () => _openAddProcedureDialog(context),
+            onPressed: () => _openAddProcedureDialog(context, admissionId),
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Add Procedure'),
           ),
@@ -42,110 +183,156 @@ class _InpatientProceduresScreenState
             label: const Text('Bill Procedure'),
           ),
         ],
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: ['Date/Time', 'Type', 'Clinician', 'Site', 'Outcome']
-                .map(
-                  (c) => DataColumn(
-                    label: Text(
-                      c,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-            rows: const [],
-          ),
-        ),
+        child: tableChild,
       ),
     );
   }
 
-  Future<void> _openAddProcedureDialog(BuildContext context) async {
+  Future<void> _openAddProcedureDialog(
+    BuildContext context,
+    String admissionId,
+  ) async {
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
+
     final typeCtrl = TextEditingController();
-    final clinicianCtrl = TextEditingController();
-    final siteCtrl = TextEditingController();
+    final descriptionCtrl = TextEditingController();
     final outcomeCtrl = TextEditingController();
     final complicationsCtrl = TextEditingController();
+    var saving = false;
 
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text('Add Procedure'),
-          content: SizedBox(
-            width: inpatientDialogBodyWidth(dialogContext),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: typeCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Procedure type',
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (dialogContext, setLocal) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: const Text('Add Procedure'),
+                content: SizedBox(
+                  width: inpatientDialogBodyWidth(dialogContext),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: typeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Procedure type',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: descriptionCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Description / site',
+                          ),
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: outcomeCtrl,
+                          decoration: const InputDecoration(labelText: 'Outcome'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: complicationsCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Complications',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: clinicianCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Performing clinician',
-                    ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: saving
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Cancel'),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: siteCtrl,
-                    decoration: const InputDecoration(labelText: 'Site'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: outcomeCtrl,
-                    decoration: const InputDecoration(labelText: 'Outcome'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: complicationsCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Complications',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Wound images (optional)',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.upload_file, size: 18),
-                    label: const Text('Upload wound image'),
+                  FilledButton(
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            if (typeCtrl.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Procedure type is required.'),
+                                ),
+                              );
+                              return;
+                            }
+                            setLocal(() => saving = true);
+                            try {
+                              await _procedureService.create(
+                                admissionId: admissionId,
+                                nurseId: nurseId,
+                                procedureType: typeCtrl.text.trim(),
+                                description: descriptionCtrl.text.trim(),
+                                outcome: outcomeCtrl.text.trim().isEmpty
+                                    ? null
+                                    : outcomeCtrl.text.trim(),
+                                complications:
+                                    complicationsCtrl.text.trim().isEmpty
+                                        ? null
+                                        : complicationsCtrl.text.trim(),
+                              );
+                              if (dialogContext.mounted) {
+                                Navigator.of(dialogContext).pop();
+                              }
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Procedure recorded.'),
+                                  ),
+                                );
+                                await _load(admissionId);
+                              }
+                            } on DioException catch (e) {
+                              if (dialogContext.mounted) {
+                                ScaffoldMessenger.of(dialogContext)
+                                    .showSnackBar(
+                                  SnackBar(content: Text(_dioMessage(e))),
+                                );
+                              }
+                            } catch (e) {
+                              if (dialogContext.mounted) {
+                                ScaffoldMessenger.of(dialogContext)
+                                    .showSnackBar(
+                                  SnackBar(content: Text('$e')),
+                                );
+                              }
+                            } finally {
+                              if (dialogContext.mounted) {
+                                setLocal(() => saving = false);
+                              }
+                            }
+                          },
+                    child: saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Save'),
                   ),
                 ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      typeCtrl.dispose();
+      descriptionCtrl.dispose();
+      outcomeCtrl.dispose();
+      complicationsCtrl.dispose();
+    }
   }
 
   Future<void> _openBillProcedureDialog(BuildContext context) async {

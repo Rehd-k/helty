@@ -12,7 +12,11 @@ import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
+import 'package:helty/src/emergency/services/emergency_service.dart';
+import 'package:helty/src/emergency/widgets/ed_disposition_dialog.dart';
+import 'package:helty/src/emergency/widgets/esi_badge.dart';
 import 'package:helty/src/services/encounter_service.dart';
+import 'package:helty/src/services/waiting_patient_service.dart';
 
 const double _contentMaxWidth = 1440;
 
@@ -26,6 +30,9 @@ class EncounterScope extends InheritedWidget {
     this.patientVitals,
     this.amendMode = false,
     this.editReason,
+    this.isEmergency = false,
+    this.emergencyVisitId,
+    this.edEsiLevel,
     required super.child,
   });
 
@@ -40,6 +47,15 @@ class EncounterScope extends InheritedWidget {
   /// Stored on each history row when amending a completed encounter.
   final String? editReason;
 
+  /// True when encounterType is EMERGENCY.
+  final bool isEmergency;
+
+  /// Linked EmergencyVisit id when available.
+  final String? emergencyVisitId;
+
+  /// ESI from triage, if known.
+  final int? edEsiLevel;
+
   static EncounterScope? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<EncounterScope>();
 
@@ -50,7 +66,10 @@ class EncounterScope extends InheritedWidget {
       doctorId != old.doctorId ||
       patientVitals != old.patientVitals ||
       amendMode != old.amendMode ||
-      editReason != old.editReason;
+      editReason != old.editReason ||
+      isEmergency != old.isEmergency ||
+      emergencyVisitId != old.emergencyVisitId ||
+      edEsiLevel != old.edEsiLevel;
 }
 
 @RoutePage()
@@ -62,12 +81,16 @@ class DoctorEncounterViewScreen extends StatefulWidget {
   /// When true, amends a completed encounter (no complete button, versioned saves).
   final bool amendMode;
 
+  /// Optional linked EmergencyVisit id from ED board.
+  final String? emergencyVisitId;
+
   const DoctorEncounterViewScreen({
     super.key,
     required this.encounterId,
     required this.patientId,
     this.patientVitalsJson,
     this.amendMode = false,
+    this.emergencyVisitId,
   });
 
   @override
@@ -78,6 +101,8 @@ class DoctorEncounterViewScreen extends StatefulWidget {
 class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   final _patientService = PatientService();
   final _encounterService = EncounterService();
+  final _emergencyService = EmergencyService();
+  final _waitingPatientService = WaitingPatientService();
 
   Patient? _patient;
   EncounterModel? _encounter;
@@ -89,6 +114,9 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   bool _specialtyGateOverlayScheduled = false;
   String? _editReason;
   bool _amendReasonPrompted = false;
+  bool _isEmergency = false;
+  String? _emergencyVisitId;
+  int? _edEsiLevel;
 
   @override
   void initState() {
@@ -97,8 +125,11 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
       _specialtyGateDismissed = true;
     }
     _parseVitals();
+    if (_patientVitals == null) {
+      unawaited(_loadVitalsByEncounter());
+    }
     _loadPatient();
-    _loadEncounter();
+    _loadEncounter().then((_) => _maybeSetupEmergency());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (widget.amendMode && !_amendReasonPrompted) {
@@ -106,7 +137,9 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         unawaited(_promptAmendReason());
         return;
       }
-      if (_specialtyGateDismissed || _specialtyGateOverlayScheduled) return;
+      if (_isEmergency || _specialtyGateDismissed || _specialtyGateOverlayScheduled) {
+        return;
+      }
       _specialtyGateOverlayScheduled = true;
       EncounterSpecialtyGate.showBlockingOverlay(
         context,
@@ -117,6 +150,15 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         },
       );
     });
+  }
+
+  Future<void> _maybeSetupEmergency() async {
+    if (!_isEmergency || !mounted) return;
+    try {
+      await _emergencyService.enableEmergencyModules(widget.encounterId);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _specialtyGateDismissed = true);
   }
 
   Future<void> _promptAmendReason() async {
@@ -136,9 +178,32 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
 
   Future<void> _loadEncounter() async {
     try {
-      final enc = await _encounterService.getById(widget.encounterId);
+      final enc = await _encounterService.getById(
+        widget.encounterId,
+        expand: ['clinicalSections', 'specialtyModules'],
+      );
       if (!mounted) return;
-      setState(() => _encounter = enc);
+
+      final isEm = enc?.isEmergency == true;
+      int? esi;
+      if (enc != null) {
+        esi = _emergencyService.esiFromEncounter(enc);
+      }
+
+      String? visitId = widget.emergencyVisitId;
+      if (isEm && visitId == null) {
+        final visit = await _emergencyService.getVisit(widget.encounterId);
+        visitId = visit?.id;
+        esi ??= visit?.esiLevel;
+      }
+
+      setState(() {
+        _encounter = enc;
+        _isEmergency = isEm;
+        _emergencyVisitId = visitId ?? widget.encounterId;
+        _edEsiLevel = esi;
+        if (isEm) _specialtyGateDismissed = true;
+      });
     } catch (_) {
       if (mounted) setState(() => _encounter = null);
     }
@@ -152,6 +217,20 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
       _patientVitals = PatientVitalsModel.fromJson(map);
     } catch (_) {
       // ignore invalid JSON
+    }
+  }
+
+  /// Loads triage vitals when not passed via route (ED board, outpatient list, etc.).
+  Future<void> _loadVitalsByEncounter() async {
+    try {
+      final list = await _waitingPatientService.fetchVitalsByEncounter(
+        widget.encounterId,
+      );
+      if (!mounted || list.isEmpty) return;
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      setState(() => _patientVitals = list.first);
+    } catch (_) {
+      // Vitals are optional on examination; ignore fetch errors.
     }
   }
 
@@ -209,6 +288,9 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
           patientVitals: _patientVitals,
           amendMode: widget.amendMode,
           editReason: _editReason,
+          isEmergency: _isEmergency,
+          emergencyVisitId: _emergencyVisitId,
+          edEsiLevel: _edEsiLevel,
           child: Scaffold(
             backgroundColor: colorScheme.surface,
             body: SafeArea(
@@ -278,6 +360,41 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
     );
   }
 
+  Future<void> _openDisposition() async {
+    final enc = _encounter;
+    if (enc == null) return;
+
+    final hasDiagnosis = (enc.primaryIcdCode != null &&
+            enc.primaryIcdCode!.trim().isNotEmpty) ||
+        enc.linkedDiagnoses.isNotEmpty;
+
+    final result = await showEdDispositionDialog(
+      context,
+      encounterId: widget.encounterId,
+      visitId: _emergencyVisitId ?? widget.encounterId,
+      hasDiagnosis: hasDiagnosis,
+    );
+    if (!mounted || result == null) return;
+
+    if (result.navigateToAdmissionTab) {
+      final tabsRouter = AutoTabsRouter.of(context);
+      tabsRouter.setActiveIndex(8);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Complete admission details on the Admission tab.'),
+        ),
+      );
+      return;
+    }
+
+    await _loadEncounter();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('ED disposition recorded.')),
+    );
+    context.router.maybePop();
+  }
+
   Future<void> _completeEncounter() async {
     setState(() => _completing = true);
     try {
@@ -306,6 +423,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
     final scheme = theme.colorScheme;
     final isCompleted = _encounter?.isCompleted == true;
     final isAmend = widget.amendMode;
+    final isEm = _isEmergency;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -314,20 +432,34 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isAmend ? 'Amend encounter' : 'Encounter',
+              isAmend
+                  ? 'Amend encounter'
+                  : isEm
+                  ? 'Emergency encounter'
+                  : 'Encounter',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: scheme.onSurface,
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              isAmend
-                  ? 'Changes are saved to edit history'
-                  : 'OPD encounter view',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurface.withValues(alpha: 0.7),
-              ),
+            Row(
+              children: [
+                Text(
+                  isAmend
+                      ? 'Changes are saved to edit history'
+                      : isEm
+                      ? 'Emergency department clinical workspace'
+                      : 'OPD encounter view',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                if (isEm && _edEsiLevel != null) ...[
+                  const SizedBox(width: 12),
+                  EsiBadge(esiLevel: _edEsiLevel, compact: true),
+                ],
+              ],
             ),
           ],
         ),
@@ -410,7 +542,11 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
               )
             else if (_specialtyGateDismissed && !isAmend)
               FilledButton.icon(
-                onPressed: _completing ? null : _completeEncounter,
+                onPressed: _completing
+                    ? null
+                    : isEm
+                    ? _openDisposition
+                    : _completeEncounter,
                 icon: _completing
                     ? const SizedBox(
                         width: 18,
@@ -420,9 +556,16 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.done_all, size: 18),
+                    : Icon(
+                        isEm ? Icons.call_split_rounded : Icons.done_all,
+                        size: 18,
+                      ),
                 label: Text(
-                  _completing ? 'Completing…' : 'Finish with patient',
+                  _completing
+                      ? 'Completing…'
+                      : isEm
+                      ? 'Disposition'
+                      : 'Finish with patient',
                 ),
               ),
             const SizedBox(width: 12),
@@ -442,7 +585,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Doctor module • OPD',
+                    isEm ? 'Doctor module • ED' : 'Doctor module • OPD',
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: scheme.primary,
                       fontWeight: FontWeight.w600,

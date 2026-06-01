@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
@@ -36,21 +37,7 @@ class InpatientVitalsScreen extends StatefulWidget {
 class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
   late List<PatientVitalsModel> _vitals;
 
-  final _formKey = GlobalKey<FormState>();
-
-  final _tempCtrl = TextEditingController();
-  final _sysCtrl = TextEditingController();
-  final _diaCtrl = TextEditingController();
-  final _pulseCtrl = TextEditingController();
-  final _respCtrl = TextEditingController();
-  final _spo2Ctrl = TextEditingController();
-  final _painCtrl = ValueNotifier<double>(0);
-  final _glucoseCtrl = TextEditingController();
-  final _notesCtrl = TextEditingController();
-
   final _waitingService = WaitingPatientService();
-
-  bool _submitting = false;
 
   @override
   void initState() {
@@ -70,20 +57,6 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
 
   void _sortVitals() {
     _vitals.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  }
-
-  @override
-  void dispose() {
-    _tempCtrl.dispose();
-    _sysCtrl.dispose();
-    _diaCtrl.dispose();
-    _pulseCtrl.dispose();
-    _respCtrl.dispose();
-    _spo2Ctrl.dispose();
-    _painCtrl.dispose();
-    _glucoseCtrl.dispose();
-    _notesCtrl.dispose();
-    super.dispose();
   }
 
   @override
@@ -193,259 +166,117 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
   }
 
   Future<void> _openRecordVitalsDialog() async {
-    _formKey.currentState?.reset();
-    _tempCtrl.clear();
-    _sysCtrl.clear();
-    _diaCtrl.clear();
-    _pulseCtrl.clear();
-    _respCtrl.clear();
-    _spo2Ctrl.clear();
-    _glucoseCtrl.clear();
-    _notesCtrl.clear();
-    _painCtrl.value = 0;
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
 
-    await showDialog<void>(
+    final created = await showDialog<PatientVitalsModel>(
       context: context,
       barrierDismissible: false,
+      builder: (ctx) => _RecordVitalsDialog(
+        admissionId: widget.admissionId,
+        nurseId: nurseId,
+        waitingService: _waitingService,
+      ),
+    );
+
+    if (created != null && mounted) {
+      setState(() {
+        _vitals.insert(0, created);
+        _sortVitals();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vitals recorded successfully.')),
+      );
+    }
+  }
+
+  Future<void> _openTrendGraph() async {
+    await showDialog<void>(
+      context: context,
       builder: (dialogContext) {
-        final bodyW = inpatientDialogBodyWidth(dialogContext);
-        final narrowForm = bodyW < 520;
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text('Record Vitals'),
-          content: SizedBox(
-            width: bodyW,
-            child: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!narrowForm)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _numberField(
-                              label: 'Temperature (°C)',
-                              controller: _tempCtrl,
-                              required: true,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _numberField(
-                                    label: 'Systolic',
-                                    controller: _sysCtrl,
-                                    required: true,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _numberField(
-                                    label: 'Diastolic',
-                                    controller: _diaCtrl,
-                                    required: true,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      )
-                    else ...[
-                      _numberField(
-                        label: 'Temperature (°C)',
-                        controller: _tempCtrl,
-                        required: true,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _numberField(
-                              label: 'Systolic',
-                              controller: _sysCtrl,
-                              required: true,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _numberField(
-                              label: 'Diastolic',
-                              controller: _diaCtrl,
-                              required: true,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    if (!narrowForm)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _numberField(
-                              label: 'Pulse (bpm)',
-                              controller: _pulseCtrl,
-                              required: true,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _numberField(
-                              label: 'Resp Rate',
-                              controller: _respCtrl,
-                              required: true,
-                            ),
-                          ),
-                        ],
-                      )
-                    else ...[
-                      _numberField(
-                        label: 'Pulse (bpm)',
-                        controller: _pulseCtrl,
-                        required: true,
-                      ),
-                      const SizedBox(height: 12),
-                      _numberField(
-                        label: 'Resp Rate',
-                        controller: _respCtrl,
-                        required: true,
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    if (!narrowForm)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _numberField(
-                              label: 'SpO₂ (%)',
-                              controller: _spo2Ctrl,
-                              required: true,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _numberField(
-                              label: 'Glucose',
-                              controller: _glucoseCtrl,
-                              required: false,
-                            ),
-                          ),
-                        ],
-                      )
-                    else ...[
-                      _numberField(
-                        label: 'SpO₂ (%)',
-                        controller: _spo2Ctrl,
-                        required: true,
-                      ),
-                      const SizedBox(height: 12),
-                      _numberField(
-                        label: 'Glucose',
-                        controller: _glucoseCtrl,
-                        required: false,
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    ValueListenableBuilder<double>(
-                      valueListenable: _painCtrl,
-                      builder: (context, value, _) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Pain Score'),
-                                Text(value.toInt().toString()),
-                              ],
-                            ),
-                            Slider(
-                              value: value,
-                              min: 0,
-                              max: 10,
-                              divisions: 10,
-                              label: value.toInt().toString(),
-                              onChanged: (v) => _painCtrl.value = v,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _notesCtrl,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Notes',
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: _submitting
-                  ? null
-                  : () {
-                      Navigator.of(dialogContext).pop();
-                    },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: _submitting ? null : _handleSubmitVitals,
-              child: _submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Submit'),
-            ),
-          ],
-        );
+        return _VitalsTrendDialog(vitals: List<PatientVitalsModel>.from(_vitals));
       },
     );
   }
+}
 
-  TextFormField _numberField({
-    required String label,
-    required TextEditingController controller,
-    required bool required,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(labelText: label),
-      validator: (value) {
-        if (!required) return null;
-        if (value == null || value.trim().isEmpty) {
-          return 'Required';
-        }
-        return null;
-      },
-    );
+TextFormField _vitalsNumberField({
+  required String label,
+  required TextEditingController controller,
+  required bool required,
+}) {
+  return TextFormField(
+    controller: controller,
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    decoration: InputDecoration(labelText: label),
+    validator: (value) {
+      if (!required) return null;
+      if (value == null || value.trim().isEmpty) {
+        return 'Required';
+      }
+      return null;
+    },
+  );
+}
+
+/// Owns vitals form controllers so disposal matches the dialog route lifecycle.
+class _RecordVitalsDialog extends StatefulWidget {
+  const _RecordVitalsDialog({
+    required this.admissionId,
+    required this.nurseId,
+    required this.waitingService,
+  });
+
+  final String admissionId;
+  final String nurseId;
+  final WaitingPatientService waitingService;
+
+  @override
+  State<_RecordVitalsDialog> createState() => _RecordVitalsDialogState();
+}
+
+class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _tempCtrl = TextEditingController();
+  final _sysCtrl = TextEditingController();
+  final _diaCtrl = TextEditingController();
+  final _pulseCtrl = TextEditingController();
+  final _respCtrl = TextEditingController();
+  final _spo2Ctrl = TextEditingController();
+  final _glucoseCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+  final _painCtrl = ValueNotifier<double>(0);
+
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _tempCtrl.dispose();
+    _sysCtrl.dispose();
+    _diaCtrl.dispose();
+    _pulseCtrl.dispose();
+    _respCtrl.dispose();
+    _spo2Ctrl.dispose();
+    _glucoseCtrl.dispose();
+    _notesCtrl.dispose();
+    _painCtrl.dispose();
+    super.dispose();
   }
 
-  Future<void> _handleSubmitVitals() async {
-    if (!_formKey.currentState!.validate()) return;
+  void _close([PatientVitalsModel? result]) {
+    FocusScope.of(context).unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop(result);
+    });
+  }
 
-    setState(() => _submitting = true);
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    setState(() => _saving = true);
     try {
-      final created = await _waitingService.createPatientVitals(
+      final result = await widget.waitingService.createPatientVitals(
         CreatePatientVitalsDto(
-          waitingPatientId: '',
           admissionId: widget.admissionId,
           systolic: int.tryParse(_sysCtrl.text),
           diastolic: int.tryParse(_diaCtrl.text),
@@ -456,36 +287,222 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
           notes: _notesCtrl.text,
           bloodGlucose: _glucoseCtrl.text,
           painScore: _painCtrl.value.toInt().toString(),
+          recordedByNurseId: widget.nurseId,
         ),
       );
-
       if (!mounted) return;
-      setState(() {
-        _vitals.insert(0, created);
-        _sortVitals();
-      });
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vitals recorded successfully.')),
-      );
+      _close(result);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to record vitals: $e')));
-    } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to record vitals: $e')),
+      );
     }
   }
 
-  Future<void> _openTrendGraph() async {
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return _VitalsTrendDialog(vitals: List<PatientVitalsModel>.from(_vitals));
-      },
+  @override
+  Widget build(BuildContext context) {
+    final bodyW = inpatientDialogBodyWidth(context);
+    final narrowForm = bodyW < 520;
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Record Vitals'),
+      content: SizedBox(
+        width: bodyW,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!narrowForm)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _vitalsNumberField(
+                          label: 'Temperature (°C)',
+                          controller: _tempCtrl,
+                          required: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _vitalsNumberField(
+                                label: 'Systolic',
+                                controller: _sysCtrl,
+                                required: true,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _vitalsNumberField(
+                                label: 'Diastolic',
+                                controller: _diaCtrl,
+                                required: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  _vitalsNumberField(
+                    label: 'Temperature (°C)',
+                    controller: _tempCtrl,
+                    required: true,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _vitalsNumberField(
+                          label: 'Systolic',
+                          controller: _sysCtrl,
+                          required: true,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _vitalsNumberField(
+                          label: 'Diastolic',
+                          controller: _diaCtrl,
+                          required: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 12),
+                if (!narrowForm)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _vitalsNumberField(
+                          label: 'Pulse (bpm)',
+                          controller: _pulseCtrl,
+                          required: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _vitalsNumberField(
+                          label: 'Resp Rate',
+                          controller: _respCtrl,
+                          required: true,
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  _vitalsNumberField(
+                    label: 'Pulse (bpm)',
+                    controller: _pulseCtrl,
+                    required: true,
+                  ),
+                  const SizedBox(height: 12),
+                  _vitalsNumberField(
+                    label: 'Resp Rate',
+                    controller: _respCtrl,
+                    required: true,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                if (!narrowForm)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _vitalsNumberField(
+                          label: 'SpO₂ (%)',
+                          controller: _spo2Ctrl,
+                          required: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _vitalsNumberField(
+                          label: 'Glucose',
+                          controller: _glucoseCtrl,
+                          required: false,
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  _vitalsNumberField(
+                    label: 'SpO₂ (%)',
+                    controller: _spo2Ctrl,
+                    required: true,
+                  ),
+                  const SizedBox(height: 12),
+                  _vitalsNumberField(
+                    label: 'Glucose',
+                    controller: _glucoseCtrl,
+                    required: false,
+                  ),
+                ],
+                const SizedBox(height: 16),
+                ValueListenableBuilder<double>(
+                  valueListenable: _painCtrl,
+                  builder: (context, value, _) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Pain Score'),
+                            Text(value.toInt().toString()),
+                          ],
+                        ),
+                        Slider(
+                          value: value,
+                          min: 0,
+                          max: 10,
+                          divisions: 10,
+                          label: value.toInt().toString(),
+                          onChanged: (v) => _painCtrl.value = v,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => _close(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _submit,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Submit'),
+        ),
+      ],
     );
   }
 }

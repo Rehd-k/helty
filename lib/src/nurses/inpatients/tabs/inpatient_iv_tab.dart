@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/iv_fluid_order_model.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
@@ -100,6 +101,9 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
       );
       return;
     }
+
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
 
     var selectedId = _orders.first.id;
     final rateCtrl = TextEditingController(text: _orders.first.rate ?? '');
@@ -243,6 +247,7 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
                                 : complications.join(', '),
                             stoppedAt: stopIV ? DateTime.now() : null,
                             reasonStopped: stopIV ? remarksCtrl.text : null,
+                            nurseId: nurseId,
                           );
                           if (stopIV) {
                             await _service.patchOrder(
@@ -359,6 +364,7 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
                     'Time Remaining',
                     'Site',
                     'Status',
+                    'Ordered by',
                   ]
                       .map(
                         (c) => DataColumn(
@@ -385,6 +391,7 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
                             DataCell(Text(_timeRemaining(o) ?? '—')),
                             const DataCell(Text('—')),
                             DataCell(Text(o.status ?? '—')),
+                            DataCell(Text(o.recorderDisplayName ?? '—')),
                           ],
                         ),
                       )

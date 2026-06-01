@@ -1,3 +1,5 @@
+import 'staff_attribution.dart';
+
 /// Row from GET `/admissions/:admissionId/handover-reports`.
 class HandoverReportModel {
   const HandoverReportModel({
@@ -7,6 +9,7 @@ class HandoverReportModel {
     this.content,
     this.notes,
     this.createdAt,
+    this.recorderDisplayName,
   });
 
   final String id;
@@ -15,6 +18,7 @@ class HandoverReportModel {
   final String? content;
   final String? notes;
   final DateTime? createdAt;
+  final String? recorderDisplayName;
 
   static String _str(dynamic v) => v?.toString() ?? '';
 
@@ -24,6 +28,7 @@ class HandoverReportModel {
   }
 
   factory HandoverReportModel.fromJson(Map<String, dynamic> json) {
+    final recorder = staffDisplayNameFromJson(json);
     return HandoverReportModel(
       id: _str(json['id']),
       shiftType: json['shiftType']?.toString() ?? json['shift_type']?.toString(),
@@ -31,6 +36,7 @@ class HandoverReportModel {
       content: json['content']?.toString() ?? json['narrative']?.toString(),
       notes: json['notes']?.toString(),
       createdAt: _dt(json['createdAt'] ?? json['created_at']),
+      recorderDisplayName: recorder.isEmpty ? null : recorder,
     );
   }
 

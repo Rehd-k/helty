@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/monitoring_chart_model.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/monitoring_chart_service.dart';
@@ -166,12 +167,16 @@ class _InpatientMonitoringScreenState extends State<InpatientMonitoringScreen> {
       }
     }
 
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
+
     setState(() => _saving = true);
     try {
       await _service.create(
         admissionId: admissionId,
         chartType: _chartType,
         value: value,
+        nurseId: nurseId,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -365,9 +370,13 @@ class _InpatientMonitoringScreenState extends State<InpatientMonitoringScreen> {
                         dense: true,
                         contentPadding: EdgeInsets.zero,
                         title: Text(
-                          c.createdAt != null
-                              ? DateFormatter.dateTime(c.createdAt!)
-                              : '—',
+                          [
+                            if (c.createdAt != null)
+                              DateFormatter.dateTime(c.createdAt!),
+                            if (c.recorderDisplayName != null &&
+                                c.recorderDisplayName!.isNotEmpty)
+                              'by ${c.recorderDisplayName}',
+                          ].where((s) => s.isNotEmpty).join(' · '),
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,

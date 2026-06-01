@@ -27,7 +27,6 @@ class CmacStaffScreen extends ConsumerWidget {
       accent: CmacPalette.staff.first,
       asyncValue: async,
       onRefresh: refresh,
-      pollInterval: const Duration(seconds: 120),
       builder: (context, raw) {
         final data = raw as CmacStaffResponse;
         return Column(

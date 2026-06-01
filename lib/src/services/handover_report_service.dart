@@ -35,12 +35,14 @@ class HandoverReportService {
     required String shiftType,
     required String summary,
     String? notes,
+    String? nurseId,
   }) async {
     final body = <String, dynamic>{
       'shiftType': shiftType,
       'summary': summary,
       'content': summary,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (nurseId != null && nurseId.isNotEmpty) 'nurseId': nurseId,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/admissions/$admissionId/handover-reports',

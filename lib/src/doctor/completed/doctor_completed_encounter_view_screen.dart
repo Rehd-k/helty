@@ -11,6 +11,7 @@ import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
+import 'package:helty/src/services/staff_service.dart';
 
 const double _contentMaxWidth = 1440;
 
@@ -34,6 +35,7 @@ class _DoctorCompletedEncounterViewScreenState
     extends State<DoctorCompletedEncounterViewScreen> {
   final _encounterService = EncounterService();
   final _patientService = PatientService();
+  final _staffService = StaffService();
 
   EncounterModel? _encounter;
   Patient? _patient;
@@ -56,16 +58,25 @@ class _DoctorCompletedEncounterViewScreenState
         widget.encounterId,
         expand: const ['specialtyModules', 'clinicalSections'],
       );
+      EncounterModel? encounter = enc;
+      if (enc != null &&
+          (enc.doctorDisplayName?.trim().isEmpty ?? true) &&
+          enc.doctorId.trim().isNotEmpty) {
+        try {
+          final doctor = await _staffService.getStaffById(enc.doctorId.trim());
+          encounter = enc.copyWith(doctorDisplayName: doctor.fullName);
+        } catch (_) {}
+      }
       Patient? patient;
       try {
         patient = await _patientService.getPatientById(widget.patientId);
       } catch (_) {}
       if (!mounted) return;
       setState(() {
-        _encounter = enc;
+        _encounter = encounter;
         _patient = patient;
         _loading = false;
-        if (enc == null) _error = 'Encounter not found.';
+        if (encounter == null) _error = 'Encounter not found.';
       });
     } catch (e) {
       if (!mounted) return;

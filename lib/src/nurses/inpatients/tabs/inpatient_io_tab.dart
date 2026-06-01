@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/intake_output_record_model.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_responsive_row_or_column.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
@@ -132,6 +133,8 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
       );
       return;
     }
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
 
     final categories = isIntake ? _intakeCategories : _outputCategories;
     String category = categories.first;
@@ -243,6 +246,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
                           try {
                             await _service.create(
                               admissionId: admissionId,
+                              nurseId: nurseId,
                               type: isIntake ? 'INTAKE' : 'OUTPUT',
                               category: category,
                               amountMl: ml,
@@ -394,6 +398,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
       'Type',
       'Category',
       'Amount (ml)',
+      'Recorded by',
     ];
 
     return SingleChildScrollView(
@@ -425,6 +430,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
                   DataCell(Text(r.type ?? '—')),
                   DataCell(Text(r.category ?? '—')),
                   DataCell(Text(r.amountMl?.toStringAsFixed(0) ?? '—')),
+                  DataCell(Text(r.nurseDisplayName ?? '—')),
                 ],
               ),
             )

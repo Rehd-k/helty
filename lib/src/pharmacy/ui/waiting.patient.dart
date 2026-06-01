@@ -377,7 +377,6 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     if (!_canDispense(order, med)) return;
     final locationId = _selectedDispensaryId;
     if (locationId == null) return;
-    final did = med.drugId!;
     final qty = med.quantity;
     try {
       final selectedStock = _effectiveStock(med);
@@ -389,47 +388,18 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         }
         return;
       }
-      final drug = await _pharmacyApi.getDrugById(did);
-      final current = drug.stock ?? drug.displayStock;
-      final newStock = current - qty;
-      await _pharmacyApi.updateDrug(
-        Drug(
-          id: drug.id,
-          genericName: drug.genericName,
-          brandName: drug.brandName,
-          strength: drug.strength,
-          dosageForm: drug.dosageForm,
-          route: drug.route,
-          therapeuticClass: drug.therapeuticClass,
-          atcCode: drug.atcCode,
-          manufacturerId: drug.manufacturerId,
-          isControlled: drug.isControlled,
-          isRefrigerated: drug.isRefrigerated,
-          isHighAlert: drug.isHighAlert,
-          maxDailyDose: drug.maxDailyDose,
-          reorderLevel: drug.reorderLevel,
-          reorderQuantity: drug.reorderQuantity,
-          stock: newStock,
-          unit: drug.unit,
-          expiryDate: drug.expiryDate,
-          price: drug.price,
-          manufacturerName: drug.manufacturerName,
-          prices: drug.prices,
-        ),
-      );
-      try {
-        await _queueService.updateInvoiceDrugItem(order.id, med.id, {
-          'settled': true,
-        }, locationId: locationId);
-      } catch (_) {
-        // Backend may not support this shape; stock was still adjusted.
-      }
+      await _queueService.updateInvoiceDrugItem(order.id, med.id, {
+        'settled': true,
+      }, locationId: locationId);
+      final updated = await _queueService.getInvoiceDrug(order.id);
       if (!mounted) return;
       setState(() {
-        med.isDispensed = true;
-        _stockByItemId[med.id] = newStock;
-        med.stockAvailable = newStock;
+        final idx = _orders.indexWhere((o) => o.id == order.id);
+        if (idx >= 0) _orders[idx] = updated;
+        if (_selectedOrder?.id == order.id) _selectedOrder = updated;
       });
+      await _loadStocksForOrder(updated);
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Dispensed ${med.name}')));
@@ -440,6 +410,24 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         ).showSnackBar(SnackBar(content: Text('Dispense failed: $e')));
       }
     }
+  }
+
+  String? _dispenseAuditSummary(PrescribedMedication med) {
+    if (!med.isDispensed && !med.settled) return null;
+    final parts = <String>[];
+    if (med.dispensedAt != null) {
+      parts.add(DateFormatter.dateTime(med.dispensedAt!.toLocal()));
+    }
+    final by = med.dispensedBy?.name;
+    if (by != null && by.isNotEmpty) parts.add(by);
+    final loc = med.dispensaryLocation?.name;
+    if (loc != null && loc.isNotEmpty) parts.add(loc);
+    if (parts.isEmpty) return null;
+    return 'Dispensed: ${parts.join(' · ')}';
+  }
+
+  String _dispenseAuditTooltip(PrescribedMedication med) {
+    return _dispenseAuditSummary(med) ?? 'Dispensed';
   }
 
   double _unitPriceFromDrug(Drug d) {
@@ -547,7 +535,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       return IconButton(
         onPressed: null,
         icon: const Icon(Icons.check, size: 20),
-        tooltip: 'Dispensed',
+        tooltip: _dispenseAuditTooltip(med),
         style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
       );
     }
@@ -1321,6 +1309,18 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                                 ),
                               ],
                             ),
+                          if (_dispenseAuditSummary(med) case final summary?) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              summary,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,

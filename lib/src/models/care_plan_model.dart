@@ -1,3 +1,5 @@
+import 'staff_attribution.dart';
+
 /// Row from GET `/admissions/:admissionId/care-plans`.
 class CarePlanModel {
   const CarePlanModel({
@@ -9,6 +11,7 @@ class CarePlanModel {
     this.status,
     this.createdAt,
     this.updatedAt,
+    this.recorderDisplayName,
   });
 
   final String id;
@@ -19,6 +22,7 @@ class CarePlanModel {
   final String? status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? recorderDisplayName;
 
   static String _str(dynamic v) => v?.toString() ?? '';
 
@@ -28,6 +32,7 @@ class CarePlanModel {
   }
 
   factory CarePlanModel.fromJson(Map<String, dynamic> json) {
+    final recorder = staffDisplayNameFromJson(json);
     return CarePlanModel(
       id: _str(json['id']),
       problem: json['problem']?.toString() ?? json['title']?.toString(),
@@ -37,6 +42,7 @@ class CarePlanModel {
       status: json['status']?.toString(),
       createdAt: _dt(json['createdAt'] ?? json['created_at']),
       updatedAt: _dt(json['updatedAt'] ?? json['updated_at']),
+      recorderDisplayName: recorder.isEmpty ? null : recorder,
     );
   }
 }

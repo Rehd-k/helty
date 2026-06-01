@@ -46,13 +46,11 @@ class _DoctorEncounterExaminationTabState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _applyVitalsFromScope();
     if (!_initialLoadScheduled) {
       _initialLoadScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _loadDraft();
-          _applyVitalsFromScope();
-        }
+        if (mounted) _loadDraft();
       });
     }
   }
@@ -66,8 +64,11 @@ class _DoctorEncounterExaminationTabState
         if (v.systolic != null || v.diastolic != null)
           'BP': '${v.systolic ?? '—'}/${v.diastolic ?? '—'}',
         if (v.pulseRate != null) 'HR': '${v.pulseRate}',
+        if (v.respRate != null) 'RR': '${v.respRate}',
         if (v.temperature != null) 'Temp': '${v.temperature}°C',
         if (v.spo2 != null) 'SpO2': '${v.spo2}%',
+        if (v.painScore != null && v.painScore!.isNotEmpty)
+          'Pain': v.painScore!,
         if (v.height != null) 'Height': '${v.height} cm',
         if (v.weight != null) 'Weight': '${v.weight} kg',
         if (v.bmi != null) 'BMI': v.bmi!.toStringAsFixed(1),

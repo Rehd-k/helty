@@ -240,7 +240,12 @@ class _NoteTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            dateStr,
+            [
+              dateStr,
+              if (note.doctorDisplayName != null &&
+                  note.doctorDisplayName!.isNotEmpty)
+                'Dr ${note.doctorDisplayName}',
+            ].join(' · '),
             style: theme.textTheme.labelMedium?.copyWith(
               color: colorScheme.primary,
               fontWeight: FontWeight.w600,

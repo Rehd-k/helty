@@ -10,6 +10,16 @@ final frontDesk = <MenuItem>[
     route: FrontDeskDashboardRoute(),
   ),
   MenuItem(
+    label: 'ED Board',
+    icon: Icons.emergency_outlined,
+    route: EdBoardRoute(),
+  ),
+  MenuItem(
+    label: 'ED Registration',
+    icon: Icons.person_add_alt_1_outlined,
+    route: EdRegistrationRoute(),
+  ),
+  MenuItem(
     label: 'View Waiting Patients',
     icon: Icons.add_alarm_outlined,
     route: NewPatientRoute(use: 'For Register'),
@@ -161,6 +171,11 @@ final nurses = <MenuItem>[
     route: NursesDashboardRoute(),
   ),
   MenuItem(
+    label: 'ED Board',
+    icon: Icons.emergency_outlined,
+    route: EdBoardRoute(),
+  ),
+  MenuItem(
     label: 'Patient chart',
     icon: Icons.folder_shared_outlined,
     route: PatientChartSelectRoute(),
@@ -231,9 +246,14 @@ final doctors = <MenuItem>[
     route: DoctorWalkInQueueRoute(),
   ),
   MenuItem(
-    label: 'Emergency start',
+    label: 'ED Board',
     icon: Icons.emergency_outlined,
-    route: DoctorEmergencyStartRoute(),
+    route: EdBoardRoute(),
+  ),
+  MenuItem(
+    label: 'ED Registration',
+    icon: Icons.person_add_alt_1_outlined,
+    route: EdRegistrationRoute(),
   ),
   MenuItem(
     label: 'Ward Rounds',

@@ -1,7 +1,10 @@
+import 'staff_attribution.dart';
+
 class PatientVitalsModel {
   const PatientVitalsModel({
     required this.id,
     required this.patientId,
+    this.encounterId,
     this.systolic,
     this.diastolic,
     this.temperature,
@@ -21,6 +24,7 @@ class PatientVitalsModel {
 
   final String id;
   final String patientId;
+  final String? encounterId;
 
   final int? systolic;
   final int? diastolic;
@@ -64,6 +68,7 @@ class PatientVitalsModel {
       patientId: str(json['patientId']).isEmpty
           ? str(json['waitingPatientId'])
           : str(json['patientId']),
+      encounterId: json['encounterId']?.toString(),
       systolic: numOrNull(json['systolic'])?.toInt(),
       diastolic: numOrNull(json['diastolic'])?.toInt(),
       temperature: numOrNull(json['temperature'])?.toDouble(),
@@ -76,8 +81,13 @@ class PatientVitalsModel {
       painScore: json['painScore']?.toString(),
       bloodGlucose: json['bloodGlucose']?.toString(),
       notes: json['notes']?.toString(),
-      recordedBy: json['recordedBy']?.toString() ??
-          json['recordedById']?.toString(),
+      recordedBy: () {
+        final nested = staffDisplayNameFromJson(json);
+        if (nested.isNotEmpty) return nested;
+        final flat = json['recordedBy']?.toString() ??
+            json['recordedById']?.toString();
+        return flat?.isNotEmpty == true ? flat : null;
+      }(),
       createdAt: parseDate(json['createdAt']),
       updatedAt: parseDate(json['updatedAt']),
     );
@@ -86,6 +96,8 @@ class PatientVitalsModel {
   Map<String, dynamic> toJson() => {
     'id': id,
     'patientId': patientId,
+    if (encounterId != null && encounterId!.isNotEmpty)
+      'encounterId': encounterId,
     if (systolic != null) 'systolic': systolic,
     if (diastolic != null) 'diastolic': diastolic,
     if (temperature != null) 'temperature': temperature,
@@ -110,6 +122,7 @@ class CreatePatientVitalsDto {
     this.waitingPatientId,
     this.admissionId,
     this.invoiceId,
+    this.encounterId,
     this.patientId,
     this.systolic,
     this.diastolic,
@@ -123,11 +136,13 @@ class CreatePatientVitalsDto {
     this.notes,
     this.bloodGlucose,
     this.painScore,
+    this.recordedByNurseId,
   });
 
   final String? waitingPatientId;
   final String? admissionId;
   final String? invoiceId;
+  final String? encounterId;
   final String? patientId;
   final int? systolic;
   final int? diastolic;
@@ -141,12 +156,17 @@ class CreatePatientVitalsDto {
   final String? notes;
   final String? bloodGlucose;
   final String? painScore;
+  final String? recordedByNurseId;
 
   Map<String, dynamic> toJson() => {
-    if (waitingPatientId != null) 'waitingPatientId': waitingPatientId,
-    if (admissionId != null) 'admissionId': admissionId,
-    if (invoiceId != null) 'invoiceId': invoiceId,
-    if (patientId != null) 'patientId': patientId,
+    if (waitingPatientId != null && waitingPatientId!.isNotEmpty)
+      'waitingPatientId': waitingPatientId,
+    if (admissionId != null && admissionId!.isNotEmpty)
+      'admissionId': admissionId,
+    if (invoiceId != null && invoiceId!.isNotEmpty) 'invoiceId': invoiceId,
+    if (encounterId != null && encounterId!.isNotEmpty)
+      'encounterId': encounterId,
+    if (patientId != null && patientId!.isNotEmpty) 'patientId': patientId,
     if (systolic != null) 'systolic': systolic,
     if (diastolic != null) 'diastolic': diastolic,
     if (temperature != null) 'temperature': temperature,
@@ -159,6 +179,8 @@ class CreatePatientVitalsDto {
     if (notes != null) 'notes': notes,
     if (bloodGlucose != null) 'bloodGlucose': bloodGlucose,
     if (painScore != null) 'painScore': painScore,
+    if (recordedByNurseId != null && recordedByNurseId!.isNotEmpty)
+      'recordedByNurseId': recordedByNurseId,
   };
 }
 

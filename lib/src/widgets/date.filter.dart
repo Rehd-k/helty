@@ -46,7 +46,6 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
   void initState() {
     super.initState();
     doRefresh = widget.doRefresh;
-    final now = DateTime.now();
     _fromDate = DateTime.now();
     _toDate = DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -56,7 +55,6 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
 
   void _resetFilters() {
     setState(() {
-      final now = DateTime.now();
       _fromDate = DateTime.now();
       _toDate = DateTime.now();
     });

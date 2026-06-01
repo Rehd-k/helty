@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,12 +43,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   String? _summaryError;
   String? _queueError;
 
-  Timer? _queuePoll;
-  Timer? _summaryPoll;
-
-  static const _queuePollSeconds = 20;
-  static const _summaryPollMinutes = 2;
-
   @override
   void initState() {
     super.initState();
@@ -59,22 +51,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
       _loadSummary();
       _loadQueue();
       _ensureCalendarCountsForMonth(_focusedDay);
-      _queuePoll = Timer.periodic(
-        const Duration(seconds: _queuePollSeconds),
-        (_) => _loadQueue(),
-      );
-      _summaryPoll = Timer.periodic(
-        const Duration(minutes: _summaryPollMinutes),
-        (_) => _loadSummary(),
-      );
     });
-  }
-
-  @override
-  void dispose() {
-    _queuePoll?.cancel();
-    _summaryPoll?.cancel();
-    super.dispose();
   }
 
   Future<void> _loadSummary() async {

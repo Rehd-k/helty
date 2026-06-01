@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/handover_report_model.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/admission_service.dart';
@@ -137,12 +138,16 @@ class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
       );
       return;
     }
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
+
     setState(() => _submitting = true);
     try {
       await _handoverService.create(
         admissionId: admissionId,
         shiftType: _shiftType,
         summary: text,
+        nurseId: nurseId,
       );
       if (!mounted) return;
       setState(() => _locked = true);
@@ -301,10 +306,16 @@ class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
                               final when = r.createdAt != null
                                   ? DateFormatter.dateTime(r.createdAt!)
                                   : '—';
+                              final by = r.recorderDisplayName;
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(
-                                  '${r.shiftType ?? "Shift"} · $when',
+                                  [
+                                    r.shiftType ?? 'Shift',
+                                    when,
+                                    if (by != null && by.isNotEmpty)
+                                      'by $by',
+                                  ].join(' · '),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                   ),

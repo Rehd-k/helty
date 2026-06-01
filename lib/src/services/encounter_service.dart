@@ -69,6 +69,48 @@ class EncounterService {
     return [];
   }
 
+  /// GET /encounters — list EMERGENCY encounters (ED board interim).
+  Future<List<EncounterModel>> fetchEmergencyEncounters({
+    String? doctorId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String status = 'ONGOING',
+    int skip = 0,
+    int take = 50,
+  }) async {
+    final query = <String, dynamic>{
+      'skip': skip,
+      'take': take,
+      'encounterType': 'EMERGENCY',
+      'status': status,
+    };
+    if (doctorId != null && doctorId.isNotEmpty) query['doctorId'] = doctorId;
+    if (fromDate != null) {
+      query['fromDate'] = fromDate.toIso8601String();
+    }
+    if (toDate != null) {
+      query['toDate'] = toDate.toIso8601String();
+    }
+
+    final response = await _dio.get<dynamic>(
+      '/encounters',
+      queryParameters: query,
+    );
+    final raw = response.data;
+    if (raw is List) {
+      return raw
+          .map((e) => EncounterModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    if (raw is Map<String, dynamic>) {
+      final list = raw['data'] as List? ?? [];
+      return list
+          .map((e) => EncounterModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
   /// POST /encounters — create encounter. Returns the created encounter with real id from API.
   Future<EncounterModel> create({
     required String patientId,
@@ -77,6 +119,9 @@ class EncounterService {
     String? appointmentId,
     String? visitType,
     String? insurance,
+    String? chiefComplaint,
+    String? triageNotes,
+    String? hpi,
   }) async {
     final body = <String, dynamic>{
       'patientId': patientId,
@@ -87,6 +132,11 @@ class EncounterService {
         'appointmentId': appointmentId,
       if (visitType != null && visitType.isNotEmpty) 'visitType': visitType,
       if (insurance != null && insurance.isNotEmpty) 'insurance': insurance,
+      if (chiefComplaint != null && chiefComplaint.isNotEmpty)
+        'chiefComplaint': chiefComplaint,
+      if (triageNotes != null && triageNotes.isNotEmpty)
+        'triageNotes': triageNotes,
+      if (hpi != null && hpi.isNotEmpty) 'hpi': hpi,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/encounters',
@@ -205,6 +255,11 @@ class EncounterService {
       throw StateError('Edit history detail returned no data');
     }
     return EncounterEditHistoryDetail.fromJson(data);
+  }
+
+  /// PATCH /encounters/:id — set status to CANCELLED (e.g. ED LWBS).
+  Future<EncounterModel> cancelEncounter(String encounterId) async {
+    return update(encounterId, {'status': 'CANCELLED'});
   }
 
   /// PATCH /encounters/:id/complete — treating doctor only.

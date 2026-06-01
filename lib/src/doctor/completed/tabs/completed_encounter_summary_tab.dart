@@ -26,6 +26,7 @@ class CompletedEncounterSummaryTab extends StatelessWidget {
             title: 'Visit',
             children: [
               _Row(label: 'Status', value: e.status),
+              _Row(label: 'Doctor', value: e.doctorLabel),
               _Row(label: 'Started', value: DateFormat.yMMMd().add_Hm().format(e.startedAt)),
               if (e.closedAt != null)
                 _Row(label: 'Closed', value: DateFormat.yMMMd().add_Hm().format(e.closedAt!)),

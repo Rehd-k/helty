@@ -42,7 +42,6 @@ class StaffChatThreadContent extends ConsumerStatefulWidget {
 
 class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent> {
   final _scrollController = ScrollController();
-  final _messageCtrl = TextEditingController();
   List<ChatMessage> _messages = [];
   bool _loading = true;
   String? _error;
@@ -85,7 +84,6 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
     _errSub?.cancel();
     _socket?.leaveConversation(widget.conversationId);
     _scrollController.dispose();
-    _messageCtrl.dispose();
     super.dispose();
   }
 
@@ -220,10 +218,8 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
 
   String? _presenceLine() => chatPresenceSubtitle(_peerPresence);
 
-  Future<void> _send() async {
-    final text = _messageCtrl.text.trim();
+  Future<void> _send(String text) async {
     if (text.isEmpty) return;
-    _messageCtrl.clear();
     final socket = ref.read(internalChatSocketProvider);
     if (socket.isConnected) {
       socket.sendMessage(
@@ -373,33 +369,66 @@ class _StaffChatThreadContentState extends ConsumerState<StaffChatThreadContent>
                 ),
         ),
         const Divider(height: 1),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Message…',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _send,
-                icon: const Icon(Icons.send_rounded),
-              ),
-            ],
-          ),
-        ),
+        _ChatMessageComposer(onSend: _send),
       ],
+    );
+  }
+}
+
+/// Owns its [TextEditingController] so disposal matches the input field lifecycle
+/// (avoids "TextEditingController was used after being disposed" on panel close).
+class _ChatMessageComposer extends StatefulWidget {
+  const _ChatMessageComposer({required this.onSend});
+
+  final Future<void> Function(String text) onSend;
+
+  @override
+  State<_ChatMessageComposer> createState() => _ChatMessageComposerState();
+}
+
+class _ChatMessageComposerState extends State<_ChatMessageComposer> {
+  final _messageCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _messageCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final text = _messageCtrl.text.trim();
+    if (text.isEmpty) return;
+    _messageCtrl.clear();
+    await widget.onSend(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Message…',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              minLines: 1,
+              maxLines: 4,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _submit(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            onPressed: _submit,
+            icon: const Icon(Icons.send_rounded),
+          ),
+        ],
+      ),
     );
   }
 }

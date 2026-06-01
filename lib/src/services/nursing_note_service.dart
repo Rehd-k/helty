@@ -34,10 +34,12 @@ class NursingNoteService {
     required String admissionId,
     required String noteType,
     required String content,
+    String? nurseId,
   }) async {
     final body = <String, dynamic>{
       'noteType': noteType,
       'content': content,
+      if (nurseId != null && nurseId.isNotEmpty) 'nurseId': nurseId,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/admissions/$admissionId/nursing-notes',

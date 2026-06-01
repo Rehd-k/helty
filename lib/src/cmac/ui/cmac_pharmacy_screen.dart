@@ -24,7 +24,6 @@ class CmacPharmacyScreen extends ConsumerWidget {
       accent: CmacPalette.pharmacy.first,
       asyncValue: async,
       onRefresh: refresh,
-      pollInterval: const Duration(seconds: 120),
       builder: (context, data) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -1,3 +1,5 @@
+import 'staff_attribution.dart';
+
 /// Ward round (progress) note for an inpatient admission.
 /// SOAP-style note linked to admission and doctor, with round date.
 class WardRoundNoteModel {
@@ -12,6 +14,7 @@ class WardRoundNoteModel {
     this.plan,
     this.createdAt,
     this.updatedAt,
+    this.doctorDisplayName,
   });
 
   final String id;
@@ -24,8 +27,10 @@ class WardRoundNoteModel {
   final String? plan;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? doctorDisplayName;
 
   factory WardRoundNoteModel.fromJson(Map<String, dynamic> json) {
+    final doctorName = staffDisplayNameFromJson(json);
     return WardRoundNoteModel(
       id: (json['id'] ?? '').toString(),
       admissionId: (json['admissionId'] ?? '').toString(),
@@ -43,6 +48,7 @@ class WardRoundNoteModel {
       updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'].toString())
           : null,
+      doctorDisplayName: doctorName.isEmpty ? null : doctorName,
     );
   }
 

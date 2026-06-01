@@ -34,10 +34,12 @@ class MonitoringChartService {
     required String admissionId,
     required String chartType,
     required Map<String, dynamic> value,
+    String? nurseId,
   }) async {
     final body = <String, dynamic>{
       'chartType': chartType,
       'value': value,
+      if (nurseId != null && nurseId.isNotEmpty) 'nurseId': nurseId,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/admissions/$admissionId/monitoring-charts',

@@ -1,3 +1,5 @@
+import 'staff_attribution.dart';
+
 /// Row from GET `/admissions/:admissionId/iv-fluid-orders`.
 class IvFluidOrderModel {
   const IvFluidOrderModel({
@@ -8,6 +10,7 @@ class IvFluidOrderModel {
     this.startTime,
     this.expectedEndTime,
     this.status,
+    this.recorderDisplayName,
   });
 
   final String id;
@@ -17,6 +20,7 @@ class IvFluidOrderModel {
   final DateTime? startTime;
   final DateTime? expectedEndTime;
   final String? status;
+  final String? recorderDisplayName;
 
   static String _str(dynamic v) => v?.toString() ?? '';
 
@@ -26,6 +30,7 @@ class IvFluidOrderModel {
   }
 
   factory IvFluidOrderModel.fromJson(Map<String, dynamic> json) {
+    final recorder = staffDisplayNameFromJson(json);
     return IvFluidOrderModel(
       id: _str(json['id']),
       fluidType: json['fluidType']?.toString() ?? json['fluid_type']?.toString(),
@@ -34,6 +39,7 @@ class IvFluidOrderModel {
       startTime: _dt(json['startTime'] ?? json['start_time']),
       expectedEndTime: _dt(json['expectedEndTime'] ?? json['expected_end_time']),
       status: json['status']?.toString(),
+      recorderDisplayName: recorder.isEmpty ? null : recorder,
     );
   }
 }

@@ -36,12 +36,14 @@ class CarePlanService {
     String? goal,
     String? interventions,
     String? evaluation,
+    String? nurseId,
   }) async {
     final body = <String, dynamic>{
       'problem': problem,
       if (goal != null) 'goal': goal,
       if (interventions != null) 'interventions': interventions,
       if (evaluation != null) 'evaluation': evaluation,
+      if (nurseId != null && nurseId.isNotEmpty) 'nurseId': nurseId,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/admissions/$admissionId/care-plans',

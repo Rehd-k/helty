@@ -63,7 +63,7 @@ class _DischargeAdmissionDialogBodyState
       );
       return;
     }
-    Navigator.of(context).pop(
+    _close(
       DischargeAdmissionPayload(
         outcome: o,
         dischargeSummary: _summaryCtrl.text.trim(),
@@ -72,6 +72,13 @@ class _DischargeAdmissionDialogBodyState
             : _otherCtrl.text.trim(),
       ),
     );
+  }
+
+  void _close([DischargeAdmissionPayload? payload]) {
+    FocusScope.of(context).unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop(payload);
+    });
   }
 
   @override
@@ -113,8 +120,7 @@ class _DischargeAdmissionDialogBodyState
                       )
                       .toList(),
                   onChanged: (v) => setState(() => _outcome = v),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Required' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -123,7 +129,8 @@ class _DischargeAdmissionDialogBodyState
                   minLines: 3,
                   decoration: const InputDecoration(
                     labelText: 'Discharge summary *',
-                    hintText: 'Course in hospital, procedures, condition at discharge…',
+                    hintText:
+                        'Course in hospital, procedures, condition at discharge…',
                     border: OutlineInputBorder(),
                     alignLabelWithHint: true,
                   ),
@@ -155,13 +162,10 @@ class _DischargeAdmissionDialogBodyState
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => _close(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Discharge'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('Discharge')),
       ],
     );
   }

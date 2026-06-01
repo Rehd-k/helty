@@ -570,6 +570,8 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
                           child: DataTable(
                             columns: const [
                               DataColumn(label: Text('Dispensed At')),
+                              DataColumn(label: Text('Dispensed By')),
+                              DataColumn(label: Text('Dispensary')),
                               DataColumn(label: Text('Drug')),
                               DataColumn(label: Text('Patient')),
                               DataColumn(label: Text('Invoice')),
@@ -593,6 +595,8 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
                                             ),
                                     ),
                                   ),
+                                  DataCell(Text(row.dispensedBy?.name ?? '—')),
+                                  DataCell(Text(row.dispensary?.name ?? '—')),
                                   DataCell(Text(row.drug.name)),
                                   DataCell(
                                     Text(

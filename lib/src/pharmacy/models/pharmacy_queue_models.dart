@@ -1,5 +1,7 @@
 // Models for the pharmacy prescription queue (drugs sent to pharmacy on behalf of patients).
 
+import 'pharmacy_model.dart';
+
 enum UrgencyLevel { urgent, standard, waiting }
 
 /// Body for `POST /invoice-drugs/:id/items/:itemId/return`.
@@ -33,6 +35,9 @@ class PrescribedMedication {
   final bool settled;
   /// When the API links an invoice line to a clinical order (optional).
   final String? medicationOrderId;
+  final DateTime? dispensedAt;
+  final DispenseAuditStaff? dispensedBy;
+  final DispenseAuditLocation? dispensaryLocation;
 
   PrescribedMedication({
     required this.id,
@@ -47,12 +52,17 @@ class PrescribedMedication {
     this.drugId,
     this.settled = false,
     this.medicationOrderId,
+    this.dispensedAt,
+    this.dispensedBy,
+    this.dispensaryLocation,
   });
 
   /// Enough stock to dispense the prescribed line quantity.
   bool get inStock => stockAvailable >= quantity;
 
   factory PrescribedMedication.fromJson(Map<String, dynamic> json) {
+    final settled = json['settled'] as bool? ?? false;
+    final dispensedAt = _parseDateTime(json['dispensedAt']);
     return PrescribedMedication(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -62,10 +72,16 @@ class PrescribedMedication {
       route: json['route'] as String? ?? '',
       quantity: _parseInt(json['quantity']) ?? 0,
       stockAvailable: _parseInt(json['stockAvailable']) ?? 0,
-      isDispensed: json['isDispensed'] as bool? ?? false,
+      isDispensed:
+          json['isDispensed'] as bool? ?? settled || dispensedAt != null,
       drugId: json['drugId'] as String?,
-      settled: json['settled'] as bool? ?? false,
+      settled: settled,
       medicationOrderId: json['medicationOrderId']?.toString(),
+      dispensedAt: dispensedAt,
+      dispensedBy: _parseDispensedBy(json['dispensedBy']),
+      dispensaryLocation: _parseDispensaryLocation(
+        json['dispensaryLocation'] ?? json['dispensary'],
+      ),
     );
   }
 
@@ -100,6 +116,9 @@ class PrescribedMedication {
       quantity = _parseInt(json['orderQuantity']) ?? 0;
     }
 
+    final settled = json['settled'] as bool? ?? false;
+    final dispensedAt = _parseDateTime(json['dispensedAt']);
+
     return PrescribedMedication(
       id: json['id']?.toString() ?? '',
       name: name,
@@ -110,11 +129,17 @@ class PrescribedMedication {
       quantity: quantity,
       stockAvailable: 0,
       drugId: drugId?.isNotEmpty == true ? drugId : null,
-      settled: json['settled'] as bool? ?? false,
+      settled: settled,
+      isDispensed: settled || dispensedAt != null,
       medicationOrderId:
           medicationOrderId != null && medicationOrderId.isNotEmpty
           ? medicationOrderId
           : null,
+      dispensedAt: dispensedAt,
+      dispensedBy: _parseDispensedBy(json['dispensedBy']),
+      dispensaryLocation: _parseDispensaryLocation(
+        json['dispensaryLocation'] ?? json['dispensary'],
+      ),
     );
   }
 
@@ -154,6 +179,21 @@ class PrescribedMedication {
     return int.tryParse(v.toString());
   }
 
+  static DateTime? _parseDateTime(dynamic v) {
+    if (v == null) return null;
+    return DateTime.tryParse(v.toString());
+  }
+
+  static DispenseAuditStaff? _parseDispensedBy(dynamic v) {
+    if (v is! Map) return null;
+    return DispenseAuditStaff.fromJson(Map<String, dynamic>.from(v));
+  }
+
+  static DispenseAuditLocation? _parseDispensaryLocation(dynamic v) {
+    if (v is! Map) return null;
+    return DispenseAuditLocation.fromJson(Map<String, dynamic>.from(v));
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -167,6 +207,15 @@ class PrescribedMedication {
     if (drugId != null) 'drugId': drugId,
     'settled': settled,
     if (medicationOrderId != null) 'medicationOrderId': medicationOrderId,
+    if (dispensedAt != null) 'dispensedAt': dispensedAt!.toIso8601String(),
+    if (dispensedBy != null) 'dispensedBy': {'id': dispensedBy!.id, 'name': dispensedBy!.name},
+    if (dispensaryLocation != null)
+      'dispensaryLocation': {
+        'id': dispensaryLocation!.id,
+        'name': dispensaryLocation!.name,
+        if (dispensaryLocation!.locationType != null)
+          'locationType': dispensaryLocation!.locationType,
+      },
   };
 }
 

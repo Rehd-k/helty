@@ -24,7 +24,6 @@ class CmacLaboratoryScreen extends ConsumerWidget {
       accent: CmacPalette.laboratory.first,
       asyncValue: async,
       onRefresh: refresh,
-      pollInterval: const Duration(seconds: 120),
       builder: (context, data) {
         final theme = Theme.of(context);
         return Column(

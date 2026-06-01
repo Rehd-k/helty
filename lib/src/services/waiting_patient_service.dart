@@ -140,6 +140,29 @@ class WaitingPatientService {
     await _dio.delete('/patient-vitals/$id');
   }
 
+  /// GET /patient-vitals?encounterId= — vitals for an ED (or other) encounter.
+  Future<List<PatientVitalsModel>> fetchVitalsByEncounter(
+    String encounterId,
+  ) async {
+    final resp = await _dio.get<dynamic>(
+      '/patient-vitals',
+      queryParameters: {'encounterId': encounterId},
+    );
+    final raw = resp.data;
+    if (raw is List) {
+      return raw
+          .map((e) => PatientVitalsModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    if (raw is Map<String, dynamic>) {
+      final list = raw['data'] as List? ?? [];
+      return list
+          .map((e) => PatientVitalsModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
   // ── Consulting rooms CRUD (CMD admin) ───────────────────────────────────────
 
   Future<ConsultingRoomModel> createConsultingRoom({

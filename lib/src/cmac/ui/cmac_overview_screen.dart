@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,32 +14,13 @@ import '../widgets/cmac_period_toolbar.dart';
 import '../widgets/cmac_vibrant_backdrop.dart';
 
 @RoutePage()
-class CmacOverviewScreen extends ConsumerStatefulWidget {
+class CmacOverviewScreen extends ConsumerWidget {
   const CmacOverviewScreen({super.key});
 
   @override
-  ConsumerState<CmacOverviewScreen> createState() => _CmacOverviewScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    void refresh() => ref.invalidate(cmacOverviewProvider);
 
-class _CmacOverviewScreenState extends ConsumerState<CmacOverviewScreen> {
-  Timer? _poll;
-
-  @override
-  void initState() {
-    super.initState();
-    _poll = Timer.periodic(const Duration(seconds: 60), (_) => _refresh());
-  }
-
-  @override
-  void dispose() {
-    _poll?.cancel();
-    super.dispose();
-  }
-
-  void _refresh() => ref.invalidate(cmacOverviewProvider);
-
-  @override
-  Widget build(BuildContext context) {
     final async = ref.watch(cmacOverviewProvider);
     final theme = Theme.of(context);
 
@@ -87,7 +66,7 @@ class _CmacOverviewScreenState extends ConsumerState<CmacOverviewScreen> {
                       children: [
                         CmacPeriodToolbar(
                           accentColor: CmacPalette.overview.first,
-                          onRefresh: _refresh,
+                          onRefresh: refresh,
                         ),
                         const SizedBox(height: 16),
                         async.when(

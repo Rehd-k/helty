@@ -1,11 +1,15 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/emergency/models/emergency_visit_model.dart';
+import 'package:helty/src/emergency/services/emergency_service.dart';
 import 'package:helty/src/models/admission_model.dart';
 import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/services/admission_service.dart';
+import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/ward_service.dart';
 
 @RoutePage()
@@ -20,8 +24,10 @@ class DoctorEncounterAdmissionTab extends StatefulWidget {
 class _DoctorEncounterAdmissionTabState
     extends State<DoctorEncounterAdmissionTab> {
   final _admissionService = AdmissionService();
+  final _emergencyService = EmergencyService();
   final _wardService = WardService();
   final _patientService = PatientService();
+  final _encounterService = EncounterService();
 
   Patient? _patient;
   bool _loadingPatient = true;
@@ -113,6 +119,9 @@ class _DoctorEncounterAdmissionTabState
         _patient = p;
         _loadingPatient = false;
       });
+      if (scope.isEmergency) {
+        await _prefillFromEmergencyEncounter(scope);
+      }
       if (_isAdmittedPatientStatus(p.status)) {
         await _loadActiveAdmission(scope.patientId);
       }
@@ -123,6 +132,25 @@ class _DoctorEncounterAdmissionTabState
         _loadingPatient = false;
       });
     }
+  }
+
+  Future<void> _prefillFromEmergencyEncounter(EncounterScope scope) async {
+    try {
+      final enc = await _encounterService.getById(scope.encounterId);
+      if (enc == null || !mounted) return;
+      if (_reasonCtrl.text.trim().isEmpty &&
+          enc.chiefComplaint != null &&
+          enc.chiefComplaint!.trim().isNotEmpty) {
+        _reasonCtrl.text = enc.chiefComplaint!.trim();
+      }
+      if (_diagnosisCtrl.text.trim().isEmpty) {
+        final icd = enc.primaryIcdDescription ?? enc.primaryIcdCode;
+        if (icd != null && icd.trim().isNotEmpty) {
+          _diagnosisCtrl.text = icd.trim();
+        }
+      }
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   Future<void> _loadActiveAdmission(String patientId) async {
@@ -255,27 +283,58 @@ class _DoctorEncounterAdmissionTabState
     }
     setState(() => _submitting = true);
     try {
-      await _admissionService.create(
-        patientId: scope.patientId,
-        encounterId: scope.encounterId,
-        reason: _reasonCtrl.text.trim(),
-        ward: _selectedWard?.name,
-        wardId: _selectedWard?.id,
-        bedPreference: _selectedBed?.id,
-        provisionalDiagnosis: _diagnosisCtrl.text.trim().isEmpty
-            ? null
-            : _diagnosisCtrl.text.trim(),
-        expectedLOS: _losCtrl.text.trim().isEmpty ? null : _losCtrl.text.trim(),
-        isolationRequired: _isolationRequired,
-        specialInstructions: _instructionsCtrl.text.trim().isEmpty
-            ? null
-            : _instructionsCtrl.text.trim(),
-        attendingDoctorId: scope.doctorId,
-      );
+      AdmissionModel admission;
+      if (scope.isEmergency) {
+        admission = await _emergencyService.admitFromEd(
+          visitId: scope.emergencyVisitId ?? scope.encounterId,
+          patientId: scope.patientId,
+          encounterId: scope.encounterId,
+          payload: EdAdmitPayload(
+            wardId: _selectedWard!.id,
+            bedId: _selectedBed!.id,
+            attendingDoctorId: scope.doctorId ?? '',
+            reason: _reasonCtrl.text.trim(),
+          ),
+        );
+      } else {
+        admission = await _admissionService.create(
+          patientId: scope.patientId,
+          encounterId: scope.encounterId,
+          reason: _reasonCtrl.text.trim(),
+          ward: _selectedWard?.name,
+          wardId: _selectedWard?.id,
+          bedPreference: _selectedBed?.id,
+          provisionalDiagnosis: _diagnosisCtrl.text.trim().isEmpty
+              ? null
+              : _diagnosisCtrl.text.trim(),
+          expectedLOS: _losCtrl.text.trim().isEmpty ? null : _losCtrl.text.trim(),
+          isolationRequired: _isolationRequired,
+          specialInstructions: _instructionsCtrl.text.trim().isEmpty
+              ? null
+              : _instructionsCtrl.text.trim(),
+          attendingDoctorId: scope.doctorId,
+        );
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Admission requested. Encounter closed.')),
+        SnackBar(
+          content: Text(
+            scope.isEmergency
+                ? 'Patient admitted from ED.'
+                : 'Admission requested. Encounter closed.',
+          ),
+          action: scope.isEmergency && admission.id.isNotEmpty
+              ? SnackBarAction(
+                  label: 'View chart',
+                  onPressed: () {
+                    context.router.push(
+                      InpatientPatientViewRoute(admissionId: admission.id),
+                    );
+                  },
+                )
+              : null,
+        ),
       );
       setState(() => _submitting = false);
       _reasonCtrl.clear();
