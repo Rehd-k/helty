@@ -1,19 +1,19 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
-import 'package:helty/src/models/invoice.dart';
+import 'package:helty/src/models/medication_order_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
-import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/medication_order_service.dart';
 import 'package:helty/src/widgets/date.filter.dart';
 
 import '../models/pharmacy_queue_models.dart';
 import '../services/pharmacy_queue_service.dart';
-import '../widgets/substitute_medication_dialog.dart';
+import '../widgets/prescription_drug_form_dialog.dart';
 
 // -----------------------------------------------------------------------------
 // MAIN UI – Pharmacy prescription queue (drugs sent on patients' behalf)
@@ -47,7 +47,6 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   late final IPharmacyQueueService _queueService;
   final PatientService _patientService = PatientService();
   final PharmacyApiService _pharmacyApi = PharmacyApiService();
-  final InvoiceService _invoiceService = InvoiceService();
   final MedicationOrderService _medicationOrderService =
       MedicationOrderService();
 
@@ -170,16 +169,51 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     return age < 0 ? 0 : age;
   }
 
-  List<PastMedication> _pastMedsFromInvoices(List<Invoice> invs) {
-    final out = <PastMedication>[];
-    for (final inv in invs) {
-      final dateStr = DateFormatter.medicalDate(inv.createdAt.toLocal());
-      for (final item in inv.invoiceItems) {
-        if (item.drugId == null || item.drugId!.isEmpty) continue;
-        out.add(PastMedication(item.name, dateStr));
-      }
-    }
-    return out.length > 25 ? out.sublist(0, 25) : out;
+  String _medicationOrderDetailLine(MedicationOrderModel o) {
+    final parts = <String>[
+      if (o.dose != null && o.dose!.trim().isNotEmpty) o.dose!.trim(),
+      if (o.frequency != null && o.frequency!.trim().isNotEmpty)
+        o.frequency!.trim(),
+      if (o.duration != null && o.duration!.trim().isNotEmpty)
+        o.duration!.trim(),
+      if (o.route != null && o.route!.trim().isNotEmpty) o.route!.trim(),
+      if (o.quantity != null && o.quantity! > 0) 'Qty ${o.quantity}',
+    ];
+    return parts.join(' · ');
+  }
+
+  String _medicationOrderDateLine(MedicationOrderModel o) {
+    final when = o.displayDateTime;
+    final dateStr = when != null
+        ? DateFormatter.medicalDate(when.toLocal())
+        : '—';
+    final status = o.status.trim();
+    if (status.isEmpty) return dateStr;
+    return '$dateStr · $status';
+  }
+
+  List<PastMedication> _pastMedsFromMedicationOrders(
+    List<MedicationOrderModel> orders,
+  ) {
+    final sorted = List<MedicationOrderModel>.from(orders)
+      ..sort((a, b) {
+        final ta = a.displayDateTime;
+        final tb = b.displayDateTime;
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return tb.compareTo(ta);
+      });
+    return sorted.map((o) {
+      final detail = _medicationOrderDetailLine(o);
+      return PastMedication(
+        o.drugName,
+        _medicationOrderDateLine(o),
+        detail: detail.isEmpty ? null : detail,
+        isDiscontinued:
+            o.administrationStatus == MedicationAdministrationStatus.stopped,
+      );
+    }).toList();
   }
 
   Future<void> _loadStocksForOrder(QueueOrder order) async {
@@ -236,16 +270,11 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         order.patient.id,
         'id,surname,firstName,dob,gender,ward',
       );
-      List<PastMedication> hist = [];
-      //Change to medicationOrder and not prescription history
-      // if (p.prescriptionHistory.isNotEmpty) {
-      //   hist = p.prescriptionHistory
-      //       .map((e) => PastMedication(e.name, e.detail ?? '—'))
-      //       .toList();
-      // } else {
-      //   final invs = await _invoiceService.getPatientInvoices(order.patient.id);
-      //   hist = _pastMedsFromInvoices(invs);
-      // }
+      final orders = await _medicationOrderService.getByPatient(
+        order.patient.id,
+        take: 10,
+      );
+      final hist = _pastMedsFromMedicationOrders(orders);
       if (!mounted) return;
       setState(() {
         _detailPatient = p;
@@ -442,21 +471,23 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     QueueOrder order,
     PrescribedMedication med,
   ) async {
-    final selected = await showSubstituteMedicationDialog(
+    final form = await showPrescriptionDrugFormDialog(
       context,
-      currentLine: med,
       pharmacyApi: _pharmacyApi,
+      mode: PrescriptionDrugFormMode.substitute,
+      initial: PrescriptionDrugFormInitialValues.fromPrescribedLine(med),
+      replacingLineName: med.name,
     );
-    if (selected == null || !mounted) return;
-    await _substituteMedication(order, med, selected);
+    if (form == null || !mounted) return;
+    await _substituteMedication(order, med, form);
   }
 
   Future<void> _substituteMedication(
     QueueOrder order,
     PrescribedMedication med,
-    Drug selected,
+    PrescriptionDrugFormResult form,
   ) async {
-    final newDrugId = selected.id;
+    final newDrugId = form.drug.id;
     if (newDrugId == null || newDrugId.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -487,7 +518,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       await _queueService.substituteInvoiceDrugItem(order.id, med.id, {
         'drugId': newDrugId,
         'unitPrice': unitPrice,
-        'quantity': med.quantity,
+        'quantity': form.quantity,
       });
 
       final moId = med.medicationOrderId;
@@ -496,7 +527,13 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
           await _medicationOrderService.update(
             id: moId,
             drugId: newDrugId,
-            drugName: selected.brandName,
+            drugName: form.drug.brandName,
+            dose: form.dose,
+            frequency: form.frequency,
+            duration: form.duration,
+            quantity: form.quantity,
+            route: form.route,
+            specialInstructions: form.specialInstructions,
           );
         } catch (_) {
           // Clinical chart may lag; invoice line is already substituted.
@@ -514,7 +551,11 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       await _enrichSelectedOrder(updated);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Substituted with ${selected.brandName}')),
+          SnackBar(
+            content: Text(
+              'Substituted with ${form.drug.brandName} (qty ${form.quantity})',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -633,11 +674,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     final allergies = p.allergies
         .map((a) => Allergy(a.name, a.isSevere))
         .toList();
-    final history = _invoiceHistoryMeds.isNotEmpty
-        ? _invoiceHistoryMeds
-        : p.prescriptionHistory
-              .map((e) => PastMedication(e.name, e.detail ?? '—'))
-              .toList();
+    final history = _invoiceHistoryMeds;
     return PharmacyQueuePatient(
       id: p.id ?? order.patient.id,
       name: name.isNotEmpty ? name : order.patient.name,
@@ -1192,6 +1229,43 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
           ...order.medications.map(
             (med) => _buildMedicationCard(order, med, colorScheme),
           ),
+          if (order.medications.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Medications total',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    order.medicationsSubtotal.toFinancial(isMoney: true),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1258,6 +1332,27 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                               _buildQtyRemainingBadge(med, colorScheme),
                             ],
                           ),
+                          if (med.createdByDisplayName.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Prescribed by: ${med.createdByDisplayName}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            '${med.unitPrice.toFinancial(isMoney: true)} × ${med.quantity} = ${med.lineTotal.toFinancial(isMoney: true)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           if (narrow)
                             Wrap(
@@ -1309,7 +1404,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                                 ),
                               ],
                             ),
-                          if (_dispenseAuditSummary(med) case final summary?) ...[
+                          if (_dispenseAuditSummary(med)
+                              case final summary?) ...[
                             const SizedBox(height: 8),
                             Text(
                               summary,
@@ -1753,16 +1849,30 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (h.detail != null && h.detail!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        h.detail!,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 2),
                     Text(
                       '${h.date}${h.isDiscontinued ? ' • Discontinued' : ''}',
                       style: TextStyle(
                         fontSize: 10,
                         color: colorScheme.onSurfaceVariant,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],

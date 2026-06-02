@@ -15,7 +15,7 @@ class ChatLocalNotificationService {
     bool isActiveConversation = false,
   }) async {
     final cid = conversationId ?? 'unknown';
-    final mid = messageId ?? '${cid}:${DateTime.now().millisecondsSinceEpoch}';
+    final mid = messageId ?? '$cid:${DateTime.now().millisecondsSinceEpoch}';
     await _ref
         .read(chatNotificationCoordinatorProvider)
         .showChatNotification(

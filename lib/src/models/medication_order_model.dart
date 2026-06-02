@@ -16,6 +16,8 @@ class MedicationOrderModel {
     this.notes,
     required this.status,
     this.administrationStatus = MedicationAdministrationStatus.active,
+    this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -35,6 +37,11 @@ class MedicationOrderModel {
   final String? notes;
   final String status;
   final MedicationAdministrationStatus administrationStatus;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  /// Best timestamp for sorting and display when [startDateTime] is absent.
+  DateTime? get displayDateTime => startDateTime ?? createdAt;
 
   factory MedicationOrderModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
@@ -61,6 +68,8 @@ class MedicationOrderModel {
       administrationStatus: MedicationAdministrationStatusX.fromApi(
         json['administrationStatus']?.toString(),
       ),
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
     );
   }
 }

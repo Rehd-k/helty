@@ -1,5 +1,4 @@
 import 'dart:io' show File;
-import 'dart:typed_data';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
@@ -119,9 +118,9 @@ class _InpatientWoundAssessmentScreenState
     );
 
     if (saved == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wound assessment saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Wound assessment saved.')));
       await _load(admissionId);
     }
   }
@@ -177,8 +176,8 @@ class _InpatientWoundAssessmentScreenState
             ? Text(
                 'No wound assessments recorded yet.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                  color: scheme.onSurfaceVariant,
+                ),
               )
             : SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -207,23 +206,21 @@ class _InpatientWoundAssessmentScreenState
                             DataCell(Text(w.woundStage ?? '—')),
                             DataCell(Text(w.woundSize ?? '—')),
                             DataCell(Text(w.exudate ?? '—')),
-                            DataCell(
-                              () {
-                                final url = w.photoUrl?.trim();
-                                if (url == null || url.isEmpty) {
-                                  return const Text('—');
-                                }
-                                return IconButton(
-                                  tooltip: 'View wound photo',
-                                  icon: const Icon(Icons.image_outlined),
-                                  onPressed: () => _showWoundPhoto(
-                                    context,
-                                    admissionId: admissionId,
-                                    assessment: w,
-                                  ),
-                                );
-                              }(),
-                            ),
+                            DataCell(() {
+                              final url = w.photoUrl?.trim();
+                              if (url == null || url.isEmpty) {
+                                return const Text('—');
+                              }
+                              return IconButton(
+                                tooltip: 'View wound photo',
+                                icon: const Icon(Icons.image_outlined),
+                                onPressed: () => _showWoundPhoto(
+                                  context,
+                                  admissionId: admissionId,
+                                  assessment: w,
+                                ),
+                              );
+                            }()),
                             DataCell(Text(w.nurseDisplayName ?? '—')),
                           ],
                         ),
@@ -391,15 +388,13 @@ class _AddWoundAssessmentDialogState extends State<_AddWoundAssessmentDialog> {
       _close(true);
     } on DioException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_woundAssessmentDioMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_woundAssessmentDioMessage(e))));
       setState(() => _saving = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
       setState(() => _saving = false);
     }
   }

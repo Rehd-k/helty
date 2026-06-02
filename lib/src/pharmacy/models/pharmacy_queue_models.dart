@@ -1,5 +1,7 @@
 // Models for the pharmacy prescription queue (drugs sent to pharmacy on behalf of patients).
 
+import 'package:helty/src/models/staff_attribution.dart';
+
 import 'pharmacy_model.dart';
 
 enum UrgencyLevel { urgent, standard, waiting }
@@ -38,6 +40,11 @@ class PrescribedMedication {
   final DateTime? dispensedAt;
   final DispenseAuditStaff? dispensedBy;
   final DispenseAuditLocation? dispensaryLocation;
+  /// Titled prescriber from invoice line `createdBy` (Dr. / Pharm. / plain).
+  final String createdByDisplayName;
+  final double unitPrice;
+
+  double get lineTotal => quantity * unitPrice;
 
   PrescribedMedication({
     required this.id,
@@ -55,6 +62,8 @@ class PrescribedMedication {
     this.dispensedAt,
     this.dispensedBy,
     this.dispensaryLocation,
+    this.createdByDisplayName = '',
+    this.unitPrice = 0,
   });
 
   /// Enough stock to dispense the prescribed line quantity.
@@ -82,6 +91,12 @@ class PrescribedMedication {
       dispensaryLocation: _parseDispensaryLocation(
         json['dispensaryLocation'] ?? json['dispensary'],
       ),
+      createdByDisplayName: staffTitledDisplayNameFromPersonMap(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
+      unitPrice: _parseDouble(json['unitPrice']),
     );
   }
 
@@ -140,6 +155,12 @@ class PrescribedMedication {
       dispensaryLocation: _parseDispensaryLocation(
         json['dispensaryLocation'] ?? json['dispensary'],
       ),
+      createdByDisplayName: staffTitledDisplayNameFromPersonMap(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
+      unitPrice: _parseDouble(json['unitPrice']),
     );
   }
 
@@ -179,6 +200,12 @@ class PrescribedMedication {
     return int.tryParse(v.toString());
   }
 
+  static double _parseDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
   static DateTime? _parseDateTime(dynamic v) {
     if (v == null) return null;
     return DateTime.tryParse(v.toString());
@@ -216,6 +243,8 @@ class PrescribedMedication {
         if (dispensaryLocation!.locationType != null)
           'locationType': dispensaryLocation!.locationType,
       },
+    'createdByDisplayName': createdByDisplayName,
+    'unitPrice': unitPrice,
   };
 }
 
@@ -237,13 +266,20 @@ class Allergy {
 class PastMedication {
   final String name;
   final String date;
+  final String? detail;
   final bool isDiscontinued;
-  PastMedication(this.name, this.date, {this.isDiscontinued = false});
+  PastMedication(
+    this.name,
+    this.date, {
+    this.detail,
+    this.isDiscontinued = false,
+  });
 
   factory PastMedication.fromJson(Map<String, dynamic> json) {
     return PastMedication(
       json['name'] as String? ?? '',
       json['date'] as String? ?? '',
+      detail: json['detail'] as String?,
       isDiscontinued: json['isDiscontinued'] as bool? ?? false,
     );
   }
@@ -251,6 +287,7 @@ class PastMedication {
   Map<String, dynamic> toJson() => {
     'name': name,
     'date': date,
+    if (detail != null) 'detail': detail,
     'isDiscontinued': isDiscontinued,
   };
 }
@@ -366,13 +403,24 @@ class QueueOrder {
 
   String get medSummary => medications.map((m) => m.name).join(', ');
 
-  static String _staffDisplayName(Map<String, dynamic>? staff) {
-    if (staff == null) return '';
-    final fn = staff['firstName']?.toString().trim() ?? '';
-    final ln = staff['lastName']?.toString().trim() ?? '';
-    final t = '$fn $ln'.trim();
-    if (t.isEmpty) return '';
-    return 'Dr. $t';
+  double get medicationsSubtotal =>
+      medications.fold(0, (sum, m) => sum + m.lineTotal);
+
+  static Map<String, dynamic>? _invoiceStaffPerson(Map<String, dynamic> json) {
+    final staff = json['staff'] is Map
+        ? Map<String, dynamic>.from(json['staff'] as Map)
+        : null;
+    final createdBy = json['createdBy'] is Map
+        ? Map<String, dynamic>.from(json['createdBy'] as Map)
+        : null;
+    if (staff != null) {
+      final at = staff['accountType']?.toString().trim() ?? '';
+      if (at.isEmpty && createdBy?['accountType'] != null) {
+        return {...staff, 'accountType': createdBy!['accountType']};
+      }
+      return staff;
+    }
+    return createdBy;
   }
 
   static DateTime _parseDate(dynamic v) {
@@ -397,9 +445,6 @@ class QueueOrder {
             history: [],
           );
 
-    final staff = json['staff'] is Map<String, dynamic>
-        ? json['staff'] as Map<String, dynamic>
-        : null;
     final itemsRaw = json['invoiceItems'] ?? json['items'];
     final medications = <PrescribedMedication>[];
     if (itemsRaw is List) {
@@ -417,7 +462,9 @@ class QueueOrder {
     return QueueOrder(
       id: json['id']?.toString() ?? '',
       patient: patient,
-      doctorDisplayName: _staffDisplayName(staff),
+      doctorDisplayName: staffTitledDisplayNameFromPersonMap(
+        _invoiceStaffPerson(json),
+      ),
       department: '',
       timestamp: _parseDate(json['createdAt']),
       urgency: UrgencyLevel.standard,

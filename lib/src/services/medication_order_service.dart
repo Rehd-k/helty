@@ -8,12 +8,7 @@ class MedicationOrderService {
 
   final Dio _dio;
 
-  /// GET /medication-orders?encounterId= — list orders for an encounter.
-  Future<List<MedicationOrderModel>> getByEncounter(String encounterId) async {
-    final response = await _dio.get<dynamic>(
-      '/medication-orders/encounter/$encounterId',
-    );
-    final raw = response.data;
+  static List<MedicationOrderModel> _parseList(dynamic raw) {
     if (raw is List) {
       return raw
           .map((e) => MedicationOrderModel.fromJson(e as Map<String, dynamic>))
@@ -26,6 +21,32 @@ class MedicationOrderService {
           .toList();
     }
     return [];
+  }
+
+  /// GET /medication-orders/encounter/:encounterId — list orders for an encounter.
+  Future<List<MedicationOrderModel>> getByEncounter(String encounterId) async {
+    final response = await _dio.get<dynamic>(
+      '/medication-orders/encounter/$encounterId',
+    );
+    return _parseList(response.data);
+  }
+
+  /// GET /medication-orders?patientId= — recent orders for a patient.
+  Future<List<MedicationOrderModel>> getByPatient(
+    String patientId, {
+    int skip = 0,
+    int take = 10,
+  }) async {
+    if (patientId.isEmpty) return [];
+    final response = await _dio.get<dynamic>(
+      '/medication-orders',
+      queryParameters: {
+        'patientId': patientId,
+        'skip': skip,
+        'take': take,
+      },
+    );
+    return _parseList(response.data);
   }
 
   /// POST /medication-orders — create prescription. Returns created order with id from API.

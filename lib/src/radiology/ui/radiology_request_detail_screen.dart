@@ -545,6 +545,10 @@ class _OrderHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final requestedByName = (order.requestedBy?.displayName ?? '').trim();
+    final requestedByLabel = requestedByName.isNotEmpty
+        ? requestedByName
+        : (order.requestedById.isNotEmpty ? order.requestedById : '-');
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -554,6 +558,7 @@ class _OrderHeader extends StatelessWidget {
             const Text('Order details'),
             const SizedBox(height: 8),
             _ValueRow('Patient', order.patient?.displayName ?? order.patientId),
+            _ValueRow('Requested by', requestedByLabel),
             _ValueRow('Status', orderStatusLabel(order.status)),
             _ValueRow('Items', '${order.items.length}'),
             _ValueRow(

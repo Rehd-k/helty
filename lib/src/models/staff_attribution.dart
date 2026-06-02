@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../nurses/inpatients/widgets/inpatient_view_scope.dart';
+import 'staff_model.dart';
 
 Map<String, dynamic>? _asMap(dynamic e) =>
     e is Map ? Map<String, dynamic>.from(e) : null;
@@ -48,6 +49,41 @@ String staffDisplayNameFromJson(Map<String, dynamic> json) {
   }
 
   return '';
+}
+
+/// Display name with department title from a nested staff/createdBy person map.
+///
+/// [AccountType.physician] → `Dr. …`, [AccountType.pharmacy] → `Pharm. …`, else plain name.
+String staffTitledDisplayNameFromPersonMap(Map<String, dynamic>? person) {
+  if (person == null) return '';
+  final first = _str(person['firstName'] ?? person['first_name']).trim();
+  final last = _str(
+    person['surname'] ?? person['lastName'] ?? person['last_name'],
+  ).trim();
+  final name = [first, last].where((s) => s.isNotEmpty).join(' ');
+  if (name.isEmpty) {
+    final display = _str(person['displayName'] ?? person['name']).trim();
+    if (display.isEmpty) return '';
+    return _titleForAccountType(
+      AccountType.fromString(person['accountType'] as String?),
+      display,
+    );
+  }
+  return _titleForAccountType(
+    AccountType.fromString(person['accountType'] as String?),
+    name,
+  );
+}
+
+String _titleForAccountType(AccountType accountType, String name) {
+  switch (accountType) {
+    case AccountType.physician:
+      return 'Dr. $name';
+    case AccountType.pharmacy:
+      return 'Pharm. $name';
+    default:
+      return name;
+  }
 }
 
 /// Returns logged-in staff id from [InpatientViewScope], or null after showing a SnackBar.

@@ -154,7 +154,10 @@ class _RadiologyWorklistScreenState
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
+                    Icon(
+                      Icons.error_outline,
+                      color: colorScheme.onErrorContainer,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -262,61 +265,60 @@ class _RadiologyWorklistScreenState
             child: _loading && _orders.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : _orders.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inbox_rounded,
-                              size: 64,
-                              color: colorScheme.outline,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No requests match the filter.',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.inbox_rounded,
+                          size: 64,
+                          color: colorScheme.outline,
                         ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: () async {
-                          _skip = 0;
-                          await _load();
-                        },
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _orders.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == _orders.length) {
-                              final hasMore =
-                                  _skip + _orders.length < _total;
-                              if (!hasMore) return const SizedBox(height: 16);
-                              return Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: TextButton(
-                                  onPressed: _loading
-                                      ? null
-                                      : () {
-                                          setState(() => _skip += _take);
-                                          _load();
-                                        },
-                                  child: const Text('Load more'),
-                                ),
-                              );
-                            }
-                            final order = _orders[index];
-                            return _OrderCard(
-                              order: order,
-                              onTap: () => context.router.push(
-                                RadiologyRequestDetailRoute(requestId: order.id),
-                              ),
-                            );
-                          },
+                        const SizedBox(height: 16),
+                        Text(
+                          'No requests match the filter.',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      _skip = 0;
+                      await _load();
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _orders.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == _orders.length) {
+                          final hasMore = _skip + _orders.length < _total;
+                          if (!hasMore) return const SizedBox(height: 16);
+                          return Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: TextButton(
+                              onPressed: _loading
+                                  ? null
+                                  : () {
+                                      setState(() => _skip += _take);
+                                      _load();
+                                    },
+                              child: const Text('Load more'),
+                            ),
+                          );
+                        }
+                        final order = _orders[index];
+                        return _OrderCard(
+                          order: order,
+                          onTap: () => context.router.push(
+                            RadiologyRequestDetailRoute(requestId: order.id),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -351,18 +353,13 @@ class _StatusChip extends StatelessWidget {
             ? theme.colorScheme.primary
             : theme.colorScheme.outlineVariant,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({
-    required this.order,
-    required this.onTap,
-  });
+  const _OrderCard({required this.order, required this.onTap});
 
   final RadiologyOrder order;
   final VoidCallback onTap;
@@ -373,6 +370,10 @@ class _OrderCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final statusColor = orderStatusColor(theme, order.status);
     final firstItem = order.items.isNotEmpty ? order.items.first : null;
+    final requestedByName = (order.requestedBy?.displayName ?? '').trim();
+    final requestedByLabel = requestedByName.isNotEmpty
+        ? requestedByName
+        : (order.requestedById.isNotEmpty ? order.requestedById : '-');
 
     return Card(
       elevation: 0,
@@ -419,6 +420,12 @@ class _OrderCard extends StatelessWidget {
                       ),
                     ),
                     Text(
+                      'Requested by: $requestedByLabel',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
                       '${order.items.length} item(s)',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.outline,
@@ -446,7 +453,10 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
@@ -470,5 +480,4 @@ class _OrderCard extends StatelessWidget {
       ),
     );
   }
-
 }

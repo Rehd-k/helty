@@ -73,6 +73,11 @@ final medicalRecordsMenu = <MenuItem>[
     icon: Icons.check_circle_outline,
     route: DoctorCompletedEncountersRoute(),
   ),
+  MenuItem(
+    label: 'Paid consultation report',
+    icon: Icons.receipt_long_outlined,
+    route: ConsultationPaymentReportRoute(),
+  ),
 ];
 
 final bills = <MenuItem>[

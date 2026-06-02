@@ -24,8 +24,9 @@ class PendingOrdersTick {
   static PendingOrdersTick? tryParse(Map<String, dynamic>? json) {
     if (json == null) return null;
     final rawItems = json['items'];
-    if (rawItems is! List)
+    if (rawItems is! List) {
       return const PendingOrdersTick(tickAt: null, items: []);
+    }
     final items = <PendingOrdersItem>[];
     for (final entry in rawItems) {
       if (entry is! Map) continue;
