@@ -8,6 +8,9 @@ import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/services/staff_service.dart';
+import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
+import 'package:helty/src/obstetrics/utils/obstetrics_display.dart';
 
 @RoutePage()
 class ObstetricsAddAntenatalVisitScreen extends ConsumerStatefulWidget {
@@ -158,31 +161,35 @@ class _ObstetricsAddAntenatalVisitScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scopePregnancy = PregnancyViewScope.of(context)?.pregnancy;
+    final patientContext = scopePregnancy != null
+        ? '${pregnancyGpLabel(scopePregnancy)} · ${formatEddCountdown(daysUntilEdd(scopePregnancy.edd))}'
+        : 'Pregnancy ${widget.pregnancyId}';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add antenatal visit'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Add antenatal visit',
+      subtitle: 'Record antenatal vitals and fetal assessment.',
+      formKey: _formKey,
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Save visit',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      contextBanner: ObFormContextBanner(
+        title: 'Antenatal visit',
+        lines: [patientContext],
+        icon: Icons.medical_services_rounded,
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Visit & vitals',
+          icon: Icons.event_note_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             TextFormField(
               controller: _visitDateCtrl,
               decoration: InputDecoration(
@@ -275,7 +282,13 @@ class _ObstetricsAddAntenatalVisitScreenState
               ),
               keyboardType: TextInputType.number,
             ),
-            const SizedBox(height: 16),
+          ],
+        ),
+        ObFormSectionCard(
+          title: 'Fetal assessment & notes',
+          icon: Icons.health_and_safety_rounded,
+          useTertiaryAccent: true,
+          children: [
             DropdownButtonFormField<FetalPresentation>(
               initialValue: _presentation,
               decoration: const InputDecoration(
@@ -313,20 +326,9 @@ class _ObstetricsAddAntenatalVisitScreenState
               ),
               maxLines: 2,
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save visit'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

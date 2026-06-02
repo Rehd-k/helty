@@ -4043,18 +4043,55 @@ class ObstetricsLabourDeliveryViewRouteArgs {
 
 /// generated route for
 /// [_i132.ObstetricsPatientSelectScreen]
-class ObstetricsPatientSelectRoute extends _i185.PageRouteInfo<void> {
-  const ObstetricsPatientSelectRoute({List<_i185.PageRouteInfo>? children})
-    : super(ObstetricsPatientSelectRoute.name, initialChildren: children);
+class ObstetricsPatientSelectRoute
+    extends _i185.PageRouteInfo<ObstetricsPatientSelectRouteArgs> {
+  ObstetricsPatientSelectRoute({
+    _i186.Key? key,
+    _i132.ObstetricsSelectTarget? target,
+    List<_i185.PageRouteInfo>? children,
+  }) : super(
+         ObstetricsPatientSelectRoute.name,
+         args: ObstetricsPatientSelectRouteArgs(key: key, target: target),
+         initialChildren: children,
+       );
 
   static const String name = 'ObstetricsPatientSelectRoute';
 
   static _i185.PageInfo page = _i185.PageInfo(
     name,
     builder: (data) {
-      return const _i132.ObstetricsPatientSelectScreen();
+      final args = data.argsAs<ObstetricsPatientSelectRouteArgs>(
+        orElse: () => const ObstetricsPatientSelectRouteArgs(),
+      );
+      return _i132.ObstetricsPatientSelectScreen(
+        key: args.key,
+        target: args.target,
+      );
     },
   );
+}
+
+class ObstetricsPatientSelectRouteArgs {
+  const ObstetricsPatientSelectRouteArgs({this.key, this.target});
+
+  final _i186.Key? key;
+
+  final _i132.ObstetricsSelectTarget? target;
+
+  @override
+  String toString() {
+    return 'ObstetricsPatientSelectRouteArgs{key: $key, target: $target}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ObstetricsPatientSelectRouteArgs) return false;
+    return key == other.key && target == other.target;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ target.hashCode;
 }
 
 /// generated route for

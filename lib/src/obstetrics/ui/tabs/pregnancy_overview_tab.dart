@@ -6,6 +6,9 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_theme.dart';
+import 'package:helty/src/obstetrics/utils/obstetrics_display.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
 @RoutePage()
@@ -25,21 +28,24 @@ class ObstetricsPregnancyOverviewTab extends ConsumerStatefulWidget {
 class _ObstetricsPregnancyOverviewTabState
     extends ConsumerState<ObstetricsPregnancyOverviewTab> {
   Pregnancy? _pregnancy;
-  bool _loading = true;
+  bool _loading = false;
   String? _error;
 
   ObstetricsService get _service => ref.read(obstetricsServiceProvider);
 
-  String? _pregnancyIdFromScope;
-  String? _loadedId;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _pregnancyIdFromScope = PregnancyViewScope.of(context)?.pregnancyId;
-    final id = widget.pregnancyId ?? _pregnancyIdFromScope;
-    if (id != null && id.isNotEmpty && _loadedId != id) {
-      _loadedId = id;
+    final scope = PregnancyViewScope.of(context);
+    final id = widget.pregnancyId ?? scope?.pregnancyId;
+    if (scope?.pregnancy != null) {
+      setState(() {
+        _pregnancy = scope!.pregnancy;
+        _loading = false;
+      });
+      return;
+    }
+    if (id != null && id.isNotEmpty && _pregnancy == null && !_loading) {
       _load(id);
     }
   }
@@ -73,11 +79,11 @@ class _ObstetricsPregnancyOverviewTabState
 
   @override
   Widget build(BuildContext context) {
-    final pregnancyId = widget.pregnancyId ?? _pregnancyIdFromScope ?? PregnancyViewScope.of(context)?.pregnancyId;
+    final pregnancyId =
+        widget.pregnancyId ?? PregnancyViewScope.of(context)?.pregnancyId;
     if (pregnancyId == null || pregnancyId.isEmpty) {
       return const Center(child: Text('Missing pregnancy context'));
     }
-    final theme = Theme.of(context);
 
     if (_loading && _pregnancy == null) {
       return const Center(child: CircularProgressIndicator());
@@ -85,41 +91,143 @@ class _ObstetricsPregnancyOverviewTabState
     if (_error != null && _pregnancy == null) {
       return Center(child: Text(_error!));
     }
-    final p = _pregnancy!;
+    final p = _pregnancy;
+    if (p == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final glance = pregnancyAtAGlance(p);
+    final latest = latestAntenatalVisit(p);
+    final theme = Theme.of(context);
+
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ObSectionHeader(title: 'Summary'),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cross = constraints.maxWidth > 500 ? 2 : 2;
+            return GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: cross,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.6,
               children: [
-                Text(
-                  'Details',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                ObInfoTile(
+                  icon: Icons.pregnant_woman_rounded,
+                  label: 'Gravida / Para',
+                  value: pregnancyGpLabel(p),
                 ),
-                const SizedBox(height: 16),
-                _Row(label: 'Gravida', value: '${p.gravida}'),
-                _Row(label: 'Para', value: '${p.para}'),
-                _Row(label: 'LMP', value: DateFormatter.formatFromBackend(p.lmp, DateFormatter.shortDate)),
-                _Row(label: 'EDD', value: DateFormatter.formatFromBackend(p.edd, DateFormatter.shortDate)),
-                _Row(label: 'Status', value: p.status?.name ?? '—'),
-                if (p.bookingDate != null)
-                  _Row(label: 'Booking date', value: DateFormatter.formatFromBackend(p.bookingDate, DateFormatter.shortDate)),
-                if (p.outcome != null && p.outcome!.isNotEmpty)
-                  _Row(label: 'Outcome', value: p.outcome!),
-                if (p.patient != null)
-                  _Row(
-                    label: 'Patient',
-                    value: p.patient!.displayName,
+                ObInfoTile(
+                  icon: Icons.event_rounded,
+                  label: 'EDD countdown',
+                  value: formatEddCountdown(glance.daysUntilEdd),
+                  accentColor: theme.colorScheme.tertiary,
+                ),
+                ObInfoTile(
+                  icon: Icons.calendar_today_rounded,
+                  label: 'Booking',
+                  value: p.bookingDate != null
+                      ? DateFormatter.formatFromBackend(
+                          p.bookingDate,
+                          DateFormatter.shortDate,
+                        )
+                      : '—',
+                ),
+                ObInfoTile(
+                  icon: Icons.flag_rounded,
+                  label: 'Outcome',
+                  value: (p.outcome != null && p.outcome!.isNotEmpty)
+                      ? p.outcome!
+                      : '—',
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 20),
+        ObSectionHeader(title: 'Last antenatal visit'),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: ObstetricsTheme.borderRadius),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: latest == null
+                ? Text(
+                    'No visits recorded yet.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormatter.formatFromBackend(
+                          latest.visitDate,
+                          DateFormatter.shortDate,
+                        ),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        [
+                          if (latest.gestationWeeks != null)
+                            '${latest.gestationWeeks!.round()} wks',
+                          if (latest.systolicBP != null &&
+                              latest.diastolicBP != null)
+                            'BP ${latest.systolicBP}/${latest.diastolicBP}',
+                          if (latest.fetalHeartRate != null)
+                            'FHR ${latest.fetalHeartRate}',
+                          if (latest.presentation != null)
+                            formatPresentation(latest.presentation),
+                        ].join(' · '),
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
                   ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        ObSectionHeader(title: 'Care pathway'),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: ObstetricsTheme.borderRadius),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ObStatChip(
+                  label:
+                      '${glance.visitCount ?? 0} antenatal visit${(glance.visitCount ?? 0) == 1 ? '' : 's'}',
+                  icon: Icons.event_note_rounded,
+                ),
+                ObStatChip(
+                  label:
+                      '${glance.deliveryCount ?? 0} deliver${(glance.deliveryCount ?? 0) == 1 ? 'y' : 'ies'}',
+                  icon: Icons.local_hospital_rounded,
+                  backgroundColor: theme.colorScheme.tertiaryContainer,
+                  color: theme.colorScheme.onTertiaryContainer,
+                ),
+                ObStatChip(
+                  label: pregnancyStatusLabel(p.status),
+                  color: pregnancyStatusColor(p.status, theme.colorScheme),
+                  backgroundColor:
+                      pregnancyStatusContainerColor(p.status, theme.colorScheme),
+                ),
               ],
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        _Row(label: 'LMP', value: DateFormatter.formatFromBackend(p.lmp, DateFormatter.shortDate)),
+        _Row(label: 'EDD', value: DateFormatter.formatFromBackend(p.edd, DateFormatter.shortDate)),
+        if (p.patient != null && p.patient!.displayName.isNotEmpty)
+          _Row(label: 'Patient', value: p.patient!.displayName),
       ],
     );
   }
@@ -140,7 +248,7 @@ class _Row extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: 100,
             child: Text(
               label,
               style: theme.textTheme.bodyMedium?.copyWith(

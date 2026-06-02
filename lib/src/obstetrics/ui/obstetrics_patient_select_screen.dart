@@ -3,9 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
+enum ObstetricsSelectTarget {
+  pregnancies,
+  gynae,
+}
+
 @RoutePage()
 class ObstetricsPatientSelectScreen extends ConsumerStatefulWidget {
-  const ObstetricsPatientSelectScreen({super.key});
+  const ObstetricsPatientSelectScreen({
+    super.key,
+    this.target,
+  });
+
+  final ObstetricsSelectTarget? target;
 
   @override
   ConsumerState<ObstetricsPatientSelectScreen> createState() =>
@@ -19,7 +29,11 @@ class _ObstetricsPatientSelectScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.router.replace(EnlistPaitientRoute(serviceName: 'OBGYN'));
+      final target = widget.target ?? ObstetricsSelectTarget.pregnancies;
+      final serviceName = target == ObstetricsSelectTarget.gynae
+          ? 'OBGYN_GYNAE'
+          : 'OBGYN';
+      context.router.replace(EnlistPaitientRoute(serviceName: serviceName));
     });
   }
 

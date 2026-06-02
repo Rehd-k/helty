@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
 
 @RoutePage()
 class ObstetricsRegisterBabyScreen extends ConsumerStatefulWidget {
@@ -82,31 +83,30 @@ class _ObstetricsRegisterBabyScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Register baby as patient'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Register baby as patient',
+      subtitle: 'Create a patient profile for this baby.',
+      formKey: _formKey,
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Register patient',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      contextBanner: ObFormContextBanner(
+        title: 'Patient registration',
+        lines: ['Baby ID: ${widget.babyId}'],
+        icon: Icons.person_add_rounded,
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Patient details',
+          icon: Icons.person_add_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             TextFormField(
               controller: _firstNameCtrl,
               decoration: const InputDecoration(
@@ -143,20 +143,9 @@ class _ObstetricsRegisterBabyScreenState
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Register patient'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

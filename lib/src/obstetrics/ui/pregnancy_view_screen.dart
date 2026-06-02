@@ -5,28 +5,34 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
+import 'package:helty/src/obstetrics/utils/obstetrics_display.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
-/// Provides pregnancyId to tab content when router builds tabs without args.
+/// Provides pregnancy context to tab content.
 class PregnancyViewScope extends InheritedWidget {
   const PregnancyViewScope({
     super.key,
     required this.pregnancyId,
     this.encounterId,
+    this.pregnancy,
+    this.onRefresh,
     required super.child,
   });
 
   final String pregnancyId;
-
-  /// When opened from an OPD encounter (e.g. specialty deep link), antenatal visits can link to this id.
   final String? encounterId;
+  final Pregnancy? pregnancy;
+  final Future<void> Function()? onRefresh;
 
   static PregnancyViewScope? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<PregnancyViewScope>();
 
   @override
   bool updateShouldNotify(PregnancyViewScope old) =>
-      pregnancyId != old.pregnancyId || encounterId != old.encounterId;
+      pregnancyId != old.pregnancyId ||
+      encounterId != old.encounterId ||
+      pregnancy != old.pregnancy;
 }
 
 @RoutePage()
@@ -46,10 +52,12 @@ class ObstetricsPregnancyViewScreen extends ConsumerStatefulWidget {
 }
 
 class _ObstetricsPregnancyViewScreenState
-    extends ConsumerState<ObstetricsPregnancyViewScreen> {
+    extends ConsumerState<ObstetricsPregnancyViewScreen>
+    with SingleTickerProviderStateMixin {
   Pregnancy? _pregnancy;
   bool _loading = true;
   String? _error;
+  TabController? _tabController;
 
   ObstetricsService get _service => ref.read(obstetricsServiceProvider);
 
@@ -57,6 +65,12 @@ class _ObstetricsPregnancyViewScreenState
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -86,12 +100,30 @@ class _ObstetricsPregnancyViewScreenState
     }
   }
 
+  int _tabCount(Pregnancy p, int index) {
+    switch (index) {
+      case 1:
+        return p.antenatalVisits?.length ?? 0;
+      case 2:
+        return p.labourDeliveries?.length ?? 0;
+      case 3:
+        // Postnatal visits are not embedded on LabourDelivery in our current
+        // model. The Postnatal tab fetches them separately, so we avoid
+        // misleading counts here.
+        return 0;
+      default:
+        return 0;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     if (_loading && _pregnancy == null) {
       return Scaffold(
+        backgroundColor: colorScheme.surfaceContainerLowest,
         appBar: AppBar(title: const Text('Pregnancy')),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -128,6 +160,8 @@ class _ObstetricsPregnancyViewScreenState
     return PregnancyViewScope(
       pregnancyId: widget.pregnancyId,
       encounterId: widget.encounterId,
+      pregnancy: p,
+      onRefresh: _load,
       child: AutoTabsRouter(
         routes: [
           ObstetricsPregnancyOverviewTab(),
@@ -137,55 +171,62 @@ class _ObstetricsPregnancyViewScreenState
         ],
         builder: (context, child) {
           final tabsRouter = AutoTabsRouter.of(context);
-        const labels = [
-          'Overview',
-          'Antenatal visits',
-          'Labour & delivery',
-          'Postnatal',
-        ];
-        return Scaffold(
-          appBar: AppBar(
-            title: Text('Pregnancy · G${p.gravida}P${p.para}'),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.router.maybePop(),
-            ),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: Material(
-                color: theme.colorScheme.surface,
-                child: Row(
-                  children: List.generate(4, (index) {
-                    final selected = tabsRouter.activeIndex == index;
-                    return Expanded(
-                      child: InkWell(
-                        onTap: () => tabsRouter.setActiveIndex(index),
-                        child: Center(
-                          child: Text(
-                            labels[index],
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: selected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurfaceVariant,
-                              fontWeight:
-                                  selected ? FontWeight.w600 : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
+          _tabController ??= TabController(
+            length: 4,
+            vsync: this,
+            initialIndex: tabsRouter.activeIndex,
+          );
+          if (_tabController!.index != tabsRouter.activeIndex) {
+            _tabController!.index = tabsRouter.activeIndex;
+          }
+          final tabLabels = [
+            'Overview',
+            _badgeLabel('Antenatal', _tabCount(p, 1)),
+            _badgeLabel('Labour', _tabCount(p, 2)),
+            _badgeLabel('Postnatal', _tabCount(p, 3)),
+          ];
+
+          return Scaffold(
+            backgroundColor: colorScheme.surfaceContainerLowest,
+            appBar: AppBar(
+              title: Text('Pregnancy · ${pregnancyGpLabel(p)}'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.router.maybePop(),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loading ? null : _load,
+                ),
+              ],
+              bottom: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                onTap: tabsRouter.setActiveIndex,
+                tabs: List.generate(
+                  4,
+                  (i) => Tab(text: tabLabels[i]),
                 ),
               ),
             ),
-          ),
-          body: RefreshIndicator(
-            onRefresh: _load,
-            child: child,
-          ),
-        );
+            body: Column(
+              children: [
+                PregnancyHeroHeader(pregnancy: p),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _load,
+                    child: child,
+                  ),
+                ),
+              ],
+            ),
+          );
         },
       ),
     );
   }
+
+  String _badgeLabel(String base, int count) =>
+      count > 0 ? '$base ($count)' : base;
 }

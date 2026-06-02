@@ -9,6 +9,7 @@ import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/services/staff_service.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
 
 @RoutePage()
 class ObstetricsAddLabourDeliveryScreen extends ConsumerStatefulWidget {
@@ -160,31 +161,30 @@ class _ObstetricsAddLabourDeliveryScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Record delivery'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Record delivery',
+      subtitle: 'Capture mode, outcome, and delivery details.',
+      formKey: _formKey,
+      contextBanner: ObFormContextBanner(
+        title: 'Delivery record',
+        lines: ['Pregnancy: ${widget.pregnancyId}'],
+        icon: Icons.local_hospital_rounded,
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Save delivery',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Delivery details',
+          icon: Icons.local_hospital_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             TextFormField(
               controller: _deliveryDateTimeCtrl,
               decoration: InputDecoration(
@@ -232,8 +232,10 @@ class _ObstetricsAddLabourDeliveryScreenState
               ),
               items: _staffList
                   .map(
-                    (s) =>
-                        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+                    (s) => DropdownMenuItem(
+                      value: s.id,
+                      child: Text(s.fullName),
+                    ),
                   )
                   .toList(),
               onChanged: _loadingStaff
@@ -294,20 +296,9 @@ class _ObstetricsAddLabourDeliveryScreenState
               ),
               maxLines: 2,
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save delivery'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

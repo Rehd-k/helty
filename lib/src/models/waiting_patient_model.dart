@@ -1,4 +1,5 @@
 import '../paitients/patient_model.dart';
+import 'consultation_credit_model.dart';
 import 'consulting_room_model.dart';
 import 'patient_vitals_model.dart';
 
@@ -13,7 +14,7 @@ class WaitingPatientModel {
     required this.updatedAt,
     this.patient,
     this.consultingRoom,
-    this.consultationNames = const [],
+    this.consultationServices = const [],
     required this.status,
     this.patientVitals,
     this.seen = false,
@@ -34,11 +35,28 @@ class WaitingPatientModel {
   /// Latest vitals (nurses have already recorded); may be included in API response.
   final PatientVitalsModel? patientVitals;
 
-  /// Convenience fields the API may expose so the UI can show
-  /// "what consultation was paid for" (e.g. Cardiology, Urology).
-  final List<String> consultationNames;
+  /// Paid consultation lines with optional visit-credit metadata.
+  final List<ConsultationServiceLine> consultationServices;
+
+  List<String> get consultationNames =>
+      consultationServices.map((s) => s.name).where((n) => n.isNotEmpty).toList();
+
   String? get consultationName =>
       consultationNames.isEmpty ? null : consultationNames.first;
+
+  /// Line with the most visits remaining (for compact queue display).
+  ConsultationServiceLine? get primaryConsultationCredit {
+    if (consultationServices.isEmpty) return null;
+    ConsultationServiceLine? best;
+    for (final line in consultationServices) {
+      if (!line.hasCreditMetadata) continue;
+      if (best == null ||
+          line.visitsRemaining > best.visitsRemaining) {
+        best = line;
+      }
+    }
+    return best ?? consultationServices.first;
+  }
   final String status;
   final bool seen;
 
@@ -88,19 +106,25 @@ class WaitingPatientModel {
     }
 
     final servicesRaw = json['consultationServices'];
-    final consultationNames = <String>[];
+    final consultationServices = <ConsultationServiceLine>[];
     if (servicesRaw is List) {
       for (final e in servicesRaw) {
-        if (e is Map && e['name'] != null) {
-          final name = e['name'].toString().trim();
-          if (name.isNotEmpty) consultationNames.add(name);
+        if (e is Map) {
+          final line = ConsultationServiceLine.fromJson(
+            Map<String, dynamic>.from(e),
+          );
+          if (line.name.isNotEmpty) consultationServices.add(line);
         }
       }
     }
-    if (consultationNames.isEmpty) {
+    if (consultationServices.isEmpty) {
       final service = json['service'];
       if (service is Map<String, dynamic> && service['name'] != null) {
-        consultationNames.add(service['name'].toString());
+        consultationServices.add(
+          ConsultationServiceLine(
+            name: service['name'].toString().trim(),
+          ),
+        );
       }
     }
 
@@ -123,7 +147,7 @@ class WaitingPatientModel {
       updatedAt: parseDate(json['updatedAt']),
       patient: patient,
       consultingRoom: consultingRoom,
-      consultationNames: consultationNames,
+      consultationServices: consultationServices,
       status: status,
       patientVitals: patientVitals,
       seen: json['seen'] == true || json['encounter'] != null,

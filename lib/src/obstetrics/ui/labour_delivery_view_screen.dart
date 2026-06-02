@@ -7,6 +7,8 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_theme.dart';
 
 @RoutePage()
 class ObstetricsLabourDeliveryViewScreen extends ConsumerStatefulWidget {
@@ -219,19 +221,72 @@ class _PartogramList extends StatelessWidget {
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
                     final e = entries[index];
+                    final recordedAt = DateFormatter.formatFromBackend(
+                      e.recordedAt,
+                      DateFormatter.dateTime,
+                    );
+
+                    final dilation = e.cervicalDilationCm != null
+                        ? '${e.cervicalDilationCm} cm'
+                        : null;
+                    final fhr = e.fetalHeartRate != null
+                        ? '${e.fetalHeartRate}'
+                        : null;
+                    final comments = e.comments != null && e.comments!.isNotEmpty
+                        ? e.comments
+                        : null;
+
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(DateFormatter.formatFromBackend(e.recordedAt, DateFormatter.dateTime)),
-                        subtitle: Text(
-                          [
-                            if (e.cervicalDilationCm != null)
-                              'Dilation: ${e.cervicalDilationCm} cm',
-                            if (e.fetalHeartRate != null)
-                              'FHR: ${e.fetalHeartRate}',
-                            if (e.comments != null && e.comments!.isNotEmpty)
-                              e.comments,
-                          ].join(' · '),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: ObstetricsTheme.borderRadius,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              recordedAt,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                if (dilation != null)
+                                  ObStatChip(
+                                    label: 'Dilation $dilation',
+                                    icon: Icons.height_rounded,
+                                    backgroundColor: colorScheme.primaryContainer,
+                                    color: colorScheme.onPrimaryContainer,
+                                  ),
+                                if (fhr != null)
+                                  ObStatChip(
+                                    label: 'FHR $fhr',
+                                    icon: Icons.monitor_heart_rounded,
+                                    backgroundColor:
+                                        colorScheme.tertiaryContainer,
+                                    color: colorScheme.onTertiaryContainer,
+                                  ),
+                              ],
+                            ),
+                            if (comments != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                comments,
+                                style:
+                                    theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     );
@@ -306,37 +361,116 @@ class _BabiesList extends StatelessWidget {
                   itemCount: babies.length,
                   itemBuilder: (context, index) {
                     final b = babies[index];
+                    final sexLabel = b.sex.name;
+                    final weightLabel =
+                        b.birthWeightG != null ? '${b.birthWeightG}g' : null;
+                    final apgar1 = b.apgar1;
+                    final apgar5 = b.apgar5;
+
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(
-                          'Baby ${b.birthOrder} · ${b.sex.name}'
-                          '${b.birthWeightG != null ? ' · ${b.birthWeightG}g' : ''}',
-                        ),
-                        subtitle: Text(
-                          b.registeredPatientId != null
-                              ? 'Registered as patient'
-                              : 'Not registered',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (b.registeredPatientId == null)
-                              IconButton(
-                                icon: const Icon(Icons.person_add),
-                                tooltip: 'Register as patient',
-                                onPressed: () => context.router
-                                    .push(
-                                      ObstetricsRegisterBabyRoute(babyId: b.id),
-                                    )
-                                    .then((_) => onRefresh()),
-                              ),
-                            const Icon(Icons.chevron_right),
-                          ],
-                        ),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: ObstetricsTheme.borderRadius,
+                      ),
+                      child: InkWell(
+                        borderRadius: ObstetricsTheme.borderRadius,
                         onTap: () => context.router
                             .push(ObstetricsEditBabyRoute(babyId: b.id))
                             .then((_) => onRefresh()),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'Baby ${b.birthOrder}',
+                                          style: theme.textTheme.titleSmall
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ObStatChip(
+                                          label: sexLabel,
+                                          icon: Icons.child_care_rounded,
+                                          backgroundColor:
+                                              colorScheme.primaryContainer,
+                                          color: colorScheme.onPrimaryContainer,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        if (weightLabel != null)
+                                          ObStatChip(
+                                            label: 'Weight $weightLabel',
+                                            icon:
+                                                Icons.monitor_weight_rounded,
+                                            backgroundColor:
+                                                colorScheme.tertiaryContainer,
+                                            color: colorScheme.onTertiaryContainer,
+                                          ),
+                                        if (apgar1 != null)
+                                          ObStatChip(
+                                            label: 'Apgar1 $apgar1',
+                                            icon: Icons.favorite_rounded,
+                                            backgroundColor:
+                                                colorScheme.secondaryContainer,
+                                            color:
+                                                colorScheme.onSecondaryContainer,
+                                          ),
+                                        if (apgar5 != null)
+                                          ObStatChip(
+                                            label: 'Apgar5 $apgar5',
+                                            icon: Icons.favorite_rounded,
+                                            backgroundColor:
+                                                colorScheme.secondaryContainer,
+                                            color:
+                                                colorScheme.onSecondaryContainer,
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      b.registeredPatientId != null
+                                          ? 'Registered as patient'
+                                          : 'Not registered',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                children: [
+                                  if (b.registeredPatientId == null)
+                                    IconButton(
+                                      icon: const Icon(Icons.person_add),
+                                      tooltip: 'Register as patient',
+                                      onPressed: () => context.router
+                                          .push(
+                                            ObstetricsRegisterBabyRoute(
+                                              babyId: b.id,
+                                            ),
+                                          )
+                                          .then((_) => onRefresh()),
+                                    ),
+                                  const Icon(Icons.chevron_right),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     );
                   },

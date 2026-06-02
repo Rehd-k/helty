@@ -14,6 +14,7 @@ import '../providers/auth_provider.dart';
 import '../services/bank_service.dart';
 import '../services/invoice_service.dart';
 import '../services/transaction_service.dart';
+import '../widgets/patient_consultation_credits_panel.dart';
 import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
 import 'package:helty/src/printing/escpos/receipt_printer_picker_sheet.dart';
 
@@ -185,6 +186,7 @@ class PayBillState extends ConsumerState<PayBill> {
   final Map<String, double> _mixedAmounts = {};
 
   bool _confirmed = false;
+  bool _paidIncludesConsultation = false;
   bool _isLoading = true;
   List<DiscountPolicy> _discountPolicies = const [];
   bool _discountPoliciesLoading = false;
@@ -921,6 +923,17 @@ class PayBillState extends ConsumerState<PayBill> {
     });
   }
 
+  bool _selectedItemsIncludeConsultation() {
+    for (final item in widget.selectedItems) {
+      final cat = (item.categoryName ?? '').toLowerCase();
+      final name = item.name.toLowerCase();
+      if (cat.contains('consultation') || name.contains('consultation')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Future<void> _makePayment() async {
     final bank = _selectedBankForPayment();
     final bankName = bank?.name;
@@ -1031,6 +1044,7 @@ class PayBillState extends ConsumerState<PayBill> {
         setState(() {
           _confirmed = true;
           _isSubmitting = false;
+          _paidIncludesConsultation = _selectedItemsIncludeConsultation();
         });
         widget.onPaymentComplete?.call();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1647,6 +1661,23 @@ class PayBillState extends ConsumerState<PayBill> {
                   'Receipt sent to $_patientName',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
+                if (_paidIncludesConsultation) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'This payment includes OPD consultation credit: up to 2 '
+                    'completed visits within 14 days of payment.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[700],
+                      height: 1.35,
+                    ),
+                  ),
+                  if (_patientId.trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    PatientConsultationCreditsPanel(patientId: _patientId),
+                  ],
+                ],
                 const SizedBox(height: 30),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:helty/src/paitients/noid_patient.model.dart';
 
+import '../models/consultation_credit_model.dart';
 import 'patient_model.dart';
 import '../services/api_service.dart';
 
@@ -79,6 +80,18 @@ class PatientService {
     }
 
     return Patient.fromJson(raw);
+  }
+
+  /// GET /patients/:patientId/consultation-credits — OPD visit bundles.
+  Future<List<ConsultationCredit>> fetchConsultationCredits(
+    String patientId,
+  ) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/patients/$patientId/consultation-credits',
+    );
+    final data = resp.data;
+    if (data == null) return [];
+    return ConsultationCreditsResponse.fromJson(data).credits;
   }
 
   // ── Write ─────────────────────────────────────────────────────────────────

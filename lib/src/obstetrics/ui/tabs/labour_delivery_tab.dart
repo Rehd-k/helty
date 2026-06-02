@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
-import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
 @RoutePage()
@@ -37,8 +37,17 @@ class _ObstetricsLabourDeliveryTabState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final scopePregnancy = PregnancyViewScope.of(context)?.pregnancy;
     final id = _pregnancyId;
     if (id != null && id.isNotEmpty && _deliveries.isEmpty && _loading && _error == null) {
+      final embedded = scopePregnancy?.labourDeliveries;
+      if (embedded != null && embedded.isNotEmpty) {
+        setState(() {
+          _deliveries = embedded;
+          _loading = false;
+        });
+        return;
+      }
       _load(id);
     }
   }
@@ -202,22 +211,11 @@ class _ObstetricsLabourDeliveryTabState
                       itemCount: _deliveries.length,
                       itemBuilder: (context, index) {
                         final d = _deliveries[index];
-                        final dateStr = DateFormatter.formatFromBackend(
-                          d.deliveryDateTime,
-                          DateFormatter.dateTime,
-                        );
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            title: Text(dateStr),
-                            subtitle: Text(
-                              '${d.mode.name} · ${d.outcome.name}',
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => context.router.push(
-                              ObstetricsLabourDeliveryViewRoute(
-                                labourDeliveryId: d.id,
-                              ),
+                        return LabourDeliveryCard(
+                          delivery: d,
+                          onTap: () => context.router.push(
+                            ObstetricsLabourDeliveryViewRoute(
+                              labourDeliveryId: d.id,
                             ),
                           ),
                         );

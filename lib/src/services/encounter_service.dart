@@ -5,11 +5,33 @@ import 'appointment_service.dart';
 import '../models/encounter_edit_meta.dart';
 import '../models/encounter_model.dart';
 
+/// Thrown when [EncounterService.startOutpatient] fails (e.g. no credit).
+class OutpatientStartException implements Exception {
+  OutpatientStartException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// Encounter (OPD visit) CRUD. All methods use the real API.
 class EncounterService {
   EncounterService() : _dio = ApiService().dio;
 
   final Dio _dio;
+
+  String _dioMessage(DioException e, String fallback) {
+    final payload = e.response?.data;
+    if (payload is Map) {
+      final msg = payload['message'];
+      if (msg != null) return msg.toString();
+      final err = payload['error'];
+      if (err != null) return err.toString();
+    } else if (payload is String && payload.trim().isNotEmpty) {
+      return payload;
+    }
+    return e.message ?? fallback;
+  }
 
   /// GET /encounters/:id — get one encounter (used by all encounter tabs).
   /// Optional [expand] e.g. `['specialtyModules','clinicalSections']` or `['*']`.
@@ -145,6 +167,40 @@ class EncounterService {
     final data = response.data;
     if (data == null) throw StateError('Create encounter returned no data');
     return EncounterModel.fromJson(data);
+  }
+
+  /// POST /encounters/outpatient/start — start OPD from paid consultation credit.
+  Future<EncounterModel> startOutpatient({
+    required String patientId,
+    required String doctorId,
+    String? invoiceId,
+    String? visitType,
+  }) async {
+    final body = <String, dynamic>{
+      'patientId': patientId,
+      'doctorId': doctorId,
+      if (invoiceId != null && invoiceId.isNotEmpty) 'invoiceId': invoiceId,
+      if (visitType != null && visitType.isNotEmpty) 'visitType': visitType,
+    };
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/encounters/outpatient/start',
+        data: body,
+      );
+      final data = response.data;
+      if (data == null) {
+        throw OutpatientStartException('Start outpatient returned no data');
+      }
+      final encounterRaw = data['encounter'] ?? data;
+      if (encounterRaw is Map<String, dynamic>) {
+        return EncounterModel.fromJson(encounterRaw);
+      }
+      return EncounterModel.fromJson(data);
+    } on DioException catch (e) {
+      throw OutpatientStartException(
+        _dioMessage(e, 'Failed to start outpatient encounter'),
+      );
+    }
   }
 
   /// PATCH /encounters/:id — partial update (any subset of encounter fields).

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
@@ -153,6 +154,7 @@ class _ObstetricsAddPregnancyScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final selectedPatient = ref.watch(patientProvider).selectedPatient;
     final patientId = _effectivePatientId;
 
     if (patientId == null || patientId.isEmpty) {
@@ -179,29 +181,32 @@ class _ObstetricsAddPregnancyScreenState
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add pregnancy'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Add pregnancy',
+      subtitle: 'Create a new pregnancy record for the selected patient.',
+      formKey: _formKey,
+      contextBanner: ObFormContextBanner(
+        title: selectedPatient != null
+            ? '${selectedPatient.firstName} ${selectedPatient.surname}'.trim()
+            : 'Selected patient',
+        lines: ['Patient ID: $patientId'],
+        icon: Icons.pregnant_woman_rounded,
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Save pregnancy',
+      onSave: _saving ? null : () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Gravida & Para',
+          icon: Icons.scale_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             TextFormField(
               controller: _gravidaCtrl,
               decoration: const InputDecoration(
@@ -231,7 +236,12 @@ class _ObstetricsAddPregnancyScreenState
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+          ],
+        ),
+        ObFormSectionCard(
+          title: 'Dates',
+          icon: Icons.calendar_today_rounded,
+          children: [
             TextFormField(
               controller: _lmpCtrl,
               decoration: InputDecoration(
@@ -274,7 +284,13 @@ class _ObstetricsAddPregnancyScreenState
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+          ],
+        ),
+        ObFormSectionCard(
+          title: 'Clinical',
+          useTertiaryAccent: true,
+          icon: Icons.medical_services_rounded,
+          children: [
             DropdownButtonFormField<PregnancyStatus>(
               initialValue: _status,
               decoration: const InputDecoration(
@@ -294,20 +310,9 @@ class _ObstetricsAddPregnancyScreenState
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save pregnancy'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

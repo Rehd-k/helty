@@ -5,6 +5,7 @@ import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
 
 @RoutePage()
 class ObstetricsAddBabyScreen extends ConsumerStatefulWidget {
@@ -124,8 +125,6 @@ class _ObstetricsAddBabyScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_loadingPregnancy && _motherId == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Add baby')),
@@ -145,29 +144,30 @@ class _ObstetricsAddBabyScreenState
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add baby'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Add baby',
+      subtitle: 'Record baby sex and birth metrics.',
+      formKey: _formKey,
+      contextBanner: ObFormContextBanner(
+        title: 'Baby record',
+        lines: ['Delivery: ${widget.labourDeliveryId}'],
+        icon: Icons.child_care_rounded,
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Save baby',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Baby details',
+          icon: Icons.child_care_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             DropdownButtonFormField<BabySex>(
               initialValue: _sex,
               decoration: const InputDecoration(
@@ -234,20 +234,9 @@ class _ObstetricsAddBabyScreenState
               ),
               maxLines: 2,
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save baby'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

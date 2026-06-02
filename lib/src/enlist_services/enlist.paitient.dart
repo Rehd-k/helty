@@ -204,6 +204,14 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                               context.router.push(
                                 ObstetricsPregnanciesListRoute(),
                               );
+                            } else if (serviceName == 'OBGYN_GYNAE') {
+                              moduleFlowNotifier.state =
+                                  ModuleRequestFlowConfig.defaultBilling;
+                              context.router.push(
+                                ObstetricsGynaeProceduresRoute(
+                                  patientId: selectedPatient!.id,
+                                ),
+                              );
                             } else if (serviceName == 'Radiology') {
                               moduleFlowNotifier.state =
                                   const ModuleRequestFlowConfig(

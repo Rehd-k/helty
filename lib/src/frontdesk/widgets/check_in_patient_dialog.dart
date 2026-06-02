@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/models/consultation_credit_model.dart';
 import 'package:helty/src/models/consulting_room_model.dart';
 import 'package:helty/src/models/paid_without_encounter_invoice.dart';
+import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
+import 'package:helty/src/widgets/consultation_credit_chip.dart';
 
 enum _CheckInMode { patient, transaction }
 
@@ -25,6 +28,7 @@ class CheckInPatientDialog extends ConsumerStatefulWidget {
 class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
   final _invoiceService = InvoiceService();
   final _waitingService = WaitingPatientService();
+  final _patientService = PatientService();
   final _searchCtrl = TextEditingController();
 
   _CheckInStep _step = _CheckInStep.chooseMode;
@@ -35,6 +39,7 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
 
   List<PaidWithoutEncounterInvoice> _invoiceOptions = [];
   PaidWithoutEncounterInvoice? _selectedInvoice;
+  List<ConsultationCredit> _patientCredits = [];
   List<ConsultingRoomModel> _rooms = [];
   ConsultingRoomModel? _selectedRoom;
 
@@ -93,6 +98,49 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
     });
   }
 
+  ConsultationCredit? _creditForInvoice(String invoiceId) {
+    for (final c in _patientCredits) {
+      if (c.invoiceId == invoiceId) return c;
+    }
+    return null;
+  }
+
+  String? _creditSubtitle(ConsultationCredit? credit) {
+    if (credit == null) return null;
+    if (credit.consumable) {
+      return 'OPD visit available (${credit.visitsRemaining} left)';
+    }
+    if (credit.isExpired) return 'Consultation credit expired';
+    if (credit.visitsRemaining <= 0) return 'All consultation visits used';
+    return '${credit.visitsRemaining} visit(s) remaining';
+  }
+
+  Future<void> _loadCredits(String patientId) async {
+    if (patientId.trim().isEmpty) {
+      setState(() => _patientCredits = []);
+      return;
+    }
+    try {
+      final credits =
+          await _patientService.fetchConsultationCredits(patientId);
+      if (!mounted) return;
+      setState(() => _patientCredits = credits);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _patientCredits = []);
+    }
+  }
+
+  void _sortInvoicesByCredit(List<PaidWithoutEncounterInvoice> list) {
+    list.sort((a, b) {
+      final ca = _creditForInvoice(a.id);
+      final cb = _creditForInvoice(b.id);
+      final aScore = ca?.consumable == true ? 0 : (ca != null ? 1 : 2);
+      final bScore = cb?.consumable == true ? 0 : (cb != null ? 1 : 2);
+      return aScore.compareTo(bScore);
+    });
+  }
+
   Future<void> _runSearch() async {
     final query = _searchCtrl.text.trim();
     if (query.isEmpty) {
@@ -121,9 +169,12 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
           });
           return;
         }
+        await _loadCredits(list.first.patientId);
+        if (!mounted) return;
         if (list.length == 1) {
           await _selectInvoice(list.first);
         } else {
+          _sortInvoicesByCredit(list);
           setState(() {
             _loading = false;
             _invoiceOptions = list;
@@ -169,7 +220,10 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
       });
       return;
     }
-    await _loadRooms();
+    await Future.wait([
+      _loadRooms(),
+      _loadCredits(invoice.patientId),
+    ]);
     if (!mounted) return;
     setState(() {
       _loading = false;
@@ -503,6 +557,25 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
                   'Paid',
                   DateFormatter.dateTime(inv.createdAt!.toLocal()),
                 ),
+              ...() {
+                final credit = _creditForInvoice(inv.id);
+                if (credit == null) return <Widget>[];
+                return [
+                  const SizedBox(height: 12),
+                  ConsultationCreditChip.fromCredit(credit: credit),
+                  if (!credit.consumable && credit.visitsRemaining > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Credit on file; confirm room assignment to re-queue.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+                ];
+              }(),
             ],
           ),
         ),
@@ -613,6 +686,44 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
                         fontSize: 11,
                         color: colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
+                    ),
+                    Builder(
+                      builder: (context) {
+                        final sub =
+                            _creditSubtitle(_creditForInvoice(inv.id));
+                        if (sub == null) return const SizedBox.shrink();
+                        final credit = _creditForInvoice(inv.id);
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              if (credit != null && credit.consumable)
+                                Icon(
+                                  Icons.check_circle_outline,
+                                  size: 14,
+                                  color: colorScheme.primary,
+                                ),
+                              if (credit != null && credit.consumable)
+                                const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  sub,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: credit?.consumable == true
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: credit?.consumable == true
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurface
+                                            .withValues(alpha: 0.55),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

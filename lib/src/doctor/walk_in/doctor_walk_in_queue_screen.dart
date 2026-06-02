@@ -12,6 +12,7 @@ import 'package:helty/src/models/waiting_patient_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
+import 'package:helty/src/widgets/consultation_credit_chip.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../widgets/date.filter.dart';
@@ -166,11 +167,11 @@ class _DoctorWalkInQueueScreenState
         patientName: displayName,
         onOpen: () async {
           try {
-            final encounter = await _encounterService.create(
+            final encounter = await _encounterService.startOutpatient(
               patientId: patientId,
               doctorId: doctorId,
+              invoiceId: waiting.invoiceId,
               visitType: 'Walk-in',
-              encounterType: 'OUTPATIENT',
             );
             if (!ctx.mounted) return;
             Navigator.of(ctx).pop(
@@ -179,6 +180,11 @@ class _DoctorWalkInQueueScreenState
                 patientId: patientId,
                 patientVitals: waiting.patientVitals,
               ),
+            );
+          } on OutpatientStartException catch (e) {
+            if (!ctx.mounted) return;
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              SnackBar(content: Text(e.message)),
             );
           } catch (e) {
             if (!ctx.mounted) return;
@@ -560,13 +566,34 @@ class _DoctorWalkInQueueScreenState
                                           ),
                                           Expanded(
                                             flex: 2,
-                                            child: Text(
-                                              consultation,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: colorScheme.onSurface
-                                                    .withValues(alpha: 0.7),
-                                              ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  consultation,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: colorScheme
+                                                        .onSurface
+                                                        .withValues(
+                                                          alpha: 0.7,
+                                                        ),
+                                                  ),
+                                                ),
+                                                if (w.primaryConsultationCredit !=
+                                                        null &&
+                                                    w.primaryConsultationCredit!
+                                                        .hasCreditMetadata) ...[
+                                                  const SizedBox(height: 4),
+                                                  ConsultationCreditChip.fromLine(
+                                                    line: w
+                                                        .primaryConsultationCredit!,
+                                                    compact: true,
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ),
                                           Expanded(

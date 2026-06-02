@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
-import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
 
 @RoutePage()
 class ObstetricsPostnatalListScreen extends ConsumerStatefulWidget {
@@ -136,22 +136,7 @@ class _ObstetricsPostnatalListScreenState
                     itemCount: _visits.length,
                     itemBuilder: (context, index) {
                       final v = _visits[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          title: Text(
-                            '${v.type.name} · ${DateFormatter.formatFromBackend(v.visitDate, DateFormatter.shortDate)}',
-                          ),
-                          subtitle: Text(
-                            [
-                              if (v.notes != null && v.notes!.isNotEmpty)
-                                v.notes,
-                              if (v.weight != null) '${v.weight} kg',
-                            ].join(' · '),
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                        ),
-                      );
+                      return PostnatalVisitCard(visit: v);
                     },
                   ),
           ),

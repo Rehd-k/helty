@@ -6,8 +6,10 @@ import '../helper/date.formatter.dart';
 import '../models/consulting_room_model.dart';
 import '../widgets/date.filter.dart';
 import '../models/patient_vitals_model.dart';
+import '../models/consultation_credit_model.dart';
 import '../models/waiting_patient_model.dart';
 import '../services/waiting_patient_service.dart';
+import '../widgets/consultation_credit_chip.dart';
 
 @RoutePage()
 class WaitingPatientsScreen extends StatefulWidget {
@@ -747,13 +749,9 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
 
                                         Expanded(
                                           flex: 3,
-                                          child: Text(
+                                          child: _consultationCell(
                                             consultation,
-                                            style: TextStyle(
-                                              color: colorScheme.onSurface
-                                                  .withValues(alpha: 0.7),
-                                              fontSize: 13,
-                                            ),
+                                            waiting.primaryConsultationCredit,
                                           ),
                                         ),
                                         Expanded(
@@ -1662,6 +1660,31 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
       fontWeight: FontWeight.bold,
       letterSpacing: 0.5,
       color: colorScheme.onSurface.withValues(alpha: 0.5),
+    );
+  }
+
+  Widget _consultationCell(
+    String consultation,
+    ConsultationServiceLine? creditLine,
+  ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          consultation,
+          style: TextStyle(
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: 13,
+          ),
+        ),
+        if (creditLine != null && creditLine.hasCreditMetadata) ...[
+          const SizedBox(height: 4),
+          ConsultationCreditChip.fromLine(line: creditLine, compact: true),
+        ],
+      ],
     );
   }
 }

@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../helper/date.formatter.dart';
 import '../models/patient_vitals_model.dart';
+import '../models/consultation_credit_model.dart';
 import '../models/waiting_patient_model.dart';
 import '../providers/module_request_flow_provider.dart';
+import '../widgets/consultation_credit_chip.dart';
 import '../services/api_service.dart';
 import '../services/waiting_patient_service.dart';
 import 'patient_model.dart';
@@ -566,33 +568,42 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                                     ),
                                   ),
                                 ),
-                                // Number of Services
+                                // Services / consultation credit
                                 Expanded(
                                   flex: 2,
                                   child: Center(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: colorScheme.outline.withValues(
-                                            alpha: 0.2,
+                                    child: patient.primaryConsultationCredit !=
+                                                null &&
+                                            patient.primaryConsultationCredit!
+                                                .hasCreditMetadata
+                                        ? ConsultationCreditChip.fromLine(
+                                            line: patient
+                                                .primaryConsultationCredit!,
+                                            compact: true,
+                                          )
+                                        : Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: colorScheme.outline
+                                                    .withValues(alpha: 0.2),
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              "${patient.services.length} items",
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: colorScheme.onSurface
+                                                    .withValues(alpha: 0.7),
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        "${patient.services.length} items",
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.7),
-                                        ),
-                                      ),
-                                    ),
                                   ),
                                 ),
                               ],
@@ -1149,6 +1160,7 @@ class _UnregisteredPatientTxn {
     this.patientNameAsPrinted,
     this.invoiceStatus,
     this.serviceLines = const [],
+    this.consultationServices = const [],
     this.rowAppearsPaid = false,
     this.invoiceUuid = '',
     this.hasVitals = false,
@@ -1165,6 +1177,19 @@ class _UnregisteredPatientTxn {
   final String? patientNameAsPrinted;
   final String? invoiceStatus;
   final List<PaidInvoiceServiceLine> serviceLines;
+  final List<ConsultationServiceLine> consultationServices;
+
+  ConsultationServiceLine? get primaryConsultationCredit {
+    if (consultationServices.isEmpty) return null;
+    ConsultationServiceLine? best;
+    for (final line in consultationServices) {
+      if (!line.hasCreditMetadata) continue;
+      if (best == null || line.visitsRemaining > best.visitsRemaining) {
+        best = line;
+      }
+    }
+    return best ?? consultationServices.first;
+  }
 
   /// True when status/amounts/lines indicate the invoice is paid enough to open.
   final bool rowAppearsPaid;
@@ -1249,6 +1274,7 @@ class _UnregisteredPatientTxn {
       invoiceUuid: row.invoiceId,
       hasVitals: row.patientVitals?.id.isNotEmpty == true,
       serviceLines: const [],
+      consultationServices: row.consultationServices,
       invoiceStaffId: null,
     );
   }

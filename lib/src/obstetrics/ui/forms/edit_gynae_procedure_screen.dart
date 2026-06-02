@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
 
 @RoutePage()
 class ObstetricsEditGynaeProcedureScreen extends ConsumerStatefulWidget {
@@ -101,37 +102,36 @@ class _ObstetricsEditGynaeProcedureScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_loading && _findingsCtrl.text.isEmpty && _error == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit procedure')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit procedure'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Edit procedure',
+      subtitle: 'Update findings, complications, and notes.',
+      formKey: _formKey,
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Update procedure',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      contextBanner: ObFormContextBanner(
+        title: 'Gynaecology',
+        lines: ['Procedure ID: ${widget.procedureId}'],
+        icon: Icons.medical_services_rounded,
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Procedure notes',
+          icon: Icons.medical_services_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             TextFormField(
               controller: _findingsCtrl,
               decoration: const InputDecoration(
@@ -158,20 +158,9 @@ class _ObstetricsEditGynaeProcedureScreenState
               ),
               maxLines: 2,
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Update procedure'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

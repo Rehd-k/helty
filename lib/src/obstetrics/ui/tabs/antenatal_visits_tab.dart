@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
-import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
 @RoutePage()
@@ -34,12 +34,21 @@ class _ObstetricsAntenatalVisitsTabState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final scopePregnancy = PregnancyViewScope.of(context)?.pregnancy;
     final id = _pregnancyId;
     if (id != null &&
         id.isNotEmpty &&
         _visits.isEmpty &&
         _loading &&
         _error == null) {
+      final embedded = scopePregnancy?.antenatalVisits;
+      if (embedded != null && embedded.isNotEmpty) {
+        setState(() {
+          _visits = embedded;
+          _loading = false;
+        });
+        return;
+      }
       _load(id);
     }
   }
@@ -187,29 +196,10 @@ class _ObstetricsAntenatalVisitsTabState
                   itemCount: _visits.length,
                   itemBuilder: (context, index) {
                     final v = _visits[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(
-                          DateFormatter.formatFromBackend(
-                            v.visitDate,
-                            DateFormatter.shortDate,
-                          ),
-                        ),
-                        subtitle: Text(
-                          [
-                            if (v.gestationWeeks != null)
-                              '${v.gestationWeeks} wks',
-                            if (v.systolicBP != null && v.diastolicBP != null)
-                              'BP ${v.systolicBP}/${v.diastolicBP}',
-                            if (v.weight != null) '${v.weight} kg',
-                            if (v.presentation != null) v.presentation!.name,
-                          ].join(' · '),
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.router.push(
-                          ObstetricsEditAntenatalVisitRoute(visitId: v.id),
-                        ),
+                    return AntenatalVisitCard(
+                      visit: v,
+                      onTap: () => context.router.push(
+                        ObstetricsEditAntenatalVisitRoute(visitId: v.id),
                       ),
                     );
                   },

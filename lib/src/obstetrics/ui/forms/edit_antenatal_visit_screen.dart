@@ -8,6 +8,9 @@ import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/services/staff_service.dart';
+import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
+import 'package:helty/src/obstetrics/utils/obstetrics_display.dart';
 
 @RoutePage()
 class ObstetricsEditAntenatalVisitScreen extends ConsumerStatefulWidget {
@@ -166,37 +169,41 @@ class _ObstetricsEditAntenatalVisitScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_loading && _visitDateCtrl.text.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit antenatal visit')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit antenatal visit'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    final scopePregnancy = PregnancyViewScope.of(context)?.pregnancy;
+    final patientContext = scopePregnancy != null
+        ? '${pregnancyGpLabel(scopePregnancy)} · Updated antenatal data'
+        : 'Visit ${widget.visitId}';
+
+    return ObstetricsFormScaffold(
+      title: 'Edit antenatal visit',
+      subtitle: 'Update vitals, presentation, and notes.',
+      formKey: _formKey,
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Update visit',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      contextBanner: ObFormContextBanner(
+        title: 'Antenatal visit',
+        lines: [patientContext],
+        icon: Icons.medical_services_rounded,
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Visit & vitals',
+          icon: Icons.event_note_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             TextFormField(
               controller: _visitDateCtrl,
               decoration: InputDecoration(
@@ -219,8 +226,10 @@ class _ObstetricsEditAntenatalVisitScreenState
               ),
               items: _staffList
                   .map(
-                    (s) =>
-                        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+                    (s) => DropdownMenuItem(
+                      value: s.id,
+                      child: Text(s.fullName),
+                    ),
                   )
                   .toList(),
               onChanged: (v) => setState(() => _selectedStaffId = v),
@@ -287,7 +296,13 @@ class _ObstetricsEditAntenatalVisitScreenState
               ),
               keyboardType: TextInputType.number,
             ),
-            const SizedBox(height: 16),
+          ],
+        ),
+        ObFormSectionCard(
+          title: 'Fetal assessment & notes',
+          icon: Icons.health_and_safety_rounded,
+          useTertiaryAccent: true,
+          children: [
             DropdownButtonFormField<FetalPresentation>(
               initialValue: _presentation,
               decoration: const InputDecoration(
@@ -325,20 +340,9 @@ class _ObstetricsEditAntenatalVisitScreenState
               ),
               maxLines: 2,
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Update visit'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

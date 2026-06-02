@@ -7,6 +7,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
 @RoutePage()
@@ -281,28 +282,10 @@ class _ObstetricsPostnatalTabState extends ConsumerState<ObstetricsPostnatalTab>
                           itemCount: _visits.length,
                           itemBuilder: (context, index) {
                             final v = _visits[index];
-                            final dateStr = DateFormatter.formatFromBackend(
-                              v.visitDate,
-                              DateFormatter.shortDate,
-                            );
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                title: Text(
-                                  '${v.type.name} · $dateStr',
-                                ),
-                                subtitle: Text(
-                                  [
-                                    if (v.notes != null &&
-                                        v.notes!.isNotEmpty)
-                                      v.notes!,
-                                    if (v.weight != null)
-                                      '${v.weight} kg',
-                                  ].where((s) => s.isNotEmpty).join(' · '),
-                                ),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: () => _openPostnatalList(v.labourDeliveryId),
-                              ),
+                            return PostnatalVisitCard(
+                              visit: v,
+                              onTap: () =>
+                                  _openPostnatalList(v.labourDeliveryId),
                             );
                           },
                         ),

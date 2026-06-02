@@ -8,6 +8,7 @@ import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/services/staff_service.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
 
 @RoutePage()
 class ObstetricsAddPostnatalVisitScreen extends ConsumerStatefulWidget {
@@ -186,8 +187,6 @@ class _ObstetricsAddPostnatalVisitScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_loading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Add postnatal visit')),
@@ -195,29 +194,30 @@ class _ObstetricsAddPostnatalVisitScreenState
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add postnatal visit'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Add postnatal visit',
+      subtitle: 'Record observations for mother or baby.',
+      formKey: _formKey,
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Save visit',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      contextBanner: ObFormContextBanner(
+        title: 'Postnatal visit',
+        lines: ['Labour delivery: ${widget.labourDeliveryId}'],
+        icon: Icons.family_restroom_rounded,
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Postnatal details',
+          icon: Icons.family_restroom_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             DropdownButtonFormField<PostnatalVisitType>(
               initialValue: _type,
               decoration: const InputDecoration(
@@ -371,20 +371,9 @@ class _ObstetricsAddPostnatalVisitScreenState
               ),
               maxLines: 2,
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save visit'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

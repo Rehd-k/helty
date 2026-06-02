@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
 
 @RoutePage()
 class ObstetricsEditBabyScreen extends ConsumerStatefulWidget {
@@ -113,37 +114,36 @@ class _ObstetricsEditBabyScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_loading && _birthWeightCtrl.text.isEmpty && _error == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit baby')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit baby'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Edit baby',
+      subtitle: 'Update baby birth metrics.',
+      formKey: _formKey,
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Update baby',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      contextBanner: ObFormContextBanner(
+        title: 'Baby record',
+        lines: ['Baby ID: ${widget.babyId}'],
+        icon: Icons.child_care_rounded,
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Baby details',
+          icon: Icons.child_care_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             TextFormField(
               controller: _birthWeightCtrl,
               decoration: const InputDecoration(
@@ -188,20 +188,9 @@ class _ObstetricsEditBabyScreenState
               ),
               maxLines: 2,
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Update baby'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

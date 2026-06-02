@@ -7,6 +7,7 @@ import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/services/staff_service.dart';
+import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
 
 const List<String> _procedureTypes = [
   'D&C',
@@ -166,31 +167,32 @@ class _ObstetricsAddGynaeProcedureScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add gynae procedure'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.router.maybePop(),
-        ),
+    return ObstetricsFormScaffold(
+      title: 'Add gynae procedure',
+      subtitle: 'Record procedure type, findings, and complications.',
+      formKey: _formKey,
+      error: _error,
+      saving: _saving,
+      saveLabel: 'Save procedure',
+      onSave: () {
+        _submit();
+      },
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => context.router.maybePop(),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+      contextBanner: ObFormContextBanner(
+        title: 'Gynaecology',
+        lines: [
+          'Patient: ${_patientIdCtrl.text.trim().isEmpty ? widget.patientId ?? "—" : _patientIdCtrl.text.trim()}'
+        ],
+        icon: Icons.medical_services_rounded,
+      ),
+      children: [
+        ObFormSectionCard(
+          title: 'Procedure details',
+          icon: Icons.medical_services_rounded,
           children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
             TextFormField(
               controller: _patientIdCtrl,
               decoration: const InputDecoration(
@@ -235,8 +237,10 @@ class _ObstetricsAddGynaeProcedureScreenState
               ),
               items: _staffList
                   .map(
-                    (s) =>
-                        DropdownMenuItem(value: s.id, child: Text(s.fullName)),
+                    (s) => DropdownMenuItem(
+                      value: s.id,
+                      child: Text(s.fullName),
+                    ),
                   )
                   .toList(),
               onChanged: _loadingStaff
@@ -270,20 +274,9 @@ class _ObstetricsAddGynaeProcedureScreenState
               ),
               maxLines: 2,
             ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save procedure'),
-            ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
