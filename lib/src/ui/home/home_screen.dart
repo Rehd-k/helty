@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
@@ -9,6 +10,7 @@ import 'package:helty/app_router.gr.dart';
 
 import '../../auth/billing_permissions.dart';
 import '../../helper/theme.dart';
+import '../../chat/providers/pending_orders_tick_provider.dart';
 import '../../chat/providers/staff_chat_shell_provider.dart';
 import '../../chat/services/internal_chat_socket.dart';
 import '../../chat/widgets/staff_messages_shell_action.dart';
@@ -18,6 +20,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/super_admin_preview_provider.dart';
 import '../../providers/module_request_flow_provider.dart';
 import '../../providers/theme_mode_provider.dart';
+import '../../notifications/notification_navigation_provider.dart';
 import 'desktop_shell_side_panel.dart';
 import 'shell_side_panel_provider.dart';
 import '../../services/helty_desktop_update_service.dart';
@@ -617,8 +620,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(notificationNavigationProvider, (previous, next) {
+      if (next == null) return;
+      if (next.type == 'chat' &&
+          next.conversationId != null &&
+          next.conversationId!.isNotEmpty) {
+        if (MediaQuery.of(context).size.width < 720) {
+          context.router.push(
+            StaffChatThreadRoute(conversationId: next.conversationId!),
+          );
+        } else {
+          ref
+              .read(shellSidePanelProvider.notifier)
+              .open(ShellSidePanelTab.chat);
+        }
+      }
+      ref.read(notificationNavigationProvider.notifier).consume();
+    });
+
     ref.watch(internalChatSocketProvider);
     ref.watch(staffChatShellProvider);
+    ref.watch(pendingOrdersTickProvider);
     final state = ref.watch(authProvider);
     final auth = ref.watch(authProvider);
     final staff = auth.staff;
@@ -946,11 +968,7 @@ class _WindowsShellHelpChatButtons extends StatelessWidget {
           onTap: onHelpCenter,
         ),
         const SizedBox(width: 4),
-        StaffMessagesShellAction(
-          onTap: onStaffChat,
-          iconSize: 18,
-          dense: true,
-        ),
+        StaffMessagesShellAction(onTap: onStaffChat, iconSize: 18, dense: true),
       ],
     );
   }
@@ -1125,8 +1143,13 @@ class _SidebarNavigation extends StatelessWidget {
   Widget _buildHeader(BuildContext context, AuthState state) {
     final cs = Theme.of(context).colorScheme;
     final shell = AppShellTheme.of(context);
+    final staff = state.staff;
     final initials =
-        "${state.staff!.firstName.isNotEmpty ? state.staff!.firstName[0].toUpperCase() : ''}${state.staff!.lastName.isNotEmpty ? state.staff!.lastName[0].toUpperCase() : ''}";
+        "${(staff?.firstName.isNotEmpty ?? false) ? staff!.firstName[0].toUpperCase() : ''}${(staff?.lastName.isNotEmpty ?? false) ? staff!.lastName[0].toUpperCase() : ''}";
+    final displayName = staff == null
+        ? 'Signing out...'
+        : '${staff.firstName.toUpperCase()} ${staff.lastName.toUpperCase()}';
+    final displayRole = staff?.role.toUpperCase() ?? 'LOGGING OUT';
 
     final avatar = Container(
       padding: const EdgeInsets.all(4),
@@ -1198,7 +1221,7 @@ class _SidebarNavigation extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      '${state.staff!.firstName.toUpperCase()} ${state.staff!.lastName.toUpperCase()}',
+                      displayName,
                       style: TextStyle(
                         color: shell.sidebarOnBackground,
                         fontWeight: FontWeight.bold,
@@ -1207,7 +1230,7 @@ class _SidebarNavigation extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      state.staff!.role.toUpperCase(),
+                      displayRole,
                       style: TextStyle(color: shell.sidebarMuted, fontSize: 11),
                     ),
                   ],
@@ -1921,8 +1944,9 @@ class _SuperAdminPreviewBanner extends StatelessWidget {
 // Logout buttons
 // ---------------------------------------------------------------------------
 
-void _logoutToLoginReplacingStack(BuildContext context) {
+Future<void> _logoutToLoginReplacingStack(BuildContext context) async {
   final container = ProviderScope.containerOf(context, listen: false);
+  await container.read(authProvider.notifier).logout();
   container.read(paidModuleRequestContextProvider.notifier).state = null;
   container.read(superAdminPreviewProvider.notifier).clear();
   context.router.replaceAll([LoginRoute()]);
@@ -1944,7 +1968,7 @@ class _IconLogoutButtonState extends State<_IconLogoutButton> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
-        onTap: () => _logoutToLoginReplacingStack(context),
+        onTap: () => unawaited(_logoutToLoginReplacingStack(context)),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.all(10),
@@ -1984,7 +2008,7 @@ class _FullLogoutButtonState extends State<_FullLogoutButton> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
-        onTap: () => _logoutToLoginReplacingStack(context),
+        onTap: () => unawaited(_logoutToLoginReplacingStack(context)),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -2042,7 +2066,7 @@ class _TitleBarLogoutButtonState extends State<_TitleBarLogoutButton> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: InkWell(
-        onTap: () => _logoutToLoginReplacingStack(context),
+        onTap: () => unawaited(_logoutToLoginReplacingStack(context)),
         borderRadius: BorderRadius.circular(6),
         child: Padding(
           padding: const EdgeInsets.all(8),
@@ -2073,7 +2097,7 @@ class _MobileLogoutButtonState extends State<_MobileLogoutButton> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
-        onTap: () => _logoutToLoginReplacingStack(context),
+        onTap: () => unawaited(_logoutToLoginReplacingStack(context)),
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Icon(

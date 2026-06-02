@@ -15,18 +15,27 @@ class InternalChatSocket {
   final String _baseUrl;
   io.Socket? _socket;
   Timer? _presenceHeartbeatTimer;
+  final Set<String> _joinedConversationIds = <String>{};
 
   final _receiveMessageController =
       StreamController<Map<String, dynamic>>.broadcast();
   final _ticketMessageController =
       StreamController<Map<String, dynamic>>.broadcast();
   final _chatErrorController = StreamController<String>.broadcast();
+  final _pendingOrdersTickController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _connectionStateController =
+      StreamController<InternalChatConnectionState>.broadcast();
 
   Stream<Map<String, dynamic>> get receiveMessageStream =>
       _receiveMessageController.stream;
   Stream<Map<String, dynamic>> get ticketMessageStream =>
       _ticketMessageController.stream;
   Stream<String> get chatErrorStream => _chatErrorController.stream;
+  Stream<Map<String, dynamic>> get pendingOrdersTickStream =>
+      _pendingOrdersTickController.stream;
+  Stream<InternalChatConnectionState> get connectionStateStream =>
+      _connectionStateController.stream;
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -49,6 +58,7 @@ class InternalChatSocket {
           .enableReconnection()
           .build(),
     );
+    _emitConnectionState(InternalChatConnectionState.connecting);
 
     _socket!.on('receiveMessage', (data) {
       if (data is Map) {
@@ -66,14 +76,36 @@ class InternalChatSocket {
           : '$data';
       _chatErrorController.add(msg);
     });
+    _socket!.on('pending_orders_tick', (data) {
+      if (data is Map) {
+        _pendingOrdersTickController.add(Map<String, dynamic>.from(data));
+      }
+    });
 
     _socket!.onConnect((_) {
+      _emitConnectionState(InternalChatConnectionState.connected);
       presenceHeartbeat();
       _presenceHeartbeatTimer?.cancel();
       _presenceHeartbeatTimer = Timer.periodic(
         const Duration(seconds: 45),
         (_) => presenceHeartbeat(),
       );
+      _rejoinConversations();
+    });
+    _socket!.onDisconnect((_) {
+      _emitConnectionState(InternalChatConnectionState.disconnected);
+      _presenceHeartbeatTimer?.cancel();
+      _presenceHeartbeatTimer = null;
+    });
+    _socket!.onReconnect((_) {
+      _emitConnectionState(InternalChatConnectionState.reconnecting);
+      _rejoinConversations();
+    });
+    _socket!.onConnectError((_) {
+      _emitConnectionState(InternalChatConnectionState.error);
+    });
+    _socket!.onError((_) {
+      _emitConnectionState(InternalChatConnectionState.error);
     });
 
     _socket!.connect();
@@ -84,13 +116,17 @@ class InternalChatSocket {
     _presenceHeartbeatTimer = null;
     _socket?.dispose();
     _socket = null;
+    _emitConnectionState(InternalChatConnectionState.disconnected);
   }
 
   void joinConversation(String conversationId) {
+    if (conversationId.isEmpty) return;
+    _joinedConversationIds.add(conversationId);
     _socket?.emit('joinConversation', {'conversationId': conversationId});
   }
 
   void leaveConversation(String conversationId) {
+    _joinedConversationIds.remove(conversationId);
     _socket?.emit('leaveConversation', {'conversationId': conversationId});
   }
 
@@ -99,6 +135,9 @@ class InternalChatSocket {
     String? content,
     String? type,
     String? fileUrl,
+    void Function(Map<String, dynamic> ackPayload)? onAck,
+    void Function()? onTimeout,
+    Duration ackTimeout = const Duration(seconds: 8),
   }) {
     final payload = <String, dynamic>{
       'conversationId': conversationId,
@@ -106,11 +145,42 @@ class InternalChatSocket {
       if (type != null && type.isNotEmpty) 'type': type,
       if (fileUrl != null && fileUrl.isNotEmpty) 'fileUrl': fileUrl,
     };
-    _socket?.emit('sendMessage', payload);
+    final socket = _socket;
+    if (socket == null || !socket.connected) {
+      onTimeout?.call();
+      return;
+    }
+    var completed = false;
+    Timer? timeoutTimer;
+    if (onAck != null || onTimeout != null) {
+      timeoutTimer = Timer(ackTimeout, () {
+        if (completed) return;
+        completed = true;
+        onTimeout?.call();
+      });
+    }
+    socket.emitWithAck(
+      'sendMessage',
+      payload,
+      ack: (raw) {
+        if (completed) return;
+        completed = true;
+        timeoutTimer?.cancel();
+        if (onAck == null) return;
+        if (raw is Map) {
+          onAck(Map<String, dynamic>.from(raw));
+          return;
+        }
+        onAck(<String, dynamic>{'raw': raw});
+      },
+    );
   }
 
   void typing({required String conversationId, required bool typing}) {
-    _socket?.emit('typing', {'conversationId': conversationId, 'typing': typing});
+    _socket?.emit('typing', {
+      'conversationId': conversationId,
+      'typing': typing,
+    });
   }
 
   void markRead({
@@ -148,7 +218,29 @@ class InternalChatSocket {
     _receiveMessageController.close();
     _ticketMessageController.close();
     _chatErrorController.close();
+    _pendingOrdersTickController.close();
+    _connectionStateController.close();
   }
+
+  void _emitConnectionState(InternalChatConnectionState next) {
+    if (!_connectionStateController.isClosed) {
+      _connectionStateController.add(next);
+    }
+  }
+
+  void _rejoinConversations() {
+    for (final conversationId in _joinedConversationIds) {
+      _socket?.emit('joinConversation', {'conversationId': conversationId});
+    }
+  }
+}
+
+enum InternalChatConnectionState {
+  disconnected,
+  connecting,
+  connected,
+  reconnecting,
+  error,
 }
 
 /// Keeps one socket per app; connects when authenticated, disconnects on logout.

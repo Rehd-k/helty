@@ -3,17 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
-enum ObstetricsSelectTarget {
-  pregnancies,
-  gynae,
-}
+enum ObstetricsSelectTarget { pregnancies, gynae }
 
 @RoutePage()
 class ObstetricsPatientSelectScreen extends ConsumerStatefulWidget {
-  const ObstetricsPatientSelectScreen({
-    super.key,
-    this.target,
-  });
+  const ObstetricsPatientSelectScreen({super.key, this.target});
 
   final ObstetricsSelectTarget? target;
 
@@ -39,8 +33,6 @@ class _ObstetricsPatientSelectScreenState
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

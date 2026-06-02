@@ -20,7 +20,6 @@ class StaffMessagesShellAction extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(staffChatShellProvider);
     final unread = ref.watch(staffChatShellProvider).totalUnread;
     final badgeLabel = unread > 9 ? '9+' : '$unread';
 

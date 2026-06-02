@@ -26,7 +26,8 @@ class StaffChatListContent extends ConsumerStatefulWidget {
     String conversationId, {
     String? title,
     String? peerStaffId,
-  }) onOpenConversation;
+  })
+  onOpenConversation;
   final bool dense;
 
   @override
@@ -40,6 +41,7 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
   bool _loading = true;
   String? _error;
   StreamSubscription<Map<String, dynamic>>? _chatSocketSub;
+  Timer? _authoritativeReloadDebounce;
 
   @override
   void initState() {
@@ -47,22 +49,82 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
     _load();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _chatSocketSub =
-          ref.read(internalChatSocketProvider).receiveMessageStream.listen(
-                _onIncomingChatSocket,
-              );
+      _chatSocketSub = ref
+          .read(internalChatSocketProvider)
+          .receiveMessageStream
+          .listen(_onIncomingChatSocket);
     });
   }
 
   @override
   void dispose() {
     _chatSocketSub?.cancel();
+    _authoritativeReloadDebounce?.cancel();
     super.dispose();
   }
 
   void _onIncomingChatSocket(dynamic data) {
-    ref.read(staffChatShellProvider.notifier).refresh();
-    if (mounted) unawaited(_load(silent: true));
+    if (data is! Map) return;
+    final map = Map<String, dynamic>.from(data);
+    Map<String, dynamic> msgMap = map;
+    if (map['message'] is Map) {
+      msgMap = Map<String, dynamic>.from(map['message'] as Map);
+    }
+    final cid =
+        map['conversationId']?.toString() ??
+        msgMap['conversationId']?.toString();
+    if (cid == null || cid.isEmpty) {
+      _scheduleAuthoritativeReload();
+      return;
+    }
+    final message = ChatMessage.tryParse(msgMap);
+    final me = ref.read(currentStaffProvider)?.id;
+    final fromOther =
+        message == null || me == null || message.senderStaffId == null
+        ? true
+        : message.senderStaffId != me;
+    final activeConversationId = ref
+        .read(staffChatShellProvider.notifier)
+        .activeConversationId;
+
+    setState(() {
+      var found = false;
+      _conversations = _conversations.map((c) {
+        if (c.id != cid) return c;
+        found = true;
+        final nextUnread = fromOther && cid != activeConversationId
+            ? c.unreadCount + 1
+            : c.unreadCount;
+        return ChatConversationSummary(
+          id: c.id,
+          name: c.name,
+          unreadCount: nextUnread,
+          lastMessagePreview: message?.content ?? c.lastMessagePreview,
+          updatedAt: message?.createdAt ?? DateTime.now(),
+          isGroup: c.isGroup,
+          members: c.members,
+        );
+      }).toList();
+      if (!found) {
+        _scheduleAuthoritativeReload();
+      } else {
+        _conversations.sort((a, b) {
+          final ta = a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final tb = b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return tb.compareTo(ta);
+        });
+      }
+    });
+    ref.read(staffChatShellProvider.notifier).refreshDebounced();
+    _scheduleAuthoritativeReload();
+  }
+
+  void _scheduleAuthoritativeReload() {
+    _authoritativeReloadDebounce?.cancel();
+    _authoritativeReloadDebounce = Timer(
+      const Duration(seconds: 2),
+      () => unawaited(_load(silent: true)),
+    );
   }
 
   /// [silent]: refresh list without full-screen loading spinner (socket / background).
@@ -109,13 +171,14 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
   }
 
   Future<void> _openDirect() async {
-    final picked = await showModalBottomSheet<({String id, String displayName})?>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (ctx) => const _StaffDirectPickerSheet(),
-    );
+    final picked =
+        await showModalBottomSheet<({String id, String displayName})?>(
+          context: context,
+          isScrollControlled: true,
+          showDragHandle: true,
+          useSafeArea: true,
+          builder: (ctx) => const _StaffDirectPickerSheet(),
+        );
     if (picked == null || picked.id.isEmpty || !mounted) return;
 
     try {
@@ -126,18 +189,19 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
       if (conv != null) {
         final me = ref.read(currentStaffProvider)?.id;
         final fromApi = conv.displayTitle(me);
-        final title =
-            fromApi != 'Conversation' && fromApi.isNotEmpty ? fromApi : picked.displayName;
-        widget.onOpenConversation(
-          conv.id,
-          title: title,
-        );
+        final title = fromApi != 'Conversation' && fromApi.isNotEmpty
+            ? fromApi
+            : picked.displayName;
+        widget.onOpenConversation(conv.id, title: title);
         _load();
       }
     } catch (e) {
       if (!mounted) return;
-      showAppNotification(ref, 'Could not open chat: $e',
-          level: AppNotificationLevel.error);
+      showAppNotification(
+        ref,
+        'Could not open chat: $e',
+        level: AppNotificationLevel.error,
+      );
     }
   }
 
@@ -191,134 +255,129 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
           child: _loading && _conversations.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : _error != null && _conversations.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.all(16 + pad),
-                      children: [
-                        Text(_error!,
-                            style: TextStyle(color: theme.colorScheme.error)),
-                        const SizedBox(height: 12),
-                        FilledButton(onPressed: _load, child: const Text('Retry')),
-                      ],
-                    )
-                  : _conversations.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: EdgeInsets.all(16 + pad),
-                          children: [
-                            Text(
-                              'No conversations yet.',
-                              style: theme.textTheme.titleSmall,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Start a direct chat with a colleague.',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(16 + pad),
+                  children: [
+                    Text(
+                      _error!,
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(onPressed: _load, child: const Text('Retry')),
+                  ],
+                )
+              : _conversations.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(16 + pad),
+                  children: [
+                    Text(
+                      'No conversations yet.',
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Start a direct chat with a colleague.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.tonalIcon(
+                      onPressed: _openDirect,
+                      icon: const Icon(Icons.forum_outlined),
+                      label: const Text('Message someone'),
+                    ),
+                  ],
+                )
+              : ListView.separated(
+                  padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
+                  itemCount: _conversations.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (context, i) {
+                    final c = _conversations[i];
+                    final title = c.displayTitle(myStaffId);
+                    final peerId = c.peerStaffId(myStaffId);
+                    final peerPresence = peerId != null
+                        ? (_presenceByStaffId[peerId] ??
+                              ChatPresenceStatus.offline)
+                        : ChatPresenceStatus.unknown;
+                    return Material(
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(12),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => widget.onOpenConversation(
+                          c.id,
+                          title: title,
+                          peerStaffId: peerId,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          child: Row(
+                            children: [
+                              StaffAvatarWithPresence(
+                                initials: _initials(title),
+                                status: peerPresence,
+                                radius: 18,
+                                backgroundColor: cs.primaryContainer,
+                                foregroundColor: cs.onPrimaryContainer,
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            FilledButton.tonalIcon(
-                              onPressed: _openDirect,
-                              icon: const Icon(Icons.forum_outlined),
-                              label: const Text('Message someone'),
-                            ),
-                          ],
-                        )
-                      : ListView.separated(
-                          padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
-                          itemCount: _conversations.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 6),
-                          itemBuilder: (context, i) {
-                            final c = _conversations[i];
-                            final title = c.displayTitle(myStaffId);
-                            final peerId = c.peerStaffId(myStaffId);
-                            final peerPresence = peerId != null
-                                ? (_presenceByStaffId[peerId] ??
-                                    ChatPresenceStatus.offline)
-                                : ChatPresenceStatus.unknown;
-                            return Material(
-                              color: cs.surfaceContainerHighest.withValues(
-                                  alpha: 0.45),
-                              borderRadius: BorderRadius.circular(12),
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
-                                onTap: () => widget.onOpenConversation(
-                                      c.id,
-                                      title: title,
-                                      peerStaffId: peerId,
-                                    ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      StaffAvatarWithPresence(
-                                        initials: _initials(title),
-                                        status: peerPresence,
-                                        radius: 18,
-                                        backgroundColor: cs.primaryContainer,
-                                        foregroundColor: cs.onPrimaryContainer,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              title,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: theme.textTheme.titleSmall
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            if (c.lastMessagePreview != null)
-                                              Text(
-                                                c.lastMessagePreview!,
-                                                maxLines: 1,
-                                                overflow:
-                                                    TextOverflow.ellipsis,
-                                                style: theme
-                                                    .textTheme.bodySmall
-                                                    ?.copyWith(
-                                                  color: cs
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (c.unreadCount > 0)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(left: 8),
-                                          child: Badge(
-                                            label:
-                                                Text('${c.unreadCount}'),
-                                            child: Icon(
-                                              Icons.chat_bubble_rounded,
-                                              size: 22,
-                                              color: cs.primary,
-                                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
                                           ),
-                                        )
-                                      else
-                                        Icon(
-                                          Icons.chevron_right_rounded,
-                                          color: cs.outline,
-                                        ),
-                                    ],
-                                  ),
+                                    ),
+                                    if (c.lastMessagePreview != null)
+                                      Text(
+                                        c.lastMessagePreview!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: cs.onSurfaceVariant,
+                                            ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                            );
-                          },
+                              if (c.unreadCount > 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: Badge(
+                                    label: Text('${c.unreadCount}'),
+                                    child: Icon(
+                                      Icons.chat_bubble_rounded,
+                                      size: 22,
+                                      color: cs.primary,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: cs.outline,
+                                ),
+                            ],
+                          ),
                         ),
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -373,11 +432,9 @@ class _StaffDirectPickerSheetState
       _error = null;
     });
     try {
-      final staffFuture = ref.read(staffServiceProvider).fetchStaff(
-            page: 1,
-            limit: 400,
-            isActive: true,
-          );
+      final staffFuture = ref
+          .read(staffServiceProvider)
+          .fetchStaff(page: 1, limit: 400, isActive: true);
       final onlineFuture = ref
           .read(chatApiServiceProvider)
           .listOnlineUsers()
@@ -394,9 +451,7 @@ class _StaffDirectPickerSheetState
             : u.status;
       }
       setState(() {
-        _staff = me != null
-            ? list.where((s) => s.id != me).toList()
-            : list;
+        _staff = me != null ? list.where((s) => s.id != me).toList() : list;
         _presenceByStaffId = presence;
         _loading = false;
       });
@@ -444,6 +499,7 @@ class _StaffDirectPickerSheetState
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final h = MediaQuery.sizeOf(context).height * 0.88;
+    final filteredStaff = _filtered;
     return SizedBox(
       height: h,
       child: Column(
@@ -480,122 +536,121 @@ class _StaffDirectPickerSheetState
           if (_error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(
-                _error!,
-                style: TextStyle(color: cs.error),
-              ),
+              child: Text(_error!, style: TextStyle(color: cs.error)),
             ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _filtered.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            _staff.isEmpty
-                                ? 'No staff found.'
-                                : _tabCtrl.index == 1
-                                    ? 'No colleagues online right now.'
-                                    : 'No matches for your search.',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
+                : filteredStaff.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _staff.isEmpty
+                            ? 'No staff found.'
+                            : _tabCtrl.index == 1
+                            ? 'No colleagues online right now.'
+                            : 'No matches for your search.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: cs.onSurfaceVariant,
                         ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                        itemCount: _filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 6),
-                        itemBuilder: (context, i) {
-                          final s = _filtered[i];
-                          final presence = _presenceFor(s.id);
-                          final presenceLabel = presence.label;
-                          final sub = [
-                            if (presenceLabel.isNotEmpty) presenceLabel,
-                            if (s.role.isNotEmpty) s.role,
-                            if (s.departmentName != null &&
-                                s.departmentName!.isNotEmpty)
-                              s.departmentName!,
-                          ].join(' · ');
-                          return Material(
-                            color: cs.surfaceContainerHighest
-                                .withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(12),
-                            clipBehavior: Clip.antiAlias,
-                            child: InkWell(
-                              onTap: () => Navigator.of(context)
-                                  .pop((id: s.id, displayName: s.fullName)),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    itemCount: filteredStaff.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (context, i) {
+                      final s = filteredStaff[i];
+                      final presence = _presenceFor(s.id);
+                      final presenceLabel = presence.label;
+                      final sub = [
+                        if (presenceLabel.isNotEmpty) presenceLabel,
+                        if (s.role.isNotEmpty) s.role,
+                        if (s.departmentName != null &&
+                            s.departmentName!.isNotEmpty)
+                          s.departmentName!,
+                      ].join(' · ');
+                      return Material(
+                        color: cs.surfaceContainerHighest.withValues(
+                          alpha: 0.4,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pop((id: s.id, displayName: s.fullName)),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: [
+                                StaffAvatarWithPresence(
+                                  initials: _initials(s),
+                                  status: presence,
+                                  radius: 24,
+                                  backgroundColor: cs.tertiaryContainer,
+                                  foregroundColor: cs.onTertiaryContainer,
                                 ),
-                                child: Row(
-                                  children: [
-                                    StaffAvatarWithPresence(
-                                      initials: _initials(s),
-                                      status: presence,
-                                      radius: 24,
-                                      backgroundColor: cs.tertiaryContainer,
-                                      foregroundColor: cs.onTertiaryContainer,
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            s.fullName,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: theme.textTheme.titleSmall
-                                                ?.copyWith(
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        s.fullName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.titleSmall
+                                            ?.copyWith(
                                               fontWeight: FontWeight.w600,
                                             ),
-                                          ),
-                                          if (sub.isNotEmpty) ...[
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              sub,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(
+                                      ),
+                                      if (sub.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          sub,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
                                                 color: cs.onSurfaceVariant,
                                               ),
-                                            ),
-                                          ],
-                                          if (s.staffId.isNotEmpty) ...[
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              s.staffId,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: theme.textTheme.labelSmall
-                                                  ?.copyWith(
+                                        ),
+                                      ],
+                                      if (s.staffId.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          s.staffId,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
                                                 color: cs.outline,
                                                 letterSpacing: 0.2,
                                               ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.chat_bubble_outline_rounded,
-                                      color: cs.primary,
-                                    ),
-                                  ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
-                              ),
+                                Icon(
+                                  Icons.chat_bubble_outline_rounded,
+                                  color: cs.primary,
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

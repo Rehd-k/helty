@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/helper/theme.dart';
+import 'src/chat/services/chat_notification_coordinator.dart';
+import 'src/core/providers/app_lifecycle_provider.dart';
 import 'src/providers/auth_provider.dart';
 import 'src/providers/theme_mode_provider.dart';
 import 'src/services/navigation.service.dart';
@@ -55,10 +57,14 @@ class _MyAppState extends ConsumerState<MyApp> {
     // If a valid token exists, staff is loaded into AuthState;
     // otherwise the AuthGuard will redirect to login.
     Future.microtask(() => ref.read(authProvider.notifier).restoreSession());
+    Future.microtask(
+      () => ref.read(chatNotificationCoordinatorProvider).initialize(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(appLifecycleProvider);
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(

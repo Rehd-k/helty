@@ -5061,6 +5061,7 @@ class StaffChatThreadRoute
     _i186.Key? key,
     required String conversationId,
     String? title,
+    String? peerStaffId,
     List<_i185.PageRouteInfo>? children,
   }) : super(
          StaffChatThreadRoute.name,
@@ -5068,6 +5069,7 @@ class StaffChatThreadRoute
            key: key,
            conversationId: conversationId,
            title: title,
+           peerStaffId: peerStaffId,
          ),
          initialChildren: children,
        );
@@ -5082,6 +5084,7 @@ class StaffChatThreadRoute
         key: args.key,
         conversationId: args.conversationId,
         title: args.title,
+        peerStaffId: args.peerStaffId,
       );
     },
   );
@@ -5092,6 +5095,7 @@ class StaffChatThreadRouteArgs {
     this.key,
     required this.conversationId,
     this.title,
+    this.peerStaffId,
   });
 
   final _i186.Key? key;
@@ -5099,10 +5103,11 @@ class StaffChatThreadRouteArgs {
   final String conversationId;
 
   final String? title;
+  final String? peerStaffId;
 
   @override
   String toString() {
-    return 'StaffChatThreadRouteArgs{key: $key, conversationId: $conversationId, title: $title}';
+    return 'StaffChatThreadRouteArgs{key: $key, conversationId: $conversationId, title: $title, peerStaffId: $peerStaffId}';
   }
 
   @override
@@ -5111,11 +5116,16 @@ class StaffChatThreadRouteArgs {
     if (other is! StaffChatThreadRouteArgs) return false;
     return key == other.key &&
         conversationId == other.conversationId &&
-        title == other.title;
+        title == other.title &&
+        peerStaffId == other.peerStaffId;
   }
 
   @override
-  int get hashCode => key.hashCode ^ conversationId.hashCode ^ title.hashCode;
+  int get hashCode =>
+      key.hashCode ^
+      conversationId.hashCode ^
+      title.hashCode ^
+      peerStaffId.hashCode;
 }
 
 /// generated route for

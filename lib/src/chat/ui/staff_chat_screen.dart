@@ -12,15 +12,14 @@ class StaffChatScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Staff chat'),
-      ),
+      appBar: AppBar(title: const Text('Staff chat')),
       body: StaffChatListContent(
         onOpenConversation: (id, {String? title, String? peerStaffId}) {
           context.router.push(
             StaffChatThreadRoute(
               conversationId: id,
               title: title,
+              peerStaffId: peerStaffId,
             ),
           );
         },

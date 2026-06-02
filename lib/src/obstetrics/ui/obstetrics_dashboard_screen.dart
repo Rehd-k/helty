@@ -45,8 +45,10 @@ class _ObstetricsDashboardScreenState
       final patient = ref.read(patientProvider).selectedPatient;
       final patientId = patient?.id;
       if (patientId != null && patientId.isNotEmpty) {
-        final pregRes =
-            await _service.listPregnancies(patientId: patientId, take: 1);
+        final pregRes = await _service.listPregnancies(
+          patientId: patientId,
+          take: 1,
+        );
         pregTotal = pregRes.total;
       }
       if (!mounted) return;
@@ -122,8 +124,9 @@ class _ObstetricsDashboardScreenState
             SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(maxWidth: ObstetricsTheme.contentMaxWidth),
+                  constraints: const BoxConstraints(
+                    maxWidth: ObstetricsTheme.contentMaxWidth,
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: _buildStatsRow(theme, colorScheme, selectedPatient),
@@ -134,8 +137,9 @@ class _ObstetricsDashboardScreenState
             SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(maxWidth: ObstetricsTheme.contentMaxWidth),
+                  constraints: const BoxConstraints(
+                    maxWidth: ObstetricsTheme.contentMaxWidth,
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
                     child: LayoutBuilder(
@@ -298,8 +302,11 @@ class _DashboardCard extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.check_circle_rounded,
-                            size: 16, color: accent),
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: 16,
+                          color: accent,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
