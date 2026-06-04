@@ -44,9 +44,7 @@ class _SuperAdminStaffListScreenState
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Staff directory'),
-      ),
+      appBar: AppBar(title: const Text('Staff Directory')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -130,11 +128,11 @@ class _SuperAdminStaffListScreenState
                             padding: const EdgeInsets.all(16),
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: cross,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: cross >= 2 ? 1.85 : 2.1,
-                            ),
+                                  crossAxisCount: cross,
+                                  mainAxisSpacing: 12,
+                                  crossAxisSpacing: 12,
+                                  childAspectRatio: cross >= 2 ? 1.85 : 2.1,
+                                ),
                             itemCount: list.length,
                             itemBuilder: (context, i) {
                               final s = list[i];
@@ -158,10 +156,7 @@ class _SuperAdminStaffListScreenState
                     children: [
                       Icon(Icons.error_outline, color: cs.error, size: 40),
                       const SizedBox(height: 12),
-                      Text(
-                        e.toString(),
-                        textAlign: TextAlign.center,
-                      ),
+                      Text(e.toString(), textAlign: TextAlign.center),
                       const SizedBox(height: 16),
                       FilledButton(
                         onPressed: () {
@@ -282,9 +277,9 @@ class _StaffCardState extends State<_StaffCard> {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          height: 1.35,
-                        ),
+                      color: cs.onSurfaceVariant,
+                      height: 1.35,
+                    ),
                   ),
                 ],
               ),

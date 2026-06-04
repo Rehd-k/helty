@@ -68,11 +68,16 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
     if (_isNursingQueueUse) {
       return patient.isPaid && patient.hasPatientId;
     }
-    return patient.isPaid;
+    return patient.canOpenModulePatient;
   }
 
   String _footerPrimaryLabel(_UnregisteredPatientTxn patient) {
-    if (!_isRegisterUse && !patient.isPaid) return 'Bill Not Paid';
+    if (!_isRegisterUse &&
+        !_isNursingQueueUse &&
+        patient.isOpdWard &&
+        !patient.isPaid) {
+      return 'Bill Not Paid';
+    }
     return _primaryButtonLabel;
   }
 
@@ -160,7 +165,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
           query['category'] = categories;
         }
         // Do not force status here: backend shapes vary; unpaid rows should still
-        // appear so staff can see the queue. "Open Patient" stays gated by [isPaid].
+        // appear so staff can see the queue. "Open Patient" requires payment for OPD only.
       }
 
       query['fromDate'] = from.toUtc().toIso8601String();
@@ -422,7 +427,11 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                   child: Text("Age", style: _headerStyle(colorScheme)),
                 ),
                 Expanded(
-                  flex: 3,
+                  flex: 1,
+                  child: Text("Gender", style: _headerStyle(colorScheme)),
+                ),
+                Expanded(
+                  flex: 2,
                   child: Text("Date/Time", style: _headerStyle(colorScheme)),
                 ),
                 Expanded(
@@ -555,9 +564,24 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                                     ),
                                   ),
                                 ),
+                                // Gender
+                                Expanded(
+                                  flex: 1,
+                                  child: Text(
+                                    patient.gender?.trim().isNotEmpty == true
+                                        ? patient.gender!
+                                        : '-',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                                 // Date/time
                                 Expanded(
-                                  flex: 3,
+                                  flex: 2,
                                   child: Text(
                                     DateFormatter.dateTime(patient.dateTime),
                                     style: TextStyle(
@@ -572,9 +596,11 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                                 Expanded(
                                   flex: 2,
                                   child: Center(
-                                    child: patient.primaryConsultationCredit !=
+                                    child:
+                                        patient.primaryConsultationCredit !=
                                                 null &&
-                                            patient.primaryConsultationCredit!
+                                            patient
+                                                .primaryConsultationCredit!
                                                 .hasCreditMetadata
                                         ? ConsultationCreditChip.fromLine(
                                             line: patient
@@ -755,6 +781,8 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                       Text(
                         [
                           if (patient.age != null) "${patient.age} yrs",
+                          if (patient.gender?.trim().isNotEmpty == true)
+                            patient.gender!.trim(),
                           if (patient.phoneNumber != null) patient.phoneNumber!,
                         ].join(" • "),
                         style: TextStyle(
@@ -909,7 +937,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
     }
 
     if (!_isRegisterUse) {
-      if (!patient.isPaid) {
+      if (patient.isOpdWard && !patient.isPaid) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -1155,6 +1183,8 @@ class _UnregisteredPatientTxn {
     required this.dateTime,
     this.phoneNumber,
     this.age,
+    this.gender,
+    this.ward,
     this.patientId,
     this.invoiceDisplayId,
     this.patientNameAsPrinted,
@@ -1202,6 +1232,8 @@ class _UnregisteredPatientTxn {
   final String firstName;
   final String? phoneNumber;
   final int? age;
+  final String? gender;
+  final String? ward;
   final List<String> services;
   final DateTime dateTime;
 
@@ -1254,6 +1286,14 @@ class _UnregisteredPatientTxn {
 
   bool get isPaid => rowAppearsPaid;
 
+  bool get isOpdWard {
+    final w = (ward ?? 'OPD').trim().toUpperCase();
+    return w.isEmpty || w == 'OPD';
+  }
+
+  /// Lab/Radiology: non-OPD may open unpaid; OPD requires payment.
+  bool get canOpenModulePatient => !isOpdWard || isPaid;
+
   factory _UnregisteredPatientTxn.fromWaitingQueue(WaitingPatientModel row) {
     final patient = row.patient;
     return _UnregisteredPatientTxn(
@@ -1268,6 +1308,8 @@ class _UnregisteredPatientTxn {
       firstName: patient?.firstName ?? '',
       phoneNumber: patient?.phoneNumber,
       age: null,
+      gender: patient?.gender,
+      ward: patient?.ward,
       services: row.consultationNames,
       dateTime: row.createdAt,
       patientId: row.patientId,
@@ -1387,6 +1429,28 @@ class _UnregisteredPatientTxn {
         final id = cb?['id']?.toString().trim();
         if (id != null && id.isNotEmpty) return id;
       }
+    }
+    return null;
+  }
+
+  static String? _parseWard(
+    Map<String, dynamic> json,
+    Map<String, dynamic>? patient,
+    Map<String, dynamic> root,
+  ) {
+    final admission =
+        _asMap(json['admission']) ??
+        _asMap(patient?['admission']) ??
+        _asMap(root['admission']);
+    for (final v in [
+      json['ward'],
+      patient?['ward'],
+      root['ward'],
+      admission?['ward'],
+      admission?['wardName'],
+    ]) {
+      final s = v?.toString().trim();
+      if (s != null && s.isNotEmpty) return s;
     }
     return null;
   }
@@ -1535,11 +1599,22 @@ class _UnregisteredPatientTxn {
       phoneNumber:
           (patient?['phoneNumber'] ??
                   root['phoneNumber'] ??
-                  json['phoneNumber'])
+                  json['phoneNumber'] ??
+                  patient?['phone'] ??
+                  root['phone'] ??
+                  json['phone'])
               ?.toString(),
       age: (patient?['age'] ?? json['age']) is num
           ? ((patient?['age'] ?? json['age']) as num).toInt()
           : int.tryParse((patient?['age'] ?? json['age'])?.toString() ?? ''),
+      gender: () {
+        for (final v in [json['gender'], patient?['gender'], root['gender']]) {
+          final s = v?.toString().trim();
+          if (s != null && s.isNotEmpty) return s;
+        }
+        return null;
+      }(),
+      ward: _parseWard(json, patient, root),
       services: names,
       dateTime: dtString != null
           ? DateTime.tryParse(dtString) ?? DateTime.now()
