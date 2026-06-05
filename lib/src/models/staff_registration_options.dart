@@ -12,6 +12,7 @@ enum StaffAccountCategory {
   laboratory,
   radiology,
   store,
+  purchases,
   medicalRecords,
   frontDesk,
   ict,
@@ -31,6 +32,7 @@ extension StaffAccountCategoryLabels on StaffAccountCategory {
     StaffAccountCategory.laboratory => 'Laboratory',
     StaffAccountCategory.radiology => 'Radiology',
     StaffAccountCategory.store => 'Store',
+    StaffAccountCategory.purchases => 'Purchases',
     StaffAccountCategory.medicalRecords => 'Medical Records',
     StaffAccountCategory.frontDesk => 'Front Desk',
     StaffAccountCategory.ict => 'ICT',
@@ -45,14 +47,14 @@ class StaffRoleOption {
   const StaffRoleOption({
     required this.label,
     required this.accountType,
-    required this.role,
+    required this.staffRole,
   });
 
   final String label;
   final AccountType accountType;
 
-  /// Stored as `role` on Staff; matches backend `StaffRole` (SCREAMING_SNAKE_CASE).
-  final String role;
+  /// Stored as `staffRole` on Staff; matches backend `StaffRole` (SCREAMING_SNAKE_CASE).
+  final String staffRole;
 }
 
 /// Roles available for each [StaffAccountCategory], in display order.
@@ -61,185 +63,197 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
     const StaffRoleOption(
       label: 'Billing Head',
       accountType: AccountType.billing,
-      role: 'BILLING_HEAD',
+      staffRole: 'BILLING_HEAD',
     ),
     const StaffRoleOption(
       label: 'Billing Staff',
       accountType: AccountType.billing,
-      role: 'BILLING_STAFF',
+      staffRole: 'BILLING_STAFF',
     ),
   ],
   StaffAccountCategory.account: [
     const StaffRoleOption(
       label: 'Account Head',
       accountType: AccountType.accounting,
-      role: 'ACCOUNT_HEAD',
+      staffRole: 'ACCOUNT_HEAD',
     ),
     const StaffRoleOption(
       label: 'Accounting staff',
       accountType: AccountType.accounting,
-      role: 'ACCOUNTING_STAFF',
+      staffRole: 'ACCOUNTING_STAFF',
     ),
   ],
   StaffAccountCategory.hmo: [
     const StaffRoleOption(
       label: 'HMO Desk',
       accountType: AccountType.hmo,
-      role: 'HMO_STAFF',
+      staffRole: 'HMO_STAFF',
     ),
   ],
   StaffAccountCategory.pharmacy: [
     const StaffRoleOption(
       label: 'Pharmacy Store',
       accountType: AccountType.pharmacy,
-      role: 'PHARMACY_STORE',
+      staffRole: 'PHARMACY_STORE',
     ),
     const StaffRoleOption(
       label: 'Pharmacy Dispensary',
       accountType: AccountType.pharmacy,
-      role: 'PHARMACY_DISPENSARY',
+      staffRole: 'PHARMACY_DISPENSARY',
     ),
     const StaffRoleOption(
       label: 'Pharmacy Head',
       accountType: AccountType.pharmacy,
-      role: 'PHARMACY_HEAD',
+      staffRole: 'PHARMACY_HEAD',
     ),
   ],
   StaffAccountCategory.nurse: [
     const StaffRoleOption(
       label: 'Head Nurse',
       accountType: AccountType.nurse,
-      role: 'HEAD_NURSE',
+      staffRole: 'HEAD_NURSE',
     ),
     const StaffRoleOption(
       label: 'Inpatient Nurse',
       accountType: AccountType.nurse,
-      role: 'INPATIENT_NURSE',
+      staffRole: 'INPATIENT_NURSE',
     ),
     const StaffRoleOption(
       label: 'Outpatient Nurse',
       accountType: AccountType.nurse,
-      role: 'OUTPATIENT_NURSE',
+      staffRole: 'OUTPATIENT_NURSE',
     ),
   ],
   StaffAccountCategory.physician: [
     const StaffRoleOption(
       label: 'Consultant',
       accountType: AccountType.physician,
-      role: 'CONSULTANT',
+      staffRole: 'CONSULTANT',
     ),
     const StaffRoleOption(
       label: 'Resident',
       accountType: AccountType.physician,
-      role: 'RESIDENT',
+      staffRole: 'RESIDENT',
     ),
     const StaffRoleOption(
       label: 'Intern',
       accountType: AccountType.physician,
-      role: 'INTERN',
+      staffRole: 'INTERN',
     ),
     const StaffRoleOption(
       label: 'Junior resident',
       accountType: AccountType.physician,
-      role: 'JUNIOR_RESIDENT',
+      staffRole: 'JUNIOR_RESIDENT',
     ),
     const StaffRoleOption(
       label: 'Senior resident',
       accountType: AccountType.physician,
-      role: 'SENIOR_RESIDENT',
+      staffRole: 'SENIOR_RESIDENT',
     ),
     const StaffRoleOption(
       label: 'Chief resident',
       accountType: AccountType.physician,
-      role: 'CHIEF_RESIDENT',
+      staffRole: 'CHIEF_RESIDENT',
     ),
     const StaffRoleOption(
       label: 'Medical student',
       accountType: AccountType.physician,
-      role: 'MEDICAL_STUDENT',
+      staffRole: 'MEDICAL_STUDENT',
     ),
   ],
   StaffAccountCategory.laboratory: [
     const StaffRoleOption(
       label: 'Lab Head',
       accountType: AccountType.laboratory,
-      role: 'LAB_HEAD',
+      staffRole: 'LAB_HEAD',
     ),
     const StaffRoleOption(
       label: 'Lab scientist',
       accountType: AccountType.laboratory,
-      role: 'LAB_SCIENTIST',
+      staffRole: 'LAB_SCIENTIST',
     ),
   ],
   StaffAccountCategory.radiology: [
     const StaffRoleOption(
       label: 'Radiology Head',
       accountType: AccountType.radiology,
-      role: 'RADIOLOGY_HEAD',
+      staffRole: 'RADIOLOGY_HEAD',
     ),
     const StaffRoleOption(
       label: 'Radiographer',
       accountType: AccountType.radiology,
-      role: 'RADIOGRAPHER',
+      staffRole: 'RADIOGRAPHER',
     ),
     const StaffRoleOption(
       label: 'Radiology receptionist',
       accountType: AccountType.radiology,
-      role: 'RADIOLOGY_RECEPTIONIST',
+      staffRole: 'RADIOLOGY_RECEPTIONIST',
     ),
   ],
   StaffAccountCategory.store: [
     const StaffRoleOption(
       label: 'Head of store',
       accountType: AccountType.store,
-      role: 'HEAD_OF_STORE',
+      staffRole: 'HEAD_OF_STORE',
     ),
     const StaffRoleOption(
       label: 'Storekeeper',
       accountType: AccountType.store,
-      role: 'STOREKEEPER',
+      staffRole: 'STOREKEEPER',
+    ),
+  ],
+  StaffAccountCategory.purchases: [
+    const StaffRoleOption(
+      label: 'Purchases Store',
+      accountType: AccountType.purchases,
+      staffRole: 'PURCHASES_STORE',
+    ),
+    const StaffRoleOption(
+      label: 'Purchases Head',
+      accountType: AccountType.purchases,
+      staffRole: 'PURCHASES_HEAD',
     ),
   ],
   StaffAccountCategory.medicalRecords: [
     const StaffRoleOption(
       label: 'Medical Records',
       accountType: AccountType.medical_records,
-      role: 'MEDICAL_RECORDS',
+      staffRole: 'MEDICAL_RECORDS',
     ),
   ],
   StaffAccountCategory.frontDesk: [
     const StaffRoleOption(
       label: 'Front Desk',
       accountType: AccountType.front_desk,
-      role: 'FRONT_DESK',
+      staffRole: 'FRONT_DESK',
     ),
   ],
   StaffAccountCategory.ict: [
     const StaffRoleOption(
       label: 'ICT staff',
       accountType: AccountType.ict,
-      role: 'ICT_STAFF',
+      staffRole: 'ICT_STAFF',
     ),
   ],
   StaffAccountCategory.cmd: [
     const StaffRoleOption(
       label: 'CMD',
       accountType: AccountType.cmd,
-      role: 'CMD',
+      staffRole: 'CMD',
     ),
   ],
   StaffAccountCategory.cmac: [
     const StaffRoleOption(
       label: 'CMAC',
       accountType: AccountType.cmac,
-      role: 'CMAC',
+      staffRole: 'CMAC',
     ),
   ],
   StaffAccountCategory.superAdmin: [
     const StaffRoleOption(
       label: 'Super Admin',
       accountType: AccountType.super_admin,
-      role: 'SUPER_ADMIN',
+      staffRole: 'SUPER_ADMIN',
     ),
   ],
 };

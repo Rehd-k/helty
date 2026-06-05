@@ -210,7 +210,7 @@ class _ObstetricsDashboardScreenState
     }
 
     final pregValue = _pregnancyTotal != null
-        ? '${_pregnancyTotal}'
+        ? '$_pregnancyTotal'
         : (selectedPatient != null ? '0' : '—');
     final pregLabel = _pregnancyTotal != null
         ? 'Pregnancies (patient)'

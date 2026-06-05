@@ -1,8 +1,11 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Assuming you have these models in your pharmacy_models.dart
-// If not, this screen uses a local data structure to manage the "cart" of requested items.
+import '../../purchases/models/purchases_model.dart';
+import '../../purchases/services/purchases_service.dart';
+import '../../providers/auth_provider.dart';
+import '../services/pharmacy_service.dart';
 
 class RequisitionItem {
   final String id;
@@ -21,15 +24,18 @@ class RequisitionItem {
 }
 
 @RoutePage()
-class CreateRequisitionScreen extends StatefulWidget {
+class CreateRequisitionScreen extends ConsumerStatefulWidget {
   const CreateRequisitionScreen({super.key});
 
   @override
-  State<CreateRequisitionScreen> createState() =>
+  ConsumerState<CreateRequisitionScreen> createState() =>
       _CreateRequisitionScreenState();
 }
 
-class _CreateRequisitionScreenState extends State<CreateRequisitionScreen> {
+class _CreateRequisitionScreenState
+    extends ConsumerState<CreateRequisitionScreen> {
+  final _pharmacyApi = PharmacyApiService();
+  final _purchasesApi = PurchasesApiService();
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
 
@@ -43,25 +49,52 @@ class _CreateRequisitionScreenState extends State<CreateRequisitionScreen> {
   // The "Cart" of items being requested
   final List<RequisitionItem> _requestedItems = [];
 
-  // Mock Inventory Data (To be replaced by your API)
-  final List<Map<String, dynamic>> _inventoryItems = [
-    {'id': 'med-1', 'name': 'Amoxicillin 250mg', 'type': 'Drug', 'stock': 12},
-    {'id': 'med-2', 'name': 'Paracetamol 500mg', 'type': 'Drug', 'stock': 45},
-    {
-      'id': 'cons-1',
-      'name': 'Surgical Masks (Box of 50)',
-      'type': 'Consumable',
-      'stock': 2,
-    },
-    {
-      'id': 'cons-2',
-      'name': 'Latex Gloves (Medium)',
-      'type': 'Consumable',
-      'stock': 0,
-    },
-  ];
+  // Requestable inventory loaded from pharmacy catalog
+  List<Map<String, dynamic>> _inventoryItems = [];
+  bool _loadingInventory = true;
 
   final List<String> _priorities = ['Normal', 'Urgent', 'Critical'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInventory();
+  }
+
+  Future<void> _loadInventory() async {
+    try {
+      final drugs = await _pharmacyApi.getDrugs(
+        const PharmacyQueryParams(pageSize: 200, sortBy: 'brandName'),
+      );
+      final consumables = await _pharmacyApi.getConsumables(
+        const PharmacyQueryParams(pageSize: 200),
+      );
+      if (!mounted) return;
+      setState(() {
+        _inventoryItems = [
+          ...drugs.items.map(
+            (d) => {
+              'id': d.id ?? '',
+              'name': d.brandName.isNotEmpty ? d.brandName : d.genericName,
+              'type': 'Drug',
+              'stock': d.displayStock,
+            },
+          ),
+          ...consumables.items.map(
+            (c) => {
+              'id': c.id ?? '',
+              'name': c.name,
+              'type': 'Consumable',
+              'stock': c.reorderLevel ?? 0,
+            },
+          ),
+        ];
+        _loadingInventory = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingInventory = false);
+    }
+  }
 
   void _addItemToRequest() {
     if (!_formKey.currentState!.validate()) return;
@@ -107,9 +140,35 @@ class _CreateRequisitionScreenState extends State<CreateRequisitionScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Simulate API call to send requisition to purchasing department
-      // Example: await _apiService.createRequisition(items: _requestedItems, requestingDepartment: 'Main Pharmacy');
-      await Future.delayed(const Duration(seconds: 2));
+      final staff = ref.read(authProvider).staff;
+      final requestedById = staff?.id ?? '';
+      if (requestedById.isEmpty) {
+        _showSnackBar('Unable to identify requesting staff.', isError: true);
+        return;
+      }
+
+      await _purchasesApi.createRequisition(
+        CreateRequisitionDto(
+          requestingDepartment: 'PHARMACY',
+          requestedById: requestedById,
+          lines: _requestedItems
+              .map(
+                (line) => RequisitionLine(
+                  itemType:
+                      _inventoryItems
+                          .firstWhere((e) => e['id'] == line.id)['type']
+                          ?.toString() ??
+                      'Drug',
+                  itemId: line.id,
+                  itemName: line.name,
+                  quantity: line.quantity,
+                  priority: line.priority,
+                  notes: line.notes,
+                ),
+              )
+              .toList(),
+        ),
+      );
 
       if (mounted) {
         _showSnackBar('Requisition order sent to Purchases successfully!');

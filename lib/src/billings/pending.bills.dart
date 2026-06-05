@@ -19,10 +19,10 @@ bool _staffIsBilling(Staff? staff) {
   if (staff == null) return false;
   final at = staff.accountType?.name.toLowerCase() ?? '';
   if (at == 'billing' || at == 'bills') return true;
-  final r = staff.role.toUpperCase();
+  final r = staff.staffRole.toUpperCase();
   return r == 'BILLING_HEAD' ||
       r == 'BILLING_STAFF' ||
-      staff.role.toLowerCase() == 'bills';
+      staff.staffRole.toLowerCase() == 'bills';
 }
 
 @RoutePage()

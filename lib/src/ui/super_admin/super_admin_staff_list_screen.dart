@@ -37,7 +37,7 @@ class _SuperAdminStaffListScreenState
     final asyncStaff = ref.watch(
       staffListProvider((
         query: _query.isEmpty ? null : _query,
-        role: null,
+        staffRole: null,
         departmentId: null,
         limit: 500,
       )),
@@ -82,7 +82,7 @@ class _SuperAdminStaffListScreenState
                   ref.invalidate(
                     staffListProvider((
                       query: _query.isEmpty ? null : _query,
-                      role: null,
+                      staffRole: null,
                       departmentId: null,
                       limit: 500,
                     )),
@@ -90,7 +90,7 @@ class _SuperAdminStaffListScreenState
                   await ref.read(
                     staffListProvider((
                       query: _query.isEmpty ? null : _query,
-                      role: null,
+                      staffRole: null,
                       departmentId: null,
                       limit: 500,
                     )).future,
@@ -163,7 +163,7 @@ class _SuperAdminStaffListScreenState
                           ref.invalidate(
                             staffListProvider((
                               query: _query.isEmpty ? null : _query,
-                              role: null,
+                              staffRole: null,
                               departmentId: null,
                               limit: 500,
                             )),
@@ -202,7 +202,7 @@ class _StaffCardState extends State<_StaffCard> {
     final s = widget.staff;
     final subtitle = [
       if (s.email != null && s.email!.isNotEmpty) s.email!,
-      '${s.role} · ${s.staffId}',
+      '${s.staffRole} · ${s.staffId}',
     ].join('\n');
 
     return MouseRegion(
@@ -210,7 +210,7 @@ class _StaffCardState extends State<_StaffCard> {
       onExit: (_) => setState(() => _hover = false),
       child: Semantics(
         button: true,
-        label: '${s.fullName}, ${s.role}',
+        label: '${s.fullName}, ${s.staffRole}',
         child: Material(
           color: cs.surfaceContainerLow,
           elevation: _hover ? 2 : 0,

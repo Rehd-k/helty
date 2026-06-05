@@ -122,7 +122,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   void _showPatientDetailsDialog(Patient patient) {
     final staff = ref.read(authProvider).staff;
     final at = staff?.accountType?.name.toLowerCase() ?? '';
-    final r = staff?.role.toLowerCase() ?? '';
+    final r = staff?.staffRole.toLowerCase() ?? '';
     final showChartLink =
         (at == 'medical_records' || r == 'medical_records') &&
         patient.id != null &&

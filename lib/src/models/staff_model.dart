@@ -12,6 +12,7 @@ enum AccountType {
   laboratory,
   radiology,
   store,
+  purchases,
   medical_records,
   front_desk,
   ict,
@@ -55,6 +56,10 @@ enum AccountType {
         return AccountType.physician;
       case 'lab':
         return AccountType.laboratory;
+      case 'purchases_store':
+      case 'purchases_head':
+      case 'purchases':
+        return AccountType.purchases;
       case 'frontdesk':
         return AccountType.front_desk;
       case 'other':
@@ -75,7 +80,7 @@ class Staff {
     required this.staffId,
     required this.firstName,
     required this.lastName,
-    required this.role,
+    required this.staffRole,
     this.pharmacyRole,
     this.permissions = const [],
     this.departmentId,
@@ -93,7 +98,7 @@ class Staff {
   final String staffId;
   final String firstName;
   final String lastName;
-  final String role;
+  final String staffRole;
   final String? pharmacyRole;
   final List<String> permissions;
   final String? departmentId;
@@ -210,9 +215,9 @@ class Staff {
   }
 
   factory Staff.fromJson(Map<String, dynamic> json) {
-    final roleFromApi =
-        _optionalString(json['role']) ??
+    final staffRoleFromApi =
         _optionalString(json['staffRole']) ??
+        _optionalString(json['role']) ??
         '';
     final pharmacyRole =
         _optionalString(json['pharmacyRole']) ??
@@ -225,8 +230,8 @@ class Staff {
       staffId: _requiredString(json['staffId']),
       firstName: _requiredString(json['firstName']),
       lastName: _requiredString(json['lastName']),
-      role: roleFromApi.isNotEmpty
-          ? roleFromApi
+      staffRole: staffRoleFromApi.isNotEmpty
+          ? staffRoleFromApi
           : (_optionalString(json['accountType']) ?? ''),
       pharmacyRole: pharmacyRole,
       permissions:
@@ -250,7 +255,7 @@ class Staff {
     'staffId': staffId,
     'firstName': firstName,
     'lastName': lastName,
-    'role': role,
+    'staffRole': staffRole,
     'pharmacyRole': pharmacyRole,
     'permissions': permissions,
     'departmentId': departmentId,
@@ -265,7 +270,7 @@ class Staff {
     String? staffId,
     String? firstName,
     String? lastName,
-    String? role,
+    String? staffRole,
     String? pharmacyRole,
     List<String>? permissions,
     String? departmentId,
@@ -282,7 +287,7 @@ class Staff {
     staffId: staffId ?? this.staffId,
     firstName: firstName ?? this.firstName,
     lastName: lastName ?? this.lastName,
-    role: role ?? this.role,
+    staffRole: staffRole ?? this.staffRole,
     pharmacyRole: pharmacyRole ?? this.pharmacyRole,
     permissions: permissions ?? this.permissions,
     departmentId: departmentId ?? this.departmentId,
@@ -320,7 +325,7 @@ bool staffCanAccessPrivilegedBillingStrings(
 bool staffCanAccessPrivilegedBilling(Staff? staff) {
   if (staff == null) return false;
   return staffCanAccessPrivilegedBillingStrings(
-    staff.role,
+    staff.staffRole,
     staff.accountType?.name ?? '',
   );
 }

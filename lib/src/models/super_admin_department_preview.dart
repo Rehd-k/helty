@@ -5,7 +5,7 @@ import 'staff_registration_options.dart';
 bool staffIsSuperAdmin(Staff? staff) {
   if (staff == null) return false;
   if (staff.accountType == AccountType.super_admin) return true;
-  final r = staff.role.trim().toLowerCase().replaceAll('-', '_');
+  final r = staff.staffRole.trim().toLowerCase().replaceAll('-', '_');
   return r == 'super_admin';
 }
 
@@ -95,6 +95,13 @@ const List<SuperAdminHubDepartment> kSuperAdminHubDepartments = [
     previewAccountType: 'store',
     previewRole: 'head_of_store',
     previewBannerLabel: 'Store (Head)',
+  ),
+  SuperAdminHubDepartment(
+    category: StaffAccountCategory.purchases,
+    tileTitle: 'Purchases',
+    previewAccountType: 'purchases',
+    previewRole: 'purchases_head',
+    previewBannerLabel: 'Purchases (Head)',
   ),
   SuperAdminHubDepartment(
     category: StaffAccountCategory.medicalRecords,

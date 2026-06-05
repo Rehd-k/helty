@@ -49,7 +49,7 @@ class SuperAdminStaffDetailScreen extends ConsumerWidget {
               const SizedBox(height: 20),
               _sectionTitle(context, 'Account'),
               _infoTile(context, 'Staff ID', staff.staffId),
-              _infoTile(context, 'Role', staff.role),
+              _infoTile(context, 'Role', staff.staffRole),
               if (staff.pharmacyRole != null &&
                   staff.pharmacyRole!.trim().isNotEmpty)
                 _infoTile(context, 'Pharmacy role', staff.pharmacyRole!),

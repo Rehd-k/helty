@@ -361,7 +361,7 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
                               _doctor!.fullName,
                               style: theme.textTheme.titleSmall,
                             ),
-                            subtitle: Text(_doctor!.role),
+                            subtitle: Text(_doctor!.staffRole),
                             trailing: IconButton(
                               icon: const Icon(Icons.close_rounded),
                               onPressed: () => setState(() => _doctor = null),

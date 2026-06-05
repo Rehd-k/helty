@@ -115,11 +115,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (ok && mounted) {
       // Replace entire stack so the user can't go back to login.
       final auth = ref.read(authProvider);
-      final role = auth.staff?.role ?? '';
+      final staffRole = auth.staff?.staffRole ?? '';
       final accountType = auth.staff?.accountType?.name ?? '';
       final PageRouteInfo initialChild = staffIsSuperAdmin(auth.staff)
           ? const SuperAdminHubRoute()
-          : initialRouteForRole(role, accountType);
+          : initialRouteForRole(staffRole, accountType);
       context.router.replaceAll([
         HomeRoute(children: [initialChild]),
       ]);

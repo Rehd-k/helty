@@ -424,6 +424,54 @@ final phamDispense = <MenuItem>[
   ),
 ];
 
+final purchasesMenu = <MenuItem>[
+  MenuItem(
+    label: 'Inventory',
+    icon: Icons.inventory_2_outlined,
+    route: PurchasesInventoryRoute(),
+  ),
+  MenuItem(
+    label: 'Add Supplier',
+    icon: Icons.person_add_alt_1_outlined,
+    route: PurchasesAddSupplierRoute(),
+  ),
+  MenuItem(
+    label: 'Add Purchases',
+    icon: Icons.add_box_outlined,
+    route: PurchasesAddPurchaseRoute(),
+  ),
+  MenuItem(
+    label: 'Stock Transfer',
+    icon: Icons.move_to_inbox_outlined,
+    route: PurchasesStockTransferRoute(),
+  ),
+  MenuItem(
+    label: 'Transfer History',
+    icon: Icons.receipt_long_outlined,
+    route: PurchasesTransferHistoryRoute(),
+  ),
+  MenuItem(
+    label: 'Purchase History',
+    icon: Icons.list_alt_outlined,
+    route: PurchasesPurchaseHistoryRoute(),
+  ),
+  MenuItem(
+    label: 'Stores',
+    icon: Icons.location_on_outlined,
+    route: PurchasesLocationRoute(),
+  ),
+  MenuItem(
+    label: 'Requisition History',
+    icon: Icons.history_outlined,
+    route: PurchasesRequisitionHistoryRoute(),
+  ),
+  MenuItem(
+    label: 'Dashboard',
+    icon: Icons.dashboard_outlined,
+    route: PurchasesDashboardRoute(),
+  ),
+];
+
 final obstetrics = <MenuItem>[];
 
 final labMenu = <MenuItem>[

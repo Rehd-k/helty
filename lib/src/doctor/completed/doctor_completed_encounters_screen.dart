@@ -71,7 +71,7 @@ class _DoctorCompletedEncountersScreenState
   bool _isPhysicianStaff(Staff? staff) {
     if (staff == null) return false;
     final at = staff.accountType?.name.toLowerCase() ?? '';
-    final r = staff.role.toLowerCase();
+    final r = staff.staffRole.toLowerCase();
     return at == 'physician' ||
         at == 'consultant' ||
         at == 'inpatient_doctor' ||

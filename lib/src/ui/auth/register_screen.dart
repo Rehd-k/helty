@@ -73,6 +73,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         return const RadiologyDashboardRoute();
       case 'store':
         return const StoreDashboardRoute();
+      case 'purchases':
+      case 'purchases_store':
+      case 'purchases_head':
+        return const PurchasesDashboardRoute();
       case 'accounting':
       case 'accounts':
       case 'medical_records':
@@ -107,7 +111,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           staffId: _staffIdCtrl.text.trim(),
           firstName: _firstNameCtrl.text.trim(),
           lastName: _lastNameCtrl.text.trim(),
-          role: _selectedRoleOption.role,
+          staffRole: _selectedRoleOption.staffRole,
           password: _passwordCtrl.text,
           email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
           phone: _phoneCtrl.text.trim(),
@@ -116,8 +120,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (ok && mounted) {
       final auth = ref.read(authProvider);
       final accountType = auth.staff?.accountType?.name ?? '';
-      final role = auth.staff?.role ?? '';
-      final initialChild = _initialRouteAfterRegister(accountType, role);
+      final staffRole = auth.staff?.staffRole ?? '';
+      final initialChild = _initialRouteAfterRegister(accountType, staffRole);
 
       context.router.replaceAll([
         HomeRoute(children: [initialChild]),

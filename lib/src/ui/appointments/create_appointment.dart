@@ -532,7 +532,7 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
                       (s) => DropdownMenuItem(
                         value: s,
                         child: Text(
-                          '${s.firstName} ${s.lastName} · ${s.role}',
+                          '${s.firstName} ${s.lastName} · ${s.staffRole}',
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),

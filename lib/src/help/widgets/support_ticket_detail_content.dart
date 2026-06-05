@@ -496,7 +496,7 @@ class _StaffPickerDialogState extends ConsumerState<_StaffPickerDialog> {
     final asyncStaff = ref.watch(
       staffListProvider((
         query: _query.trim().isEmpty ? null : _query.trim(),
-        role: null,
+        staffRole: null,
         departmentId: null,
         limit: 50,
       )),

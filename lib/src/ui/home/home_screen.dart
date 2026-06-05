@@ -411,6 +411,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     }
 
+    final isPurchasesDept =
+        at == 'purchases' ||
+        at == 'purchases_store' ||
+        at == 'purchases_head' ||
+        r == 'purchases_store' ||
+        r == 'purchases_head';
+    if (isPurchasesDept) {
+      common.addAll(purchasesMenu);
+    }
+
     final isPhysician =
         at == 'physician' ||
         at == 'consultant' ||
@@ -645,7 +655,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final auth = ref.watch(authProvider);
     final staff = auth.staff;
     final preview = ref.watch(superAdminPreviewProvider);
-    var role = staff?.role.toLowerCase() ?? '';
+    var role = staff?.staffRole.toLowerCase() ?? '';
     var accountType = staff?.accountType?.name.toLowerCase() ?? '';
     if (staffIsSuperAdmin(staff) && preview.isActive) {
       role = preview.previewRole!;
@@ -1149,7 +1159,7 @@ class _SidebarNavigation extends StatelessWidget {
     final displayName = staff == null
         ? 'Signing out...'
         : '${staff.firstName.toUpperCase()} ${staff.lastName.toUpperCase()}';
-    final displayRole = staff?.role.toUpperCase() ?? 'LOGGING OUT';
+    final displayRole = staff?.staffRole.toUpperCase() ?? 'LOGGING OUT';
 
     final avatar = Container(
       padding: const EdgeInsets.all(4),

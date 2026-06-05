@@ -5,7 +5,7 @@ import '../models/patient_chart_models.dart';
 List<String> allowedChartSectionsForStaff(Staff? staff) {
   if (staff == null) return const [];
   final at = staff.accountType?.name.toLowerCase() ?? '';
-  final r = staff.role.toLowerCase();
+  final r = staff.staffRole.toLowerCase();
 
   if (at == 'medical_records' || r == 'medical_records') {
     return PatientChartSectionKeys.all;
@@ -40,7 +40,7 @@ List<PatientChartTabDef> chartTabsForStaff(Staff? staff) {
 bool canUploadArchivedEncounters(Staff? staff) {
   if (staff == null) return false;
   final at = staff.accountType?.name.toLowerCase() ?? '';
-  final r = staff.role.toLowerCase();
+  final r = staff.staffRole.toLowerCase();
   return at == 'medical_records' ||
       r == 'medical_records' ||
       at == 'outpatient_nurse' ||
@@ -56,7 +56,7 @@ bool canDeleteArchivedEncounters(Staff? staff) => canUploadArchivedEncounters(st
 bool staffHasPatientChartAccess(Staff? staff) {
   if (staff == null) return false;
   final at = staff.accountType?.name.toLowerCase() ?? '';
-  final r = staff.role.toLowerCase();
+  final r = staff.staffRole.toLowerCase();
   return at == 'medical_records' ||
       r == 'medical_records' ||
       _isNurseStaff(at, r);

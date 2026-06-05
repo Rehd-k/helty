@@ -6,7 +6,7 @@ import '../models/staff_model.dart';
 /// Billing staff and similar roles can bill services but must not edit the catalog.
 bool canManageHospitalServices(Staff? staff) {
   if (staff == null) return false;
-  final r = staff.role.trim().toLowerCase().replaceAll('-', '_');
+  final r = staff.staffRole.trim().toLowerCase().replaceAll('-', '_');
   if (r == 'super_admin' ||
       r == 'billing_head' ||
       r == 'accounting_head' ||

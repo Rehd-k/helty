@@ -11,7 +11,7 @@ class StaffService {
 
   Future<List<Staff>> fetchStaff({
     String? query,
-    String? role,
+    String? staffRole,
     String? departmentId,
     bool? isActive,
     int page = 1,
@@ -21,7 +21,7 @@ class StaffService {
       '/staff',
       queryParameters: {
         if (query != null && query.isNotEmpty) 'q': query,
-        if (role != null) 'role': role,
+        if (staffRole != null) 'staffRole': staffRole,
         if (departmentId != null) 'departmentId': departmentId,
         if (isActive != null) 'isActive': isActive,
         'page': page,

@@ -34,6 +34,10 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
       return const MedicineInventoryRoute();
     case 'pharmacy_dispensary':
       return EnlistPaitientRoute(serviceName: 'Pharmacy');
+    case 'purchases':
+    case 'purchases_store':
+    case 'purchases_head':
+      return const PurchasesDashboardRoute();
     case 'physician':
     case 'consultant':
     case 'inpatient_doctor':

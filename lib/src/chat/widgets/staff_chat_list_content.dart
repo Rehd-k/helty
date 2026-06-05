@@ -479,7 +479,7 @@ class _StaffDirectPickerSheetState
     if (q.isEmpty) return base.toList();
     return base.where((s) {
       return s.fullName.toLowerCase().contains(q) ||
-          s.role.toLowerCase().contains(q) ||
+          s.staffRole.toLowerCase().contains(q) ||
           s.staffId.toLowerCase().contains(q) ||
           (s.departmentName?.toLowerCase().contains(q) ?? false) ||
           (s.email?.toLowerCase().contains(q) ?? false);
@@ -568,7 +568,7 @@ class _StaffDirectPickerSheetState
                       final presenceLabel = presence.label;
                       final sub = [
                         if (presenceLabel.isNotEmpty) presenceLabel,
-                        if (s.role.isNotEmpty) s.role,
+                        if (s.staffRole.isNotEmpty) s.staffRole,
                         if (s.departmentName != null &&
                             s.departmentName!.isNotEmpty)
                           s.departmentName!,

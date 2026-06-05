@@ -2,8 +2,8 @@ import 'package:helty/src/models/staff_model.dart';
 
 bool _hasRole(Staff? staff, Set<String> roles) {
   if (staff == null) return false;
-  final role = staff.role.trim().toUpperCase();
-  return roles.contains(role);
+  final staffRole = staff.staffRole.trim().toUpperCase();
+  return roles.contains(staffRole);
 }
 
 bool _hasAccountType(Staff? staff, Set<AccountType> allowed) {

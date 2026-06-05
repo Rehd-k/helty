@@ -23,7 +23,7 @@ bool _wardExcludedFromInpatientList(Ward w) {
 }
 
 bool _staffIsDoctor(Staff? staff) {
-  final role = staff?.role.toLowerCase() ?? '';
+  final role = staff?.staffRole.toLowerCase() ?? '';
   final accountType = staff?.accountType?.name.toLowerCase() ?? '';
   return role == 'doctor' ||
       role == 'consultant' ||

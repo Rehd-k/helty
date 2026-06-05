@@ -110,7 +110,7 @@ class _InpatientPatientViewScreenState
 
     final auth = ref.watch(authProvider);
     final staff = auth.staff;
-    final role = staff?.role.toLowerCase() ?? '';
+    final role = staff?.staffRole.toLowerCase() ?? '';
     final accountType = staff?.accountType?.name.toLowerCase() ?? '';
     final staffId = staff?.id ?? staff?.staffId;
 

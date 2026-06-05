@@ -9,39 +9,39 @@ import '../../models/staff_model.dart';
 import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/super_admin_preview_provider.dart';
-import '../inputs/morden.form.inpts.dart';
-import '../models/pharmacy_model.dart';
-import '../services/pharmacy_service.dart';
+import '../../pharmacy/inputs/morden.form.inpts.dart';
+import '../models/purchases_model.dart';
+import '../services/purchases_service.dart';
 
-bool _viewerIsPharmacyHead(Staff? staff, SuperAdminPreviewState preview) {
+bool _viewerIsPurchasesHead(Staff? staff, SuperAdminPreviewState preview) {
   if (staffIsSuperAdmin(staff) && preview.isActive) {
     final r = (preview.previewRole ?? '').toLowerCase().trim();
     final at = (preview.previewAccountType ?? '').toLowerCase().trim();
-    return r == 'pharmacy_head' || at == 'pharmacy_head';
+    return r == 'purchases_head' || at == 'purchases_head';
   }
   final r = staff?.staffRole.toLowerCase().replaceAll('-', '_') ?? '';
-  final pr = staff?.pharmacyRole?.toLowerCase().replaceAll('-', '_') ?? '';
-  return r == 'pharmacy_head' || pr == 'pharmacy_head';
+  return r == 'purchases_head';
 }
 
-bool _batchEligibleForQuantityCorrection(DrugBatch b) {
+bool _batchEligibleForQuantityCorrection(PurchaseItemBatch b) {
   final created = b.createdAt;
   if (created == null) return false;
   return DateTime.now().difference(created) >= const Duration(hours: 24);
 }
 
 @RoutePage()
-class StockTransferScreen extends ConsumerStatefulWidget {
-  const StockTransferScreen({super.key});
+class PurchasesStockTransferScreen extends ConsumerStatefulWidget {
+  const PurchasesStockTransferScreen({super.key});
 
   @override
-  ConsumerState<StockTransferScreen> createState() =>
-      _StockTransferScreenState();
+  ConsumerState<PurchasesStockTransferScreen> createState() =>
+      _PurchasesStockTransferScreenState();
 }
 
-class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
+class _PurchasesStockTransferScreenState
+    extends ConsumerState<PurchasesStockTransferScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _apiService = PharmacyApiService();
+  final _apiService = PurchasesApiService();
 
   // Controllers
   final _quantityCtrl = TextEditingController();
@@ -49,7 +49,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
   final _drugSearchCtrl = TextEditingController();
 
   // Locations
-  List<PharmacyLocation> _locations = [];
+  List<PurchasesLocation> _locations = [];
   bool _isLoadingLocations = false;
   String? _locationsError;
 
@@ -57,21 +57,21 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
   String? _toLocationId;
 
   // Drugs (paginated, filterable)
-  PaginatedResponse<Drug>? _drugPage;
+  PaginatedResponse<PurchaseItem>? _drugPage;
   bool _isLoadingDrugs = false;
   String? _drugsError;
   int _drugPageIndex = 1;
   static const int _pageSize = 20;
 
-  Drug? _selectedDrug;
+  PurchaseItem? _selectedDrug;
 
-  // Batches for selected drug (paginated, latest first)
-  PaginatedResponse<DrugBatch>? _batchPage;
+  // Batches for selected PurchaseItem (paginated, latest first)
+  PaginatedResponse<PurchaseItemBatch>? _batchPage;
   bool _isLoadingBatches = false;
   String? _batchesError;
   int _batchPageIndex = 1;
 
-  DrugBatch? _selectedBatch;
+  PurchaseItemBatch? _selectedBatch;
 
   // Staged transfer lines to be moved together
   final List<_TransferLine> _lines = [];
@@ -107,7 +107,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
     });
   }
 
-  void _searchDrugsNow() {
+  void _searchItemsNow() {
     _drugSearchDebounce?.cancel();
     setState(() => _drugPageIndex = 1);
     _loadDrugs();
@@ -125,7 +125,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
       _locationsError = null;
     });
     try {
-      final resp = await _apiService.getPharmacyLocations();
+      final resp = await _apiService.getLocations();
       if (!mounted) return;
       setState(() {
         _locations = resp.items;
@@ -148,7 +148,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
       _drugsError = null;
     });
     try {
-      final q = PharmacyQueryParams(
+      final q = PurchasesQueryParams(
         page: _drugPageIndex,
         pageSize: _pageSize,
         search: _drugSearchCtrl.text.trim().isEmpty
@@ -157,7 +157,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
         sortBy: 'genericName',
         sortOrder: SortOrder.asc,
       );
-      final resp = await _apiService.getDrugs(q);
+      final resp = await _apiService.getItems(q);
       if (!mounted) return;
       setState(() {
         _drugPage = resp;
@@ -192,18 +192,18 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
       _batchesError = null;
     });
     try {
-      final q = PharmacyQueryParams(
+      final q = PurchasesQueryParams(
         page: _batchPageIndex,
         pageSize: _pageSize,
         sortBy: 'createdAt',
         sortOrder: SortOrder.desc,
         filters: {
-          'drugId': _selectedDrug!.id,
+          'itemId': _selectedDrug!.id,
           'toLocationId': fromId,
           'doNotAllowempty': true,
         },
       );
-      final resp = await _apiService.getDrugBatches(q);
+      final resp = await _apiService.getItemBatches(q);
       if (!mounted) return;
       setState(() {
         _batchPage = resp;
@@ -220,7 +220,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
     }
   }
 
-  int _availableForBatch(DrugBatch batch) {
+  int _availableForBatch(PurchaseItemBatch batch) {
     final used = _lines
         .where((l) => l.batch.id == batch.id)
         .fold<int>(0, (sum, l) => sum + l.quantity);
@@ -233,7 +233,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
         _toLocationId == null ||
         _selectedDrug == null ||
         _selectedBatch == null) {
-      _showError('Please select from, to, drug and batch.');
+      _showError('Please select from, to, item and batch.');
       return;
     }
     if (_fromLocationId == _toLocationId) {
@@ -256,7 +256,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
     setState(() {
       _lines.add(
         _TransferLine(
-          drug: _selectedDrug!,
+          item: _selectedDrug!,
           batch: _selectedBatch!,
           quantity: qty,
         ),
@@ -321,7 +321,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
     }
   }
 
-  Future<void> _showQuantityCorrectionDialog(DrugBatch batch) async {
+  Future<void> _showQuantityCorrectionDialog(PurchaseItemBatch batch) async {
     final batchId = batch.id;
     if (batchId == null || batchId.isEmpty) {
       _showError('This batch has no id; quantity cannot be corrected here.');
@@ -356,7 +356,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
               }
               setLocal(() => submitting = true);
               try {
-                final updated = await _apiService.correctDrugBatchQuantity(
+                final updated = await _apiService.correctItemBatchQuantity(
                   batchId,
                   CorrectBatchQuantityDto(
                     quantityReceived: received,
@@ -374,7 +374,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
                         updated.quantityRemaining ?? updated.quantityReceived;
                     final q = l.quantity.clamp(0, maxAvail);
                     return _TransferLine(
-                      drug: l.drug,
+                      item: l.item,
                       batch: updated,
                       quantity: q,
                     );
@@ -474,10 +474,13 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
     remainingCtrl.dispose();
   }
 
-  Widget? _buildBatchQuantityCorrectionButton(ThemeData theme, DrugBatch b) {
+  Widget? _buildBatchQuantityCorrectionButton(
+    ThemeData theme,
+    PurchaseItemBatch b,
+  ) {
     final staff = ref.watch(authProvider).staff;
     final preview = ref.watch(superAdminPreviewProvider);
-    if (!_viewerIsPharmacyHead(staff, preview)) return null;
+    if (!_viewerIsPurchasesHead(staff, preview)) return null;
 
     final eligible = _batchEligibleForQuantityCorrection(b);
     return IconButton(
@@ -749,14 +752,14 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
             TextField(
               controller: _drugSearchCtrl,
               decoration: InputDecoration(
-                labelText: 'Search drug',
+                labelText: 'Search Items',
                 hintText: 'Type to filter medicines',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onSubmitted: (_) => _searchDrugsNow(),
+              onSubmitted: (_) => _searchItemsNow(),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -784,7 +787,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Batches for selected drug',
+                          'Batches for selected Item',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 8),
@@ -829,16 +832,15 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
           selected: selected,
           selectedTileColor: theme.colorScheme.primary.withValues(alpha: 0.06),
           title: Text(
-            d.brandName.isNotEmpty ? d.brandName : d.genericName,
+            d.itemName.isNotEmpty ? d.itemName : d.itemName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
             [
-              d.genericName,
-              if (d.strength != null && d.strength!.isNotEmpty) d.strength!,
-              if (d.dosageForm != null && d.dosageForm!.isNotEmpty)
-                d.dosageForm!,
+              d.itemName,
+              if (d.sku != null && d.sku!.isNotEmpty) d.sku!,
+              if (d.category != null && d.category!.isNotEmpty) d.category!,
             ].where((s) => s.isNotEmpty).join(' • '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -896,7 +898,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
 
   Widget _buildBatchList(ThemeData theme) {
     if (_selectedDrug == null) {
-      return const Center(child: Text('Select a drug to see its batches.'));
+      return const Center(child: Text('Select a item to see its batches.'));
     }
     if (_fromLocationId == null) {
       return const Center(
@@ -916,7 +918,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
     }
     final batches = _batchPage?.items ?? [];
     if (batches.isEmpty) {
-      return const Center(child: Text('No batches found for this drug.'));
+      return const Center(child: Text('No batches found for this item.'));
     }
 
     return ListView.separated(
@@ -1041,7 +1043,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
 
   Widget _buildSummaryPanel(ThemeData theme) {
     final totalQty = _lines.fold<int>(0, (sum, l) => sum + l.quantity);
-    final distinctDrugs = _lines.map((l) => l.drug.id).toSet().length;
+    final distinctDrugs = _lines.map((l) => l.item.id).toSet().length;
 
     return Card(
       elevation: 1,
@@ -1071,7 +1073,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
               child: _lines.isEmpty
                   ? const Center(
                       child: Text(
-                        'No items added yet.\nSelect a drug & batch, then add to transfer.',
+                        'No items added yet.\nSelect a PurchaseItem & batch, then add to transfer.',
                         textAlign: TextAlign.center,
                       ),
                     )
@@ -1086,9 +1088,9 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
                             horizontal: 4,
                           ),
                           title: Text(
-                            line.drug.brandName.isNotEmpty
-                                ? line.drug.brandName
-                                : line.drug.genericName,
+                            line.item.itemName.isNotEmpty
+                                ? line.item.itemName
+                                : line.item.itemName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1162,12 +1164,12 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
 
 class _TransferLine {
   const _TransferLine({
-    required this.drug,
+    required this.item,
     required this.batch,
     required this.quantity,
   });
 
-  final Drug drug;
-  final DrugBatch batch;
+  final PurchaseItem item;
+  final PurchaseItemBatch batch;
   final int quantity;
 }

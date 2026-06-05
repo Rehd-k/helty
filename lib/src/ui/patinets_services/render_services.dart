@@ -413,7 +413,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       }
     });
     final accountType = auth.staff?.accountType?.name.toLowerCase() ?? '';
-    final role = auth.staff?.role.toLowerCase() ?? '';
+    final role = auth.staff?.staffRole.toLowerCase() ?? '';
     final isBillingUser =
         accountType == 'billing' ||
         accountType == 'bills' ||

@@ -24,12 +24,12 @@ final staffServiceProvider = Provider<StaffService>((ref) => StaffService());
 final staffListProvider =
     FutureProvider.family<
       List<Staff>,
-      ({String? query, String? role, String? departmentId, int limit})
+      ({String? query, String? staffRole, String? departmentId, int limit})
     >((ref, params) async {
       final service = ref.read(staffServiceProvider);
       return service.fetchStaff(
         query: params.query,
-        role: params.role,
+        staffRole: params.staffRole,
         departmentId: params.departmentId,
         limit: params.limit,
       );
