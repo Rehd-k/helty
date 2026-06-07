@@ -1,0 +1,201 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/accounts/auth/accounting_permissions.dart';
+import 'package:helty/src/providers/auth_provider.dart';
+
+import '../models/accounts_models.dart';
+import '../services/accounts_audit_service.dart';
+import '../services/accounts_dashboard_service.dart';
+import '../services/accounts_refund_requests_service.dart';
+import '../services/accounts_reports_service.dart';
+
+final accountsDashboardServiceProvider = Provider<AccountsDashboardService>(
+  (ref) => AccountsDashboardService(),
+);
+
+final accountsAuditServiceProvider = Provider<AccountsAuditService>(
+  (ref) => AccountsAuditService(),
+);
+
+final accountsReportsServiceProvider = Provider<AccountsReportsService>(
+  (ref) => AccountsReportsService(),
+);
+
+final accountsRefundRequestsServiceProvider =
+    Provider<AccountsRefundRequestsService>(
+  (ref) => AccountsRefundRequestsService(),
+);
+
+final accountsPeriodProvider =
+    StateProvider<AccountsPeriodFilter>((ref) {
+  return const AccountsPeriodFilter(period: 'today');
+});
+
+final accountsDashboardProvider =
+    FutureProvider.autoDispose<AccountsDashboardBundle>((ref) async {
+  final period = ref.watch(accountsPeriodProvider);
+  final staff = ref.watch(authProvider).staff;
+  final svc = ref.watch(accountsDashboardServiceProvider);
+  return svc.fetchDashboard(
+    period: period.period,
+    asOf: period.asOf,
+    isHead: isAccountHead(staff),
+  );
+});
+
+final accountsRefundHistoryProvider =
+    FutureProvider.autoDispose<List<AccountsAuditLogEntry>>((ref) async {
+  final svc = ref.watch(accountsAuditServiceProvider);
+  final now = DateTime.now();
+  return svc.fetchRefundHistory(
+    from: now.subtract(const Duration(days: 90)),
+    to: now,
+  );
+});
+
+final accountsAuditLogsProvider =
+    FutureProvider.autoDispose<AccountsAuditComplianceBundle>((ref) async {
+  final svc = ref.watch(accountsAuditServiceProvider);
+  return svc.fetchAuditLogs(take: 100);
+});
+
+final accountsComplianceProvider =
+    FutureProvider.autoDispose<List<AccountsComplianceItem>>((ref) async {
+  final svc = ref.watch(accountsAuditServiceProvider);
+  return svc.fetchComplianceChecklist();
+});
+
+final accountsLeakDetectionProvider =
+    FutureProvider.autoDispose<List<AccountsLeakFlag>>((ref) async {
+  final svc = ref.watch(accountsAuditServiceProvider);
+  return svc.fetchLeakDetection();
+});
+
+final accountsInvoiceChangesProvider =
+    FutureProvider.autoDispose<List<AccountsInvoiceChangeEntry>>((ref) async {
+  final svc = ref.watch(accountsAuditServiceProvider);
+  return svc.fetchInvoiceChanges(take: 100);
+});
+
+final accountsStaffActivityProvider =
+    FutureProvider.autoDispose<List<AccountsStaffActivityRow>>((ref) async {
+  final period = ref.watch(accountsPeriodProvider);
+  final svc = ref.watch(accountsAuditServiceProvider);
+  return svc.fetchStaffActivity(
+    period: period.period,
+    asOf: period.asOf,
+  );
+});
+
+final accountsAgingReportProvider =
+    FutureProvider.autoDispose<AccountsAgingReport>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchAgingReport();
+});
+
+final accountsProfitLossProvider =
+    FutureProvider.autoDispose<AccountsProfitLossReport>((ref) async {
+  final period = ref.watch(accountsPeriodProvider);
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchProfitLoss(period: period.period, asOf: period.asOf);
+});
+
+final accountsCashFlowProvider =
+    FutureProvider.autoDispose<AccountsCashFlowReport>((ref) async {
+  final period = ref.watch(accountsPeriodProvider);
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchCashFlow(period: period.period, asOf: period.asOf);
+});
+
+final accountsDailyCollectionsProvider =
+    FutureProvider.autoDispose<List<AccountsDailyCollectionRow>>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  final now = DateTime.now();
+  final from = now.subtract(const Duration(days: 30));
+  return svc.fetchDailyCollections(from: from, to: now);
+});
+
+final accountsRevenueByServiceProvider =
+    FutureProvider.autoDispose<List<AccountsServiceRevenueRow>>((ref) async {
+  final period = ref.watch(accountsPeriodProvider);
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchRevenueByService(
+    period: period.period,
+    asOf: period.asOf,
+  );
+});
+
+final accountsExpenseVsBudgetProvider =
+    FutureProvider.autoDispose<List<AccountsExpenseBudgetRow>>((ref) async {
+  final period = ref.watch(accountsPeriodProvider);
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchExpenseVsBudget(period: period.period, asOf: period.asOf);
+});
+
+final accountsCollectionEfficiencyProvider =
+    FutureProvider.autoDispose<AccountsCollectionEfficiencyReport>((ref) async {
+  final period = ref.watch(accountsPeriodProvider);
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchCollectionEfficiency(
+    period: period.period,
+    asOf: period.asOf,
+  );
+});
+
+final accountsPeriodComparisonProvider =
+    FutureProvider.autoDispose<List<AccountsPeriodComparisonPoint>>((ref) async {
+  final period = ref.watch(accountsPeriodProvider);
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchPeriodComparison(period: period.period, asOf: period.asOf);
+});
+
+final accountsWalletsSummaryProvider =
+    FutureProvider.autoDispose<AccountsWalletsSummary>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchWalletsSummary();
+});
+
+final accountsDailyCashReconProvider =
+    FutureProvider.autoDispose<List<AccountsDailyCashRecon>>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  final now = DateTime.now();
+  return svc.fetchDailyCashRecons(
+    from: now.subtract(const Duration(days: 30)),
+    to: now,
+  );
+});
+
+final accountsBankReconProvider =
+    FutureProvider.autoDispose<List<AccountsBankReconRow>>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchBankRecons();
+});
+
+final accountsPendingApprovalsProvider =
+    FutureProvider.autoDispose<List<AccountsApprovalRequest>>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchPendingApprovals();
+});
+
+final accountsPendingRefundRequestsProvider =
+    FutureProvider.autoDispose<List<AccountsPendingRefundRequest>>((ref) async {
+  final svc = ref.watch(accountsRefundRequestsServiceProvider);
+  return svc.fetchPending();
+});
+
+final accountsFiscalPeriodsProvider =
+    FutureProvider.autoDispose<List<AccountsFiscalPeriod>>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchPeriods();
+});
+
+final accountsJournalEntriesProvider =
+    FutureProvider.autoDispose<List<AccountsJournalEntry>>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchJournalEntries(take: 100);
+});
+
+final accountsChartOfAccountsProvider =
+    FutureProvider.autoDispose<List<AccountsChartAccount>>((ref) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchChartOfAccounts();
+});

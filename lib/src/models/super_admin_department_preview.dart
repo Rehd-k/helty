@@ -42,10 +42,10 @@ const List<SuperAdminHubDepartment> kSuperAdminHubDepartments = [
   ),
   SuperAdminHubDepartment(
     category: StaffAccountCategory.account,
-    tileTitle: 'Account',
+    tileTitle: 'Accounts & Audit',
     previewAccountType: 'accounting',
     previewRole: 'account_head',
-    previewBannerLabel: 'Account (Head)',
+    previewBannerLabel: 'Accounts & Audit (Head)',
   ),
   SuperAdminHubDepartment(
     category: StaffAccountCategory.hmo,

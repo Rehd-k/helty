@@ -53,6 +53,7 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
       return const StoreDashboardRoute();
     case 'accounting':
     case 'accounts':
+      return const AccountsDashboardRoute();
     case 'ict':
       return const DashboardRoute();
     case 'cmac':

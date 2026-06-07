@@ -10,6 +10,7 @@ import 'package:helty/src/billings/pay.bill.dart';
 import 'package:helty/src/printing/core/display_id.dart';
 import 'package:helty/src/printing/pdf/inpatient_invoice_pdf.dart';
 import 'package:helty/src/auth/billing_permissions.dart';
+import 'package:helty/src/billings/widgets/invoice_item_refund_dialogs.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/models/service_model.dart';
@@ -89,18 +90,128 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   final Set<String> _selectedLineIdsForPay = {};
   List<DiscountPolicy> _discountPolicies = const [];
   bool _coverageBusy = false;
+  List<BillingInvoiceRefundRequest> _refundRequests = const [];
+  bool _refundRequestsLoading = false;
+  String? _refundRequestsError;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _loadBillingData();
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging && _tabController.index == 2) {
+      _loadRefundRequests();
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRefundRequests() async {
+    final id = _billingDetail?.id ?? widget.invoiceId.trim();
+    if (id.isEmpty) return;
+    setState(() {
+      _refundRequestsLoading = true;
+      _refundRequestsError = null;
+    });
+    try {
+      final rows = await _invoiceService.getInvoiceRefundRequests(id);
+      if (!mounted) return;
+      setState(() {
+        _refundRequests = rows;
+        _refundRequestsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _refundRequestsLoading = false;
+        _refundRequestsError = e.toString();
+      });
+    }
+  }
+
+  Future<void> _submitRefundRequest(BillingInvoiceItem line) async {
+    final invoice = _billingDetail;
+    if (invoice == null || !mounted) return;
+    final reason = await showInvoiceItemRefundReasonDialog(context);
+    if (reason == null || !mounted) return;
+    try {
+      await _invoiceService.submitItemRefundRequest(
+        invoiceId: invoice.id,
+        itemId: line.id,
+        reason: reason,
+      );
+      if (!mounted) return;
+      await _loadBillingData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Refund request submitted for approval.')),
+      );
+    } on InvoiceRefundRequestException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 409) {
+        await _loadBillingData();
+      } else if (e.statusCode == 404) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+        if (mounted) context.router.maybePop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    }
+  }
+
+  Future<void> _cancelRefundRequest(BillingInvoiceItem line) async {
+    final invoice = _billingDetail;
+    final requestId = line.activeRefundRequest?.id;
+    if (invoice == null || requestId == null || !mounted) return;
+    final confirmed = await showCancelInvoiceItemRefundDialog(context);
+    if (!confirmed || !mounted) return;
+    try {
+      await _invoiceService.cancelItemRefundRequest(
+        invoiceId: invoice.id,
+        itemId: line.id,
+        requestId: requestId,
+      );
+      if (!mounted) return;
+      await _loadBillingData();
+      if (_tabController.index == 2) await _loadRefundRequests();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Refund request cancelled.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    }
+  }
+
+  Future<void> _handleLineRefundAction(BillingInvoiceItem line) async {
+    final staff = ref.read(authProvider).staff;
+    if (line.refundPending &&
+        canCancelInvoiceItemRefundRequest(staff, line.activeRefundRequest)) {
+      await _cancelRefundRequest(line);
+    } else if (invoiceLineEligibleForRefundRequest(line)) {
+      await _submitRefundRequest(line);
+    }
   }
 
   Future<void> _loadBillingData() async {
@@ -260,6 +371,50 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: const EdgeInsets.symmetric(horizontal: 4),
       ),
+    );
+  }
+
+  Widget _refundPendingBadge(ThemeData theme) {
+    return Chip(
+      avatar: Icon(
+        Icons.hourglass_top,
+        size: 16,
+        color: theme.colorScheme.onErrorContainer,
+      ),
+      label: Text(
+        'Pending refund',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onErrorContainer,
+        ),
+      ),
+      backgroundColor: theme.colorScheme.errorContainer,
+      side: BorderSide.none,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+    );
+  }
+
+  Widget? _lineRefundActionButton(BillingInvoiceItem line) {
+    final staff = ref.read(authProvider).staff;
+    if (!canRequestInvoiceItemRefund(staff)) return null;
+
+    final canCancel = line.refundPending &&
+        canCancelInvoiceItemRefundRequest(staff, line.activeRefundRequest);
+    final canSubmit = invoiceLineEligibleForRefundRequest(line);
+    final tooltip = canCancel
+        ? 'Cancel refund request'
+        : (invoiceItemRefundTooltip(line) ?? 'Request refund');
+
+    return IconButton(
+      tooltip: tooltip,
+      icon: Icon(
+        canCancel ? Icons.cancel_outlined : Icons.undo_outlined,
+        size: 22,
+      ),
+      onPressed: (canCancel || canSubmit)
+          ? () => _handleLineRefundAction(line)
+          : null,
     );
   }
 
@@ -460,6 +615,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       await _toggleSingleRecurringLine(line: line, pause: true);
     } else if (choice == 'resume_recurring') {
       await _toggleSingleRecurringLine(line: line, pause: false);
+    } else if (choice == 'request_refund') {
+      await _submitRefundRequest(line);
+    } else if (choice == 'cancel_refund') {
+      await _cancelRefundRequest(line);
     }
   }
 
@@ -605,6 +764,49 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     }
   }
 
+  List<PopupMenuEntry<String>> _lineRefundMenuEntries(BillingInvoiceItem line) {
+    final staff = ref.read(authProvider).staff;
+    if (!canRequestInvoiceItemRefund(staff)) return const [];
+
+    final entries = <PopupMenuEntry<String>>[];
+    if (line.refundPending &&
+        canCancelInvoiceItemRefundRequest(staff, line.activeRefundRequest)) {
+      entries.add(
+        const PopupMenuItem<String>(
+          value: 'cancel_refund',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.cancel_outlined, size: 22),
+            title: Text('Cancel refund request'),
+          ),
+        ),
+      );
+      return entries;
+    }
+
+    final tooltip = invoiceItemRefundTooltip(line);
+    entries.add(
+      PopupMenuItem<String>(
+        value: 'request_refund',
+        enabled: invoiceLineEligibleForRefundRequest(line),
+        child: Tooltip(
+          message: tooltip ?? '',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.undo_outlined, size: 22),
+            title: const Text('Request refund'),
+            subtitle: tooltip != null
+                ? Text(tooltip, style: const TextStyle(fontSize: 11))
+                : null,
+          ),
+        ),
+      ),
+    );
+    return entries;
+  }
+
   List<PopupMenuEntry<String>> _lineContextMenuEntries(
     BillingInvoiceItem line,
     ChargeItem charge,
@@ -672,6 +874,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           ),
         );
       }
+    }
+    final refundEntries = _lineRefundMenuEntries(line);
+    if (refundEntries.isNotEmpty) {
+      entries.add(const PopupMenuDivider());
+      entries.addAll(refundEntries);
     }
     return entries;
   }
@@ -749,6 +956,31 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                     'Restarts daily accrual for this service',
                   ),
                   onTap: () => Navigator.pop(ctx, 'resume_recurring'),
+                ),
+            ],
+            if (_lineRefundMenuEntries(line).isNotEmpty) ...[
+              const Divider(height: 1),
+              if (line.refundPending &&
+                  canCancelInvoiceItemRefundRequest(
+                    ref.read(authProvider).staff,
+                    line.activeRefundRequest,
+                  ))
+                ListTile(
+                  leading: const Icon(Icons.cancel_outlined),
+                  title: const Text('Cancel refund request'),
+                  onTap: () => Navigator.pop(ctx, 'cancel_refund'),
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.undo_outlined),
+                  title: const Text('Request refund'),
+                  subtitle: invoiceItemRefundTooltip(line) != null
+                      ? Text(invoiceItemRefundTooltip(line)!)
+                      : null,
+                  enabled: invoiceLineEligibleForRefundRequest(line),
+                  onTap: invoiceLineEligibleForRefundRequest(line)
+                      ? () => Navigator.pop(ctx, 'request_refund')
+                      : null,
                 ),
             ],
             const SizedBox(height: 8),
@@ -1128,6 +1360,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           tabs: const [
             Tab(text: 'Itemized Charges'),
             Tab(text: 'Payment History'),
+            Tab(text: 'Refund requests'),
           ],
         ),
       ),
@@ -1148,6 +1381,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               children: [
                 _buildChargesTab(colorScheme, charges, invoiceDetail),
                 _buildPaymentsTab(colorScheme),
+                _buildRefundRequestsTab(colorScheme, invoiceDetail),
               ],
             ),
           ),
@@ -1596,7 +1830,17 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (line != null) ...[
-                                    _chargeLineKindBadge(line, theme),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        _chargeLineKindBadge(line, theme),
+                                        if (line.refundPending)
+                                          _refundPendingBadge(theme),
+                                      ],
+                                    ),
                                     const SizedBox(height: 4),
                                   ],
                                   if (line != null && line.isRecurringDaily)
@@ -1679,33 +1923,43 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                   ),
                                   Builder(
                                     builder: (btnCtx) {
-                                      return IconButton(
-                                        tooltip: 'Payment options',
-                                        icon: const Icon(
-                                          Icons.payment_outlined,
-                                          size: 22,
-                                        ),
-                                        onPressed:
-                                            line == null || item.isLineFullyPaid
-                                            ? null
-                                            : () {
-                                                final box =
-                                                    btnCtx.findRenderObject()
-                                                        as RenderBox?;
-                                                if (box == null) return;
-                                                final o = box.localToGlobal(
-                                                  Offset.zero,
-                                                );
-                                                _showLinePaymentMenuAt(
-                                                  o +
-                                                      Offset(
-                                                        0,
-                                                        box.size.height,
-                                                      ),
-                                                  line,
-                                                  item,
-                                                );
-                                              },
+                                      final refundBtn = line == null
+                                          ? null
+                                          : _lineRefundActionButton(line);
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (refundBtn != null) refundBtn,
+                                          IconButton(
+                                            tooltip: 'Payment options',
+                                            icon: const Icon(
+                                              Icons.payment_outlined,
+                                              size: 22,
+                                            ),
+                                            onPressed:
+                                                line == null ||
+                                                    item.isLineFullyPaid
+                                                ? null
+                                                : () {
+                                                    final box =
+                                                        btnCtx.findRenderObject()
+                                                            as RenderBox?;
+                                                    if (box == null) return;
+                                                    final o = box.localToGlobal(
+                                                      Offset.zero,
+                                                    );
+                                                    _showLinePaymentMenuAt(
+                                                      o +
+                                                          Offset(
+                                                            0,
+                                                            box.size.height,
+                                                          ),
+                                                      line,
+                                                      item,
+                                                    );
+                                                  },
+                                          ),
+                                        ],
                                       );
                                     },
                                   ),
@@ -1893,6 +2147,121 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildRefundRequestsTab(
+    ColorScheme colorScheme,
+    BillingInvoiceDetail? detail,
+  ) {
+    final historicalRefunds = detail?.refunds ?? const [];
+    if (_refundRequestsLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_refundRequestsError != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_refundRequestsError!),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _loadRefundRequests,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_refundRequests.isEmpty && historicalRefunds.isEmpty) {
+      return const Center(
+        child: Text('No refund requests or completed refunds for this invoice.'),
+      );
+    }
+
+    String lineLabel(BillingInvoiceRefundRequest r) {
+      if (r.lineDescription != null && r.lineDescription!.trim().isNotEmpty) {
+        return r.lineDescription!;
+      }
+      final itemId = r.invoiceItemId;
+      if (itemId != null && detail != null) {
+        for (final line in detail.invoiceItems) {
+          if (line.id == itemId) return line.displayLabel;
+        }
+      }
+      return itemId ?? '—';
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (historicalRefunds.isNotEmpty) ...[
+          Text(
+            'Completed refunds',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          ...historicalRefunds.map(
+            (r) => Card(
+              elevation: 0,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: const Icon(Icons.undo_rounded),
+                title: Text(r.amount.toFinancial(isMoney: true)),
+                subtitle: Text(
+                  [
+                    if (r.createdAt != null) _formatDate(r.createdAt!),
+                    if (r.reason != null && r.reason!.trim().isNotEmpty)
+                      r.reason!,
+                  ].join(' • '),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        Text(
+          'Refund requests',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        const SizedBox(height: 8),
+        if (_refundRequests.isEmpty)
+          const Text('No refund requests submitted yet.')
+        else
+          ..._refundRequests.map(
+            (r) => Card(
+              elevation: 0,
+              margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: colorScheme.outlineVariant),
+              ),
+              child: ListTile(
+                title: Text(lineLabel(r)),
+                subtitle: Text(
+                  [
+                    'Status: ${r.status}',
+                    if (r.requestedBy != null) 'By: ${r.requestedBy}',
+                    if (r.submittedAt != null)
+                      'Submitted: ${_formatDate(r.submittedAt!)}',
+                    if (r.resolvedAt != null)
+                      'Resolved: ${_formatDate(r.resolvedAt!)}',
+                    'Reason: ${r.reason}',
+                    if (r.rejectReason != null &&
+                        r.rejectReason!.trim().isNotEmpty)
+                      'Rejection: ${r.rejectReason}',
+                  ].join('\n'),
+                ),
+                isThreeLine: true,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

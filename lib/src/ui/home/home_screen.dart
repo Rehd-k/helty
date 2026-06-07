@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
+import '../../accounts/auth/accounting_permissions.dart';
 import '../../auth/billing_permissions.dart';
 import '../../auth/dialysis_permissions.dart';
 import '../../helper/theme.dart';
@@ -471,36 +472,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     if (at == 'accounting' || at == 'accounts') {
-      common.addAll([
-        const MenuItem(
-          label: 'Dashboard',
-          icon: Icons.dashboard_outlined,
-          route: DashboardRoute(),
-        ),
-        if (canBillingDash)
-          const MenuItem(
-            label: 'Billing Dashboard',
-            icon: Icons.dashboard_customize_outlined,
-            route: BillingDashboardRoute(),
-          ),
-        const MenuItem(
-          label: 'Receivables',
-          icon: Icons.receipt_long_outlined,
-          route: ReceivablesHmoRoute(),
-          children: [
-            MenuItem(
-              label: 'HMO Receivables',
-              icon: Icons.health_and_safety_outlined,
-              route: ReceivablesHmoRoute(),
-            ),
-            MenuItem(
-              label: 'Discount Receivables',
-              icon: Icons.sell_outlined,
-              route: ReceivablesDiscountRoute(),
-            ),
-          ],
-        ),
-      ]);
+      common.addAll(
+        isAccountHead(staff) ? accountsHeadMenu : accountsStaffMenu,
+      );
     }
 
     if (role.toLowerCase() == 'admin' ||

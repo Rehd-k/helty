@@ -548,6 +548,255 @@ final radiologyMenu = <MenuItem>[
   ),
 ];
 
+/// Shared receivables subtree for accounting roles.
+final _accountsReceivablesMenu = <MenuItem>[
+  const MenuItem(
+    label: 'HMO Receivables',
+    icon: Icons.health_and_safety_outlined,
+    route: ReceivablesHmoRoute(),
+  ),
+  const MenuItem(
+    label: 'Discount Receivables',
+    icon: Icons.sell_outlined,
+    route: ReceivablesDiscountRoute(),
+  ),
+  MenuItem(
+    label: 'Receivables analytics',
+    icon: Icons.analytics_outlined,
+    route: ReceivablesAnalyticsRoute(),
+  ),
+  const MenuItem(
+    label: 'AR aging report',
+    icon: Icons.hourglass_bottom_rounded,
+    route: AccountsAgingReportRoute(),
+  ),
+];
+
+/// ACCOUNT_HEAD — full Accounts & Audit module.
+final accountsHeadMenu = <MenuItem>[
+  const MenuItem(
+    label: 'Dashboard',
+    icon: Icons.dashboard_outlined,
+    route: AccountsDashboardRoute(),
+  ),
+  const MenuItem(
+    label: 'Revenue analytics',
+    icon: Icons.bar_chart_rounded,
+    route: BillingDashboardRoute(),
+  ),
+  const MenuItem(
+    label: 'Collections ledger',
+    icon: Icons.list_alt_rounded,
+    route: TransactionsRoute(),
+  ),
+  const MenuItem(
+    label: 'Daily collections',
+    icon: Icons.calendar_today_rounded,
+    route: AccountsDailyCollectionsRoute(),
+  ),
+  const MenuItem(
+    label: 'Consultation report',
+    icon: Icons.receipt_long_outlined,
+    route: ConsultationPaymentReportRoute(),
+  ),
+  MenuItem(
+    label: 'Receivables',
+    icon: Icons.receipt_long_outlined,
+    route: ReceivablesHmoRoute(),
+    children: _accountsReceivablesMenu,
+  ),
+  MenuItem(
+    label: 'Cash & banking',
+    icon: Icons.account_balance_outlined,
+    route: AccountsBanksRoute(),
+    children: [
+      const MenuItem(
+        label: 'Bank accounts',
+        icon: Icons.account_balance_outlined,
+        route: AccountsBanksRoute(),
+      ),
+      const MenuItem(
+        label: 'Patient wallets',
+        icon: Icons.wallet_rounded,
+        route: AccountsWalletsOverviewRoute(),
+      ),
+      const MenuItem(
+        label: 'Daily cash recon',
+        icon: Icons.calculate_rounded,
+        route: AccountsDailyCashReconRoute(),
+      ),
+      const MenuItem(
+        label: 'Bank reconciliation',
+        icon: Icons.compare_arrows_rounded,
+        route: AccountsBankReconRoute(),
+      ),
+    ],
+  ),
+  const MenuItem(
+    label: 'Financial reports',
+    icon: Icons.assessment_rounded,
+    route: AccountsFinancialReportsHubRoute(),
+  ),
+  MenuItem(
+    label: 'Audit & compliance',
+    icon: Icons.policy_rounded,
+    route: AccountsAuditLogRoute(),
+    children: [
+      const MenuItem(
+        label: 'Audit log',
+        icon: Icons.history_rounded,
+        route: AccountsAuditLogRoute(),
+      ),
+      const MenuItem(
+        label: 'Compliance checklist',
+        icon: Icons.verified_user_outlined,
+        route: AccountsComplianceRoute(),
+      ),
+      const MenuItem(
+        label: 'Invoice changes',
+        icon: Icons.edit_note_rounded,
+        route: AccountsInvoiceChangesRoute(),
+      ),
+      const MenuItem(
+        label: 'Refund history',
+        icon: Icons.undo_rounded,
+        route: AccountsRefundHistoryRoute(),
+      ),
+      const MenuItem(
+        label: 'Leak detection',
+        icon: Icons.shield_outlined,
+        route: AccountsLeakDetectionRoute(),
+      ),
+      const MenuItem(
+        label: 'Staff activity',
+        icon: Icons.people_outline_rounded,
+        route: AccountsStaffActivityRoute(),
+      ),
+    ],
+  ),
+  MenuItem(
+    label: 'Approvals & GL',
+    icon: Icons.fact_check_outlined,
+    route: AccountsApprovalsRoute(),
+    children: [
+      const MenuItem(
+        label: 'Pending approvals',
+        icon: Icons.fact_check_outlined,
+        route: AccountsApprovalsRoute(),
+      ),
+      const MenuItem(
+        label: 'Item refund requests',
+        icon: Icons.receipt_long_outlined,
+        route: AccountsRefundRequestsRoute(),
+      ),
+      const MenuItem(
+        label: 'Period close',
+        icon: Icons.lock_clock_rounded,
+        route: AccountsPeriodCloseRoute(),
+      ),
+      const MenuItem(
+        label: 'Journal entries',
+        icon: Icons.menu_book_rounded,
+        route: AccountsJournalEntriesRoute(),
+      ),
+      const MenuItem(
+        label: 'Chart of accounts',
+        icon: Icons.account_tree_rounded,
+        route: AccountsChartOfAccountsRoute(),
+      ),
+    ],
+  ),
+];
+
+/// ACCOUNTING_STAFF — operational finance (no approvals, GL, or head-only reports).
+final accountsStaffMenu = <MenuItem>[
+  const MenuItem(
+    label: 'Dashboard',
+    icon: Icons.dashboard_outlined,
+    route: AccountsDashboardRoute(),
+  ),
+  const MenuItem(
+    label: 'Revenue summary',
+    icon: Icons.insights_outlined,
+    route: AccountsRevenueSummaryRoute(),
+  ),
+  const MenuItem(
+    label: 'Collections ledger',
+    icon: Icons.list_alt_rounded,
+    route: TransactionsRoute(),
+  ),
+  const MenuItem(
+    label: 'Daily collections',
+    icon: Icons.calendar_today_rounded,
+    route: AccountsDailyCollectionsRoute(),
+  ),
+  const MenuItem(
+    label: 'Consultation report',
+    icon: Icons.receipt_long_outlined,
+    route: ConsultationPaymentReportRoute(),
+  ),
+  MenuItem(
+    label: 'Receivables',
+    icon: Icons.receipt_long_outlined,
+    route: ReceivablesHmoRoute(),
+    children: _accountsReceivablesMenu,
+  ),
+  MenuItem(
+    label: 'Cash & banking',
+    icon: Icons.account_balance_outlined,
+    route: AccountsBanksRoute(),
+    children: [
+      const MenuItem(
+        label: 'Bank accounts (view)',
+        icon: Icons.account_balance_outlined,
+        route: AccountsBanksRoute(),
+      ),
+      const MenuItem(
+        label: 'Patient wallets',
+        icon: Icons.wallet_rounded,
+        route: AccountsWalletsOverviewRoute(),
+      ),
+      const MenuItem(
+        label: 'Daily cash recon',
+        icon: Icons.calculate_rounded,
+        route: AccountsDailyCashReconRoute(),
+      ),
+    ],
+  ),
+  const MenuItem(
+    label: 'Financial reports',
+    icon: Icons.assessment_rounded,
+    route: AccountsFinancialReportsHubRoute(),
+  ),
+  MenuItem(
+    label: 'Audit (read-only)',
+    icon: Icons.policy_rounded,
+    route: AccountsAuditLogRoute(),
+    children: [
+      const MenuItem(
+        label: 'Audit log',
+        icon: Icons.history_rounded,
+        route: AccountsAuditLogRoute(),
+      ),
+      const MenuItem(
+        label: 'Compliance checklist',
+        icon: Icons.verified_user_outlined,
+        route: AccountsComplianceRoute(),
+      ),
+      const MenuItem(
+        label: 'Invoice changes',
+        icon: Icons.edit_note_rounded,
+        route: AccountsInvoiceChangesRoute(),
+      ),
+      const MenuItem(
+        label: 'Refund history',
+        icon: Icons.undo_rounded,
+        route: AccountsRefundHistoryRoute(),
+      ),
+    ],
+  ),
+];
+
 final storeMenu = <MenuItem>[
   MenuItem(
     label: 'Dashboard',

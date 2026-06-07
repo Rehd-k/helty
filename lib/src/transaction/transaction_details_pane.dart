@@ -15,7 +15,8 @@ class TransactionDetailsPane extends StatelessWidget {
     required this.onChangeMethod,
     required this.onChangeTransactionDate,
     required this.onRefund,
-    this.showChangeDateAndRefund = true,
+    this.showChangeDate = true,
+    this.showRefund = true,
   });
 
   /// The transaction to display. Pass `null` to show the empty state.
@@ -25,7 +26,8 @@ class TransactionDetailsPane extends StatelessWidget {
   final VoidCallback onChangeMethod;
   final VoidCallback onChangeTransactionDate;
   final VoidCallback onRefund;
-  final bool showChangeDateAndRefund;
+  final bool showChangeDate;
+  final bool showRefund;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +44,8 @@ class TransactionDetailsPane extends StatelessWidget {
       onChangeMethod: onChangeMethod,
       onChangeTransactionDate: onChangeTransactionDate,
       onRefund: onRefund,
-      showChangeDateAndRefund: showChangeDateAndRefund,
+      showChangeDate: showChangeDate,
+      showRefund: showRefund,
     );
   }
 }
@@ -99,7 +102,8 @@ class _DetailContent extends StatelessWidget {
     required this.onChangeMethod,
     required this.onChangeTransactionDate,
     required this.onRefund,
-    required this.showChangeDateAndRefund,
+    required this.showChangeDate,
+    required this.showRefund,
   });
 
   final Map<String, dynamic> txn;
@@ -108,7 +112,8 @@ class _DetailContent extends StatelessWidget {
   final VoidCallback onChangeMethod;
   final VoidCallback onChangeTransactionDate;
   final VoidCallback onRefund;
-  final bool showChangeDateAndRefund;
+  final bool showChangeDate;
+  final bool showRefund;
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +173,8 @@ class _DetailContent extends StatelessWidget {
             onChangeMethod: onChangeMethod,
             onChangeTransactionDate: onChangeTransactionDate,
             onRefund: onRefund,
-            showChangeDateAndRefund: showChangeDateAndRefund,
+            showChangeDate: showChangeDate,
+            showRefund: showRefund,
           ),
         ],
       ),
@@ -618,7 +624,8 @@ class _ActionButtons extends StatelessWidget {
     required this.onChangeMethod,
     required this.onChangeTransactionDate,
     required this.onRefund,
-    required this.showChangeDateAndRefund,
+    required this.showChangeDate,
+    required this.showRefund,
   });
 
   final ColorScheme colorScheme;
@@ -626,7 +633,8 @@ class _ActionButtons extends StatelessWidget {
   final VoidCallback onChangeMethod;
   final VoidCallback onChangeTransactionDate;
   final VoidCallback onRefund;
-  final bool showChangeDateAndRefund;
+  final bool showChangeDate;
+  final bool showRefund;
 
   @override
   Widget build(BuildContext context) {
@@ -659,7 +667,7 @@ class _ActionButtons extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           ),
-          if (showChangeDateAndRefund) ...[
+          if (showChangeDate)
             OutlinedButton.icon(
               onPressed: onChangeTransactionDate,
               icon: const Icon(Icons.event, size: 14),
@@ -668,6 +676,7 @@ class _ActionButtons extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
+          if (showRefund)
             OutlinedButton.icon(
               onPressed: onRefund,
               icon: const Icon(Icons.undo, size: 14, color: Colors.red),
@@ -680,7 +689,6 @@ class _ActionButtons extends StatelessWidget {
                 side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
               ),
             ),
-          ],
         ],
       ),
     );

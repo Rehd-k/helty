@@ -9,7 +9,9 @@ import 'transaction_details_pane.dart';
 import 'transaction_filters_panel.dart';
 import 'transaction_models.dart';
 import 'transaction_payment_dialog.dart';
+import 'transaction_refund_dialog.dart';
 import 'transaction_summary_section.dart';
+import '../auth/billing_permissions.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/transaction_service.dart';
@@ -218,15 +220,26 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         _openPaymentDialog(transaction);
         break;
       case 'refund':
-        if (!staffCanAccessPrivilegedBilling(ref.read(authProvider).staff)) {
+        if (!canRequestInvoiceItemRefund(ref.read(authProvider).staff)) {
           return;
         }
-        _showSimpleModal(
-          'Make a Refund (Le remboursement)',
-          'Initiate a partial or full refund for ${transaction['tranId']}.',
-        );
+        _openRefundDialog(transaction);
         break;
     }
+  }
+
+  Future<void> _openRefundDialog(Map<String, dynamic> transaction) async {
+    final submitted = await showTransactionRefundDialog(
+      context: context,
+      transaction: transaction,
+    );
+    if (!mounted || !submitted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Refund request submitted for account head approval.'),
+      ),
+    );
+    await _loadTransactions();
   }
 
   void _openPaymentDialog(Map<String, dynamic> transaction) {
@@ -306,44 +319,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     }
   }
 
-  void _showSimpleModal(String title, String message) {
-    final colorScheme = Theme.of(context).colorScheme;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          message,
-          style: TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.7),
-            fontSize: 14,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-            ),
-            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showReprintReceiptDialog(Map<String, dynamic> transaction) {
     final colorScheme = Theme.of(context).colorScheme;
     final tid = transaction['tranId']?.toString() ?? '';
@@ -405,6 +380,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final canPrivilegedBilling = staffCanAccessPrivilegedBilling(
       ref.watch(authProvider).staff,
     );
+    final canRefund = canRequestInvoiceItemRefund(ref.watch(authProvider).staff);
     final totals = calculateTransactionTotals(_transactionMaps);
 
     return Scaffold(
@@ -658,7 +634,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                   style: TextStyle(fontSize: 13),
                                 ),
                               ),
-                              if (canPrivilegedBilling)
+                              if (canRefund)
                                 const PopupMenuItem(
                                   value: 'refund',
                                   child: Text(
@@ -678,7 +654,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         Expanded(
                           child: TransactionDetailsPane(
                             transaction: _selectedTransaction,
-                            showChangeDateAndRefund: canPrivilegedBilling,
+                            showChangeDate: canPrivilegedBilling,
+                            showRefund: canRefund,
                             onReprint: _selectedTransaction != null
                                 ? () => _handleContextMenuAction(
                                     'reprint',

@@ -19,6 +19,108 @@ class BillingInvoiceBillingLink {
   }
 }
 
+/// Pending refund request summary on an invoice line (`activeRefundRequest`).
+class BillingInvoiceItemActiveRefundRequest {
+  BillingInvoiceItemActiveRefundRequest({
+    required this.id,
+    required this.status,
+    required this.reason,
+    this.submittedAt,
+    this.requestedBy,
+  });
+
+  final String id;
+  final String status;
+  final String reason;
+  final DateTime? submittedAt;
+  final String? requestedBy;
+
+  factory BillingInvoiceItemActiveRefundRequest.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return BillingInvoiceItemActiveRefundRequest(
+      id: _asString(json['id']),
+      status: _asString(json['status'], fallback: 'pending'),
+      reason: _asString(json['reason']),
+      submittedAt: _asDate(json['submittedAt']),
+      requestedBy: _nullableString(json['requestedBy']),
+    );
+  }
+}
+
+/// Historical cash refund on invoice root (`refunds[]` after approval).
+class BillingInvoiceRefund {
+  BillingInvoiceRefund({
+    required this.id,
+    required this.amount,
+    this.createdAt,
+    this.reason,
+  });
+
+  final String id;
+  final double amount;
+  final DateTime? createdAt;
+  final String? reason;
+
+  factory BillingInvoiceRefund.fromJson(Map<String, dynamic> json) {
+    return BillingInvoiceRefund(
+      id: _asString(json['id']),
+      amount: _asDouble(json['amount'] ?? json['refundedAmount']),
+      createdAt: _asDate(json['createdAt']),
+      reason: _nullableString(json['reason']),
+    );
+  }
+}
+
+/// Full refund request row from `GET /invoices/:id/refund-requests`.
+class BillingInvoiceRefundRequest {
+  BillingInvoiceRefundRequest({
+    required this.id,
+    required this.status,
+    required this.reason,
+    this.invoiceItemId,
+    this.lineDescription,
+    this.requestedBy,
+    this.submittedAt,
+    this.resolvedAt,
+    this.rejectReason,
+  });
+
+  final String id;
+  final String status;
+  final String reason;
+  final String? invoiceItemId;
+  final String? lineDescription;
+  final String? requestedBy;
+  final DateTime? submittedAt;
+  final DateTime? resolvedAt;
+  final String? rejectReason;
+
+  factory BillingInvoiceRefundRequest.fromJson(Map<String, dynamic> json) {
+    final itemRaw = json['invoiceItem'] ?? json['item'];
+    final itemMap = itemRaw is Map
+        ? Map<String, dynamic>.from(itemRaw)
+        : null;
+    return BillingInvoiceRefundRequest(
+      id: _asString(json['id']),
+      status: _asString(json['status'], fallback: 'pending'),
+      reason: _asString(json['reason']),
+      invoiceItemId: _nullableString(
+        json['invoiceItemId'] ?? json['itemId'] ?? itemMap?['id'],
+      ),
+      lineDescription: _nullableString(
+        json['lineDescription'] ??
+            json['description'] ??
+            itemMap?['description'],
+      ),
+      requestedBy: _nullableString(json['requestedBy']),
+      submittedAt: _asDate(json['submittedAt']),
+      resolvedAt: _asDate(json['resolvedAt'] ?? json['processedAt']),
+      rejectReason: _nullableString(json['rejectReason'] ?? json['rejectionReason']),
+    );
+  }
+}
+
 class BillingInvoiceDetail {
   BillingInvoiceDetail({
     required this.id,
@@ -33,6 +135,7 @@ class BillingInvoiceDetail {
     required this.invoiceItems,
     required this.payments,
     required this.coverages,
+    this.refunds = const [],
     this.staffId,
     this.encounterId,
     this.createdAt,
@@ -73,6 +176,7 @@ class BillingInvoiceDetail {
   final List<BillingInvoiceItem> invoiceItems;
   final List<BillingInvoicePayment> payments;
   final List<InvoiceCoverage> coverages;
+  final List<BillingInvoiceRefund> refunds;
 
   factory BillingInvoiceDetail.fromJson(Map<String, dynamic> json) {
     final payload = _unwrapMap(json);
@@ -156,6 +260,16 @@ class BillingInvoiceDetail {
                 )
                 .toList()
           : <InvoiceCoverage>[],
+      refunds: payload['refunds'] is List
+          ? (payload['refunds'] as List)
+                .whereType<Map>()
+                .map(
+                  (e) => BillingInvoiceRefund.fromJson(
+                    Map<String, dynamic>.from(e),
+                  ),
+                )
+                .toList()
+          : <BillingInvoiceRefund>[],
     );
   }
 }
@@ -263,6 +377,10 @@ class BillingInvoiceItem {
     this.purchasesLocationId,
     this.purchaseItemDisplayName,
     this.customDescription,
+    this.refundable = false,
+    this.refundPending = false,
+    this.refundBlockReason,
+    this.activeRefundRequest,
   });
 
   final String id;
@@ -309,6 +427,11 @@ class BillingInvoiceItem {
 
   /// Remaining due on this line for `allocate-item-payments` caps.
   final double lineAmountDue;
+
+  final bool refundable;
+  final bool refundPending;
+  final String? refundBlockReason;
+  final BillingInvoiceItemActiveRefundRequest? activeRefundRequest;
 
   /// Invoice line title for UI and payments (custom → purchase item → consumable → drug → service → id).
   String get displayLabel {
@@ -400,6 +523,13 @@ class BillingInvoiceItem {
     final lineAmountDue = json.containsKey('lineAmountDue')
         ? _asDouble(json['lineAmountDue'])
         : (computedDue > 0 ? computedDue : 0.0);
+    BillingInvoiceItemActiveRefundRequest? activeRefundRequest;
+    final activeRaw = json['activeRefundRequest'];
+    if (activeRaw is Map) {
+      activeRefundRequest = BillingInvoiceItemActiveRefundRequest.fromJson(
+        Map<String, dynamic>.from(activeRaw),
+      );
+    }
     return BillingInvoiceItem(
       id: _asString(json['id']),
       serviceId: _asString(json['serviceId'] ?? serviceMap?['id']),
@@ -437,8 +567,21 @@ class BillingInvoiceItem {
                 )
                 .toList()
           : <BillingUsageSegment>[],
+      refundable: _asBool(json['refundable']),
+      refundPending: _asBool(json['refundPending']),
+      refundBlockReason: _nullableString(json['refundBlockReason']),
+      activeRefundRequest: activeRefundRequest,
     );
   }
+}
+
+bool invoiceLineEligibleForRefundRequest(BillingInvoiceItem item) =>
+    item.refundable && !item.refundPending;
+
+String? invoiceItemRefundTooltip(BillingInvoiceItem item) {
+  if (item.refundPending) return 'Pending accountant approval';
+  if (!item.refundable) return item.refundBlockReason;
+  return null;
 }
 
 class BillingUsageSegment {

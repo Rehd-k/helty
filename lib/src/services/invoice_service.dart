@@ -583,4 +583,70 @@ class InvoiceService {
       );
     }
   }
+
+  // ── Invoice item refund requests ──
+  Future<void> submitItemRefundRequest({
+    required String invoiceId,
+    required String itemId,
+    required String reason,
+  }) async {
+    try {
+      await _dio.post(
+        '/invoices/$invoiceId/items/$itemId/refund-requests',
+        data: {'reason': reason.trim()},
+      );
+    } on DioException catch (e) {
+      throw InvoiceRefundRequestException(
+        statusCode: e.response?.statusCode,
+        message: _dioMessage(e, 'Failed to submit refund request'),
+      );
+    }
+  }
+
+  Future<void> cancelItemRefundRequest({
+    required String invoiceId,
+    required String itemId,
+    required String requestId,
+  }) async {
+    try {
+      await _dio.delete(
+        '/invoices/$invoiceId/items/$itemId/refund-requests/$requestId',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to cancel refund request: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<List<BillingInvoiceRefundRequest>> getInvoiceRefundRequests(
+    String invoiceId,
+  ) async {
+    try {
+      final response =
+          await _dio.get('/invoices/$invoiceId/refund-requests');
+      return _extractList(response.data, key: 'requests')
+          .whereType<Map>()
+          .map(
+            (e) => BillingInvoiceRefundRequest.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load refund requests: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+}
+
+class InvoiceRefundRequestException implements Exception {
+  InvoiceRefundRequestException({this.statusCode, required this.message});
+
+  final int? statusCode;
+  final String message;
+
+  @override
+  String toString() => message;
 }

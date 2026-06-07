@@ -1,3 +1,5 @@
+import 'package:helty/src/accounts/auth/accounting_permissions.dart';
+import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/staff_model.dart';
 
 bool _hasRole(Staff? staff, Set<String> roles) {
@@ -48,6 +50,7 @@ bool canViewReceivables(Staff? staff) =>
       AccountType.hmo,
     }) ||
     _hasRole(staff, {
+      'ACCOUNT_HEAD',
       'ACCOUNTING_HEAD',
       'ACCOUNTING_STAFF',
       'BILLING_HEAD',
@@ -70,4 +73,41 @@ bool canManageHmos(Staff? staff) {
 
 bool canRecordRemittance(Staff? staff) =>
     _hasAccountType(staff, {AccountType.accounting, AccountType.super_admin}) ||
-    _hasRole(staff, {'ACCOUNTING_HEAD', 'ACCOUNTING_STAFF', 'SUPER_ADMIN'});
+    _hasRole(staff, {
+      'ACCOUNT_HEAD',
+      'ACCOUNTING_HEAD',
+      'ACCOUNTING_STAFF',
+      'SUPER_ADMIN',
+    });
+
+/// Submit invoice line refund requests (billing / accounts staff).
+bool canRequestInvoiceItemRefund(Staff? staff) {
+  if (staff == null) return false;
+  if (staff.accountType == AccountType.super_admin) return true;
+  return _hasAccountType(staff, {
+        AccountType.billing,
+        AccountType.accounting,
+      }) ||
+      _hasRole(staff, {
+        'BILLING_HEAD',
+        'BILLING_STAFF',
+        'BILLS',
+        'ACCOUNT_HEAD',
+        'ACCOUNTING_HEAD',
+        'ACCOUNTING_STAFF',
+        'ACCOUNTS',
+        'SUPER_ADMIN',
+      });
+}
+
+/// Cancel a pending refund request (original requester or account head).
+bool canCancelInvoiceItemRefundRequest(
+  Staff? staff,
+  BillingInvoiceItemActiveRefundRequest? activeRequest,
+) {
+  if (staff == null || activeRequest == null) return false;
+  if (isAccountHead(staff)) return true;
+  final requester = activeRequest.requestedBy?.trim().toLowerCase() ?? '';
+  if (requester.isEmpty) return false;
+  return staff.fullName.trim().toLowerCase() == requester;
+}
