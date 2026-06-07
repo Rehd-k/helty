@@ -781,6 +781,7 @@ void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
                   total: invoice.total,
                   staffId: staffId,
                   invoiceId: invoice.id,
+                  invoiceDisplayId: invoice.invoiceDisplayId,
                   invoiceMaxPayable:
                       ((invoice.totalAmount - invoice.amountPaid) > 0)
                       ? (invoice.totalAmount - invoice.amountPaid)

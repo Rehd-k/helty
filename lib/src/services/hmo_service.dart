@@ -11,7 +11,7 @@ String _dioMessage(DioException e, String fallback) {
   return e.message ?? fallback;
 }
 
-/// `/hmos` API (docs/hmo-client.md).
+/// `/hmos` API (docs/hmo-service-pricing-guide.md).
 class HmoService {
   HmoService() : _dio = ApiService().dio;
   final Dio _dio;
@@ -120,7 +120,47 @@ class HmoService {
     }
   }
 
-  /// Replace all service prices (send full list from client).
+  /// Merge service prices without removing others (recommended for day-to-day).
+  Future<HmoDetail> upsertServicePrices(
+    String id,
+    List<HmoServicePriceRow> servicePrices, {
+    bool useCostShorthand = true,
+  }) async {
+    try {
+      final resp = await _dio.patch(
+        '/hmos/$id/service-prices',
+        data: {
+          'servicePrices': servicePrices
+              .map((e) => e.toUpsertJson(useCostShorthand: useCostShorthand))
+              .toList(),
+        },
+      );
+      final data = resp.data;
+      final map = data is Map<String, dynamic>
+          ? data
+          : (data is Map ? Map<String, dynamic>.from(data) : null);
+      if (map == null) {
+        throw StateError('Invalid HMO response');
+      }
+      return HmoDetail.fromJson(map);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to upsert HMO prices: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<void> deleteServicePrice(String id, String serviceId) async {
+    try {
+      await _dio.delete('/hmos/$id/service-prices/$serviceId');
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to delete HMO price: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  /// Full sync: replaces the entire price list (use only for bulk import replace).
   Future<HmoDetail> replaceServicePrices(
     String id,
     List<HmoServicePriceRow> servicePrices,

@@ -1,4 +1,4 @@
-// Models for GET/POST/PATCH `/hmos` (see docs/hmo-client.md).
+// Models for GET/POST/PATCH `/hmos` (see docs/hmo-service-pricing-guide.md).
 
 double _moneyFromJson(dynamic v, [double fallback = 0]) {
   if (v == null) return fallback;
@@ -132,20 +132,28 @@ class HmoServicePriceRow {
 
   factory HmoServicePriceRow.fromJson(Map<String, dynamic> json) {
     final svc = json['service'];
+    final fullCost = _moneyFromJson(json['fullCost'] ?? json['cost']);
+    final hmoPaysRaw = json['hmoPays'];
+    final patientPaysRaw = json['patientPays'];
+    final hasSplit = hmoPaysRaw != null || patientPaysRaw != null;
     return HmoServicePriceRow(
       id: json['id']?.toString(),
       serviceId:
           json['serviceId']?.toString() ??
           (svc is Map ? svc['id']?.toString() : null) ??
           '',
-      fullCost: _moneyFromJson(json['fullCost']),
-      hmoPays: _moneyFromJson(json['hmoPays']),
-      patientPays: _moneyFromJson(json['patientPays']),
+      fullCost: fullCost,
+      hmoPays: hasSplit ? _moneyFromJson(hmoPaysRaw) : fullCost,
+      patientPays: hasSplit ? _moneyFromJson(patientPaysRaw) : 0,
       service: svc is Map<String, dynamic>
           ? HmoNestedService.fromJson(svc)
           : null,
     );
   }
+
+  bool get hasConfiguredSplit =>
+      (hmoPays * 100).round() != (fullCost * 100).round() ||
+      patientPays > 0;
 
   Map<String, dynamic> toCreatePatchJson() => {
     'serviceId': serviceId,
@@ -153,6 +161,13 @@ class HmoServicePriceRow {
     'hmoPays': hmoPays,
     'patientPays': patientPays,
   };
+
+  Map<String, dynamic> toUpsertJson({bool useCostShorthand = true}) {
+    if (useCostShorthand && !hasConfiguredSplit) {
+      return {'serviceId': serviceId, 'cost': fullCost};
+    }
+    return toCreatePatchJson();
+  }
 }
 
 /// Full HMO from GET /hmos/:id or POST/PATCH response.

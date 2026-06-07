@@ -104,6 +104,9 @@ class PayBill extends ConsumerStatefulWidget {
     required this.staffId,
     this.invoiceId,
 
+    /// Human-facing bill code (`invoiceID` from API) for receipt transaction ID.
+    this.invoiceDisplayId,
+
     /// When non-empty with [invoiceId], uses `POST /invoices/:id/allocate-item-payments`.
     /// When null/empty with [invoiceId], uses `POST /invoices/:id/payments` (header payment).
     this.invoiceItemAllocations,
@@ -119,6 +122,7 @@ class PayBill extends ConsumerStatefulWidget {
   final String staffId;
   final bool isInvoice;
   final String? invoiceId;
+  final String? invoiceDisplayId;
 
   /// Per-line amounts for allocated invoice pay; sum should match [total] before discounts.
   final List<InvoiceItemAllocationInput>? invoiceItemAllocations;
@@ -199,6 +203,7 @@ class PayBillState extends ConsumerState<PayBill> {
   double? _invoiceHmoCoveragePercent;
   double _invoiceCoveredAmount = 0;
   bool _isApplyingHmoCover = false;
+  String? _invoiceDisplayId;
 
   static String _capitalize(String s) {
     if (s.isEmpty) return s;
@@ -223,6 +228,9 @@ class PayBillState extends ConsumerState<PayBill> {
     _amountToPay = _originalAmount;
     _items = List.of(widget.selectedItems);
     _itemsForPrint = List.of(widget.selectedItems);
+    final displayId = widget.invoiceDisplayId?.trim();
+    _invoiceDisplayId =
+        displayId != null && displayId.isNotEmpty ? displayId : null;
 
     _fetchDetails();
     _loadBanks();
@@ -335,6 +343,9 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   void _syncFromInvoiceDetail(BillingInvoiceDetail detail) {
+    final displayId = detail.invoiceDisplayId?.trim();
+    _invoiceDisplayId =
+        displayId != null && displayId.isNotEmpty ? displayId : _invoiceDisplayId;
     final id = detail.patientHmoId?.trim();
     _invoicePatientHmoId = (id == null || id.isEmpty) ? null : id;
     final name = detail.patientHmoName?.trim();
@@ -752,6 +763,7 @@ class PayBillState extends ConsumerState<PayBill> {
       totalAmount: _amountToPay,
       discountAmount: discount,
       amountPaid: _amountToPay,
+      transactionId: _invoiceDisplayId ?? widget.invoiceDisplayId,
     );
   }
 

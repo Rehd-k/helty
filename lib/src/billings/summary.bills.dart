@@ -27,7 +27,6 @@ class SummaryBills extends ConsumerWidget {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
           children: [
             // Header
             Text(
@@ -39,13 +38,12 @@ class SummaryBills extends ConsumerWidget {
             const SizedBox(height: 5),
 
             // The Grid Widget (Preserving your external widget)
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.all(12),
-              child: SizedBox(
-                height: 255,
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(12),
                 child: buildModernGrid(invoice, (int _) {}, context),
               ),
             ),

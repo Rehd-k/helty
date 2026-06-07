@@ -89,7 +89,7 @@ class InvoiceService {
   }) async {
     try {
       final response = await _dio.get(
-        '/paid-without-encounter',
+        '/invoices/paid-without-encounter',
         queryParameters: {'patientId': patientId.trim()},
       );
       final list = _extractList(response.data, key: 'invoices');

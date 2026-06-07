@@ -1,6 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum ModuleRequestFlowType { defaultBilling, radiology, laboratory, hmo }
+enum ModuleRequestFlowType {
+  defaultBilling,
+  radiology,
+  laboratory,
+  dialysis,
+  hmo,
+}
 
 class ModuleRequestFlowConfig {
   const ModuleRequestFlowConfig({

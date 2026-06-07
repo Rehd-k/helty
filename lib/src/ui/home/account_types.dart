@@ -196,7 +196,7 @@ final nurses = <MenuItem>[
     route: InpatientsListRoute(),
   ),
   MenuItem(
-    label: 'Consumables (usage & billing)',
+    label: 'Consumables',
     icon: Icons.medical_information_outlined,
     route: EnlistPaitientRoute(serviceName: 'Consumables'),
   ),
@@ -267,9 +267,9 @@ final doctors = <MenuItem>[
   ),
   MenuItem(label: 'Inpatients', icon: Icons.bed, route: InpatientsListRoute()),
   MenuItem(
-    label: 'Consumables (usage & billing)',
+    label: 'Consumables',
     icon: Icons.medical_information_outlined,
-    route: NurseConsumableUsageRoute(),
+    route: EnlistPaitientRoute(serviceName: 'Consumables'),
   ),
   MenuItem(
     label: 'O&G Dashboard',
@@ -466,6 +466,11 @@ final purchasesMenu = <MenuItem>[
     route: PurchasesRequisitionHistoryRoute(),
   ),
   MenuItem(
+    label: 'Usage History',
+    icon: Icons.history_toggle_off_outlined,
+    route: PurchasesUsageHistoryRoute(),
+  ),
+  MenuItem(
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
     route: PurchasesDashboardRoute(),
@@ -492,6 +497,27 @@ final labMenu = <MenuItem>[
     route: NewPatientRoute(
       use: 'Laboratory',
       categoryQueries: const ['Laboratory', 'Laboratory Tests'],
+    ),
+  ),
+];
+
+final dialysisMenu = <MenuItem>[
+  MenuItem(
+    label: 'Dialysis',
+    icon: Icons.bloodtype_rounded,
+    route: DialysisDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'New patient',
+    icon: Icons.add_circle_outline_rounded,
+    route: EnlistPaitientRoute(serviceName: 'dialysis'),
+  ),
+  MenuItem(
+    label: 'Waiting Patients',
+    icon: Icons.receipt_long_outlined,
+    route: NewPatientRoute(
+      use: 'Dialysis',
+      categoryQueries: const ['Dialysis', 'Dialysis Services'],
     ),
   ),
 ];

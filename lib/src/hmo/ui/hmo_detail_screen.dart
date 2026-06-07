@@ -48,6 +48,35 @@ class _HmoDetailScreenState extends State<HmoDetailScreen> {
     }
   }
 
+  Future<void> _confirmDeletePrice(HmoServicePriceRow row) async {
+    final name = row.service?.name ?? row.serviceId;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove HMO price'),
+        content: Text(
+          'Remove pricing for "$name"? Billing will fall back to the catalog cost.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await _svc.deleteServicePrice(widget.hmoId, row.serviceId);
+      if (!mounted) return;
+      _load();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Price removed')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
   Future<void> _confirmDelete() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -183,9 +212,11 @@ class _HmoDetailScreenState extends State<HmoDetailScreen> {
                             child: DataTable(
                               columns: const [
                                 DataColumn(label: Text('Service')),
-                                DataColumn(label: Text('Full cost'), numeric: true),
+                                DataColumn(label: Text('HMO price'), numeric: true),
+                                DataColumn(label: Text('Catalog cost'), numeric: true),
                                 DataColumn(label: Text('HMO pays'), numeric: true),
                                 DataColumn(label: Text('Patient pays'), numeric: true),
+                                DataColumn(label: Text('Actions')),
                               ],
                               rows: d.servicePrices.map((p) {
                                 final name = p.service?.name ?? p.serviceId;
@@ -193,8 +224,48 @@ class _HmoDetailScreenState extends State<HmoDetailScreen> {
                                   cells: [
                                     DataCell(Text(name)),
                                     DataCell(Text(p.fullCost.toStringAsFixed(2))),
-                                    DataCell(Text(p.hmoPays.toStringAsFixed(2))),
-                                    DataCell(Text(p.patientPays.toStringAsFixed(2))),
+                                    DataCell(Text(
+                                      p.service?.cost?.toStringAsFixed(2) ?? '—',
+                                    )),
+                                    DataCell(Text(
+                                      p.hasConfiguredSplit
+                                          ? p.hmoPays.toStringAsFixed(2)
+                                          : '—',
+                                    )),
+                                    DataCell(Text(
+                                      p.hasConfiguredSplit
+                                          ? p.patientPays.toStringAsFixed(2)
+                                          : '—',
+                                    )),
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Edit',
+                                            icon: const Icon(Icons.edit_outlined, size: 20),
+                                            onPressed: () async {
+                                              await context.router.push(
+                                                HmoServicePricingRoute(
+                                                  initialHmoId: d.id,
+                                                  initialServiceId: p.serviceId,
+                                                ),
+                                              );
+                                              _load();
+                                            },
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Remove',
+                                            icon: Icon(
+                                              Icons.delete_outline,
+                                              size: 20,
+                                              color: theme.colorScheme.error,
+                                            ),
+                                            onPressed: () => _confirmDeletePrice(p),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 );
                               }).toList(),

@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 
 import '../../services/api_service.dart';
 import '../models/purchases_dashboard_model.dart';
+import '../models/purchases_model.dart';
+import '../models/purchases_usage_history_model.dart';
 
 class PurchasesDashboardQuery {
   const PurchasesDashboardQuery({
@@ -58,6 +60,73 @@ class PurchasesDashboardService {
       return payload['message'].toString();
     }
     return e.message ?? fallback;
+  }
+
+  int _toInt(dynamic value, int fallback) {
+    if (value is int) return value;
+    if (value == null) return fallback;
+    return int.tryParse(value.toString()) ?? fallback;
+  }
+
+  PaginatedResponse<T> _parsePaginated<T>(
+    Response<dynamic> resp,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    dynamic data = resp.data;
+    if (data == null) {
+      return PaginatedResponse<T>(items: [], total: 0, page: 1, pageSize: 20);
+    }
+    if (data is List) {
+      final items = data
+          .map(
+            (e) => fromJson(
+              e is Map<String, dynamic>
+                  ? e
+                  : Map<String, dynamic>.from(e as Map),
+            ),
+          )
+          .toList();
+      return PaginatedResponse<T>(
+        items: items,
+        total: items.length,
+        page: 1,
+        pageSize: items.length,
+      );
+    }
+    if (data is! Map) {
+      return PaginatedResponse<T>(items: [], total: 0, page: 1, pageSize: 20);
+    }
+    var map = Map<String, dynamic>.from(data);
+    final inner = map['data'];
+    if (inner is Map && inner is! List) {
+      final innerMap = Map<String, dynamic>.from(inner);
+      if (innerMap.containsKey('data') || innerMap.containsKey('items')) {
+        map = innerMap;
+      }
+    }
+    final list = map['data'] ?? map['items'] ?? map['results'] ?? map['list'];
+    final rawList = list is List ? list : <dynamic>[];
+    final items = rawList
+        .map(
+          (e) => fromJson(
+            e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map),
+          ),
+        )
+        .toList();
+    final total = _toInt(
+      map['total'] ?? map['totalCount'] ?? map['totalRecords'],
+      items.length,
+    );
+    final skip = _toInt(map['skip'], 0);
+    final take = _toInt(map['take'] ?? map['limit'], 20);
+    final page = _toInt(map['page'], take > 0 ? (skip ~/ take) + 1 : 1);
+    final pageSize = _toInt(map['pageSize'] ?? map['limit'], take);
+    return PaginatedResponse<T>(
+      items: items,
+      total: total,
+      page: page,
+      pageSize: pageSize > 0 ? pageSize : 20,
+    );
   }
 
   Future<PurchasesDashboardSummary> getSummary(
@@ -131,6 +200,23 @@ class PurchasesDashboardService {
           .toList();
     } on DioException catch (_) {
       return const <SupplierPerformanceItem>[];
+    }
+  }
+
+  Future<PaginatedResponse<PurchaseUsageHistoryItem>> getUsageHistory(
+    PurchaseUsageHistoryQuery query,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/purchases/dashboard/usage-history',
+        queryParameters: query.toQuery(),
+      );
+      return _parsePaginated(
+        response,
+        (m) => PurchaseUsageHistoryItem.fromJson(m),
+      );
+    } on DioException catch (e) {
+      throw Exception(_dioMessage(e, 'Unable to load usage history.'));
     }
   }
 

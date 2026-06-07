@@ -1,3 +1,31 @@
+/// HMO tariff row embedded on a service from `GET /services?hmoId=...`.
+class ServiceHmoPrice {
+  const ServiceHmoPrice({
+    required this.hmoId,
+    required this.cost,
+    this.hmoName,
+    this.hmoCode,
+  });
+
+  final String hmoId;
+  final double cost;
+  final String? hmoName;
+  final String? hmoCode;
+
+  factory ServiceHmoPrice.fromJson(Map<String, dynamic> json) {
+    final costValue = json['cost'];
+    final parsedCost = costValue is num
+        ? costValue.toDouble()
+        : double.tryParse(costValue?.toString() ?? '') ?? 0.0;
+    return ServiceHmoPrice(
+      hmoId: '${json['hmoId'] ?? ''}',
+      cost: parsedCost,
+      hmoName: json['hmoName']?.toString(),
+      hmoCode: json['hmoCode']?.toString(),
+    );
+  }
+}
+
 class ServiceModel {
   ServiceModel({
     required this.id,
@@ -19,6 +47,7 @@ class ServiceModel {
     this.transactionItemId,
     this.drugId,
     this.invoiceId,
+    this.hmoPrices = const [],
   });
 
   final String id;
@@ -40,6 +69,17 @@ class ServiceModel {
   final String? transactionItemId;
   final String? drugId;
   final String? invoiceId;
+  final List<ServiceHmoPrice> hmoPrices;
+
+  /// Standard catalog price, or the HMO tariff when [hmoId] matches a row.
+  double costForHmo(String? hmoId) {
+    final hid = hmoId?.trim() ?? '';
+    if (hid.isEmpty) return cost;
+    for (final row in hmoPrices) {
+      if (row.hmoId.trim() == hid) return row.cost;
+    }
+    return cost;
+  }
 
   /// helper for debug output
   @override
@@ -51,24 +91,63 @@ class ServiceModel {
     // 1. Extract sub-objects
     final service = json['service'] as Map<String, dynamic>?;
     final drug = json['drug'] as Map<String, dynamic>?;
+    final consumableRaw = json['consumable'];
+    final consumable = consumableRaw is Map<String, dynamic>
+        ? consumableRaw
+        : (consumableRaw is Map
+              ? Map<String, dynamic>.from(consumableRaw)
+              : null);
+    final purchaseItemRaw = json['purchaseItem'];
+    final purchaseItem = purchaseItemRaw is Map<String, dynamic>
+        ? purchaseItemRaw
+        : (purchaseItemRaw is Map
+              ? Map<String, dynamic>.from(purchaseItemRaw)
+              : null);
 
-    // 2. Identify IDs (Priority: Direct field > Drug > Service)
+    // 2. Identify IDs (Priority: Direct field > Drug > Service > Purchase item)
     final drugId = json['drugId']?.toString() ?? drug?['id']?.toString();
+    final purchaseItemId =
+        json['purchaseItemId']?.toString() ?? purchaseItem?['id']?.toString();
 
     // serviceId is the "template" ID.
-    // We check root serviceId, then service object, then drug object, then fallback to root id.
+    // We check root serviceId, then service object, then drug object, then purchase item, then fallback to root id.
     String sid =
-        (json['serviceId'] ?? service?['id'] ?? drug?['id'])?.toString() ?? '';
+        (json['serviceId'] ??
+                service?['id'] ??
+                drug?['id'] ??
+                purchaseItemId)
+            ?.toString() ??
+        '';
     if (sid.isEmpty) sid = json['id']?.toString() ?? '';
 
-    // 3. Resolve Name & Description (Cascading lookup)
+    // 3. Resolve Name & Description (mirrors BillingInvoiceItem.displayLabel priority)
+    String? _trimmed(dynamic v) {
+      final s = v?.toString().trim() ?? '';
+      return s.isEmpty ? null : s;
+    }
+
+    final customDesc = _trimmed(json['customDescription']);
+    final purchaseName = purchaseItem == null
+        ? null
+        : _trimmed(
+            purchaseItem['itemName'] ??
+                purchaseItem['name'] ??
+                purchaseItem['label'],
+          );
+    final consumableName = consumable == null
+        ? null
+        : _trimmed(consumable['name'] ?? consumable['label']);
+    final drugName = _trimmed(drug?['genericName']) ??
+        _trimmed(drug?['brandName']);
+    final serviceName = _trimmed(service?['name']) ?? _trimmed(json['name']);
+
     final name =
-        (json['name'] ??
-                drug?['genericName'] ??
-                service?['name'] ??
-                json['customDescription'] ??
-                'Unknown Item')
-            .toString();
+        customDesc ??
+        purchaseName ??
+        consumableName ??
+        drugName ??
+        serviceName ??
+        'Unknown Item';
 
     final description =
         (json['description'] ?? service?['description'] ?? drug?['description'])
@@ -133,13 +212,29 @@ class ServiceModel {
     final s = json['settled'];
     final settled = s is bool ? s : s?.toString().toLowerCase() == 'true';
 
+    final rawHmoPrices = json['hmoPrices'] ?? service?['hmoPrices'];
+    final hmoPrices = <ServiceHmoPrice>[];
+    if (rawHmoPrices is List) {
+      for (final e in rawHmoPrices) {
+        if (e is Map<String, dynamic>) {
+          hmoPrices.add(ServiceHmoPrice.fromJson(e));
+        }
+      }
+    }
+
+    final serviceCodeRaw =
+        json['serviceCode'] ??
+        json['searviceCode'] ??
+        service?['serviceCode'] ??
+        service?['searviceCode'];
+
     return ServiceModel(
       id: json['id']?.toString() ?? '',
       name: name,
       description: description,
       cost: parsedCost,
       serviceId: sid,
-      serviceCode: (json['serviceCode'] ?? service?['serviceCode'])?.toString(),
+      serviceCode: serviceCodeRaw?.toString(),
       categoryId: categoryId,
       categoryName: categoryName,
       departmentId: departmentId,
@@ -155,6 +250,7 @@ class ServiceModel {
       transactionItemId: json['transactionItemId']?.toString(),
       drugId: drugId,
       invoiceId: json['invoiceId']?.toString(),
+      hmoPrices: hmoPrices,
     );
   }
   Map<String, dynamic> toJson() => {

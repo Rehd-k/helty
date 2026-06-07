@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../pharmacy/inputs/morden.form.inpts.dart';
+import '../../shared/batch_receive_conversion.dart';
 import '../models/purchases_model.dart';
 import '../services/purchases_service.dart';
 
@@ -22,6 +23,14 @@ class PendingBatchEntry {
   final DateTime? expiryDate;
   final int quantity;
   final double costPrice;
+  final BatchReceiveUnit receiveUnit;
+  final int enteredQuantity;
+  final double enteredCostPrice;
+  final int? unitsPerPack;
+  final int? packsPerCarton;
+  /// Normalized per-unit selling price; null = inherit catalog at save time.
+  final double? sellingPricePerUnit;
+  final double? enteredSellingPrice;
 
   PendingBatchEntry({
     required this.item,
@@ -34,9 +43,27 @@ class PendingBatchEntry {
     this.expiryDate,
     required this.quantity,
     required this.costPrice,
+    this.receiveUnit = BatchReceiveUnit.unit,
+    required this.enteredQuantity,
+    required this.enteredCostPrice,
+    this.unitsPerPack,
+    this.packsPerCarton,
+    this.sellingPricePerUnit,
+    this.enteredSellingPrice,
   });
 
   double get lineTotal => quantity * costPrice;
+
+  String get receiveSummary {
+    switch (receiveUnit) {
+      case BatchReceiveUnit.unit:
+        return '$quantity units';
+      case BatchReceiveUnit.pack:
+        return '$enteredQuantity packs × $unitsPerPack = $quantity units';
+      case BatchReceiveUnit.carton:
+        return '$enteredQuantity cartons × $packsPerCarton packs × $unitsPerPack = $quantity units';
+    }
+  }
 }
 
 @RoutePage()
@@ -56,6 +83,9 @@ class _PurchasesAddPurchaseScreenState
   final _batchNumberCtrl = TextEditingController();
   final _costPriceCtrl = TextEditingController();
   final _quantityCtrl = TextEditingController();
+  final _unitsPerPackCtrl = TextEditingController();
+  final _packsPerCartonCtrl = TextEditingController();
+  final _sellingPriceCtrl = TextEditingController();
   final _drugSearchCtrl = TextEditingController();
 
   final FocusNode _drugSearchFocus = FocusNode();
@@ -64,6 +94,7 @@ class _PurchasesAddPurchaseScreenState
   PurchaseItem? _selectedDrug;
   String? _selectedSupplierId;
   PurchasesLocation? _selectedLocation;
+  BatchReceiveUnit _receiveUnit = BatchReceiveUnit.unit;
 
   DateTime? _mfgDate;
   DateTime? _expiryDate;
@@ -89,6 +120,15 @@ class _PurchasesAddPurchaseScreenState
     _loadLocationsAndSuppliers();
     _drugSearchCtrl.addListener(_onDrugSearchChanged);
     _drugSearchFocus.addListener(_onDrugSearchFocusChanged);
+    _quantityCtrl.addListener(_onReceiveFieldChanged);
+    _costPriceCtrl.addListener(_onReceiveFieldChanged);
+    _unitsPerPackCtrl.addListener(_onReceiveFieldChanged);
+    _packsPerCartonCtrl.addListener(_onReceiveFieldChanged);
+    _sellingPriceCtrl.addListener(_onReceiveFieldChanged);
+  }
+
+  void _onReceiveFieldChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -97,6 +137,9 @@ class _PurchasesAddPurchaseScreenState
     _batchNumberCtrl.dispose();
     _costPriceCtrl.dispose();
     _quantityCtrl.dispose();
+    _unitsPerPackCtrl.dispose();
+    _packsPerCartonCtrl.dispose();
+    _sellingPriceCtrl.dispose();
     _drugSearchCtrl.dispose();
     _drugSearchFocus.dispose();
     super.dispose();
@@ -235,9 +278,13 @@ class _PurchasesAddPurchaseScreenState
       _editingIndex = null;
       _selectedDrug = null;
       _selectedSupplierId = null;
+      _receiveUnit = BatchReceiveUnit.unit;
       _batchNumberCtrl.clear();
       _costPriceCtrl.clear();
       _quantityCtrl.clear();
+      _unitsPerPackCtrl.clear();
+      _packsPerCartonCtrl.clear();
+      _sellingPriceCtrl.clear();
       _drugSearchCtrl.clear();
       _mfgDate = null;
       _expiryDate = null;
@@ -250,9 +297,13 @@ class _PurchasesAddPurchaseScreenState
   void _fillFormFromEntry(PendingBatchEntry entry) {
     _selectedDrug = entry.item;
     _selectedSupplierId = entry.supplierId;
+    _receiveUnit = entry.receiveUnit;
     _batchNumberCtrl.text = entry.batchNumber ?? '';
-    _costPriceCtrl.text = entry.costPrice.toString();
-    _quantityCtrl.text = entry.quantity.toString();
+    _costPriceCtrl.text = entry.enteredCostPrice.toString();
+    _quantityCtrl.text = entry.enteredQuantity.toString();
+    _unitsPerPackCtrl.text = entry.unitsPerPack?.toString() ?? '';
+    _packsPerCartonCtrl.text = entry.packsPerCarton?.toString() ?? '';
+    _sellingPriceCtrl.text = entry.enteredSellingPrice?.toString() ?? '';
     _mfgDate = entry.mfgDate;
     _expiryDate = entry.expiryDate;
     if (entry.locationId != null) {
@@ -264,6 +315,98 @@ class _PurchasesAddPurchaseScreenState
         _selectedLocation = _locations.isNotEmpty ? _locations.first : null;
       }
     }
+  }
+
+  BatchReceiveConversion? _tryComputeFromForm({
+    void Function(String)? onError,
+  }) {
+    final enteredQty = int.tryParse(_quantityCtrl.text.trim());
+    final enteredPrice = double.tryParse(
+      _costPriceCtrl.text.replaceAll(',', '.'),
+    );
+    if (enteredQty == null || enteredPrice == null) return null;
+
+    final unitsPerPack = _receiveUnit == BatchReceiveUnit.unit
+        ? null
+        : int.tryParse(_unitsPerPackCtrl.text.trim());
+    final packsPerCarton = _receiveUnit == BatchReceiveUnit.carton
+        ? int.tryParse(_packsPerCartonCtrl.text.trim())
+        : null;
+
+    return BatchReceiveConversion.compute(
+      receiveUnit: _receiveUnit,
+      enteredQuantity: enteredQty,
+      enteredCostPrice: enteredPrice,
+      unitsPerPack: unitsPerPack,
+      packsPerCarton: packsPerCarton,
+      onError: onError,
+    );
+  }
+
+  String get _quantityLabel {
+    switch (_receiveUnit) {
+      case BatchReceiveUnit.unit:
+        return 'Quantity (units) *';
+      case BatchReceiveUnit.pack:
+        return 'Number of packs *';
+      case BatchReceiveUnit.carton:
+        return 'Number of cartons *';
+    }
+  }
+
+  String get _costPriceLabel {
+    switch (_receiveUnit) {
+      case BatchReceiveUnit.unit:
+        return 'Cost price (per unit) *';
+      case BatchReceiveUnit.pack:
+        return 'Cost price (per pack) *';
+      case BatchReceiveUnit.carton:
+        return 'Cost price (per carton) *';
+    }
+  }
+
+  String get _sellingPriceLabel {
+    switch (_receiveUnit) {
+      case BatchReceiveUnit.unit:
+        return 'Selling price override (per unit)';
+      case BatchReceiveUnit.pack:
+        return 'Selling price override (per pack)';
+      case BatchReceiveUnit.carton:
+        return 'Selling price override (per carton)';
+    }
+  }
+
+  double? _resolveSellingPricePerUnit({void Function(String)? onError}) {
+    final text = _sellingPriceCtrl.text.trim();
+    if (text.isEmpty) return null;
+
+    final entered = double.tryParse(text.replaceAll(',', '.'));
+    if (entered == null) {
+      onError?.call('Enter a valid selling price.');
+      return null;
+    }
+    if (entered < 0) {
+      onError?.call('Selling price must not be negative.');
+      return null;
+    }
+
+    final unitsPerPack = _receiveUnit == BatchReceiveUnit.unit
+        ? null
+        : int.tryParse(_unitsPerPackCtrl.text.trim());
+    final packsPerCarton = _receiveUnit == BatchReceiveUnit.carton
+        ? int.tryParse(_packsPerCartonCtrl.text.trim())
+        : null;
+
+    final unitPrice = BatchReceiveConversion.convertEnteredPriceToUnitPrice(
+      receiveUnit: _receiveUnit,
+      enteredPrice: entered,
+      unitsPerPack: unitsPerPack,
+      packsPerCarton: packsPerCarton,
+    );
+    if (unitPrice == null) {
+      onError?.call('Complete pack/carton fields before setting selling price.');
+    }
+    return unitPrice;
   }
 
   void _addOrUpdateEntry() {
@@ -282,13 +425,37 @@ class _PurchasesAddPurchaseScreenState
       _showError('Expiry date cannot be before manufacturing date.');
       return;
     }
-    final qty = int.tryParse(_quantityCtrl.text);
-    if (qty == null || qty < 1) {
-      _showError('Enter a valid quantity.');
+
+    String? conversionError;
+    final conversion = _tryComputeFromForm(
+      onError: (msg) => conversionError = msg,
+    );
+    if (conversion == null) {
+      _showError(conversionError ?? 'Enter valid quantity and pricing.');
       return;
     }
-    final costPrice =
-        double.tryParse(_costPriceCtrl.text.replaceAll(',', '.')) ?? 0.0;
+
+    String? sellingError;
+    final sellingPricePerUnit = _resolveSellingPricePerUnit(
+      onError: (msg) => sellingError = msg,
+    );
+    if (sellingError != null) {
+      _showError(sellingError!);
+      return;
+    }
+
+    final enteredQty = int.parse(_quantityCtrl.text.trim());
+    final enteredPrice = double.parse(_costPriceCtrl.text.replaceAll(',', '.'));
+    final unitsPerPack = _receiveUnit == BatchReceiveUnit.unit
+        ? null
+        : int.tryParse(_unitsPerPackCtrl.text.trim());
+    final packsPerCarton = _receiveUnit == BatchReceiveUnit.carton
+        ? int.tryParse(_packsPerCartonCtrl.text.trim())
+        : null;
+    final enteredSellingText = _sellingPriceCtrl.text.trim();
+    final enteredSellingPrice = enteredSellingText.isEmpty
+        ? null
+        : double.tryParse(enteredSellingText.replaceAll(',', '.'));
 
     final entry = PendingBatchEntry(
       item: _selectedDrug!,
@@ -303,9 +470,16 @@ class _PurchasesAddPurchaseScreenState
       locationId: _selectedLocation?.id,
       locationName: _selectedLocation?.name,
       mfgDate: _mfgDate,
-      expiryDate: _expiryDate!,
-      quantity: qty,
-      costPrice: costPrice,
+      expiryDate: _expiryDate,
+      quantity: conversion.quantityInUnits,
+      costPrice: conversion.costPricePerUnit,
+      receiveUnit: _receiveUnit,
+      enteredQuantity: enteredQty,
+      enteredCostPrice: enteredPrice,
+      unitsPerPack: unitsPerPack,
+      packsPerCarton: packsPerCarton,
+      sellingPricePerUnit: sellingPricePerUnit,
+      enteredSellingPrice: enteredSellingPrice,
     );
 
     setState(() {
@@ -353,6 +527,7 @@ class _PurchasesAddPurchaseScreenState
           quantityReceived: entry.quantity,
           manufacturingDate: entry.mfgDate,
           costPrice: entry.costPrice,
+          sellingPrice: entry.sellingPricePerUnit,
           supplierId: entry.supplierId,
           toLocationId: entry.locationId,
         );
@@ -577,11 +752,94 @@ class _PurchasesAddPurchaseScreenState
                           'Quantities & Pricing',
                           Icons.attach_money_outlined,
                         ),
+                        const Text(
+                          'Receive as',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SegmentedButton<BatchReceiveUnit>(
+                          segments: const [
+                            ButtonSegment(
+                              value: BatchReceiveUnit.unit,
+                              label: Text('Unit'),
+                              icon: Icon(Icons.medication_outlined, size: 16),
+                            ),
+                            ButtonSegment(
+                              value: BatchReceiveUnit.pack,
+                              label: Text('Pack'),
+                              icon: Icon(Icons.inventory_outlined, size: 16),
+                            ),
+                            ButtonSegment(
+                              value: BatchReceiveUnit.carton,
+                              label: Text('Carton'),
+                              icon: Icon(Icons.all_inbox_outlined, size: 16),
+                            ),
+                          ],
+                          selected: {_receiveUnit},
+                          onSelectionChanged: (selection) {
+                            setState(() {
+                              _receiveUnit = selection.first;
+                            });
+                          },
+                        ),
+                        if (_receiveUnit != BatchReceiveUnit.unit) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ModernTextField(
+                                  label: 'Units in one pack *',
+                                  hint: 'e.g., 10',
+                                  controller: _unitsPerPackCtrl,
+                                  keyboardType: TextInputType.number,
+                                  validator: (v) {
+                                    if (_receiveUnit == BatchReceiveUnit.unit) {
+                                      return null;
+                                    }
+                                    if (v == null || v.trim().isEmpty) {
+                                      return 'Required';
+                                    }
+                                    final n = int.tryParse(v.trim());
+                                    if (n == null || n < 1) return 'Invalid';
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              if (_receiveUnit == BatchReceiveUnit.carton) ...[
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: ModernTextField(
+                                    label: 'Packs in one carton *',
+                                    hint: 'e.g., 12',
+                                    controller: _packsPerCartonCtrl,
+                                    keyboardType: TextInputType.number,
+                                    validator: (v) {
+                                      if (_receiveUnit !=
+                                          BatchReceiveUnit.carton) {
+                                        return null;
+                                      }
+                                      if (v == null || v.trim().isEmpty) {
+                                        return 'Required';
+                                      }
+                                      final n = int.tryParse(v.trim());
+                                      if (n == null || n < 1) return 'Invalid';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
                         Row(
                           children: [
                             Expanded(
                               child: ModernTextField(
-                                label: 'Quantity Received *',
+                                label: _quantityLabel,
                                 hint: 'e.g., 500',
                                 controller: _quantityCtrl,
                                 keyboardType: TextInputType.number,
@@ -593,13 +851,16 @@ class _PurchasesAddPurchaseScreenState
                             const SizedBox(width: 16),
                             Expanded(
                               child: ModernTextField(
-                                label: 'Cost Price (Per Unit) *',
+                                label: _costPriceLabel,
                                 hint: '0.00',
                                 icon: Icons.money_off_csred_outlined,
                                 controller: _costPriceCtrl,
                                 validator: (v) => v == null || v.trim().isEmpty
                                     ? 'Required'
-                                    : double.tryParse(v) == null
+                                    : double.tryParse(
+                                            v.replaceAll(',', '.'),
+                                          ) ==
+                                          null
                                     ? 'Invalid'
                                     : null,
                                 keyboardType:
@@ -610,6 +871,25 @@ class _PurchasesAddPurchaseScreenState
                             ),
                           ],
                         ),
+                        ModernTextField(
+                          label: _sellingPriceLabel,
+                          hint: _selectedDrug?.sellingPrice != null
+                              ? 'Catalog: ${_selectedDrug!.sellingPrice!.toFinancial(isMoney: true)} — leave blank to inherit'
+                              : 'Leave blank to inherit catalog price',
+                          icon: Icons.sell_outlined,
+                          controller: _sellingPriceCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return null;
+                            final n = double.tryParse(v.replaceAll(',', '.'));
+                            if (n == null) return 'Invalid';
+                            if (n < 0) return 'Must not be negative';
+                            return null;
+                          },
+                        ),
+                        _buildReceivePreview(theme),
                         const SizedBox(height: 24),
                         Row(
                           children: [
@@ -909,22 +1189,32 @@ class _PurchasesAddPurchaseScreenState
                         fontSize: 14,
                       ),
                     ),
-                    if (entry.item.itemName.isNotEmpty)
+                    if (entry.item.sku != null && entry.item.sku!.isNotEmpty)
                       Text(
-                        entry.item.itemName,
+                        entry.item.sku!,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
                       ),
                     const SizedBox(height: 6),
-                    Row(
+                    Wrap(
+                      spacing: 0,
+                      runSpacing: 4,
                       children: [
                         if (entry.batchNumber != null &&
                             entry.batchNumber!.isNotEmpty)
                           _chip('Batch: ${entry.batchNumber}'),
-                        _chip('Qty: ${entry.quantity}'),
-                        _chip('Unit: ${entry.costPrice.toStringAsFixed(2)}'),
+                        _chip(entry.receiveSummary),
+                        _chip(
+                          'Unit cost: ${entry.costPrice.toFinancial(isMoney: true)}',
+                        ),
+                        if (entry.sellingPricePerUnit != null)
+                          _chip(
+                            'Sell: ${entry.sellingPricePerUnit!.toFinancial(isMoney: true)}/unit',
+                          )
+                        else
+                          _chip('Sell: catalog'),
                       ],
                     ),
                   ],
@@ -979,7 +1269,7 @@ class _PurchasesAddPurchaseScreenState
 
   Widget _chip(String text) {
     return Container(
-      margin: const EdgeInsets.only(right: 8),
+      margin: const EdgeInsets.only(right: 8, bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
@@ -988,6 +1278,53 @@ class _PurchasesAddPurchaseScreenState
       child: Text(
         text,
         style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+      ),
+    );
+  }
+
+  Widget _buildReceivePreview(ThemeData theme) {
+    final conversion = _tryComputeFromForm();
+    if (conversion == null) {
+      return const SizedBox(height: 4);
+    }
+
+    final sellingPerUnit = _resolveSellingPricePerUnit();
+    final sellingLine = sellingPerUnit != null
+        ? ' · Sell ${sellingPerUnit.toFinancial(isMoney: true)}/unit'
+        : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '→ ${conversion.quantityInUnits.toFinancial(isMoney: false)} units @ '
+            '${conversion.costPricePerUnit.toFinancial(isMoney: true)}/unit$sellingLine',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.blue.shade900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Line total: ${conversion.lineTotal.toFinancial(isMoney: true)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.green.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1022,6 +1359,17 @@ class _PurchasesAddPurchaseScreenState
                   Text(
                     selectedItem.sku!,
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                if (selectedItem.sellingPrice != null)
+                  Text(
+                    selectedItem.sellingPrice! > 0
+                        ? 'Catalog sell: ${selectedItem.sellingPrice!.toFinancial(isMoney: true)}'
+                        : 'Catalog sell: Free',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
               ],
             ),

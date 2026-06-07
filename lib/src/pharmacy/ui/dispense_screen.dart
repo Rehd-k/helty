@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/billings/widgets/catalog_sales_widgets.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice.dart';
@@ -895,10 +896,11 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _buildQtyBtn(
-                                  Icons.remove,
-                                  () => updateQuantity(drug, item.quantity - 1),
-                                  colorScheme,
+                                CatalogSalesQtyButton(
+                                  icon: Icons.remove,
+                                  onTap: () =>
+                                      updateQuantity(drug, item.quantity - 1),
+                                  colorScheme: colorScheme,
                                 ),
                                 const SizedBox(width: 8),
                                 QuantityEditor(
@@ -908,10 +910,11 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                                       updateQuantity(drug, newQty),
                                 ),
                                 const SizedBox(width: 8),
-                                _buildQtyBtn(
-                                  Icons.add,
-                                  () => updateQuantity(drug, item.quantity + 1),
-                                  colorScheme,
+                                CatalogSalesQtyButton(
+                                  icon: Icons.add,
+                                  onTap: () =>
+                                      updateQuantity(drug, item.quantity + 1),
+                                  colorScheme: colorScheme,
                                 ),
                               ],
                             ),
@@ -966,25 +969,6 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildQtyBtn(
-    IconData icon,
-    VoidCallback onTap,
-    ColorScheme colorScheme,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(icon, size: 16, color: colorScheme.onSurface),
       ),
     );
   }
@@ -1180,92 +1164,6 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// CUSTOM QUANTITY EDITOR
-// Allows tapping the number to type directly
-// -----------------------------------------------------------------------------
-class QuantityEditor extends StatefulWidget {
-  final int quantity;
-  final int maxQuantity;
-  final ValueChanged<int> onChanged;
-
-  const QuantityEditor({
-    super.key,
-    required this.quantity,
-    required this.maxQuantity,
-    required this.onChanged,
-  });
-
-  @override
-  State<QuantityEditor> createState() => _QuantityEditorState();
-}
-
-class _QuantityEditorState extends State<QuantityEditor> {
-  late TextEditingController _controller;
-  final FocusNode _focusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.quantity.toString());
-    _focusNode.addListener(() {
-      if (!_focusNode.hasFocus) {
-        _commitValue(); // Commit when clicking away
-      }
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant QuantityEditor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.quantity != widget.quantity) {
-      // Only update text if it's different to prevent cursor jumps
-      if (_controller.text != widget.quantity.toString()) {
-        _controller.text = widget.quantity.toString();
-      }
-    }
-  }
-
-  void _commitValue() {
-    final parsed = int.tryParse(_controller.text);
-    if (parsed != null && parsed >= 0) {
-      final clamped = parsed.clamp(0, widget.maxQuantity);
-      widget.onChanged(clamped);
-      _controller.text = clamped.toString();
-    } else {
-      // Revert to old valid value if input is invalid
-      _controller.text = widget.quantity.toString();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 40,
-      child: TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        decoration: const InputDecoration(
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(vertical: 4),
-          border: InputBorder.none,
-        ),
-        onSubmitted: (_) => _commitValue(),
-      ),
     );
   }
 }

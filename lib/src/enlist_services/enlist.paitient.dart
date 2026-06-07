@@ -195,8 +195,18 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                             } else if (serviceName == 'Investigation') {
                               moduleFlowNotifier.state = defaultOrHmo;
                               context.router.push(RenderServiceRoute());
-                            } else if (serviceName == 'Dialysis') {
-                              moduleFlowNotifier.state = defaultOrHmo;
+                            } else if (serviceName == 'Dialysis' ||
+                                serviceName == 'dialysis') {
+                              moduleFlowNotifier.state =
+                                  const ModuleRequestFlowConfig(
+                                    type: ModuleRequestFlowType.dialysis,
+                                    forcedCategoryNames: [
+                                      'Dialysis',
+                                      'Dialysis Services',
+                                    ],
+                                    hideServicePrices: true,
+                                    sendToBillOnly: true,
+                                  );
                               context.router.push(RenderServiceRoute());
                             } else if (serviceName == 'OBGYN') {
                               moduleFlowNotifier.state =
@@ -236,7 +246,17 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                             } else if (serviceName == 'Consumables') {
                               moduleFlowNotifier.state =
                                   ModuleRequestFlowConfig.defaultBilling;
-                              context.router.push(NurseConsumableUsageRoute());
+                              final staffId =
+                                  ref.read(authProvider).staff?.id ?? '';
+                              context.router.push(
+                                PurchaseItemSalesRoute(
+                                  patientId: selectedPatient!.patientId,
+                                  patientName:
+                                      "${selectedPatient.firstName} ${selectedPatient.surname}",
+                                  id: selectedPatient.id ?? '',
+                                  staffId: staffId.isEmpty ? null : staffId,
+                                ),
+                              );
                             } else {
                               moduleFlowNotifier.state = defaultOrHmo;
                               context.router.push(RenderServiceRoute());

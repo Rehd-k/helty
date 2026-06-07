@@ -90,6 +90,13 @@ const List<SuperAdminHubDepartment> kSuperAdminHubDepartments = [
     previewBannerLabel: 'Radiology (Head)',
   ),
   SuperAdminHubDepartment(
+    category: StaffAccountCategory.dialysis,
+    tileTitle: 'Dialysis',
+    previewAccountType: 'dialysis',
+    previewRole: 'dialysis_head',
+    previewBannerLabel: 'Dialysis (Head)',
+  ),
+  SuperAdminHubDepartment(
     category: StaffAccountCategory.store,
     tileTitle: 'Store',
     previewAccountType: 'store',

@@ -957,9 +957,11 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
       //   return;
       // }
       final use = widget.use.trim().toLowerCase();
-      final moduleType = use == 'radiology'
-          ? ModuleRequestFlowType.radiology
-          : ModuleRequestFlowType.laboratory;
+      final moduleType = switch (use) {
+        'radiology' => ModuleRequestFlowType.radiology,
+        'dialysis' => ModuleRequestFlowType.dialysis,
+        _ => ModuleRequestFlowType.laboratory,
+      };
       var patientFirst = patient.firstName.trim();
       var patientLast = patient.surname.trim();
       if (patientFirst.isEmpty && patientLast.isEmpty) {
@@ -985,6 +987,8 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
         context.router.push(
           RadiologyPatientHistoryRoute(patientId: patient.patientId ?? ''),
         );
+      } else if (moduleType == ModuleRequestFlowType.dialysis) {
+        context.router.push(const DialysisCreateSessionRoute());
       } else {
         context.router.push(const LabCreateOrderRoute());
       }

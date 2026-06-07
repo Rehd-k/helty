@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
 import '../../auth/billing_permissions.dart';
+import '../../auth/dialysis_permissions.dart';
 import '../../helper/theme.dart';
 import '../../chat/providers/pending_orders_tick_provider.dart';
 import '../../chat/providers/staff_chat_shell_provider.dart';
@@ -449,6 +450,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (at == 'radiology') {
       common.addAll(radiologyMenu);
+    }
+
+    if (canAccessDialysisModule(staff)) {
+      common.addAll(dialysisMenu);
     }
 
     if (at == 'ict' || r == 'ict_staff') {

@@ -27,6 +27,9 @@ abstract class Invoice with _$Invoice {
     String? encounterId,
     Map<String, dynamic>? createdBy,
     Map<String, dynamic>? count,
+
+    /// Human-facing bill code (`invoiceID` from API), when present.
+    String? invoiceDisplayId,
   }) = _Invoice;
 
   // Custom getter — now allowed
@@ -70,11 +73,18 @@ abstract class Invoice with _$Invoice {
               .map((e) => ServiceModel.fromJson(Map<String, dynamic>.from(e)))
               .toList()
         : <ServiceModel>[];
+    final invoiceDisplayRaw = json['invoiceID']?.toString().trim();
+    final invoiceDisplayId =
+        invoiceDisplayRaw != null && invoiceDisplayRaw.isNotEmpty
+        ? invoiceDisplayRaw
+        : null;
+
     return _Invoice(
       id: (json['id'] ?? '').toString(),
       patient: Patient.fromJson(patientJson),
       staff: staffJson,
       patientId: patientId,
+      invoiceDisplayId: invoiceDisplayId,
       status: (json['status'] ?? 'PENDING').toString(),
       createdById: (json['createdById'] ?? json['staffId'] ?? '').toString(),
       updatedById: json['updatedById'] as String?,

@@ -259,6 +259,7 @@ class PurchaseItem {
   final String? unit;
   final DateTime? expiryDate;
   final double? price;
+  final double? sellingPrice;
   final String? manufacturerName;
 
   PurchaseItem({
@@ -275,6 +276,7 @@ class PurchaseItem {
     this.unit,
     this.expiryDate,
     this.price,
+    this.sellingPrice,
     this.manufacturerName,
   });
 
@@ -316,6 +318,7 @@ class PurchaseItem {
         ? DateTime.tryParse(json['expiryDate'].toString())
         : null,
     price: _toDoubleOrNull(json['price']),
+    sellingPrice: _toDoubleOrNull(json['sellingPrice']),
     manufacturerName: json['manufacturerName']?.toString(),
   );
 
@@ -333,6 +336,7 @@ class PurchaseItem {
     if (unit != null) 'unit': unit,
     if (expiryDate != null) 'expiryDate': expiryDate!.toIso8601String(),
     if (price != null) 'price': price,
+    'sellingPrice': sellingPrice ?? 0,
     if (manufacturerName != null) 'manufacturerName': manufacturerName,
   };
 }
@@ -699,25 +703,35 @@ class PurchasesLocation {
 }
 
 class ItemLocationQuantity {
+  final String? locationId;
   final String locationName;
   final int quantity;
 
   const ItemLocationQuantity({
+    this.locationId,
     required this.locationName,
     required this.quantity,
   });
 
   factory ItemLocationQuantity.fromJson(Map<String, dynamic> json) {
     final location = json['location'];
-    final nestedName = location is Map
-        ? Map<String, dynamic>.from(location)['name']?.toString()
+    final locationMap = location is Map
+        ? Map<String, dynamic>.from(location)
         : null;
+    final nestedId = locationMap?['id']?.toString();
+    final directId = json['locationId']?.toString();
+    final nestedName = locationMap?['name']?.toString();
     final directName = json['locationName']?.toString();
     final name = (directName?.trim().isNotEmpty == true
             ? directName!.trim()
             : (nestedName?.trim().isNotEmpty == true ? nestedName!.trim() : '—'))
         .toString();
+    final locId = (directId?.trim().isNotEmpty == true
+            ? directId!.trim()
+            : nestedId?.trim())
+        ?.trim();
     return ItemLocationQuantity(
+      locationId: locId != null && locId.isNotEmpty ? locId : null,
       locationName: name,
       quantity: _toInt(json['quantity'], 0),
     );

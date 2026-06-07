@@ -11,6 +11,7 @@ enum StaffAccountCategory {
   physician,
   laboratory,
   radiology,
+  dialysis,
   store,
   purchases,
   medicalRecords,
@@ -31,6 +32,7 @@ extension StaffAccountCategoryLabels on StaffAccountCategory {
     StaffAccountCategory.physician => 'Physician',
     StaffAccountCategory.laboratory => 'Laboratory',
     StaffAccountCategory.radiology => 'Radiology',
+    StaffAccountCategory.dialysis => 'Dialysis',
     StaffAccountCategory.store => 'Store',
     StaffAccountCategory.purchases => 'Purchases',
     StaffAccountCategory.medicalRecords => 'Medical Records',
@@ -188,6 +190,28 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
       label: 'Radiology receptionist',
       accountType: AccountType.radiology,
       staffRole: 'RADIOLOGY_RECEPTIONIST',
+    ),
+  ],
+  StaffAccountCategory.dialysis: [
+    const StaffRoleOption(
+      label: 'Dialysis Head',
+      accountType: AccountType.dialysis,
+      staffRole: 'DIALYSIS_HEAD',
+    ),
+    const StaffRoleOption(
+      label: 'Dialysis Nurse',
+      accountType: AccountType.dialysis,
+      staffRole: 'DIALYSIS_NURSE',
+    ),
+    const StaffRoleOption(
+      label: 'Dialysis Technician',
+      accountType: AccountType.dialysis,
+      staffRole: 'DIALYSIS_TECH',
+    ),
+    const StaffRoleOption(
+      label: 'Dialysis Receptionist',
+      accountType: AccountType.dialysis,
+      staffRole: 'DIALYSIS_RECEPTIONIST',
     ),
   ],
   StaffAccountCategory.store: [

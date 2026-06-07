@@ -1,7 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import '../../pharma../../pharmacy/inputs/morden.form.inpts.dart';
+import '../../pharmacy/inputs/morden.form.inpts.dart';
 import '../models/purchases_model.dart';
 import '../services/purchases_service.dart';
 
@@ -34,6 +34,7 @@ class _PurchasesAddItemScreenState extends State<PurchasesAddItemScreen> {
   late final TextEditingController _unitCtrl;
   late final TextEditingController _reorderLevelCtrl;
   late final TextEditingController _reorderQtyCtrl;
+  late final TextEditingController _sellingPriceCtrl;
 
   List<PurchasesManufacturer> _manufacturers = [];
   String? _selectedManufacturerId;
@@ -55,6 +56,9 @@ class _PurchasesAddItemScreenState extends State<PurchasesAddItemScreen> {
     );
     _reorderQtyCtrl = TextEditingController(
       text: item?.reorderQuantity.toString() ?? '0',
+    );
+    _sellingPriceCtrl = TextEditingController(
+      text: item?.sellingPrice?.toString() ?? '0',
     );
     _selectedManufacturerId = item?.manufacturerId;
     _loadManufacturers();
@@ -79,6 +83,7 @@ class _PurchasesAddItemScreenState extends State<PurchasesAddItemScreen> {
     _unitCtrl.dispose();
     _reorderLevelCtrl.dispose();
     _reorderQtyCtrl.dispose();
+    _sellingPriceCtrl.dispose();
     super.dispose();
   }
 
@@ -86,6 +91,8 @@ class _PurchasesAddItemScreenState extends State<PurchasesAddItemScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
+      final sellingPrice =
+          double.tryParse(_sellingPriceCtrl.text.replaceAll(',', '.')) ?? 0;
       final item = PurchaseItem(
         id: widget.existingItem?.id,
         itemName: _itemNameCtrl.text.trim(),
@@ -102,6 +109,7 @@ class _PurchasesAddItemScreenState extends State<PurchasesAddItemScreen> {
         manufacturerId: _selectedManufacturerId,
         reorderLevel: int.tryParse(_reorderLevelCtrl.text) ?? 0,
         reorderQuantity: int.tryParse(_reorderQtyCtrl.text) ?? 0,
+        sellingPrice: sellingPrice,
       );
 
       if (widget.existingItem != null) {
@@ -236,6 +244,22 @@ class _PurchasesAddItemScreenState extends State<PurchasesAddItemScreen> {
                       ),
                     ),
                   ],
+                ),
+                ModernTextField(
+                  label: 'Selling Price (catalog)',
+                  hint: '0.00 — leave 0 for free items',
+                  controller: _sellingPriceCtrl,
+                  icon: Icons.sell_outlined,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final n = double.tryParse(v.replaceAll(',', '.'));
+                    if (n == null) return 'Invalid price';
+                    if (n < 0) return 'Must not be negative';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(

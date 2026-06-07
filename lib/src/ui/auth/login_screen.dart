@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
+import '../../core/storage/saved_login_storage.dart';
+import '../../models/saved_login.dart';
 import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
 import '../../routing/initial_route_for_role.dart';
@@ -51,12 +53,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailOrPhoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   bool _obscurePassword = true;
+  List<SavedLogin> _savedLogins = [];
+  String? _selectedLoginKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedLogins();
+  }
+
+  Future<void> _loadSavedLogins() async {
+    final logins = await SavedLoginStorage.load();
+    if (mounted) setState(() => _savedLogins = logins);
+  }
+
+  Future<void> _saveCurrentLogin({
+    required String emailOrPhone,
+    required String displayName,
+    String? roleLabel,
+  }) async {
+    await SavedLoginStorage.upsert(
+      SavedLogin(
+        emailOrPhone: emailOrPhone,
+        displayName: displayName,
+        roleLabel: roleLabel,
+        lastUsedMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    await _loadSavedLogins();
+  }
+
+  void _selectSavedLogin(SavedLogin login) {
+    setState(() {
+      _emailOrPhoneCtrl.text = login.emailOrPhone;
+      _passwordCtrl.clear();
+      _selectedLoginKey = login.normalizedKey;
+    });
+    _passwordFocusNode.requestFocus();
+  }
+
+  Future<void> _removeSavedLogin(SavedLogin login) async {
+    await SavedLoginStorage.remove(login.emailOrPhone);
+    if (_selectedLoginKey == login.normalizedKey) {
+      _selectedLoginKey = null;
+    }
+    await _loadSavedLogins();
+  }
 
   @override
   void dispose() {
     _emailOrPhoneCtrl.dispose();
     _passwordCtrl.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -115,9 +165,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (ok && mounted) {
       // Replace entire stack so the user can't go back to login.
       final auth = ref.read(authProvider);
-      final staffRole = auth.staff?.staffRole ?? '';
-      final accountType = auth.staff?.accountType?.name ?? '';
-      final PageRouteInfo initialChild = staffIsSuperAdmin(auth.staff)
+      final staff = auth.staff;
+      if (staff != null) {
+        final emailOrPhone = _emailOrPhoneCtrl.text.trim();
+        final roleLabel =
+            staff.departmentName ?? staff.accountType?.name;
+        await _saveCurrentLogin(
+          emailOrPhone: emailOrPhone,
+          displayName: staff.fullName,
+          roleLabel: roleLabel,
+        );
+      }
+      if (!mounted) return;
+      final staffRole = staff?.staffRole ?? '';
+      final accountType = staff?.accountType?.name ?? '';
+      final PageRouteInfo initialChild = staffIsSuperAdmin(staff)
           ? const SuperAdminHubRoute()
           : initialRouteForRole(staffRole, accountType);
       context.router.replaceAll([
@@ -421,10 +483,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       height: 1.35,
                     ),
                   ),
+                  if (_savedLogins.isNotEmpty) ...[
+                    SizedBox(height: showHeroLogo ? 22 : 24),
+                    _recentStaffSection(theme, colors),
+                  ],
                   SizedBox(height: showHeroLogo ? 28 : 32),
 
                   TextFormField(
                     controller: _emailOrPhoneCtrl,
+                    onChanged: (_) {
+                      if (_selectedLoginKey != null) {
+                        setState(() => _selectedLoginKey = null);
+                      }
+                    },
                     keyboardType: TextInputType.text,
                     autocorrect: false,
                     textInputAction: TextInputAction.next,
@@ -448,6 +519,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   TextFormField(
                     controller: _passwordCtrl,
+                    focusNode: _passwordFocusNode,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _submit(),
@@ -515,6 +587,151 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ),
+    );
+  }
+
+  Widget _recentStaffSection(ThemeData theme, ColorScheme colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recent staff',
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: colors.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final login in _savedLogins)
+              _SavedLoginChip(
+                login: login,
+                selected: _selectedLoginKey == login.normalizedKey,
+                onTap: () => _selectSavedLogin(login),
+                onRemove: () => _removeSavedLogin(login),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SavedLoginChip extends StatelessWidget {
+  const _SavedLoginChip({
+    required this.login,
+    required this.selected,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final SavedLogin login;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  String _formatRoleLabel(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    return raw.replaceAll('_', ' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final role = _formatRoleLabel(login.roleLabel);
+
+    return Semantics(
+      label: 'Sign in as ${login.displayName}',
+      button: true,
+      child: Material(
+        color: selected
+            ? colors.primaryContainer.withValues(alpha: 0.55)
+            : colors.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 260),
+            padding: const EdgeInsets.fromLTRB(8, 6, 2, 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected
+                    ? colors.primary.withValues(alpha: 0.45)
+                    : colors.outline.withValues(alpha: 0.18),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: selected
+                      ? colors.primary.withValues(alpha: 0.18)
+                      : colors.primary.withValues(alpha: 0.12),
+                  child: Text(
+                    login.initials,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        login.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (role.isNotEmpty)
+                        Text(
+                          role,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Semantics(
+                  label: 'Remove ${login.displayName} from recent staff',
+                  button: true,
+                  child: IconButton(
+                    tooltip: 'Remove',
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 18,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    onPressed: onRemove,
+                    icon: Icon(
+                      Icons.close,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

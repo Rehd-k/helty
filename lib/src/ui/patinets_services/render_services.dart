@@ -7,7 +7,6 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
-import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
@@ -19,7 +18,6 @@ import '../../enlist_services/selected.user.dart';
 import '../../models/service_category_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/module_request_flow_provider.dart';
-import '../../services/hmo_service.dart';
 import '../../services/department_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
@@ -105,12 +103,14 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     }
     setState(() => _loading = true);
     try {
+      final hmoId = ref.read(patientProvider).selectedPatient?.hmoId?.trim();
       final results = await _srvSvc.fetchServices(
         query: _searchQuery.isNotEmpty ? _searchQuery : null,
         categoryId: _selectedCategoryId,
         departmentId: _selectedDepartmentId,
         skip: _flowConfig.isModuleFlow ? 0 : _skip,
         take: _flowConfig.isModuleFlow ? 200 : _take,
+        hmoId: hmoId != null && hmoId.isNotEmpty ? hmoId : null,
       );
       if (!mounted) return;
       var filteredResults = results;
@@ -142,94 +142,37 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   bool _payAtPosBusy = false;
   bool _depositBusy = false;
 
-  /// When HMO desk + patient has [Patient.hmoId], map catalog service id → patient co-pay.
-  Map<String, double> _hmoPatientPaysByServiceId = {};
-  String? _hmoPricesLoadedFor;
-
-  bool get _useHmoPatientPricing {
-    final staff = ref.read(authProvider).staff;
-    final flow = ref.read(moduleRequestFlowProvider);
-    final patient = ref.read(patientProvider).selectedPatient;
-    final hid = patient?.hmoId?.trim();
-    if (hid == null || hid.isEmpty) return false;
-    return staff?.accountType == AccountType.hmo ||
-        flow.type == ModuleRequestFlowType.hmo;
+  String? get _selectedPatientHmoId {
+    final hid = ref.read(patientProvider).selectedPatient?.hmoId?.trim();
+    if (hid == null || hid.isEmpty) return null;
+    return hid;
   }
 
   double _effectiveUnitPrice(ServiceModel item) {
-    final sid = item.id.trim().isNotEmpty
-        ? item.id.trim()
-        : item.serviceId.trim();
-    if (sid.isNotEmpty) {
-      final p = _hmoPatientPaysByServiceId[sid];
-      if (p != null) return p;
-    }
-    return item.cost;
+    return item.costForHmo(_selectedPatientHmoId);
   }
 
-  Future<void> _refreshHmoPricingIfNeeded() async {
-    if (!_useHmoPatientPricing) {
-      if (_hmoPatientPaysByServiceId.isNotEmpty ||
-          _hmoPricesLoadedFor != null) {
-        if (mounted) {
-          setState(() {
-            _hmoPatientPaysByServiceId = {};
-            _hmoPricesLoadedFor = null;
-          });
-        }
+  void _repriceSelectedItems() {
+    final hmoId = _selectedPatientHmoId;
+    setState(() {
+      for (var i = 0; i < _selectedItems.length; i++) {
+        final line = _selectedItems[i];
+        _selectedItems[i] = ServiceModel(
+          id: line.id,
+          serviceId: line.serviceId,
+          name: line.name,
+          description: line.description,
+          categoryId: line.categoryId,
+          categoryName: line.categoryName,
+          departmentId: line.departmentId,
+          departmentName: line.departmentName,
+          cost: line.costForHmo(hmoId),
+          qty: line.qty,
+          isRecurringDaily: line.isRecurringDaily,
+          hmoPrices: line.hmoPrices,
+        );
       }
-      return;
-    }
-    final patient = ref.read(patientProvider).selectedPatient;
-    final hid = patient?.hmoId?.trim() ?? '';
-    if (hid.isEmpty) return;
-    if (_hmoPricesLoadedFor == hid && _hmoPatientPaysByServiceId.isNotEmpty) {
-      return;
-    }
-    try {
-      final detail = await HmoService().getById(hid);
-      final map = <String, double>{};
-      for (final row in detail.servicePrices) {
-        final sid = row.serviceId.trim();
-        if (sid.isNotEmpty) map[sid] = row.patientPays;
-        final nested = row.service?.id.trim() ?? '';
-        if (nested.isNotEmpty) map[nested] = row.patientPays;
-      }
-      if (!mounted) return;
-      setState(() {
-        _hmoPatientPaysByServiceId = map;
-        _hmoPricesLoadedFor = hid;
-        final previous = List<ServiceModel>.from(_selectedItems);
-        _selectedItems
-          ..clear()
-          ..addAll(
-            previous.map((line) {
-              final sid = line.id.trim().isNotEmpty ? line.id : line.serviceId;
-              final p = map[sid];
-              if (p == null) return line;
-              return ServiceModel(
-                id: line.id,
-                serviceId: line.serviceId,
-                name: line.name,
-                description: line.description,
-                categoryId: line.categoryId,
-                categoryName: line.categoryName,
-                departmentId: line.departmentId,
-                departmentName: line.departmentName,
-                cost: p,
-                qty: line.qty,
-                isRecurringDaily: line.isRecurringDaily,
-              );
-            }),
-          );
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _hmoPatientPaysByServiceId = {};
-        _hmoPricesLoadedFor = null;
-      });
-    }
+    });
   }
 
   /// Creates an invoice with cart lines, then opens [PayBill] with [invoiceId] for invoice-led payment.
@@ -312,6 +255,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           onPaymentComplete: _emptySelection,
           isInvoice: true,
           invoiceId: invoice.id,
+          invoiceDisplayId: invoice.invoiceDisplayId,
         ),
       );
     } catch (e) {
@@ -349,6 +293,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             departmentName: item.departmentName,
             cost: _effectiveUnitPrice(item),
             qty: 1,
+            hmoPrices: item.hmoPrices,
           ),
         );
       }
@@ -373,9 +318,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     _flowConfig = ref.read(moduleRequestFlowProvider);
     _loadMeta();
     _loadServices();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshHmoPricingIfNeeded();
-    });
   }
 
   @override
@@ -406,10 +348,15 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     final patientState = ref.watch(patientProvider);
     final selectedPatient = patientState.selectedPatient;
     ref.listen<PatientState>(patientProvider, (prev, next) {
-      final a = prev?.selectedPatient?.id;
-      final b = next.selectedPatient?.id;
-      if (a != b) {
-        Future.microtask(_refreshHmoPricingIfNeeded);
+      final prevPatientId = prev?.selectedPatient?.id;
+      final nextPatientId = next.selectedPatient?.id;
+      final prevHmoId = prev?.selectedPatient?.hmoId?.trim();
+      final nextHmoId = next.selectedPatient?.hmoId?.trim();
+      if (prevPatientId != nextPatientId || prevHmoId != nextHmoId) {
+        Future.microtask(() {
+          _repriceSelectedItems();
+          _loadServices(resetPage: true);
+        });
       }
     });
     final accountType = auth.staff?.accountType?.name.toLowerCase() ?? '';
@@ -775,7 +722,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                           children: [
                             if (!_flowConfig.hideServicePrices)
                               Text(
-                                item.cost.toFinancial(isMoney: true),
+                                _effectiveUnitPrice(item).toFinancial(
+                                  isMoney: true,
+                                ),
                                 style: TextStyle(
                                   color: Colors.grey.shade800,
                                   fontWeight: FontWeight.bold,

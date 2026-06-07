@@ -397,6 +397,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         staffId: staff.id,
         isInvoice: true,
         invoiceId: detail.id,
+        invoiceDisplayId: detail.invoiceDisplayId,
         invoiceItemAllocations: allocations,
         invoiceMaxPayable: (detail.effectivePayable - detail.amountPaid) > 0
             ? (detail.effectivePayable - detail.amountPaid)

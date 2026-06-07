@@ -34,6 +34,7 @@ class ServiceService {
     String filterCategory = '',
     String? departmentId,
     String? categoryId,
+    String? hmoId,
   }) async {
     final resp = await _dio.get(
       '/services',
@@ -47,6 +48,7 @@ class ServiceService {
           'departmentId': departmentId.trim(),
         if (categoryId != null && categoryId.trim().isNotEmpty)
           'categoryId': categoryId.trim(),
+        if (hmoId != null && hmoId.trim().isNotEmpty) 'hmoId': hmoId.trim(),
       },
     );
 
@@ -85,6 +87,7 @@ class ServiceService {
     String? departmentId,
     int skip = 0,
     int take = 10,
+    String? hmoId,
   }) async {
     final page = await findAll(
       skip: skip,
@@ -92,12 +95,18 @@ class ServiceService {
       search: query ?? '',
       departmentId: departmentId,
       categoryId: categoryId,
+      hmoId: hmoId,
     );
     return page.services;
   }
 
-  Future<ServiceModel> getServiceById(String id) async {
-    final resp = await _dio.get('/services/$id');
+  Future<ServiceModel> getServiceById(String id, {String? hmoId}) async {
+    final resp = await _dio.get(
+      '/services/$id',
+      queryParameters: {
+        if (hmoId != null && hmoId.trim().isNotEmpty) 'hmoId': hmoId.trim(),
+      },
+    );
     return ServiceModel.fromJson(resp.data as Map<String, dynamic>);
   }
 

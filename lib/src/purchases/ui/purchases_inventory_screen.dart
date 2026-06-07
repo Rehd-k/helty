@@ -1,10 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/app_router.gr.dart';
-import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
+import '../../core/extensions/number.extention.dart';
 import '../models/purchases_model.dart';
 import '../services/purchases_service.dart';
 import 'add_item_screen.dart';
@@ -494,6 +493,17 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                 ),
                 DataColumn(
                   label: const Text(
+                    'SELLING PRICE',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  onSort: (idx, asc) => _onSort(idx, asc, 'sellingPrice'),
+                ),
+                DataColumn(
+                  label: const Text(
                     'EXPIRY',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
@@ -604,6 +614,19 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                       ),
                     ),
                     DataCell(
+                      Text(
+                        _formatSellingPrice(item.sellingPrice),
+                        style: TextStyle(
+                          color: (item.sellingPrice ?? 0) > 0
+                              ? Colors.green.shade800
+                              : Colors.grey[600],
+                          fontWeight: (item.sellingPrice ?? 0) > 0
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                    DataCell(
                       Row(
                         children: [
                           if (item.displayStatus == 'Expiring Soon')
@@ -639,6 +662,11 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
         ),
       ),
     );
+  }
+
+  String _formatSellingPrice(double? price) {
+    if (price == null || price <= 0) return 'Free';
+    return price.toFinancial(isMoney: true);
   }
 
   Widget _buildStatusChip(String status) {
@@ -848,6 +876,10 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
           _buildInfoCard(theme, 'Item Details', Icons.inventory_2_outlined, [
             _buildInfoRow('SKU', item.sku ?? '—', isFullWidth: true),
             _buildInfoRow('Unit', item.unitOfMeasure ?? item.unit ?? '—'),
+            _buildInfoRow(
+              'Selling price',
+              _formatSellingPrice(item.sellingPrice),
+            ),
             _buildInfoRow(
               'Manufacturer',
               item.manufacturerName ?? item.manufacturerId ?? '—',

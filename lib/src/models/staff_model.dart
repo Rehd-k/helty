@@ -11,6 +11,7 @@ enum AccountType {
   physician,
   laboratory,
   radiology,
+  dialysis,
   store,
   purchases,
   medical_records,
@@ -56,6 +57,8 @@ enum AccountType {
         return AccountType.physician;
       case 'lab':
         return AccountType.laboratory;
+      case 'dialysis':
+        return AccountType.dialysis;
       case 'purchases_store':
       case 'purchases_head':
       case 'purchases':
@@ -65,7 +68,6 @@ enum AccountType {
       case 'other':
       case 'theatere':
       case 'ong':
-      case 'dialysis':
         return AccountType.staff;
       default:
         return AccountType.staff;

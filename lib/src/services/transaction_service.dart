@@ -557,13 +557,37 @@ class TransactionService {
       final service = serviceRaw is Map<String, dynamic> ? serviceRaw : null;
       final drugRaw = row['drug'];
       final drug = drugRaw is Map<String, dynamic> ? drugRaw : null;
-      final description =
-          row['customDescription']?.toString().trim().isNotEmpty == true
-          ? row['customDescription'].toString().trim()
-          : (service?['name']?.toString() ??
-                drug?['genericName']?.toString() ??
-                drug?['brandName']?.toString() ??
-                'Invoice item');
+      final consumableRaw = row['consumable'];
+      final consumable =
+          consumableRaw is Map<String, dynamic> ? consumableRaw : null;
+      final purchaseItemRaw = row['purchaseItem'];
+      final purchaseItem =
+          purchaseItemRaw is Map<String, dynamic> ? purchaseItemRaw : null;
+      String? trimmed(dynamic v) {
+        final s = v?.toString().trim() ?? '';
+        return s.isEmpty ? null : s;
+      }
+
+      final customDesc = trimmed(row['customDescription']);
+      final purchaseName = purchaseItem == null
+          ? null
+          : trimmed(
+              purchaseItem['itemName'] ??
+                  purchaseItem['name'] ??
+                  purchaseItem['label'],
+            );
+      final consumableName = consumable == null
+          ? null
+          : trimmed(consumable['name'] ?? consumable['label']);
+      final drugName =
+          trimmed(drug?['genericName']) ?? trimmed(drug?['brandName']);
+      final serviceName = trimmed(service?['name']);
+      final description = customDesc ??
+          purchaseName ??
+          consumableName ??
+          drugName ??
+          serviceName ??
+          'Invoice item';
       final quantity = _toInt(row['quantity']);
       final unitPrice = _toDouble(row['unitPrice']);
       final paid = _toDouble(row['amountPaid']);

@@ -236,7 +236,7 @@ class ReceiptEscposService {
   }) {
     final id = transactionId?.trim().isNotEmpty == true
         ? transactionId!.trim()
-        : 'PAY-${DateTime.now().millisecondsSinceEpoch}';
+        : '';
     return {
       'transaction': {
         'transactionID': id,

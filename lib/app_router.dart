@@ -171,6 +171,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: PharmacyPOSRoute.page),
         AutoRoute(page: DispenseRoute.page),
         AutoRoute(page: WaitingPatientRoute.page),
+        AutoRoute(page: PurchaseItemSalesRoute.page),
         AutoRoute(page: PurchasesInventoryRoute.page),
         AutoRoute(page: PurchasesAddItemRoute.page),
         AutoRoute(page: PurchasesAddSupplierRoute.page),
@@ -180,6 +181,10 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: PurchasesPurchaseHistoryRoute.page),
         AutoRoute(page: PurchasesLocationRoute.page),
         AutoRoute(page: PurchasesRequisitionHistoryRoute.page),
+        AutoRoute(
+          path: 'purchases/usage-history',
+          page: PurchasesUsageHistoryRoute.page,
+        ),
         AutoRoute(page: PurchasesDashboardRoute.page),
         // O&G (Obstetrics & Gynaecology)
         AutoRoute(page: ObstetricsDashboardRoute.page),
@@ -217,6 +222,10 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: LabCreateOrderRoute.page),
         AutoRoute(page: LabOrderDetailRoute.page),
         AutoRoute(page: LabResultEntryRoute.page),
+        // Dialysis
+        AutoRoute(page: DialysisDashboardRoute.page),
+        AutoRoute(page: DialysisCreateSessionRoute.page),
+        AutoRoute(page: DialysisSessionDetailRoute.page),
         // Radiology
         AutoRoute(page: RadiologyDashboardRoute.page),
         AutoRoute(page: RadiologyWorklistRoute.page),

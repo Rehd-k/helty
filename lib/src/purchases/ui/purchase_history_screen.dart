@@ -348,7 +348,7 @@ class _PurchasesPurchaseHistoryScreenState
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'Purchase history',
+                  'Purchase History',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 22,
@@ -730,7 +730,7 @@ class _PurchasesPurchaseHistoryScreenState
             underline: const SizedBox.shrink(),
             borderRadius: BorderRadius.circular(8),
             hint: const Text(
-              'PurchasesSupplier: All',
+              'Supplier: All',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -740,7 +740,7 @@ class _PurchasesPurchaseHistoryScreenState
             items: [
               const DropdownMenuItem<String?>(
                 value: null,
-                child: Text('PurchasesSupplier: All'),
+                child: Text('Supplier: All'),
               ),
               ..._suppliers.map(
                 (s) =>
@@ -817,7 +817,7 @@ class _PurchasesPurchaseHistoryScreenState
     if (_rows.isEmpty) {
       final msg = _selectedDrug != null
           ? 'No batches found for this Item in the selected period.\nTry widening the date range or clearing other filters.'
-          : 'No supply history matches these filters.\nPick a Item to see only its inbound batches, or adjust date and PurchasesSupplier.';
+          : 'No supply history matches these filters.\nPick a Item to see only its inbound batches, or adjust date and supplier.';
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -882,7 +882,7 @@ class _PurchasesPurchaseHistoryScreenState
                   label: const Text('RECEIVE\nDATE'),
                   onSort: (idx, asc) => _onSort(idx, asc, 'createdAt'),
                 ),
-                const DataColumn(label: Text('PurchasesSupplier')),
+                const DataColumn(label: Text('Supplier')),
                 const DataColumn(label: Text('Item\nCATEGORY')),
                 DataColumn(
                   label: const Text('QUANTITY'),

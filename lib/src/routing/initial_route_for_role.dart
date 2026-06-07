@@ -47,6 +47,8 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
       return const LabDashboardRoute();
     case 'radiology':
       return const RadiologyDashboardRoute();
+    case 'dialysis':
+      return const DialysisDashboardRoute();
     case 'store':
       return const StoreDashboardRoute();
     case 'accounting':
@@ -61,6 +63,13 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
     case 'admin':
       return const CMDDashboardRoute();
     default:
+      if (r == 'DIALYSIS_HEAD' ||
+          r == 'DIALYSIS_NURSE' ||
+          r == 'DIALYSIS_TECH' ||
+          r == 'DIALYSIS_TECHNICIAN' ||
+          r == 'DIALYSIS_RECEPTIONIST') {
+        return const DialysisDashboardRoute();
+      }
       return const FrontDeskDashboardRoute();
   }
 }

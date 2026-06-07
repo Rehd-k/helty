@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../models/purchases_model.dart';
-import 'purchases_inventory_screen.dart';
 
 class ItemFiltersPanel extends StatelessWidget {
   const ItemFiltersPanel({

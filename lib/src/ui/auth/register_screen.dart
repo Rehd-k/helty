@@ -71,6 +71,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         return const LabDashboardRoute();
       case 'radiology':
         return const RadiologyDashboardRoute();
+      case 'dialysis':
+        return const DialysisDashboardRoute();
       case 'store':
         return const StoreDashboardRoute();
       case 'purchases':
