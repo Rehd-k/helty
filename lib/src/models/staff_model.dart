@@ -24,6 +24,54 @@ enum AccountType {
   /// Unknown / legacy token not mapped to a department.
   staff;
 
+  /// Backend `AccountType` enum values (excludes legacy [staff]).
+  static const List<AccountType> departmentTypes = [
+    billing,
+    accounting,
+    pharmacy,
+    nurse,
+    physician,
+    laboratory,
+    radiology,
+    store,
+    medical_records,
+    front_desk,
+    ict,
+    cmd,
+    cmac,
+    hmo,
+    purchases,
+    dialysis,
+    super_admin,
+  ];
+
+  /// Serialized to the API as UPPER_SNAKE (e.g. `BILLING`).
+  String get apiValue => name.toUpperCase();
+
+  /// Human-readable label for forms.
+  String get label => switch (this) {
+    billing => 'Billing',
+    accounting => 'Accounting',
+    pharmacy => 'Pharmacy',
+    nurse => 'Nurse',
+    physician => 'Physician',
+    laboratory => 'Laboratory',
+    radiology => 'Radiology',
+    store => 'Store',
+    medical_records => 'Medical Records',
+    front_desk => 'Front Desk',
+    ict => 'ICT',
+    cmd => 'CMD',
+    cmac => 'CMAC',
+    hmo => 'HMO',
+    purchases => 'Purchases',
+    dialysis => 'Dialysis',
+    super_admin => 'Super Admin',
+    staff => 'Staff (legacy)',
+  };
+
+  bool get isDepartmentType => departmentTypes.contains(this);
+
   static AccountType fromString(String? value) {
     if (value == null || value.trim().isEmpty) return AccountType.staff;
     final k = value.trim().toLowerCase().replaceAll('-', '_');
@@ -261,7 +309,7 @@ class Staff {
     'pharmacyRole': pharmacyRole,
     'permissions': permissions,
     'departmentId': departmentId,
-    'accountType': accountType?.name,
+    'accountType': accountType?.apiValue,
     'email': email,
     'phone': phone,
     'isActive': isActive,

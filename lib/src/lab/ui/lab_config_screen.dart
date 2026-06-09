@@ -19,7 +19,7 @@ class _LabConfigScreenState extends ConsumerState<LabConfigScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -35,17 +35,27 @@ class _LabConfigScreenState extends ConsumerState<LabConfigScreen>
         title: const Text('Lab configuration'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           tabs: const [
             Tab(text: 'Categories', icon: Icon(Icons.category_rounded)),
             Tab(text: 'Tests', icon: Icon(Icons.science_rounded)),
             Tab(text: 'Versions', icon: Icon(Icons.history_rounded)),
             Tab(text: 'Fields', icon: Icon(Icons.list_alt_rounded)),
+            Tab(text: 'Antibiotics', icon: Icon(Icons.medication_rounded)),
+            Tab(text: 'AST options', icon: Icon(Icons.grid_view_rounded)),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_CategoriesTab(), _TestsTab(), _VersionsTab(), _FieldsTab()],
+        children: [
+          _CategoriesTab(),
+          _TestsTab(),
+          _VersionsTab(),
+          _FieldsTab(),
+          _AntibioticsTab(),
+          _AstResultOptionsTab(),
+        ],
       ),
     );
   }
@@ -1488,6 +1498,556 @@ class _FieldsTabState extends ConsumerState<_FieldsTab> {
                 if (ctx.mounted) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
                     SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Antibiotics (MCS / AST panel) ───────────────────────────────────────────
+
+class _AntibioticsTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(labAntibioticsFutureProvider);
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(err.toString(), textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => ref.invalidate(labAntibioticsFutureProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (response) {
+        final list = List<LabAntibiotic>.from(response.data)
+          ..sort((a, b) {
+            final pc = a.position.compareTo(b.position);
+            return pc != 0 ? pc : a.name.compareTo(b.name);
+          });
+        return ListView.builder(
+          padding: const EdgeInsets.all(24),
+          itemCount: list.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: ElevatedButton.icon(
+                  onPressed: () => _showCreateAntibiotic(context, ref),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add antibiotic'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              );
+            }
+            final abx = list[index - 1];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                leading: CircleAvatar(
+                  backgroundColor: abx.isActive
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Icon(
+                    Icons.medication_rounded,
+                    color: abx.isActive
+                        ? Theme.of(context).colorScheme.onPrimaryContainer
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                title: Text(abx.name),
+                subtitle: Text(
+                  [
+                    if (abx.code != null && abx.code!.isNotEmpty) abx.code!,
+                    'Position ${abx.position}',
+                    if (!abx.isActive) 'Inactive',
+                  ].join(' · '),
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (action) {
+                    if (action == 'edit') {
+                      _showEditAntibiotic(context, ref, abx);
+                    } else if (action == 'delete') {
+                      _confirmDeleteAntibiotic(context, ref, abx);
+                    }
+                  },
+                  itemBuilder: (ctx) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCreateAntibiotic(BuildContext context, WidgetRef ref) {
+    _showAntibioticDialog(context, ref, title: 'New antibiotic');
+  }
+
+  void _showEditAntibiotic(
+    BuildContext context,
+    WidgetRef ref,
+    LabAntibiotic abx,
+  ) {
+    _showAntibioticDialog(context, ref, title: 'Edit antibiotic', existing: abx);
+  }
+
+  void _showAntibioticDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    LabAntibiotic? existing,
+  }) {
+    final nameController = TextEditingController(text: existing?.name ?? '');
+    final codeController = TextEditingController(text: existing?.code ?? '');
+    final positionController = TextEditingController(
+      text: (existing?.position ?? 0).toString(),
+    );
+    var isActive = existing?.isActive ?? true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    hintText: 'e.g. Amoxicillin',
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: codeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Code (optional)',
+                    hintText: 'e.g. AMX',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: positionController,
+                  decoration: const InputDecoration(labelText: 'Position'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Active'),
+                  subtitle: const Text(
+                    'Deactivate instead of delete when used on reports',
+                  ),
+                  value: isActive,
+                  onChanged: (v) => setDialogState(() => isActive = v),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                final position =
+                    int.tryParse(positionController.text.trim()) ?? 0;
+                final code = codeController.text.trim();
+                try {
+                  final api = ref.read(labApiServiceProvider);
+                  if (existing == null) {
+                    await api.createAntibiotic(
+                      name: name,
+                      code: code.isEmpty ? null : code,
+                      isActive: isActive,
+                      position: position,
+                    );
+                  } else {
+                    await api.updateAntibiotic(
+                      existing.id,
+                      name: name,
+                      code: code.isEmpty ? '' : code,
+                      isActive: isActive,
+                      position: position,
+                    );
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  ref.invalidate(labAntibioticsFutureProvider);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
+                }
+              },
+              child: Text(existing == null ? 'Create' : 'Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteAntibiotic(
+    BuildContext context,
+    WidgetRef ref,
+    LabAntibiotic abx,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete antibiotic'),
+        content: Text(
+          'Delete "${abx.name}"? If it is used on AST reports, deactivate it instead.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () async {
+              try {
+                await ref.read(labApiServiceProvider).deleteAntibiotic(abx.id);
+                if (ctx.mounted) Navigator.pop(ctx);
+                ref.invalidate(labAntibioticsFutureProvider);
+              } catch (e) {
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  final msg = e.toString().contains('409')
+                      ? 'Cannot delete — antibiotic is referenced by AST results. Deactivate it instead.'
+                      : e.toString();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(msg)),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AstResultOptionsTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(labAstResultOptionsFutureProvider);
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(err.toString(), textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () =>
+                    ref.invalidate(labAstResultOptionsFutureProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (response) {
+        final list = List<LabAstResultOption>.from(response.data)
+          ..sort((a, b) {
+            final pc = a.position.compareTo(b.position);
+            return pc != 0 ? pc : a.label.compareTo(b.label);
+          });
+        return ListView.builder(
+          padding: const EdgeInsets.all(24),
+          itemCount: list.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Susceptibility values for AST result entry (e.g. S, I, R, NT).',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => _showCreateOption(context, ref),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add AST option'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            final opt = list[index - 1];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                leading: CircleAvatar(
+                  backgroundColor: opt.isActive
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Text(
+                    (opt.code ?? opt.label).substring(
+                      0,
+                      (opt.code ?? opt.label).length.clamp(0, 2),
+                    ),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: opt.isActive
+                          ? Theme.of(context).colorScheme.onPrimaryContainer
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                title: Text(opt.label),
+                subtitle: Text(
+                  [
+                    if (opt.code != null && opt.code!.isNotEmpty) opt.code!,
+                    'Position ${opt.position}',
+                    if (!opt.isActive) 'Inactive',
+                  ].join(' · '),
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (action) {
+                    if (action == 'edit') {
+                      _showEditOption(context, ref, opt);
+                    } else if (action == 'delete') {
+                      _confirmDeleteOption(context, ref, opt);
+                    }
+                  },
+                  itemBuilder: (ctx) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCreateOption(BuildContext context, WidgetRef ref) {
+    _showOptionDialog(context, ref, title: 'New AST result option');
+  }
+
+  void _showEditOption(
+    BuildContext context,
+    WidgetRef ref,
+    LabAstResultOption opt,
+  ) {
+    _showOptionDialog(context, ref, title: 'Edit AST result option', existing: opt);
+  }
+
+  void _showOptionDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    LabAstResultOption? existing,
+  }) {
+    final labelController = TextEditingController(text: existing?.label ?? '');
+    final codeController = TextEditingController(text: existing?.code ?? '');
+    final positionController = TextEditingController(
+      text: (existing?.position ?? 0).toString(),
+    );
+    var isActive = existing?.isActive ?? true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: labelController,
+                  decoration: const InputDecoration(
+                    labelText: 'Label',
+                    hintText: 'e.g. Sensitive',
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: codeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Code (optional)',
+                    hintText: 'e.g. S',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: positionController,
+                  decoration: const InputDecoration(labelText: 'Position'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Active'),
+                  subtitle: const Text(
+                    'Deactivate instead of delete when used on reports',
+                  ),
+                  value: isActive,
+                  onChanged: (v) => setDialogState(() => isActive = v),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final label = labelController.text.trim();
+                if (label.isEmpty) return;
+                final position =
+                    int.tryParse(positionController.text.trim()) ?? 0;
+                final code = codeController.text.trim();
+                try {
+                  final api = ref.read(labApiServiceProvider);
+                  if (existing == null) {
+                    await api.createAstResultOption(
+                      label: label,
+                      code: code.isEmpty ? null : code,
+                      isActive: isActive,
+                      position: position,
+                    );
+                  } else {
+                    await api.updateAstResultOption(
+                      existing.id,
+                      label: label,
+                      code: code.isEmpty ? '' : code,
+                      isActive: isActive,
+                      position: position,
+                    );
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  ref.invalidate(labAstResultOptionsFutureProvider);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
+                }
+              },
+              child: Text(existing == null ? 'Create' : 'Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteOption(
+    BuildContext context,
+    WidgetRef ref,
+    LabAstResultOption opt,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete AST option'),
+        content: Text(
+          'Delete "${opt.label}"? If it is used on AST reports, deactivate it instead.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () async {
+              try {
+                await ref
+                    .read(labApiServiceProvider)
+                    .deleteAstResultOption(opt.id);
+                if (ctx.mounted) Navigator.pop(ctx);
+                ref.invalidate(labAstResultOptionsFutureProvider);
+              } catch (e) {
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  final msg = e.toString().contains('409')
+                      ? 'Cannot delete — option is referenced by AST results. Deactivate it instead.'
+                      : e.toString();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(msg)),
                   );
                 }
               }

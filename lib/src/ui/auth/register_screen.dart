@@ -27,9 +27,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
-  StaffAccountCategory _selectedCategory = StaffAccountCategory.frontDesk;
+  AccountType _selectedAccountType = AccountType.front_desk;
   late StaffRoleOption _selectedRoleOption =
-      kStaffRolesByCategory[_selectedCategory]!.first;
+      rolesForAccountType(AccountType.front_desk).first;
 
   PageRouteInfo _initialRouteAfterRegister(String accountTypeName, String role) {
     final at = accountTypeName.toLowerCase();
@@ -117,7 +117,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           password: _passwordCtrl.text,
           email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
           phone: _phoneCtrl.text.trim(),
-          accountType: _selectedRoleOption.accountType,
+          accountType: _selectedAccountType,
         );
     if (ok && mounted) {
       final auth = ref.read(authProvider);
@@ -242,25 +242,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Account type (department) — drives which roles are listed
-                  DropdownButtonFormField<StaffAccountCategory>(
-                    key: ObjectKey(_selectedCategory),
-                    initialValue: _selectedCategory,
+                  // Account type — backend AccountType enum (e.g. BILLING, NURSE)
+                  DropdownButtonFormField<AccountType>(
+                    key: ObjectKey(_selectedAccountType),
+                    initialValue: _selectedAccountType,
                     decoration: const InputDecoration(
                       labelText: 'Account Type *',
                       prefixIcon: Icon(Icons.manage_accounts_outlined),
                     ),
-                    items: StaffAccountCategory.values
+                    items: AccountType.departmentTypes
                         .map(
-                          (c) =>
-                              DropdownMenuItem(value: c, child: Text(c.label)),
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text('${t.label} (${t.apiValue})'),
+                          ),
                         )
                         .toList(),
-                    onChanged: (c) {
-                      if (c == null) return;
+                    onChanged: (t) {
+                      if (t == null) return;
+                      final roles = rolesForAccountType(t);
                       setState(() {
-                        _selectedCategory = c;
-                        _selectedRoleOption = kStaffRolesByCategory[c]!.first;
+                        _selectedAccountType = t;
+                        _selectedRoleOption = roles.first;
                       });
                     },
                   ),
@@ -274,7 +277,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       labelText: 'Role *',
                       prefixIcon: Icon(Icons.work_outline),
                     ),
-                    items: kStaffRolesByCategory[_selectedCategory]!
+                    items: rolesForAccountType(_selectedAccountType)
                         .map(
                           (r) =>
                               DropdownMenuItem(value: r, child: Text(r.label)),

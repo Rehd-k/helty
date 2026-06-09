@@ -45,6 +45,11 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
   final Set<String> _selectedTestIds = {};
   /// Paid lab: test ids per invoice line.
   final Map<String, Set<String>> _testIdsByInvoiceItemId = {};
+  /// Standard flow: AST requested per test id.
+  final Map<String, bool> _astRequestedByTestId = {};
+  /// Paid lab: AST requested per invoice line and test id.
+  final Map<String, Map<String, bool>> _astRequestedByInvoiceItemAndTestId =
+      {};
   bool _loading = false;
   String? _error;
   List<Patient> _patientSearchResults = [];
@@ -102,15 +107,45 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
             _testIdsByInvoiceItemId.putIfAbsent(itemId, () => <String>{});
         if (set.contains(testId)) {
           set.remove(testId);
+          _astRequestedByInvoiceItemAndTestId[itemId]?.remove(testId);
         } else {
           set.add(testId);
         }
       } else {
         if (_selectedTestIds.contains(testId)) {
           _selectedTestIds.remove(testId);
+          _astRequestedByTestId.remove(testId);
         } else {
           _selectedTestIds.add(testId);
         }
+      }
+    });
+  }
+
+  bool _isAstRequested(
+    String testId, {
+    required bool isPaidLab,
+    String? invoiceItemId,
+  }) {
+    if (isPaidLab && invoiceItemId != null) {
+      return _astRequestedByInvoiceItemAndTestId[invoiceItemId]?[testId] ??
+          false;
+    }
+    return _astRequestedByTestId[testId] ?? false;
+  }
+
+  void _setAstRequested(
+    String testId,
+    bool value, {
+    required bool isPaidLab,
+    String? invoiceItemId,
+  }) {
+    setState(() {
+      if (isPaidLab && invoiceItemId != null) {
+        _astRequestedByInvoiceItemAndTestId
+            .putIfAbsent(invoiceItemId, () => {})[testId] = value;
+      } else {
+        _astRequestedByTestId[testId] = value;
       }
     });
   }
@@ -692,37 +727,75 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
                                             const Divider(height: 1),
                                         itemBuilder: (context, index) {
                                           final t = selectedTests[index];
-                                          return ListTile(
-                                            dense: true,
-                                            title: Text(
-                                              t.name,
-                                              style: theme
-                                                  .textTheme.bodySmall
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.w600,
+                                          final invoiceItemId =
+                                              selectedLine?.invoiceItemId;
+                                          final astRequested = _isAstRequested(
+                                            t.id,
+                                            isPaidLab: isPaidLab,
+                                            invoiceItemId: invoiceItemId,
+                                          );
+                                          return Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              ListTile(
+                                                dense: true,
+                                                title: Text(
+                                                  t.name,
+                                                  style: theme
+                                                      .textTheme.bodySmall
+                                                      ?.copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                subtitle: Text(
+                                                  t.sampleType,
+                                                  style: theme
+                                                      .textTheme.bodySmall
+                                                      ?.copyWith(
+                                                    color: theme.colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                                ),
+                                                trailing: IconButton(
+                                                  icon: const Icon(
+                                                    Icons.close_rounded,
+                                                    size: 18,
+                                                  ),
+                                                  onPressed: () {
+                                                    _toggleTestId(
+                                                      t.id,
+                                                      isPaidLab: isPaidLab,
+                                                    );
+                                                  },
+                                                ),
                                               ),
-                                            ),
-                                            subtitle: Text(
-                                              t.sampleType,
-                                              style: theme
-                                                  .textTheme.bodySmall
-                                                  ?.copyWith(
-                                                color: theme.colorScheme
-                                                    .onSurfaceVariant,
+                                              CheckboxListTile(
+                                                dense: true,
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 16,
+                                                ),
+                                                title: Text(
+                                                  'Include AST (antibiotic susceptibility)',
+                                                  style: theme
+                                                      .textTheme.bodySmall,
+                                                ),
+                                                value: astRequested,
+                                                onChanged: (v) {
+                                                  _setAstRequested(
+                                                    t.id,
+                                                    v ?? false,
+                                                    isPaidLab: isPaidLab,
+                                                    invoiceItemId:
+                                                        invoiceItemId,
+                                                  );
+                                                },
+                                                controlAffinity:
+                                                    ListTileControlAffinity
+                                                        .leading,
                                               ),
-                                            ),
-                                            trailing: IconButton(
-                                              icon: const Icon(
-                                                Icons.close_rounded,
-                                                size: 18,
-                                              ),
-                                              onPressed: () {
-                                                _toggleTestId(
-                                                  t.id,
-                                                  isPaidLab: isPaidLab,
-                                                );
-                                              },
-                                            ),
+                                            ],
                                           );
                                         },
                                       ),
@@ -781,12 +854,13 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     );
   }
 
-  Future<List<String>?> _resolveVersionIds(
+  Future<List<LabOrderItemInput>?> _buildOrderItems(
     LabApiService api,
-    Set<String> testIds,
+    List<String> testIdsInOrder,
+    bool Function(String testId) astRequestedFor,
   ) async {
-    final versionIds = <String>[];
-    for (final testId in testIds) {
+    final items = <LabOrderItemInput>[];
+    for (final testId in testIdsInOrder) {
       try {
         final test = await api.getTestById(testId);
         final activeVersion = _activeLabVersion(test);
@@ -800,7 +874,12 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
           }
           return null;
         }
-        versionIds.add(activeVersion.id);
+        items.add(
+          LabOrderItemInput(
+            testVersionId: activeVersion.id,
+            astRequested: astRequestedFor(testId),
+          ),
+        );
       } catch (e) {
         if (mounted) {
           setState(() {
@@ -811,7 +890,7 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
         return null;
       }
     }
-    return versionIds;
+    return items;
   }
 
   Future<void> _submit(
@@ -874,13 +953,21 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
         LabOrder? lastOrder;
         for (final line in toCreate) {
           final ids = _testIdsByInvoiceItemId[line.invoiceItemId]!;
-          final versionIds = await _resolveVersionIds(api, ids);
-          if (versionIds == null || !mounted) return;
+          final items = await _buildOrderItems(
+            api,
+            ids.toList()..sort(),
+            (testId) => _isAstRequested(
+              testId,
+              isPaidLab: true,
+              invoiceItemId: line.invoiceItemId,
+            ),
+          );
+          if (items == null || !mounted) return;
 
           final order = await api.createOrder(
             patientId: patientId,
             doctorId: doctorId,
-            testVersionIds: versionIds,
+            items: items,
             invoiceId: paidCtx?.invoiceId,
             invoiceItemId: line.invoiceItemId,
             serviceId: (line.serviceId?.isNotEmpty ?? false)
@@ -928,14 +1015,18 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
       return;
     }
 
-    final versionIds = await _resolveVersionIds(api, _selectedTestIds);
-    if (versionIds == null || !mounted) return;
+    final items = await _buildOrderItems(
+      api,
+      _selectedTestIds.toList()..sort(),
+      (testId) => _isAstRequested(testId, isPaidLab: false),
+    );
+    if (items == null || !mounted) return;
 
     try {
       final order = await api.createOrder(
         patientId: patientId,
         doctorId: doctorId,
-        testVersionIds: versionIds,
+        items: items,
         invoiceId: paidCtx?.invoiceId,
       );
       setState(() => _loading = false);
@@ -1045,7 +1136,8 @@ class _ExistingOrderForLineCardState extends State<_ExistingOrderForLineCard> {
                     (it) => Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        '• ${it.testVersion?.test?.name ?? 'Test'}',
+                        '• ${it.testVersion?.test?.name ?? 'Test'}'
+                        '${it.astRequested ? ' (AST)' : ''}',
                         style: theme.textTheme.bodySmall,
                       ),
                     ),
@@ -1101,7 +1193,8 @@ class _ExistingOrderForLineCardState extends State<_ExistingOrderForLineCard> {
                         (it) => Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            '• ${it.testVersion?.test?.name ?? 'Test'}',
+                            '• ${it.testVersion?.test?.name ?? 'Test'}'
+                            '${it.astRequested ? ' (AST)' : ''}',
                             style: theme.textTheme.bodySmall,
                           ),
                         ),

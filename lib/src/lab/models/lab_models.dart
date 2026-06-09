@@ -372,6 +372,22 @@ class LabOrderStaff {
       {'id': id, 'firstName': firstName, 'lastName': lastName};
 }
 
+/// Input for a single line when creating a lab order.
+class LabOrderItemInput {
+  const LabOrderItemInput({
+    required this.testVersionId,
+    this.astRequested = false,
+  });
+
+  final String testVersionId;
+  final bool astRequested;
+
+  Map<String, dynamic> toJson() => {
+        'testVersionId': testVersionId,
+        'astRequested': astRequested,
+      };
+}
+
 /// Single line item in an order (one test).
 class LabOrderItem {
   const LabOrderItem({
@@ -381,6 +397,8 @@ class LabOrderItem {
     this.sample,
     this.results = const [],
     this.fields,
+    this.astRequested = false,
+    this.astResults = const [],
   });
 
   final String id;
@@ -389,6 +407,8 @@ class LabOrderItem {
   final LabSample? sample;
   final List<LabResult> results;
   final List<LabTestField>? fields;
+  final bool astRequested;
+  final List<LabAstResult> astResults;
 
   factory LabOrderItem.fromJson(Map<String, dynamic> json) => LabOrderItem(
         id: (json['id'] as String?) ?? '',
@@ -407,6 +427,11 @@ class LabOrderItem {
         fields: (json['testVersion']?['fields'] as List<dynamic>?)
                 ?.map((e) => LabTestField.fromJson(e as Map<String, dynamic>))
                 .toList(),
+        astRequested: (json['astRequested'] as bool?) ?? false,
+        astResults: (json['astResults'] as List<dynamic>?)
+                ?.map((e) => LabAstResult.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
       );
 
   Map<String, dynamic> toJson() => {
@@ -415,6 +440,8 @@ class LabOrderItem {
         if (testVersion != null) 'testVersion': testVersion!.toJson(),
         if (sample != null) 'sample': sample!.toJson(),
         'results': results.map((e) => e.toJson()).toList(),
+        'astRequested': astRequested,
+        'astResults': astResults.map((e) => e.toJson()).toList(),
       };
 }
 
@@ -652,5 +679,115 @@ class LabResult {
         'hiddenFromReport': hiddenFromReport,
         if (referenceEvaluation != null)
           'referenceEvaluation': referenceEvaluation!.toJson(),
+      };
+}
+
+// ── MCS / AST (antibiotic susceptibility) ───────────────────────────────────
+
+/// Antibiotic in the lab susceptibility panel catalog.
+class LabAntibiotic {
+  const LabAntibiotic({
+    required this.id,
+    required this.name,
+    this.code,
+    this.isActive = true,
+    this.position = 0,
+  });
+
+  final String id;
+  final String name;
+  final String? code;
+  final bool isActive;
+  final int position;
+
+  factory LabAntibiotic.fromJson(Map<String, dynamic> json) => LabAntibiotic(
+        id: (json['id'] as String?) ?? '',
+        name: (json['name'] as String?) ?? '',
+        code: json['code'] as String?,
+        isActive: (json['isActive'] as bool?) ?? true,
+        position: (json['position'] as num?)?.toInt() ?? 0,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        if (code != null) 'code': code,
+        'isActive': isActive,
+        'position': position,
+      };
+}
+
+/// Susceptibility result option (e.g. Sensitive, Resistant).
+class LabAstResultOption {
+  const LabAstResultOption({
+    required this.id,
+    required this.label,
+    this.code,
+    this.isActive = true,
+    this.position = 0,
+  });
+
+  final String id;
+  final String label;
+  final String? code;
+  final bool isActive;
+  final int position;
+
+  factory LabAstResultOption.fromJson(Map<String, dynamic> json) =>
+      LabAstResultOption(
+        id: (json['id'] as String?) ?? '',
+        label: (json['label'] as String?) ?? '',
+        code: json['code'] as String?,
+        isActive: (json['isActive'] as bool?) ?? true,
+        position: (json['position'] as num?)?.toInt() ?? 0,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'label': label,
+        if (code != null) 'code': code,
+        'isActive': isActive,
+        'position': position,
+      };
+}
+
+/// Single AST result row for an order item.
+class LabAstResult {
+  const LabAstResult({
+    required this.id,
+    required this.orderItemId,
+    required this.antibiotic,
+    required this.resultOption,
+    this.enteredBy,
+  });
+
+  final String id;
+  final String orderItemId;
+  final LabAntibiotic antibiotic;
+  final LabAstResultOption resultOption;
+  final LabOrderStaff? enteredBy;
+
+  factory LabAstResult.fromJson(Map<String, dynamic> json) => LabAstResult(
+        id: (json['id'] as String?) ?? '',
+        orderItemId: (json['orderItemId'] as String?) ?? '',
+        antibiotic: LabAntibiotic.fromJson(
+          json['antibiotic'] as Map<String, dynamic>,
+        ),
+        resultOption: LabAstResultOption.fromJson(
+          json['resultOption'] as Map<String, dynamic>,
+        ),
+        enteredBy: json['enteredBy'] != null
+            ? LabOrderStaff.fromJson(
+                json['enteredBy'] as Map<String, dynamic>,
+              )
+            : null,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'orderItemId': orderItemId,
+        'antibiotic': antibiotic.toJson(),
+        'resultOption': resultOption.toJson(),
+        if (enteredBy != null) 'enteredBy': enteredBy!.toJson(),
       };
 }

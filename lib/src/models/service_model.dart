@@ -112,34 +112,31 @@ class ServiceModel {
     // serviceId is the "template" ID.
     // We check root serviceId, then service object, then drug object, then purchase item, then fallback to root id.
     String sid =
-        (json['serviceId'] ??
-                service?['id'] ??
-                drug?['id'] ??
-                purchaseItemId)
+        (json['serviceId'] ?? service?['id'] ?? drug?['id'] ?? purchaseItemId)
             ?.toString() ??
         '';
     if (sid.isEmpty) sid = json['id']?.toString() ?? '';
 
     // 3. Resolve Name & Description (mirrors BillingInvoiceItem.displayLabel priority)
-    String? _trimmed(dynamic v) {
+    String? trimmed(dynamic v) {
       final s = v?.toString().trim() ?? '';
       return s.isEmpty ? null : s;
     }
 
-    final customDesc = _trimmed(json['customDescription']);
+    final customDesc = trimmed(json['customDescription']);
     final purchaseName = purchaseItem == null
         ? null
-        : _trimmed(
+        : trimmed(
             purchaseItem['itemName'] ??
                 purchaseItem['name'] ??
                 purchaseItem['label'],
           );
     final consumableName = consumable == null
         ? null
-        : _trimmed(consumable['name'] ?? consumable['label']);
-    final drugName = _trimmed(drug?['genericName']) ??
-        _trimmed(drug?['brandName']);
-    final serviceName = _trimmed(service?['name']) ?? _trimmed(json['name']);
+        : trimmed(consumable['name'] ?? consumable['label']);
+    final drugName =
+        trimmed(drug?['genericName']) ?? trimmed(drug?['brandName']);
+    final serviceName = trimmed(service?['name']) ?? trimmed(json['name']);
 
     final name =
         customDesc ??

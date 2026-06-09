@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
+import 'package:helty/src/lab/widgets/lab_ast_result_grid.dart';
 import 'package:helty/src/lab/widgets/lab_dynamic_result_form.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
@@ -35,6 +36,10 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
   String? _testName;
   String? _testVersionId;
   bool _hasExistingResults = false;
+  bool _astRequested = false;
+  List<LabAntibiotic> _antibiotics = [];
+  List<LabAstResultOption> _astResultOptions = [];
+  Map<String, String> _astSelections = {};
 
   @override
   void initState() {
@@ -45,7 +50,8 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
   Future<void> _load() async {
     final api = ref.read(labApiServiceProvider);
     try {
-      final order = await api.getOrderById(widget.orderId);
+      final order =
+          await ref.read(labOrderByIdProvider(widget.orderId).future);
       final matching =
           order.items.where((e) => e.id == widget.orderItemId).toList();
       final item = matching.isEmpty ? null : matching.first;
@@ -58,6 +64,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       }
       _testVersionId = item.testVersion?.id;
       _testName = item.testVersion?.test?.name;
+      _astRequested = item.astRequested;
       if (_testVersionId == null ||
           _testVersionId!.isEmpty ||
           item.id.isEmpty) {
@@ -69,8 +76,36 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
         });
         return;
       }
-      final fields = await api.getTestFields(_testVersionId!);
-      final results = await api.getResults(item.id);
+
+      final fieldsFuture = api.getTestFields(_testVersionId!);
+      final resultsFuture = api.getResults(item.id);
+      final antibioticsFuture = _astRequested
+          ? ref.read(labAntibioticsFutureProvider.future)
+          : null;
+      final optionsFuture = _astRequested
+          ? ref.read(labAstResultOptionsFutureProvider.future)
+          : null;
+      final astResultsFuture =
+          _astRequested ? api.getAstResults(item.id) : null;
+
+      final fields = await fieldsFuture;
+      final results = await resultsFuture;
+
+      List<LabAntibiotic> antibiotics = [];
+      List<LabAstResultOption> astOptions = [];
+      Map<String, String> astSelections = {};
+
+      if (_astRequested) {
+        final abxResponse = await antibioticsFuture!;
+        final optResponse = await optionsFuture!;
+        final astResults = await astResultsFuture!;
+        antibiotics = abxResponse.data.where((a) => a.isActive).toList();
+        astOptions = optResponse.data.where((o) => o.isActive).toList();
+        for (final r in astResults) {
+          astSelections[r.antibiotic.id] = r.resultOption.id;
+        }
+      }
+
       final initialValues = <String, String>{};
       final evaluations = <String, ReferenceEvaluation?>{};
       final hidden = <String>{};
@@ -90,6 +125,9 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
             ..clear()
             ..addAll(hidden);
           _hasExistingResults = results.isNotEmpty;
+          _antibiotics = antibiotics;
+          _astResultOptions = astOptions;
+          _astSelections = astSelections;
           _loading = false;
         });
       }
@@ -155,7 +193,8 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
       );
     }
 
-    if (_fields!.isEmpty) {
+    final hasFields = _fields!.isNotEmpty;
+    if (!hasFields && !_astRequested) {
       return Scaffold(
         appBar: AppBar(
           title: Text(_testName ?? 'Enter results'),
@@ -189,14 +228,13 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_hasExistingResults) ...[
+            if (_hasExistingResults && hasFields) ...[
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                   side: BorderSide(
-                    color:
-                        theme.colorScheme.primary.withValues(alpha: 0.4),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.4),
                   ),
                 ),
                 child: Padding(
@@ -222,30 +260,32 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+            if (hasFields)
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color:
+                        theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: LabDynamicResultForm(
+                    key: _formKey,
+                    fields: _fields!,
+                    initialValues: _initialValues,
+                    fieldEvaluations: _fieldEvaluations,
+                    hiddenFieldIds: _hiddenFieldIds,
+                    onFieldHidden: (fieldId) {
+                      setState(() => _hiddenFieldIds.add(fieldId));
+                    },
+                    onChanged: (_) {},
+                  ),
                 ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: LabDynamicResultForm(
-                  key: _formKey,
-                  fields: _fields!,
-                  initialValues: _initialValues,
-                  fieldEvaluations: _fieldEvaluations,
-                  hiddenFieldIds: _hiddenFieldIds,
-                  onFieldHidden: (fieldId) {
-                    setState(() => _hiddenFieldIds.add(fieldId));
-                  },
-                  onChanged: (_) {},
-                ),
-              ),
-            ),
-            if (_hiddenFieldIds.isNotEmpty) ...[
+            if (hasFields && _hiddenFieldIds.isNotEmpty) ...[
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerLeft,
@@ -280,6 +320,55 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
                     },
                   );
                 }).toList(),
+              ),
+            ],
+            if (_astRequested) ...[
+              if (hasFields) const SizedBox(height: 24),
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color:
+                        theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Antibiotic Susceptibility',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Select susceptibility only for antibiotics that were tested.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      LabAstResultGrid(
+                        antibiotics: _antibiotics,
+                        resultOptions: _astResultOptions,
+                        selections: _astSelections,
+                        onChanged: (antibioticId, resultOptionId) {
+                          setState(() {
+                            if (resultOptionId == null) {
+                              _astSelections.remove(antibioticId);
+                            } else {
+                              _astSelections[antibioticId] = resultOptionId;
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
             if (_error != null) ...[
@@ -320,36 +409,61 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
     final staff = ref.read(currentStaffProvider);
     if (staff == null) return;
 
-    final formState = _formKey.currentState;
-    if (formState == null) return;
-    if (!formState.validate()) return;
-
-    final values = formState.values;
-    if (_fields == null || _fields!.isEmpty) return;
+    if (_fields != null && _fields!.isNotEmpty) {
+      final formState = _formKey.currentState;
+      if (formState == null) return;
+      if (!formState.validate()) return;
+    }
 
     setState(() {
       _error = null;
       _saving = true;
     });
 
-    final results = <Map<String, dynamic>>[];
-    for (final f in _fields!) {
-      final hidden = _hiddenFieldIds.contains(f.id);
-      results.add({
-        'fieldId': f.id,
-        'value': values[f.id] ?? '',
-        'hiddenFromReport': hidden,
-      });
-    }
-
+    final api = ref.read(labApiServiceProvider);
     final router = context.router;
+
     try {
-      await ref.read(labApiServiceProvider).createResultsBatch(
+      if (_fields != null && _fields!.isNotEmpty) {
+        final formState = _formKey.currentState!;
+        final values = formState.values;
+        final results = <Map<String, dynamic>>[];
+        for (final f in _fields!) {
+          final hidden = _hiddenFieldIds.contains(f.id);
+          results.add({
+            'fieldId': f.id,
+            'value': values[f.id] ?? '',
+            'hiddenFromReport': hidden,
+          });
+        }
+        await api.createResultsBatch(
+          orderItemId: widget.orderItemId,
+          enteredBy: staff.id,
+          results: results,
+        );
+      }
+
+      if (_astRequested) {
+        final astRows = _astSelections.entries
+            .where((e) => e.value.isNotEmpty)
+            .map(
+              (e) => {
+                'antibioticId': e.key,
+                'resultOptionId': e.value,
+              },
+            )
+            .toList();
+        if (astRows.isNotEmpty) {
+          await api.createAstResultsBatch(
             orderItemId: widget.orderItemId,
             enteredBy: staff.id,
-            results: results,
+            results: astRows,
           );
+        }
+      }
+
       if (!mounted) return;
+      invalidateLabOrderCaches(ref, orderId: widget.orderId);
       router.maybePop();
     } catch (e) {
       if (!mounted) return;

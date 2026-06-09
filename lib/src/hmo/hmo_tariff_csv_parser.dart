@@ -1,4 +1,5 @@
 /// Parses CSV tariff files for HMO service pricing import.
+library;
 
 class HmoTariffImportRow {
   HmoTariffImportRow({

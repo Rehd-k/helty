@@ -24,10 +24,8 @@ Future<DialysisSessionConsumable?> showDialysisAddConsumableSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (ctx) => _DialysisAddConsumableSheet(
-      sessionId: sessionId,
-      patientId: patientId,
-    ),
+    builder: (ctx) =>
+        _DialysisAddConsumableSheet(sessionId: sessionId, patientId: patientId),
   );
 }
 
@@ -191,8 +189,10 @@ class _DialysisAddConsumableSheetState
         ),
       );
 
-      final invoiceId =
-          await resolveOrCreateOpenInvoiceId(ref, widget.patientId);
+      final invoiceId = await resolveOrCreateOpenInvoiceId(
+        ref,
+        widget.patientId,
+      );
       await InvoiceService().addBillingItem(
         invoiceId: invoiceId,
         payload: AddInvoiceItemPayload(
@@ -295,23 +295,20 @@ class _DialysisAddConsumableSheetState
           ],
           if (_selected != null) ...[
             const SizedBox(height: 8),
-            Text('Selected: ${_selected!.name}',
-                style: theme.textTheme.bodyMedium),
+            Text(
+              'Selected: ${_selected!.name}',
+              style: theme.textTheme.bodyMedium,
+            ),
           ],
           const SizedBox(height: 12),
           if (_loadingLocs)
             const LinearProgressIndicator()
           else
             DropdownButtonFormField<StoreLocation>(
-              value: _location,
+              initialValue: _location,
               decoration: const InputDecoration(labelText: 'Store location'),
               items: _locations
-                  .map(
-                    (l) => DropdownMenuItem(
-                      value: l,
-                      child: Text(l.name),
-                    ),
-                  )
+                  .map((l) => DropdownMenuItem(value: l, child: Text(l.name)))
                   .toList(),
               onChanged: (v) => setState(() => _location = v),
             ),

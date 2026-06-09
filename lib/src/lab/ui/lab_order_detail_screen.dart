@@ -7,6 +7,7 @@ import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/lab/ui/lab_record_sample_sheet.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
+import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'dart:typed_data';
 
@@ -25,54 +26,36 @@ class LabOrderDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
-  LabOrder? _order;
-  bool _loading = true;
-  String? _error;
+  /// Holds PATCH response so status changes do not trigger a redundant GET.
+  LabOrder? _optimisticOrder;
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final order = await ref
-          .read(labApiServiceProvider)
-          .getOrderById(widget.orderId);
-      if (mounted) {
-        setState(() {
-          _order = order;
-          _loading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _loading = false;
-        });
-      }
-    }
+  Future<void> _refreshOrder() async {
+    setState(() => _optimisticOrder = null);
+    invalidateLabOrderCaches(ref, orderId: widget.orderId);
+    await ref.read(labOrderByIdProvider(widget.orderId).future);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final staff = ref.watch(currentStaffProvider);
+    final orderAsync = ref.watch(labOrderByIdProvider(widget.orderId));
 
-    if (_loading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Order detail')),
-        body: const Center(child: CircularProgressIndicator()),
+    if (_optimisticOrder != null) {
+      return _buildOrderScaffold(
+        context,
+        theme,
+        staff,
+        _optimisticOrder!,
       );
     }
-    if (_error != null || _order == null) {
-      return Scaffold(
+
+    return orderAsync.when(
+      loading: () => Scaffold(
+        appBar: AppBar(title: const Text('Order detail')),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, _) => Scaffold(
         appBar: AppBar(
           title: const Text('Order detail'),
           leading: IconButton(
@@ -93,20 +76,30 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  _error ?? 'Order not found',
+                  error.toString(),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 24),
-                FilledButton(onPressed: _load, child: const Text('Retry')),
+                FilledButton(
+                  onPressed: _refreshOrder,
+                  child: const Text('Retry'),
+                ),
               ],
             ),
           ),
         ),
-      );
-    }
+      ),
+      data: (order) => _buildOrderScaffold(context, theme, staff, order),
+    );
+  }
 
-    final order = _order!;
+  Widget _buildOrderScaffold(
+    BuildContext context,
+    ThemeData theme,
+    Staff? staff,
+    LabOrder order,
+  ) {
     final hasAnyResults = order.items.any((i) => i.results.isNotEmpty);
     final isHeadOfLab =
         (staff?.staffRole.toLowerCase() == 'admin') ||
@@ -135,20 +128,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
             ),
           PopupMenuButton<LabOrderStatus>(
             icon: const Icon(Icons.more_vert_rounded),
-            onSelected: (status) async {
-              final messenger = ScaffoldMessenger.maybeOf(context);
-              try {
-                await ref
-                    .read(labApiServiceProvider)
-                    .updateOrderStatus(order.id, status);
-                if (!mounted) return;
-                _load();
-              } catch (e) {
-                if (mounted && messenger != null) {
-                  messenger.showSnackBar(SnackBar(content: Text(e.toString())));
-                }
-              }
-            },
+            onSelected: (status) => _updateOrderStatus(context, order, status),
             itemBuilder: (context) => LabOrderStatus.values
                 .map(
                   (s) => PopupMenuItem(value: s, child: Text(_statusLabel(s))),
@@ -158,7 +138,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _load,
+        onRefresh: _refreshOrder,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(24),
@@ -206,6 +186,25 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
     );
   }
 
+  Future<void> _updateOrderStatus(
+    BuildContext context,
+    LabOrder order,
+    LabOrderStatus status,
+  ) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      final updated = await ref
+          .read(labApiServiceProvider)
+          .updateOrderStatus(order.id, status);
+      if (!mounted) return;
+      setState(() => _optimisticOrder = updated);
+    } catch (e) {
+      if (mounted && messenger != null) {
+        messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
+  }
+
   void _showRecordSample(BuildContext context, LabOrderItem item) {
     final staff = ref.read(currentStaffProvider);
     if (staff == null) {
@@ -223,7 +222,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
         staffId: staff.id,
         onSaved: () {
           Navigator.pop(ctx);
-          _load();
+          _refreshOrder();
         },
       ),
     );
@@ -231,18 +230,20 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
 
   void _openResultEntry(BuildContext context, LabOrderItem item) {
     context.router
-        .push(LabResultEntryRoute(orderId: _order!.id, orderItemId: item.id))
-        .then((_) => _load());
+        .push(LabResultEntryRoute(orderId: widget.orderId, orderItemId: item.id))
+        .then((_) {
+      if (mounted) _refreshOrder();
+    });
   }
 
   Future<void> _verifyOrder(BuildContext context, LabOrder order) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
-      await ref
+      final updated = await ref
           .read(labApiServiceProvider)
           .updateOrderStatus(order.id, LabOrderStatus.verified);
       if (!mounted) return;
-      _load();
+      setState(() => _optimisticOrder = updated);
       messenger?.showSnackBar(
         const SnackBar(content: Text('Order marked as verified')),
       );
@@ -469,6 +470,14 @@ class _OrderItemCard extends StatelessWidget {
                       color: theme.colorScheme.onTertiaryContainer,
                     ),
                   ),
+                if (item.astRequested)
+                  Chip(
+                    label: const Text('AST'),
+                    backgroundColor: theme.colorScheme.secondaryContainer,
+                    labelStyle: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -581,6 +590,23 @@ class _OrderItemCard extends StatelessWidget {
                   ),
                 ),
               ),
+            if (item.astRequested) ...[
+              const SizedBox(height: 4),
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _AstResultsSection(item: item),
+              ),
+            ],
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -628,6 +654,104 @@ class _OrderItemCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AstResultsSection extends StatelessWidget {
+  const _AstResultsSection({required this.item});
+
+  final LabOrderItem item;
+
+  List<LabAstResult> get _sortedResults {
+    final list = List<LabAstResult>.from(item.astResults)
+      ..sort((a, b) {
+        final pc = a.antibiotic.position.compareTo(b.antibiotic.position);
+        return pc != 0 ? pc : a.antibiotic.name.compareTo(b.antibiotic.name);
+      });
+    return list;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final results = _sortedResults;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Antibiotic Susceptibility',
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (results.isEmpty)
+          Text(
+            'AST pending',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
+          )
+        else ...[
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Text(
+                  'Antibiotic',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'Result',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ...results.map((r) {
+            final abxName = r.antibiotic.code != null &&
+                    r.antibiotic.code!.isNotEmpty
+                ? '${r.antibiotic.name} (${r.antibiotic.code})'
+                : r.antibiotic.name;
+            final resultLabel = r.resultOption.code != null &&
+                    r.resultOption.code!.isNotEmpty
+                ? '${r.resultOption.label} (${r.resultOption.code})'
+                : r.resultOption.label;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(abxName, style: theme.textTheme.bodySmall),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      resultLabel,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ],
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,30 +20,56 @@ class SuperAdminStaffListScreen extends ConsumerStatefulWidget {
 class _SuperAdminStaffListScreenState
     extends ConsumerState<SuperAdminStaffListScreen> {
   final _searchCtrl = TextEditingController();
+  Timer? _debounce;
   String _query = '';
+
+  ({String? query, String? staffRole, String? departmentId, int limit})
+  get _listParams => (
+    query: _query.isEmpty ? null : _query,
+    staffRole: null,
+    departmentId: null,
+    limit: 500,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(_onSearchChanged);
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
 
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      setState(() => _query = _searchCtrl.text.trim());
+    });
+  }
+
   void _applySearch() {
+    _debounce?.cancel();
     setState(() => _query = _searchCtrl.text.trim());
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchCtrl.clear();
+    setState(() => _query = '');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final asyncStaff = ref.watch(
-      staffListProvider((
-        query: _query.isEmpty ? null : _query,
-        staffRole: null,
-        departmentId: null,
-        limit: 500,
-      )),
-    );
+    final asyncStaff = ref.watch(staffListProvider(_listParams));
+    final isSearching = asyncStaff.isLoading && _query.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Staff Directory')),
@@ -50,51 +78,42 @@ class _SuperAdminStaffListScreenState
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    textInputAction: TextInputAction.search,
-                    decoration: InputDecoration(
-                      hintText: 'Search by name, ID, email…',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      isDense: true,
-                    ),
-                    onSubmitted: (_) => _applySearch(),
-                  ),
+            child: TextField(
+              controller: _searchCtrl,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search by name, ID, email…',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: isSearching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: _clearSearch,
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: _applySearch,
-                  child: const Text('Search'),
-                ),
-              ],
+                isDense: true,
+              ),
+              onSubmitted: (_) => _applySearch(),
+              onChanged: (_) => setState(() {}),
             ),
           ),
           Expanded(
             child: asyncStaff.when(
               data: (list) => RefreshIndicator(
                 onRefresh: () async {
-                  ref.invalidate(
-                    staffListProvider((
-                      query: _query.isEmpty ? null : _query,
-                      staffRole: null,
-                      departmentId: null,
-                      limit: 500,
-                    )),
-                  );
-                  await ref.read(
-                    staffListProvider((
-                      query: _query.isEmpty ? null : _query,
-                      staffRole: null,
-                      departmentId: null,
-                      limit: 500,
-                    )).future,
-                  );
+                  ref.invalidate(staffListProvider(_listParams));
+                  await ref.read(staffListProvider(_listParams).future);
                 },
                 child: list.isEmpty
                     ? ListView(
@@ -160,14 +179,7 @@ class _SuperAdminStaffListScreenState
                       const SizedBox(height: 16),
                       FilledButton(
                         onPressed: () {
-                          ref.invalidate(
-                            staffListProvider((
-                              query: _query.isEmpty ? null : _query,
-                              staffRole: null,
-                              departmentId: null,
-                              limit: 500,
-                            )),
-                          );
+                          ref.invalidate(staffListProvider(_listParams));
                         },
                         child: const Text('Retry'),
                       ),

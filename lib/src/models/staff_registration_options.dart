@@ -281,3 +281,81 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
     ),
   ],
 };
+
+String _normalizeStaffRole(String role) =>
+    role.trim().toLowerCase().replaceAll('-', '_');
+
+StaffAccountCategory? accountCategoryForAccountType(AccountType? accountType) {
+  if (accountType == null) return null;
+  return switch (accountType) {
+    AccountType.billing => StaffAccountCategory.billing,
+    AccountType.accounting => StaffAccountCategory.account,
+    AccountType.hmo => StaffAccountCategory.hmo,
+    AccountType.pharmacy => StaffAccountCategory.pharmacy,
+    AccountType.nurse => StaffAccountCategory.nurse,
+    AccountType.physician => StaffAccountCategory.physician,
+    AccountType.laboratory => StaffAccountCategory.laboratory,
+    AccountType.radiology => StaffAccountCategory.radiology,
+    AccountType.dialysis => StaffAccountCategory.dialysis,
+    AccountType.store => StaffAccountCategory.store,
+    AccountType.purchases => StaffAccountCategory.purchases,
+    AccountType.medical_records => StaffAccountCategory.medicalRecords,
+    AccountType.front_desk => StaffAccountCategory.frontDesk,
+    AccountType.ict => StaffAccountCategory.ict,
+    AccountType.cmd => StaffAccountCategory.cmd,
+    AccountType.cmac => StaffAccountCategory.cmac,
+    AccountType.super_admin => StaffAccountCategory.superAdmin,
+    AccountType.staff => StaffAccountCategory.frontDesk,
+  };
+}
+
+List<StaffRoleOption> rolesForAccountType(AccountType accountType) {
+  final category = accountCategoryForAccountType(accountType);
+  if (category == null) return const [];
+  return kStaffRolesByCategory[category] ?? const [];
+}
+
+AccountType resolveStaffAccountType(Staff staff) {
+  if (staff.accountType != null && staff.accountType!.isDepartmentType) {
+    return staff.accountType!;
+  }
+
+  final normalizedRole = _normalizeStaffRole(staff.staffRole);
+  for (final entry in kStaffRolesByCategory.entries) {
+    for (final option in entry.value) {
+      if (_normalizeStaffRole(option.staffRole) == normalizedRole) {
+        return option.accountType;
+      }
+    }
+  }
+
+  return AccountType.front_desk;
+}
+
+/// Resolves account type + role dropdown values for an existing [Staff].
+({AccountType accountType, StaffRoleOption role}) resolveStaffRoleSelection(
+  Staff staff,
+) {
+  final normalizedRole = _normalizeStaffRole(staff.staffRole);
+
+  for (final entry in kStaffRolesByCategory.entries) {
+    for (final option in entry.value) {
+      if (_normalizeStaffRole(option.staffRole) == normalizedRole) {
+        final accountType =
+            staff.accountType != null && staff.accountType!.isDepartmentType
+            ? staff.accountType!
+            : option.accountType;
+        return (accountType: accountType, role: option);
+      }
+    }
+  }
+
+  final accountType = resolveStaffAccountType(staff);
+  final roles = rolesForAccountType(accountType);
+  return (
+    accountType: accountType,
+    role: roles.isNotEmpty
+        ? roles.first
+        : kStaffRolesByCategory[StaffAccountCategory.frontDesk]!.first,
+  );
+}
