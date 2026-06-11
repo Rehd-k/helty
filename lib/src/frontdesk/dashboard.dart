@@ -5,11 +5,13 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../app_router.gr.dart';
+import '../helper/app_timezone.dart';
 import '../helper/date.formatter.dart';
 import '../models/appointment_model.dart';
 import '../models/frontdesk_dashboard_models.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
+import '../paitients/patient_service.dart';
 import '../services/appointment_service.dart';
 import '../services/frontdesk_dashboard_service.dart';
 import 'widgets/check_in_patient_dialog.dart';
@@ -26,8 +28,9 @@ class FrontDeskDashboardScreen extends ConsumerStatefulWidget {
 class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   final FrontdeskDashboardService _api = FrontdeskDashboardService();
   final AppointmentService _appointmentService = AppointmentService();
+  final PatientService _patientService = PatientService();
 
-  DateTime _focusedDay = DateTime.now();
+  DateTime _focusedDay = AppTimezone.now();
   DateTime? _selectedDay;
 
   final Map<DateTime, int> _calendarCounts = {};
@@ -40,6 +43,8 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
 
   bool _loadingSummary = true;
   bool _loadingQueue = true;
+  bool _loadingRegistrationsToday = true;
+  int? _registrationsToday;
   String? _summaryError;
   String? _queueError;
 
@@ -50,6 +55,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSummary();
       _loadQueue();
+      _loadRegistrationsToday();
       _ensureCalendarCountsForMonth(_focusedDay);
     });
   }
@@ -106,8 +112,32 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     }
   }
 
+  Future<void> _loadRegistrationsToday() async {
+    setState(() {
+      if (_registrationsToday == null) _loadingRegistrationsToday = true;
+    });
+    try {
+      final res = await _patientService.fetchRegisteredToday(take: 1);
+      if (!mounted) return;
+      setState(() {
+        _registrationsToday = res.total;
+        _loadingRegistrationsToday = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _registrationsToday = null;
+        _loadingRegistrationsToday = false;
+      });
+    }
+  }
+
   Future<void> _refreshAll() async {
-    await Future.wait([_loadSummary(), _loadQueue()]);
+    await Future.wait([
+      _loadSummary(),
+      _loadQueue(),
+      _loadRegistrationsToday(),
+    ]);
   }
 
   static DateTime _calendarDateKey(DateTime d) =>
@@ -468,6 +498,19 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                         '—',
                         Icons.logout,
                         Colors.purple,
+                      ),
+                      const SizedBox(width: 16),
+                      _buildStatCard(
+                        context,
+                        'Registered today',
+                        _loadingRegistrationsToday
+                            ? '…'
+                            : '${_registrationsToday ?? '—'}',
+                        '—',
+                        Icons.person_add_alt_1_outlined,
+                        Colors.teal,
+                        onTap: () =>
+                            context.router.push(const TodayPatientsRoute()),
                       ),
                     ],
                   ),
@@ -983,7 +1026,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                                 day,
                                 colorScheme,
                                 isSelected: false,
-                                isToday: isSameDay(day, DateTime.now()),
+                                isToday: isSameDay(day, AppTimezone.now()),
                               );
                             },
                             selectedBuilder: (context, day, focusedDay) {
@@ -992,7 +1035,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                                 day,
                                 colorScheme,
                                 isSelected: true,
-                                isToday: isSameDay(day, DateTime.now()),
+                                isToday: isSameDay(day, AppTimezone.now()),
                               );
                             },
                             todayBuilder: (context, day, focusedDay) {
@@ -1037,71 +1080,82 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     IconData icon,
     Color iconColor, {
     bool isNegative = false,
+    VoidCallback? onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final showTrend = change != '—';
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: iconColor, size: 20),
-                ),
-                if (showTrend)
-                  Text(
-                    change,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isNegative ? Colors.red : Colors.green,
-                    ),
-                  )
-                else
-                  Text(
-                    change,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface.withValues(alpha: 0.35),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
+    final card = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              if (showTrend)
+                Text(
+                  change,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isNegative ? Colors.red : Colors.green,
+                  ),
+                )
+              else
+                Text(
+                  change,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface.withValues(alpha: 0.35),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              color: colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+    return Expanded(
+      child: onTap == null
+          ? card
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(12),
+                child: card,
+              ),
+            ),
     );
   }
 

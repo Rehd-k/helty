@@ -1,22 +1,31 @@
 import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app_router.gr.dart';
+import '../auth/nursing_permissions.dart';
 import '../cmd/cmd_breakpoints.dart';
+import '../helper/date.formatter.dart';
 import '../models/nurse_dashboard_models.dart';
-import '../services/nurse_dashboard_service.dart';
+import '../nursing/models/nursing_models.dart';
+import '../nursing/providers/nursing_providers.dart';
+import '../models/staff_model.dart';
+import '../providers/auth_provider.dart';
 
 @RoutePage()
-class NursesDashboardScreen extends StatefulWidget {
+class NursesDashboardScreen extends ConsumerStatefulWidget {
   const NursesDashboardScreen({super.key});
 
   @override
-  State<NursesDashboardScreen> createState() => _NursesDashboardScreenState();
+  ConsumerState<NursesDashboardScreen> createState() =>
+      _NursesDashboardScreenState();
 }
 
-class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
+class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   static const _timeRanges = [
     'Today',
     'Last 7 Days',
@@ -24,10 +33,8 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
     'This Year',
   ];
 
-  final NurseDashboardService _service = NurseDashboardService();
-
   String _timeRange = 'Today';
-  NurseDashboardOverview? _data;
+  NursingDashboardOverview? _data;
   bool _loading = true;
   String? _error;
 
@@ -43,7 +50,15 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
       _error = null;
     });
     try {
-      final overview = await _service.getOverview(timeRange: _timeRange);
+      final service = ref.read(nursingApiServiceProvider);
+      final staff = ref.read(authProvider).staff;
+      final bootstrap = ref.read(nursingBootstrapDataProvider);
+      final role = bootstrap?.normalizedStaffRole ??
+          normalizeNursingStaffRole(staff?.staffRole);
+      final overview = await service.getOverviewForRole(
+        staffRole: role.isNotEmpty ? role : 'INPATIENT_NURSE',
+        timeRange: _timeRange,
+      );
       if (!mounted) return;
       setState(() {
         _data = overview;
@@ -51,13 +66,16 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      final msg = e is DioException && e.response?.statusCode == 403
+          ? 'You do not have access to this nursing dashboard.'
+          : e.toString();
       setState(() {
-        _error = e.toString();
+        _error = msg;
         _loading = false;
       });
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(SnackBar(content: Text(_error!)));
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
     }
   }
 
@@ -307,8 +325,11 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
       );
     }
 
-    final kpis = data.kpis;
-    final header = data.header;
+    final base = data.base;
+    final kpis = base.kpis;
+    final header = base.header;
+    final staff = ref.watch(authProvider).staff;
+    final bootstrap = ref.watch(nursingBootstrapDataProvider);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -335,38 +356,64 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                   vertical: bp.paddingV,
                 );
 
-                return SingleChildScrollView(
-                  padding: pad,
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: math.min(
-                          constraints.maxWidth,
-                          CmdBreakpoints.maxContentWidth,
+                return RefreshIndicator(
+                  onRefresh: _load,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: pad,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: math.min(
+                            constraints.maxWidth,
+                            CmdBreakpoints.maxContentWidth,
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _nurseDashboardHeader(
-                            bp: bp,
-                            header: header,
-                            colorScheme: colorScheme,
-                          ),
-                          SizedBox(height: bp.isMobile ? 24 : 32),
-                          _nurseKpiGrid(bp, kpis, colorScheme),
-                          const SizedBox(height: 24),
-                          _nurseChartsAndSidebar(
-                            bp: bp,
-                            data: data,
-                            colorScheme: colorScheme,
-                            admissionsHeight: admitH,
-                            departmentHeight: deptH,
-                            chartInnerPadding: chartPad,
-                            stackChartTitleRow: !bp.isDesktop,
-                          ),
-                        ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _nurseDashboardHeader(
+                              bp: bp,
+                              header: header,
+                              colorScheme: colorScheme,
+                              nursingUnit: data.nursingUnit ??
+                                  bootstrap?.nursingUnit,
+                              unitDisplayName: isChargeNurse(staff)
+                                  ? (bootstrap?.ward?.name ??
+                                      bootstrap?.department?.name)
+                                  : bootstrap?.department?.name,
+                            ),
+                            SizedBox(height: bp.isMobile ? 24 : 32),
+                            _roleSpecificSections(
+                              data: data,
+                              staff: staff,
+                              bootstrap: bootstrap,
+                              colorScheme: colorScheme,
+                              bp: bp,
+                            ),
+                            if (!data.isLineDashboard) ...[
+                              _nurseKpiGrid(bp, kpis, colorScheme),
+                              const SizedBox(height: 24),
+                              _nurseChartsAndSidebar(
+                                bp: bp,
+                                data: base,
+                                colorScheme: colorScheme,
+                                admissionsHeight: admitH,
+                                departmentHeight: deptH,
+                                chartInnerPadding: chartPad,
+                                stackChartTitleRow: !bp.isDesktop,
+                                canManageRoster: canManageShiftRoster(
+                                  staff,
+                                  bootstrap,
+                                ),
+                              ),
+                            ] else if (base.criticalAlerts.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              _lineCriticalAlerts(base.criticalAlerts, colorScheme),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -375,6 +422,478 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _roleSpecificSections({
+    required NursingDashboardOverview data,
+    required Staff? staff,
+    required NursingDashboardMe? bootstrap,
+    required ColorScheme colorScheme,
+    required CmdBreakpoints bp,
+  }) {
+    final children = <Widget>[];
+
+    if (canViewHospitalDashboard(staff, bootstrap) &&
+        data.unitRosterCounts.isNotEmpty) {
+      children.add(
+        _unitRosterCountsSection(data.unitRosterCounts, colorScheme, bp),
+      );
+      children.add(SizedBox(height: bp.isMobile ? 16 : 24));
+    }
+
+    if (canViewUnitDashboard(staff, bootstrap) &&
+        data.shiftBreakdown.isNotEmpty) {
+      children.add(
+        _shiftBreakdownSection(data.shiftBreakdown, colorScheme),
+      );
+      children.add(const SizedBox(height: 16));
+      if (data.opdQueueDepth != null) {
+        children.add(
+          _infoChip(
+            'OPD queue depth: ${data.opdQueueDepth}',
+            Icons.people_outline,
+            colorScheme,
+          ),
+        );
+        children.add(const SizedBox(height: 16));
+      } else if (data.bedOccupancyPercent != null) {
+        children.add(
+          _infoChip(
+            'Bed occupancy: ${data.bedOccupancyPercent!.toStringAsFixed(0)}%',
+            Icons.bed_outlined,
+            colorScheme,
+          ),
+        );
+        children.add(const SizedBox(height: 16));
+      }
+    }
+
+    if (canViewLineDashboard(staff, bootstrap) || data.isLineDashboard) {
+      if (data.myRosterShifts.isNotEmpty) {
+        children.add(
+          _myRosterSection(data.myRosterShifts, colorScheme),
+        );
+        children.add(const SizedBox(height: 16));
+      }
+      if (data.assignedAdmissions.isNotEmpty) {
+        children.add(
+          _assignedAdmissionsSection(data.assignedAdmissions, colorScheme),
+        );
+        children.add(const SizedBox(height: 16));
+      }
+      if (data.outpatientQueue.isNotEmpty) {
+        children.add(
+          _outpatientQueueSection(data.outpatientQueue, colorScheme),
+        );
+        children.add(const SizedBox(height: 16));
+      }
+    }
+
+    if (children.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    );
+  }
+
+  Widget _infoChip(String label, IconData icon, ColorScheme colorScheme) {
+    return Chip(
+      avatar: Icon(icon, size: 18, color: colorScheme.primary),
+      label: Text(label),
+    );
+  }
+
+  Widget _unitRosterCountsSection(
+    List<NursingUnitRosterCount> counts,
+    ColorScheme colorScheme,
+    CmdBreakpoints bp,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Unit roster & assignment gaps',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: counts.map((u) {
+            return SizedBox(
+              width: bp.isMobile ? double.infinity : 200,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        u.nursingUnit,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text('Scheduled: ${u.scheduled} · On duty: ${u.onDuty}'),
+                      if (u.coverageGap > 0)
+                        Text(
+                          'Coverage gap: ${u.coverageGap}',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      if (u.assignmentGap > 0)
+                        Text(
+                          'Assignment gap: ${u.assignmentGap}',
+                          style: TextStyle(color: Colors.orange.shade800),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            if (canManageShiftRoster(
+              ref.read(authProvider).staff,
+              ref.read(nursingBootstrapDataProvider),
+            ))
+              OutlinedButton.icon(
+                onPressed: () =>
+                    context.router.push(const NursingRosterRoute()),
+                icon: const Icon(Icons.calendar_month, size: 16),
+                label: const Text('Manage roster'),
+              ),
+            OutlinedButton.icon(
+              onPressed: () =>
+                  context.router.push(const NursingAssignmentsRoute()),
+              icon: const Icon(Icons.assignment_ind, size: 16),
+              label: const Text('Assignments'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _shiftBreakdownSection(
+    List<NursingShiftBreakdown> shifts,
+    ColorScheme colorScheme,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Today's roster by shift",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...shifts.map(
+              (s) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(s.shiftType)),
+                    Text('${s.onDuty}/${s.scheduled} on duty'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatLabel(String? value) {
+    if (value == null || value.trim().isEmpty) return '';
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+  }
+
+  String _personInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    final list = parts.toList();
+    if (list.isEmpty) return '?';
+    if (list.length == 1) return list.first[0].toUpperCase();
+    return (list.first[0] + list.last[0]).toUpperCase();
+  }
+
+  Widget _myRosterSection(
+    List<NursingMyRosterShift> shifts,
+    ColorScheme colorScheme,
+  ) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'My shifts today',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...shifts.map((s) {
+              final shiftLabel =
+                  ShiftType.fromString(s.shiftType)?.label ?? s.shiftType;
+              final unitLabel =
+                  NursingUnit.fromString(s.nursingUnit)?.label ??
+                  _formatLabel(s.nursingUnit);
+              final shiftDate =
+                  DateFormatter.medicalDate(s.shiftDate);
+              final wardParts = <String>[
+                if (s.wardName?.isNotEmpty == true) s.wardName!,
+                if (s.wardType?.isNotEmpty == true) _formatLabel(s.wardType),
+                if (s.wardName == null && unitLabel.isNotEmpty) unitLabel,
+              ];
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: colorScheme.primaryContainer,
+                      foregroundColor: colorScheme.onPrimaryContainer,
+                      child: const Icon(Icons.schedule, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            shiftLabel.isNotEmpty
+                                ? '$shiftLabel shift'
+                                : 'Shift',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (wardParts.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                wardParts.join(' · '),
+                                style: muted,
+                              ),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              [
+                                shiftDate,
+                                if (unitLabel.isNotEmpty &&
+                                    s.wardName?.isNotEmpty == true)
+                                  unitLabel,
+                              ].join(' · '),
+                              style: muted,
+                            ),
+                          ),
+                          if (s.assignedByName?.isNotEmpty == true)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                [
+                                  'Scheduled by ${s.assignedByName}',
+                                  if (s.createdAt != null)
+                                    DateFormatter.dateTime(
+                                      s.createdAt!,
+                                    ),
+                                ].join(' · '),
+                                style: muted,
+                              ),
+                            ),
+                          if (s.notes?.isNotEmpty == true)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text('Notes: ${s.notes}', style: muted),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _assignedAdmissionsSection(
+    List<NursingAssignedAdmission> admissions,
+    ColorScheme colorScheme,
+  ) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: colorScheme.onSurfaceVariant,
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'My inpatient patients',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...admissions.map((a) {
+              final patientTitle = a.patientName.isNotEmpty
+                  ? a.patientName
+                  : a.admissionId;
+              final shiftLabel = ShiftType.fromString(a.shiftType)?.label ??
+                  _formatLabel(a.shiftType);
+              final locationParts = <String>[
+                if (a.wardName?.isNotEmpty == true) a.wardName!,
+                if (a.bedLabel?.isNotEmpty == true) 'Bed ${a.bedLabel}',
+              ];
+              final shiftParts = <String>[
+                if (shiftLabel.isNotEmpty) '$shiftLabel shift',
+                if (a.shiftDate != null)
+                  DateFormatter.medicalDate(a.shiftDate!),
+              ];
+
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: a.admissionId.isNotEmpty
+                      ? () => context.router.push(
+                          InpatientPatientViewRoute(
+                            admissionId: a.admissionId,
+                          ),
+                        )
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: colorScheme.secondaryContainer,
+                          foregroundColor: colorScheme.onSecondaryContainer,
+                          child: Text(_personInitials(patientTitle)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                patientTitle,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (a.patientNumber?.isNotEmpty == true)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    'Patient ID ${a.patientNumber}',
+                                    style: muted,
+                                  ),
+                                ),
+                              if (locationParts.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    locationParts.join(' · '),
+                                    style: muted,
+                                  ),
+                                ),
+                              if (shiftParts.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    shiftParts.join(' · '),
+                                    style: muted,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (a.admissionId.isNotEmpty)
+                          Icon(
+                            Icons.chevron_right,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _outpatientQueueSection(
+    List<NursingOutpatientQueuePatient> patients,
+    ColorScheme colorScheme,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'My outpatient queue',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...patients.map(
+              (p) => ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(p.patientName),
+                subtitle: Text(p.serviceName ?? ''),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -426,6 +945,8 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
     required CmdBreakpoints bp,
     required NurseDashboardHeader header,
     required ColorScheme colorScheme,
+    String? nursingUnit,
+    String? unitDisplayName,
   }) {
     final titleStyle = TextStyle(
       fontSize: bp.isMobile ? 20 : 24,
@@ -443,6 +964,12 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
       child: Icon(Icons.person, color: colorScheme.primary),
     );
 
+    final unitLine = [
+      if (unitDisplayName != null && unitDisplayName.isNotEmpty)
+        unitDisplayName,
+      if (nursingUnit != null && nursingUnit.isNotEmpty) nursingUnit,
+    ].join(' · ');
+
     if (bp.isMobile) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -450,6 +977,10 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
           Text(header.title ?? 'Hospital Overview', style: titleStyle),
           const SizedBox(height: 4),
           Text(_resolvedSubtitle(header), style: subtitleStyle),
+          if (unitLine.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(unitLine, style: subtitleStyle),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -472,6 +1003,10 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
               Text(header.title ?? 'Hospital Overview', style: titleStyle),
               const SizedBox(height: 4),
               Text(_resolvedSubtitle(header), style: subtitleStyle),
+              if (unitLine.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(unitLine, style: subtitleStyle),
+              ],
             ],
           ),
         ),
@@ -680,6 +1215,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
     required NurseDashboardOverview data,
     required ColorScheme colorScheme,
     required double chartInnerPadding,
+    required bool canManageRoster,
   }) {
     return Column(
       children: [
@@ -734,15 +1270,18 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
                     child: _staffRow(staff, colorScheme),
                   ),
                 ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.assignment_ind, size: 16),
-                  label: const Text('Manage Roster'),
+              if (canManageRoster) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        context.router.push(const NursingRosterRoute()),
+                    icon: const Icon(Icons.assignment_ind, size: 16),
+                    label: const Text('Manage Roster'),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -797,6 +1336,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
     required double departmentHeight,
     required double chartInnerPadding,
     required bool stackChartTitleRow,
+    required bool canManageRoster,
   }) {
     final charts = _nurseChartsColumn(
       data: data,
@@ -810,6 +1350,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
       data: data,
       colorScheme: colorScheme,
       chartInnerPadding: chartInnerPadding,
+      canManageRoster: canManageRoster,
     );
 
     if (bp.isDesktop) {
@@ -895,6 +1436,41 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
     );
   }
 
+  Widget _lineCriticalAlerts(
+    List<NurseCriticalAlert> alerts,
+    ColorScheme colorScheme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_rounded, color: Colors.red[700], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Critical Alerts',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red[700],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ..._alertTiles(alerts),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _alertTiles(List<NurseCriticalAlert> alerts) {
     final widgets = <Widget>[];
     for (var i = 0; i < alerts.length; i++) {
@@ -917,7 +1493,7 @@ class _NursesDashboardScreenState extends State<NursesDashboardScreen> {
 
   String _formatAlertTime(DateTime t) {
     // Fallback when API omits relativeLabel
-    return MaterialLocalizations.of(context).formatShortDate(t.toLocal());
+    return DateFormatter.shortDate(t);
   }
 
   IconData _trendArrowIcon({

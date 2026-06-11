@@ -8,6 +8,7 @@ import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:printing/printing.dart';
 
@@ -30,10 +31,10 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    final n = DateTime.now();
+    final n = AppTimezone.now();
     _ordersDateRange = DateTimeRange(
-      start: DateTime(n.year, n.month, n.day),
-      end: DateTime(n.year, n.month, n.day, 23, 59, 59, 999),
+      start: AppTimezone.startOfDay(n),
+      end: AppTimezone.endOfDay(n),
     );
   }
 

@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app_router.gr.dart';
 import '../../models/staff_model.dart';
 import '../../models/staff_registration_options.dart';
+import '../../nursing/ward_matching.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/staff_providers.dart';
 
 @RoutePage()
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -30,6 +32,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   AccountType _selectedAccountType = AccountType.front_desk;
   late StaffRoleOption _selectedRoleOption =
       rolesForAccountType(AccountType.front_desk).first;
+  String? _wardId;
+
+  bool get _isChargeNurse =>
+      isChargeNurseStaffRole(_selectedRoleOption.staffRole);
 
   PageRouteInfo _initialRouteAfterRegister(String accountTypeName, String role) {
     final at = accountTypeName.toLowerCase();
@@ -107,6 +113,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final assignmentError = validateNursingStaffAssignment(
+      staffRole: _selectedRoleOption.staffRole,
+      wardId: _wardId,
+    );
+    if (assignmentError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(assignmentError)),
+      );
+      return;
+    }
+
     final ok = await ref
         .read(authProvider.notifier)
         .register(
@@ -117,6 +135,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           password: _passwordCtrl.text,
           email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
           phone: _phoneCtrl.text.trim(),
+          wardId: _isChargeNurse ? _wardId : null,
           accountType: _selectedAccountType,
         );
     if (ok && mounted) {
@@ -136,6 +155,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final auth = ref.watch(authProvider);
+    final asyncWards = ref.watch(wardListProvider);
 
     ref.listen(authProvider, (_, next) {
       if (next.error != null) {
@@ -264,6 +284,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       setState(() {
                         _selectedAccountType = t;
                         _selectedRoleOption = roles.first;
+                        _wardId = null;
                       });
                     },
                   ),
@@ -283,11 +304,67 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               DropdownMenuItem(value: r, child: Text(r.label)),
                         )
                         .toList(),
-                    onChanged: (r) => setState(
-                      () => _selectedRoleOption = r ?? _selectedRoleOption,
-                    ),
+                    onChanged: (r) => setState(() {
+                      _selectedRoleOption = r ?? _selectedRoleOption;
+                      if (!isChargeNurseStaffRole(_selectedRoleOption.staffRole)) {
+                        _wardId = null;
+                      }
+                    }),
                     validator: (v) => v == null ? 'Select a role' : null,
                   ),
+                  if (_isChargeNurse) ...[
+                    const SizedBox(height: 14),
+                    asyncWards.when(
+                      data: (allWards) {
+                        final wards = selectableWardsForChargeNurseRole(
+                          _selectedRoleOption.staffRole,
+                          allWards,
+                          currentWardId: _wardId,
+                        );
+                        if (wards.isEmpty) {
+                          return Text(
+                            'No wards found. Add wards in ward management first.',
+                            style: TextStyle(color: colors.onSurfaceVariant),
+                          );
+                        }
+                        final wardIds = wards.map((w) => w.id).toSet();
+                        final selectedWardId =
+                            _wardId != null && wardIds.contains(_wardId)
+                            ? _wardId
+                            : null;
+                        return DropdownButtonFormField<String?>(
+                          key: ValueKey(
+                            'register-ward-$selectedWardId-${_selectedRoleOption.staffRole}',
+                          ),
+                          initialValue: selectedWardId,
+                          decoration: const InputDecoration(
+                            labelText: 'Home ward *',
+                            prefixIcon: Icon(Icons.local_hospital_outlined),
+                          ),
+                          items: wards
+                              .map(
+                                (w) => DropdownMenuItem<String?>(
+                                  value: w.id,
+                                  child: Text(w.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) => setState(() => _wardId = v),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Select a ward for this charge nurse role';
+                            }
+                            return null;
+                          },
+                        );
+                      },
+                      loading: () => const LinearProgressIndicator(),
+                      error: (e, _) => Text(
+                        'Could not load wards: $e',
+                        style: TextStyle(color: colors.error),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 28),
 
                   // ── Section: Contact ───────────────────────────────────

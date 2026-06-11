@@ -22,6 +22,12 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
       return EnlistPaitientRoute(serviceName: 'OPD');
     case 'nurse':
     case 'head_nurse':
+    case 'matron':
+    case 'ward_charge_nurse':
+    case 'icu_charge_nurse':
+    case 'emergency_charge_nurse':
+    case 'opd_charge_nurse':
+    case 'ong_charge_nurse':
     case 'inpatient_nurse':
     case 'outpatient_nurse':
       return const NursesDashboardRoute();

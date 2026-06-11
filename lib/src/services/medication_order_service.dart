@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'api_service.dart';
+import '../helper/app_timezone.dart';
 import '../models/medication_order_model.dart';
 
 class MedicationOrderService {
@@ -90,9 +91,9 @@ class MedicationOrderService {
       if (admissionId != null && admissionId.isNotEmpty)
         'admissionId': admissionId,
       if (startDateTime != null)
-        'startDateTime': startDateTime.toUtc().toIso8601String(),
+        'startDateTime': AppTimezone.toBackendIso(startDateTime),
       if (endDateTime != null)
-        'endDateTime': endDateTime.toUtc().toIso8601String(),
+        'endDateTime': AppTimezone.toBackendIso(endDateTime),
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       'administrationStatus': administrationStatus.apiValue,
     };
@@ -139,9 +140,9 @@ class MedicationOrderService {
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,
       if (startDateTime != null)
-        'startDateTime': startDateTime.toUtc().toIso8601String(),
+        'startDateTime': AppTimezone.toBackendIso(startDateTime),
       if (endDateTime != null)
-        'endDateTime': endDateTime.toUtc().toIso8601String(),
+        'endDateTime': AppTimezone.toBackendIso(endDateTime),
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (administrationStatus != null)
         'administrationStatus': administrationStatus.apiValue,

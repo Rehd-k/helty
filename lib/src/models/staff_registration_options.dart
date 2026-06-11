@@ -1,3 +1,4 @@
+import '../nursing/ward_matching.dart';
 import 'staff_model.dart';
 
 /// High-level department / account group shown first on registration.
@@ -111,9 +112,34 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
   ],
   StaffAccountCategory.nurse: [
     const StaffRoleOption(
-      label: 'Head Nurse',
+      label: 'Matron',
       accountType: AccountType.nurse,
-      staffRole: 'HEAD_NURSE',
+      staffRole: 'MATRON',
+    ),
+    const StaffRoleOption(
+      label: 'Ward Charge Nurse',
+      accountType: AccountType.nurse,
+      staffRole: 'WARD_CHARGE_NURSE',
+    ),
+    const StaffRoleOption(
+      label: 'ICU Charge Nurse',
+      accountType: AccountType.nurse,
+      staffRole: 'ICU_CHARGE_NURSE',
+    ),
+    const StaffRoleOption(
+      label: 'Emergency Charge Nurse',
+      accountType: AccountType.nurse,
+      staffRole: 'EMERGENCY_CHARGE_NURSE',
+    ),
+    const StaffRoleOption(
+      label: 'OPD Charge Nurse',
+      accountType: AccountType.nurse,
+      staffRole: 'OPD_CHARGE_NURSE',
+    ),
+    const StaffRoleOption(
+      label: 'O&G Charge Nurse',
+      accountType: AccountType.nurse,
+      staffRole: 'ONG_CHARGE_NURSE',
     ),
     const StaffRoleOption(
       label: 'Inpatient Nurse',
@@ -285,6 +311,33 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
 String _normalizeStaffRole(String role) =>
     role.trim().toLowerCase().replaceAll('-', '_');
 
+/// Validates nursing role + ward/department pairing for staff create/update.
+String? validateNursingStaffAssignment({
+  required String staffRole,
+  String? departmentId,
+  String? wardId,
+}) {
+  final r = staffRole.trim().toUpperCase().replaceAll('-', '_');
+  if (r == 'HEAD_NURSE' || r == 'MATRON') {
+    if (departmentId != null && departmentId.trim().isNotEmpty) {
+      return 'Matron must not be assigned to a department';
+    }
+    if (wardId != null && wardId.trim().isNotEmpty) {
+      return 'Matron must not be assigned to a single ward';
+    }
+    return null;
+  }
+  if (isChargeNurseStaffRole(r)) {
+    if (departmentId != null && departmentId.trim().isNotEmpty) {
+      return 'Charge nurse roles must use wardId, not departmentId';
+    }
+    if (wardId == null || wardId.trim().isEmpty) {
+      return 'Charge nurse role $r requires wardId';
+    }
+  }
+  return null;
+}
+
 StaffAccountCategory? accountCategoryForAccountType(AccountType? accountType) {
   if (accountType == null) return null;
   return switch (accountType) {
@@ -337,6 +390,12 @@ AccountType resolveStaffAccountType(Staff staff) {
   Staff staff,
 ) {
   final normalizedRole = _normalizeStaffRole(staff.staffRole);
+
+  if (normalizedRole == 'head_nurse') {
+    final matron = kStaffRolesByCategory[StaffAccountCategory.nurse]!
+        .firstWhere((o) => o.staffRole == 'MATRON');
+    return (accountType: AccountType.nurse, role: matron);
+  }
 
   for (final entry in kStaffRolesByCategory.entries) {
     for (final option in entry.value) {

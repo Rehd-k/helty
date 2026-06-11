@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:intl/intl.dart';
 
 import '../models/pharmacy_model.dart';
@@ -588,10 +589,8 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
                                     Text(
                                       row.dispensedAt == null
                                           ? '—'
-                                          : DateFormat(
-                                              'dd MMM yyyy HH:mm',
-                                            ).format(
-                                              row.dispensedAt!.toLocal(),
+                                          : DateFormatter.dateTime(
+                                              row.dispensedAt!,
                                             ),
                                     ),
                                   ),

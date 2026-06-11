@@ -93,6 +93,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? email,
     String? phone,
     String? departmentId,
+    String? wardId,
     AccountType? accountType,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -106,6 +107,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         phone: phone,
         departmentId: departmentId,
+        wardId: wardId,
         accountType: accountType,
       );
       state = state.copyWith(staff: response.staff, isLoading: false);

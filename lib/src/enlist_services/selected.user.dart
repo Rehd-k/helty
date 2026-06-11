@@ -5,7 +5,10 @@ import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 import '../paitients/patient_providers.dart';
 
 class SelectedPatientCard extends ConsumerWidget {
-  const SelectedPatientCard({super.key});
+  const SelectedPatientCard({super.key, this.onBeforeClear});
+
+  /// When set, return `true` to clear the patient, `false` to cancel.
+  final Future<bool> Function()? onBeforeClear;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -142,9 +145,12 @@ class SelectedPatientCard extends ConsumerWidget {
                       // Clear/Remove Action
                       IconButton(
                         onPressed: () async {
+                          if (onBeforeClear != null) {
+                            final shouldClear = await onBeforeClear!();
+                            if (!shouldClear) return;
+                          }
                           ref.read(patientProvider.notifier).clearPatient();
                         },
-
                         icon: Icon(Icons.close, color: Colors.grey[600]),
                         tooltip: "Remove Patient",
                       ),

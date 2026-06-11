@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../helper/app_timezone.dart';
 import '../models/intake_output_record_model.dart';
 import 'api_service.dart';
 
@@ -47,7 +48,7 @@ class IntakeOutputService {
       'category': category,
       'amountMl': amountMl,
       if (recordedAt != null)
-        'recordedAt': recordedAt.toUtc().toIso8601String(),
+        'recordedAt': AppTimezone.toBackendIso(recordedAt),
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
     final response = await _dio.post<Map<String, dynamic>>(
@@ -76,7 +77,7 @@ class IntakeOutputService {
       if (category != null) 'category': category,
       if (amountMl != null) 'amountMl': amountMl,
       if (recordedAt != null)
-        'recordedAt': recordedAt.toUtc().toIso8601String(),
+        'recordedAt': AppTimezone.toBackendIso(recordedAt),
       if (notes != null) 'notes': notes,
     };
     final response = await _dio.patch<Map<String, dynamic>>(

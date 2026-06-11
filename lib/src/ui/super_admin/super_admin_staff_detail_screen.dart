@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/staff_model.dart';
 import '../../models/staff_registration_options.dart';
+import '../../models/ward_models.dart';
+import '../../nursing/ward_matching.dart';
 import '../../providers/staff_providers.dart';
+import '../../services/department_service.dart';
 
 @RoutePage()
 class SuperAdminStaffDetailScreen extends ConsumerWidget {
@@ -76,10 +79,30 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
   late StaffRoleOption _selectedRoleOption;
   late bool _isActive;
   String? _departmentId;
+  String? _wardId;
   bool _saving = false;
   bool _deleting = false;
 
   bool get _busy => _saving || _deleting;
+
+  bool get _isChargeNurse =>
+      isChargeNurseStaffRole(_selectedRoleOption.staffRole);
+
+  bool get _isMatron {
+    final r = _selectedRoleOption.staffRole.trim().toUpperCase();
+    return r == 'MATRON' || r == 'HEAD_NURSE';
+  }
+
+  void _applyNursingAssignmentForRole(StaffRoleOption role) {
+    if (isChargeNurseStaffRole(role.staffRole)) {
+      _departmentId = null;
+    } else if (role.staffRole == 'MATRON' || role.staffRole == 'HEAD_NURSE') {
+      _departmentId = null;
+      _wardId = null;
+    } else {
+      _wardId = null;
+    }
+  }
 
   @override
   void initState() {
@@ -113,6 +136,7 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
     _selectedRoleOption = selection.role;
     _isActive = staff.isActive;
     _departmentId = staff.departmentId;
+    _wardId = staff.wardId;
   }
 
   @override
@@ -133,11 +157,25 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final assignmentError = validateNursingStaffAssignment(
+      staffRole: _selectedRoleOption.staffRole,
+      departmentId: _departmentId,
+      wardId: _wardId,
+    );
+    if (assignmentError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(assignmentError)),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final email = _emailCtrl.text.trim();
       final pharmacyRole = _pharmacyRoleCtrl.text.trim();
-      final updated = widget.staff.copyWith(
+      final wasCharge = isChargeNurseStaffRole(widget.staff.staffRole);
+      final isCharge = _isChargeNurse;
+      var updated = widget.staff.copyWith(
         staffId: _staffIdCtrl.text.trim(),
         firstName: _firstNameCtrl.text.trim(),
         lastName: _lastNameCtrl.text.trim(),
@@ -148,9 +186,25 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
         accountType: _selectedAccountType,
         email: email.isEmpty ? null : email,
         phone: _phoneCtrl.text.trim(),
-        departmentId: _departmentId,
         isActive: _isActive,
       );
+
+      if (isCharge) {
+        updated = updated.copyWith(
+          wardId: _wardId,
+          clearDepartmentId: true,
+        );
+      } else if (_isMatron) {
+        updated = updated.copyWith(
+          clearDepartmentId: true,
+          clearWardId: true,
+        );
+      } else {
+        updated = updated.copyWith(
+          departmentId: _departmentId,
+          clearWardId: wasCharge || _wardId == null,
+        );
+      }
 
       await ref.read(staffServiceProvider).updateStaff(updated);
 
@@ -246,6 +300,7 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
     final cs = theme.colorScheme;
     final staff = widget.staff;
     final asyncDepartments = ref.watch(departmentListProvider(null));
+    final asyncWards = ref.watch(wardListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -351,6 +406,7 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
                   setState(() {
                     _selectedAccountType = t;
                     _selectedRoleOption = roles.first;
+                    _applyNursingAssignmentForRole(roles.first);
                   });
                 },
               ),
@@ -367,9 +423,13 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
                       (r) => DropdownMenuItem(value: r, child: Text(r.label)),
                     )
                     .toList(),
-                onChanged: (r) => setState(
-                  () => _selectedRoleOption = r ?? _selectedRoleOption,
-                ),
+                onChanged: (r) {
+                  if (r == null) return;
+                  setState(() {
+                    _selectedRoleOption = r;
+                    _applyNursingAssignmentForRole(r);
+                  });
+                },
                 validator: (v) => v == null ? 'Select a role' : null,
               ),
               if (_showPharmacyRole) ...[
@@ -435,41 +495,11 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
               ),
               const SizedBox(height: 20),
               _sectionTitle(context, 'Organization'),
-              asyncDepartments.when(
-                data: (departments) {
-                  final departmentIds = departments.map((d) => d.id).toSet();
-                  final selectedDepartmentId =
-                      _departmentId != null &&
-                          departmentIds.contains(_departmentId)
-                      ? _departmentId
-                      : null;
-                  return DropdownButtonFormField<String?>(
-                    key: ValueKey(selectedDepartmentId),
-                    initialValue: selectedDepartmentId,
-                    decoration: const InputDecoration(
-                      labelText: 'Department',
-                      prefixIcon: Icon(Icons.business_outlined),
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('No department'),
-                      ),
-                      ...departments.map(
-                        (d) => DropdownMenuItem<String?>(
-                          value: d.id,
-                          child: Text(d.name),
-                        ),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _departmentId = v),
-                  );
-                },
-                loading: () => const LinearProgressIndicator(),
-                error: (e, _) => Text(
-                  'Could not load departments: $e',
-                  style: TextStyle(color: cs.error),
-                ),
+              ..._buildOrganizationSection(
+                context: context,
+                cs: cs,
+                asyncDepartments: asyncDepartments,
+                asyncWards: asyncWards,
               ),
               if (staff.permissions.isNotEmpty) ...[
                 const SizedBox(height: 20),
@@ -564,6 +594,116 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildOrganizationSection({
+    required BuildContext context,
+    required ColorScheme cs,
+    required AsyncValue<List<Department>> asyncDepartments,
+    required AsyncValue<List<Ward>> asyncWards,
+  }) {
+    if (_isMatron) {
+      return [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Matron has hospital-wide scope and is not assigned to a ward or department.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    if (_isChargeNurse) {
+      return [
+        asyncWards.when(
+          data: (allWards) {
+            final wards = selectableWardsForChargeNurseRole(
+              _selectedRoleOption.staffRole,
+              allWards,
+              currentWardId: _wardId,
+            );
+            if (wards.isEmpty) {
+              return Text(
+                'No wards found. Add wards under Hospital → Ward management.',
+                style: TextStyle(color: cs.onSurfaceVariant),
+              );
+            }
+            final wardIds = wards.map((w) => w.id).toSet();
+            final selectedWardId =
+                _wardId != null && wardIds.contains(_wardId) ? _wardId : null;
+            return DropdownButtonFormField<String?>(
+              key: ValueKey('ward-$selectedWardId-${_selectedRoleOption.staffRole}'),
+              initialValue: selectedWardId,
+              decoration: const InputDecoration(
+                labelText: 'Home ward *',
+                prefixIcon: Icon(Icons.local_hospital_outlined),
+              ),
+              items: wards
+                  .map(
+                    (w) => DropdownMenuItem<String?>(
+                      value: w.id,
+                      child: Text(w.name),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) => setState(() => _wardId = v),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Select a ward for this charge nurse role';
+                }
+                return null;
+              },
+            );
+          },
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text(
+            'Could not load wards: $e',
+            style: TextStyle(color: cs.error),
+          ),
+        ),
+      ];
+    }
+
+    return [
+      asyncDepartments.when(
+        data: (departments) {
+          final departmentIds = departments.map((d) => d.id).toSet();
+          final selectedDepartmentId =
+              _departmentId != null && departmentIds.contains(_departmentId)
+              ? _departmentId
+              : null;
+          return DropdownButtonFormField<String?>(
+            key: ValueKey(selectedDepartmentId),
+            initialValue: selectedDepartmentId,
+            decoration: const InputDecoration(
+              labelText: 'Department',
+              prefixIcon: Icon(Icons.business_outlined),
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('No department'),
+              ),
+              ...departments.map(
+                (d) => DropdownMenuItem<String?>(
+                  value: d.id,
+                  child: Text(d.name),
+                ),
+              ),
+            ],
+            onChanged: (v) => setState(() => _departmentId = v),
+          );
+        },
+        loading: () => const LinearProgressIndicator(),
+        error: (e, _) => Text(
+          'Could not load departments: $e',
+          style: TextStyle(color: cs.error),
+        ),
+      ),
+    ];
   }
 
   Widget _sectionTitle(BuildContext context, String title) {

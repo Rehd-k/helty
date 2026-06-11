@@ -49,6 +49,7 @@ class SearchPurchaseItemParams {
     this.sortOrder = 'desc',
     this.page,
     this.pageSize,
+    this.category,
   });
 
   final String? itemName;
@@ -72,6 +73,7 @@ class SearchPurchaseItemParams {
   final String sortOrder;
   final int? page;
   final int? pageSize;
+  final String? category;
 
   Map<String, dynamic> toQuery() {
     final q = <String, dynamic>{};
@@ -114,6 +116,9 @@ class SearchPurchaseItemParams {
     q['sortOrder'] = sortOrder;
     if (page != null) q['page'] = page;
     if (pageSize != null) q['pageSize'] = pageSize;
+    if (category != null && category!.trim().isNotEmpty) {
+      q['category'] = category!.trim();
+    }
     return q;
   }
 }

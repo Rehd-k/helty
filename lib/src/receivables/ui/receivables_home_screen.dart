@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/auth/billing_permissions.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/receivables_models.dart';
 import 'package:helty/src/receivables/ui/receivables_analytics_screen.dart';
@@ -84,14 +85,12 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
+    final now = AppTimezone.now();
     _selectedRange = DateTimeRange(
-      start: DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).subtract(const Duration(days: 6)),
-      end: DateTime(now.year, now.month, now.day, 23, 59, 59, 999),
+      start: AppTimezone.startOfDay(
+        now.subtract(const Duration(days: 6)),
+      ),
+      end: AppTimezone.endOfDay(now),
     );
     _load();
   }
@@ -99,27 +98,29 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
   DateTime? _rangeFromUtc() {
     final range = _selectedRange;
     if (range == null) return null;
-    final local = DateTime(
-      range.start.year,
-      range.start.month,
-      range.start.day,
+    return AppTimezone.toUtc(
+      AppTimezone.dateTime(
+        range.start.year,
+        range.start.month,
+        range.start.day,
+      ),
     );
-    return local.toUtc();
   }
 
   DateTime? _rangeToUtc() {
     final range = _selectedRange;
     if (range == null) return null;
-    final local = DateTime(
-      range.end.year,
-      range.end.month,
-      range.end.day,
-      23,
-      59,
-      59,
-      999,
+    return AppTimezone.toUtc(
+      AppTimezone.dateTime(
+        range.end.year,
+        range.end.month,
+        range.end.day,
+        23,
+        59,
+        59,
+        999,
+      ),
     );
-    return local.toUtc();
   }
 
   Future<void> _load() async {

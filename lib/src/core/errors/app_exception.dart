@@ -11,7 +11,10 @@ sealed class AppException implements Exception {
 
 /// No internet / connection refused.
 final class NetworkException extends AppException {
-  const NetworkException([super.message = 'No internet connection.']);
+  const NetworkException([
+    super.message =
+        'Unable to connect to the server. Close and reopen the app to reconnect.',
+  ]);
 }
 
 /// Request timed out.

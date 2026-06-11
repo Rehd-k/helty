@@ -1,142 +1,320 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/models/todays.patients.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app_router.gr.dart';
+import '../../helper/app_timezone.dart';
+import '../../helper/date.formatter.dart';
+import '../../paitients/patient_model.dart';
+import '../../paitients/patient_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/table/reusable_async_table.dart';
 
 @RoutePage()
-class TodayPatientsScreen extends StatefulWidget {
+class TodayPatientsScreen extends ConsumerStatefulWidget {
   const TodayPatientsScreen({super.key});
 
   @override
-  TodayPatientsScreenState createState() => TodayPatientsScreenState();
+  ConsumerState<TodayPatientsScreen> createState() =>
+      _TodayPatientsScreenState();
 }
 
-class TodayPatientsScreenState extends State<TodayPatientsScreen> {
+class _TodayPatientsScreenState extends ConsumerState<TodayPatientsScreen> {
+  final PatientService _service = PatientService();
   final TextEditingController _searchController = TextEditingController();
 
-  // 2. The API Fetcher Function
-  // Updated Fetcher: Returns PagedData<Appointement>
-  Future<PagedData<TodaysPatient>> fetchTodaysPatients(
-    int start,
-    int count,
-  ) async {
-    await Future.delayed(const Duration(milliseconds: 500)); // Mock delay
+  String _searchQuery = '';
+  String? _headerDate;
+  int? _total;
+  int _refreshKey = 0;
+  Timer? _autoRefreshTimer;
 
-    // MOCK DATA logic
-    final mockData = List.generate(count, (index) {
-      final absoluteIndex = start + index;
-      return TodaysPatient(
-        id: 'PAT-$absoluteIndex',
-        patientId: 'PAT-$absoluteIndex',
-        firstName: 'John $absoluteIndex',
-        lastName: 'Doe',
-        createdAt: DateTime(2024, 01, 10 + absoluteIndex),
-        status: absoluteIndex % 3 == 0
-            ? 'Confirmed'
-            : absoluteIndex % 3 == 1
-            ? 'Pending'
-            : 'Cancelled',
-        linkDetails: 'null',
-        invoiceNo: '',
-        services: [],
-        initiator: '',
-        scheme: '',
-      );
-    });
-
-    // Use PagedData instead of AsyncRowsResponse
-    return PagedData(totalCount: 1000, items: mockData);
+  bool get _isMedicalRecords {
+    final staff = ref.read(authProvider).staff;
+    final at = staff?.accountType?.name.toLowerCase() ?? '';
+    final r = staff?.staffRole.toLowerCase() ?? '';
+    return at == 'medical_records' || r == 'medical_records';
   }
 
-  // 3. The Action Menu Handler
-  void _handleAction(
-    String action,
-    TodaysPatient patient,
-    BuildContext context,
-  ) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Action $action performed on ${patient.firstName}'),
-      ),
+  @override
+  void initState() {
+    super.initState();
+    _autoRefreshTimer = Timer.periodic(
+      const Duration(seconds: 90),
+      (_) => _reloadList(),
     );
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _reloadList() async {
+    if (!mounted) return;
+    try {
+      final res = await _service.fetchRegisteredToday(
+        take: 1,
+        q: _searchQuery.isEmpty ? null : _searchQuery,
+      );
+      if (!mounted) return;
+      setState(() {
+        _headerDate = res.date;
+        _total = res.total;
+        _refreshKey++;
+      });
+    } catch (e) {
+      _showFetchError(e);
+    }
+  }
+
+  void _applySearch() {
+    final q = _searchController.text.trim();
+    if (q == _searchQuery) return;
+    setState(() {
+      _searchQuery = q;
+      _refreshKey++;
+    });
+  }
+
+  String _patientFullName(Patient patient) {
+    return [
+      patient.title,
+      patient.surname,
+      patient.firstName,
+      patient.otherName,
+    ].where((p) => p != null && p.toString().trim().isNotEmpty).join(' ');
+  }
+
+  String _formatHeaderDate(String? apiDate) {
+    if (apiDate == null || apiDate.isEmpty) {
+      return DateFormatter.medicalDate(AppTimezone.now());
+    }
+    final parsed = DateTime.tryParse(apiDate);
+    if (parsed != null) {
+      return DateFormatter.medicalDate(parsed);
+    }
+    return apiDate;
+  }
+
+  void _showFetchError(Object error) {
+    if (!mounted) return;
+    final message = switch (error) {
+      DioException(response: final r) when r?.statusCode == 401 =>
+        'Session expired. Please sign in again.',
+      DioException(response: final r) when r?.statusCode == 403 =>
+        'You do not have permission to view today\'s registrations.',
+      DioException() => 'Failed to load registrations. Please try again.',
+      _ => 'Failed to load registrations: $error',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<PagedData<Patient>> _fetchPage(int start, int count) async {
+    try {
+      final res = await _service.fetchRegisteredToday(
+        skip: start,
+        take: count,
+        q: _searchQuery.isEmpty ? null : _searchQuery,
+      );
+      if (mounted) {
+        setState(() {
+          _headerDate = res.date;
+          _total = res.total;
+        });
+      }
+      return PagedData(totalCount: res.total, items: res.patients);
+    } catch (e) {
+      _showFetchError(e);
+      rethrow;
+    }
+  }
+
+  Future<void> _openPatient(Patient patient) async {
+    await context.router.push(PatientFormRoute(patient: patient));
+    if (!mounted) return;
+    await _reloadList();
+  }
+
+  Widget _statusBadge(String? status) {
+    final label = status?.trim().isNotEmpty == true ? status! : '—';
+    Color color;
+    switch (label.toUpperCase()) {
+      case 'ADMITED':
+      case 'ADMITTED':
+        color = Colors.blue;
+      case 'DECEASED':
+        color = Colors.grey;
+      default:
+        color = Colors.teal;
+    }
+    return Chip(
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      backgroundColor: color.withValues(alpha: 0.12),
+      side: BorderSide(color: color.withValues(alpha: 0.4)),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+    );
+  }
+
+  Widget _hospitalIdCell(Patient patient) {
+    if (patient.patientId.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.amber.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.amber.shade700),
+        ),
+        child: const Text(
+          'No ID',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        ),
+      );
+    }
+    return Text(patient.patientId);
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final showMrExtras = _isMedicalRecords;
+
+    final columns = <DataColumn2>[
+      const DataColumn2(label: Text('Time'), size: ColumnSize.S),
+      const DataColumn2(label: Text('Hospital ID'), size: ColumnSize.S),
+      const DataColumn2(label: Text('Full Name'), size: ColumnSize.L),
+      const DataColumn2(label: Text('Phone'), size: ColumnSize.M),
+      if (showMrExtras)
+        const DataColumn2(label: Text('Status'), size: ColumnSize.S),
+      const DataColumn2(label: Text('Registered By'), size: ColumnSize.M),
+    ];
+
     return Scaffold(
       appBar: AppBar(
-        leading: TextField(
-          controller: _searchController,
-          decoration: const InputDecoration(
-            labelText: 'Search appointments',
-            prefixIcon: Icon(Icons.search),
-          ),
-          onChanged: (_) {
-            setState(() {});
-          },
-        ),
+        title: Text('Registrations — ${_formatHeaderDate(_headerDate)}'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.badge_outlined),
-            tooltip: 'ID',
-            onPressed: () {},
+          SizedBox(
+            width: 280,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search name, ID, or phone',
+                prefixIcon: const Icon(Icons.search),
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+              onSubmitted: (_) => _applySearch(),
+            ),
           ),
           IconButton(
-            icon: const Icon(Icons.person_outline_outlined),
-            tooltip: 'NO ID',
-            onPressed: () {},
+            icon: const Icon(Icons.search),
+            tooltip: 'Search',
+            onPressed: _applySearch,
           ),
           IconButton(
-            icon: const Icon(Icons.visibility_outlined),
-            tooltip: 'View All',
-            onPressed: () {},
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _reloadList,
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: ReusableAsyncTable<TodaysPatient>(
-        fetchData: fetchTodaysPatients,
-        idGetter: (patient) => patient.id, // Used for selection logic
-        onSelectionChanged: (selected) {},
-
-        columns: const [
-          DataColumn2(label: Text('ID'), size: ColumnSize.S),
-          DataColumn2(label: Text('First Name'), size: ColumnSize.S),
-          DataColumn2(label: Text('Last Name'), fixedWidth: 60),
-          DataColumn2(label: Text('Status'), size: ColumnSize.M),
-          DataColumn2(label: Text('Invoice No'), size: ColumnSize.M),
-          DataColumn2(label: Text('Created At'), size: ColumnSize.M),
-          DataColumn2(
-            label: Text('Action'),
-            fixedWidth: 60,
-          ), // Fixed width for menu
-        ],
-        // 5. Build the Rows
-        rowBuilder: (patient) {
-          return [
-            DataCell(Text(patient.id)),
-            DataCell(Text(patient.firstName)),
-            DataCell(Text(patient.lastName)),
-            DataCell(Text(patient.status)),
-            DataCell(Text(patient.invoiceNo ?? 'N/A')),
-            DataCell(Text(patient.createdAt.toString())),
-
-            // The Action Menu
-            DataCell(
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (value) => _handleAction(value, patient, context),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'view', child: Text('View')),
-                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
+      body: RefreshIndicator(
+        onRefresh: _reloadList,
+        child: _total == 0 && _searchQuery.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.sizeOf(context).height * 0.5,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.person_off_outlined,
+                            size: 48,
+                            color: colorScheme.onSurface.withValues(alpha: 0.4),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No registrations today',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
+              )
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.sizeOf(context).height - kToolbarHeight - 48,
+                  child: ReusableAsyncTable<Patient>(
+                    key: ValueKey('$_refreshKey|$_searchQuery'),
+                    fetchData: _fetchPage,
+                    rowsPerPage: 25,
+                    idGetter: (patient) =>
+                        patient.id ?? patient.patientId.ifEmpty('row'),
+                    onRowTap: _openPatient,
+                    columns: columns,
+                    rowBuilder: (patient) {
+                      final incomplete = patient.patientId.isEmpty;
+                      final createdAt = patient.createdAt;
+                      final timeText = createdAt != null
+                          ? DateFormatter.timeOnly(createdAt.toLocal())
+                          : '—';
+
+                      DataCell cell(Widget child) {
+                        if (!showMrExtras || !incomplete) {
+                          return DataCell(child);
+                        }
+                        return DataCell(
+                          Container(
+                            color: Colors.amber.withValues(alpha: 0.08),
+                            child: child,
+                          ),
+                        );
+                      }
+
+                      return [
+                        cell(Text(timeText)),
+                        cell(_hospitalIdCell(patient)),
+                        cell(Text(_patientFullName(patient))),
+                        cell(Text(patient.phoneNumber ?? '—')),
+                        if (showMrExtras) cell(_statusBadge(patient.status)),
+                        cell(Text(patient.createdBy ?? '—')),
+                      ];
+                    },
+                  ),
+                ),
               ),
-            ),
-          ];
-        },
       ),
     );
   }
+}
+
+extension on String {
+  String ifEmpty(String fallback) => isEmpty ? fallback : this;
 }

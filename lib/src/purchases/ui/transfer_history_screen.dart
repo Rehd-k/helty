@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
+import '../../helper/date.formatter.dart';
 import '../models/purchases_model.dart';
 import '../services/purchases_service.dart';
 
@@ -86,7 +85,6 @@ class _PurchasesTransferHistoryScreenState
 
   @override
   Widget build(BuildContext context) {
-    final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transfer History'),
@@ -148,9 +146,9 @@ class _PurchasesTransferHistoryScreenState
                               DataCell(
                                 Text(
                                   r.completedAt != null
-                                      ? dateFmt.format(r.completedAt!)
+                                      ? DateFormatter.dateTime(r.completedAt!)
                                       : (r.createdAt != null
-                                            ? dateFmt.format(r.createdAt!)
+                                            ? DateFormatter.dateTime(r.createdAt!)
                                             : '-'),
                                 ),
                               ),

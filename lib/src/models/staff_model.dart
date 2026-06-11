@@ -1,4 +1,7 @@
 // ignore_for_file: constant_identifier_names
+
+import '../nursing/ward_matching.dart';
+
 /// Staff account types (mirrors backend `AccountType` — department-level).
 ///
 /// Serialized to API as [name] in UPPER_SNAKE (e.g. [billing] → `BILLING`).
@@ -96,6 +99,12 @@ enum AccountType {
       case 'dispensary':
         return AccountType.pharmacy;
       case 'head_nurse':
+      case 'matron':
+      case 'ward_charge_nurse':
+      case 'icu_charge_nurse':
+      case 'emergency_charge_nurse':
+      case 'opd_charge_nurse':
+      case 'ong_charge_nurse':
       case 'inpatient_nurse':
       case 'outpatient_nurse':
       case 'nurse':
@@ -135,6 +144,8 @@ class Staff {
     this.permissions = const [],
     this.departmentId,
     this.departmentName,
+    this.wardId,
+    this.wardName,
     this.accountType,
     this.email,
     this.phone,
@@ -153,6 +164,8 @@ class Staff {
   final List<String> permissions;
   final String? departmentId;
   final String? departmentName;
+  final String? wardId;
+  final String? wardName;
   final AccountType? accountType;
   final String? email;
   final String? phone;
@@ -291,6 +304,10 @@ class Staff {
           const [],
       departmentId: json['departmentId'] as String?,
       departmentName: json['department']?['name'] as String?,
+      wardId: _optionalString(json['wardId']),
+      wardName: json['ward'] is Map
+          ? (json['ward'] as Map)['name'] as String?
+          : null,
       accountType: AccountType.fromString(json['accountType'] as String?),
       email: json['email'] as String?,
       phone: json['phone']?.toString(), // API may return int or string
@@ -309,11 +326,53 @@ class Staff {
     'pharmacyRole': pharmacyRole,
     'permissions': permissions,
     'departmentId': departmentId,
+    'wardId': wardId,
     'accountType': accountType?.apiValue,
     'email': email,
     'phone': phone,
     'isActive': isActive,
   };
+
+  /// Payload for POST/PATCH `/staff` with nursing role assignment rules applied.
+  Map<String, dynamic> toStaffWriteJson() {
+    final role = staffRole.trim().toUpperCase().replaceAll('-', '_');
+    final isCharge = isChargeNurseStaffRole(role);
+    final isMatron = role == 'MATRON' || role == 'HEAD_NURSE';
+
+    final map = <String, dynamic>{
+      'id': id,
+      'staffId': staffId,
+      'firstName': firstName,
+      'lastName': lastName,
+      'staffRole': staffRole,
+      if (pharmacyRole != null) 'pharmacyRole': pharmacyRole,
+      'permissions': permissions,
+      if (accountType != null) 'accountType': accountType!.apiValue,
+      if (email != null) 'email': email,
+      if (phone != null) 'phone': phone,
+      'isActive': isActive,
+    };
+
+    if (isCharge) {
+      if (wardId != null && wardId!.trim().isNotEmpty) {
+        map['wardId'] = wardId;
+      } else {
+        map['wardId'] = null;
+      }
+    } else if (isMatron) {
+      map['wardId'] = null;
+      map['departmentId'] = null;
+    } else {
+      map['departmentId'] = departmentId;
+      if (wardId == null || wardId!.trim().isEmpty) {
+        map['wardId'] = null;
+      } else {
+        map['wardId'] = wardId;
+      }
+    }
+
+    return map;
+  }
 
   Staff copyWith({
     String? id,
@@ -325,6 +384,8 @@ class Staff {
     List<String>? permissions,
     String? departmentId,
     String? departmentName,
+    String? wardId,
+    String? wardName,
     AccountType? accountType,
     String? email,
     String? phone,
@@ -332,6 +393,8 @@ class Staff {
     String? passwordResetCode,
     DateTime? passwordResetCodeExpiresAt,
     bool clearPasswordResetCode = false,
+    bool clearDepartmentId = false,
+    bool clearWardId = false,
   }) => Staff(
     id: id ?? this.id,
     staffId: staffId ?? this.staffId,
@@ -340,8 +403,11 @@ class Staff {
     staffRole: staffRole ?? this.staffRole,
     pharmacyRole: pharmacyRole ?? this.pharmacyRole,
     permissions: permissions ?? this.permissions,
-    departmentId: departmentId ?? this.departmentId,
-    departmentName: departmentName ?? this.departmentName,
+    departmentId: clearDepartmentId ? null : (departmentId ?? this.departmentId),
+    departmentName:
+        clearDepartmentId ? null : (departmentName ?? this.departmentName),
+    wardId: clearWardId ? null : (wardId ?? this.wardId),
+    wardName: clearWardId ? null : (wardName ?? this.wardName),
     accountType: accountType ?? this.accountType,
     email: email ?? this.email,
     phone: phone ?? this.phone,

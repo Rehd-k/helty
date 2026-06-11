@@ -15,10 +15,15 @@ class InternalChatSocket {
   final String _baseUrl;
   io.Socket? _socket;
   Timer? _presenceHeartbeatTimer;
-  final Set<String> _joinedConversationIds = <String>{};
+  /// Rooms the client is actively viewing (for leaveConversation on dispose).
+  final Set<String> _activeConversationIds = <String>{};
+  /// Rooms the server already joined us to (from `joinedConversations`).
+  final Set<String> _serverJoinedConversationIds = <String>{};
 
   final _receiveMessageController =
       StreamController<Map<String, dynamic>>.broadcast();
+  final _joinedConversationsController =
+      StreamController<List<String>>.broadcast();
   final _ticketMessageController =
       StreamController<Map<String, dynamic>>.broadcast();
   final _chatErrorController = StreamController<String>.broadcast();
@@ -29,6 +34,8 @@ class InternalChatSocket {
 
   Stream<Map<String, dynamic>> get receiveMessageStream =>
       _receiveMessageController.stream;
+  Stream<List<String>> get joinedConversationsStream =>
+      _joinedConversationsController.stream;
   Stream<Map<String, dynamic>> get ticketMessageStream =>
       _ticketMessageController.stream;
   Stream<String> get chatErrorStream => _chatErrorController.stream;
@@ -65,6 +72,14 @@ class InternalChatSocket {
         _receiveMessageController.add(Map<String, dynamic>.from(data));
       }
     });
+    _socket!.on('joinedConversations', (data) {
+      final ids = _parseJoinedConversationIds(data);
+      if (ids.isEmpty) return;
+      _serverJoinedConversationIds.addAll(ids);
+      if (!_joinedConversationsController.isClosed) {
+        _joinedConversationsController.add(ids);
+      }
+    });
     _socket!.on('ticketMessage', (data) {
       if (data is Map) {
         _ticketMessageController.add(Map<String, dynamic>.from(data));
@@ -90,16 +105,19 @@ class InternalChatSocket {
         const Duration(seconds: 45),
         (_) => presenceHeartbeat(),
       );
-      _rejoinConversations();
     });
     _socket!.onDisconnect((_) {
       _emitConnectionState(InternalChatConnectionState.disconnected);
       _presenceHeartbeatTimer?.cancel();
       _presenceHeartbeatTimer = null;
     });
-    _socket!.onReconnect((_) {
+    _socket!.onReconnect((_) async {
       _emitConnectionState(InternalChatConnectionState.reconnecting);
-      _rejoinConversations();
+      _serverJoinedConversationIds.clear();
+      final token = await TokenStorage.getAccessToken();
+      if (token != null && token.isNotEmpty) {
+        _socket?.auth = {'token': token};
+      }
     });
     _socket!.onConnectError((_) {
       _emitConnectionState(InternalChatConnectionState.error);
@@ -114,21 +132,29 @@ class InternalChatSocket {
   Future<void> disconnect() async {
     _presenceHeartbeatTimer?.cancel();
     _presenceHeartbeatTimer = null;
+    _serverJoinedConversationIds.clear();
+    _activeConversationIds.clear();
     _socket?.dispose();
     _socket = null;
     _emitConnectionState(InternalChatConnectionState.disconnected);
   }
 
+  /// Join a room when opening a thread. On reconnect the server sends
+  /// `joinedConversations` automatically — no manual re-join loop.
   void joinConversation(String conversationId) {
     if (conversationId.isEmpty) return;
-    _joinedConversationIds.add(conversationId);
+    _activeConversationIds.add(conversationId);
+    if (_serverJoinedConversationIds.contains(conversationId)) return;
     _socket?.emit('joinConversation', {'conversationId': conversationId});
   }
 
   void leaveConversation(String conversationId) {
-    _joinedConversationIds.remove(conversationId);
+    _activeConversationIds.remove(conversationId);
     _socket?.emit('leaveConversation', {'conversationId': conversationId});
   }
+
+  bool isJoinedOnServer(String conversationId) =>
+      _serverJoinedConversationIds.contains(conversationId);
 
   void sendMessage({
     required String conversationId,
@@ -216,6 +242,7 @@ class InternalChatSocket {
   void dispose() {
     disconnect();
     _receiveMessageController.close();
+    _joinedConversationsController.close();
     _ticketMessageController.close();
     _chatErrorController.close();
     _pendingOrdersTickController.close();
@@ -228,10 +255,43 @@ class InternalChatSocket {
     }
   }
 
-  void _rejoinConversations() {
-    for (final conversationId in _joinedConversationIds) {
-      _socket?.emit('joinConversation', {'conversationId': conversationId});
+  static List<String> _parseJoinedConversationIds(dynamic raw) {
+    final out = <String>{};
+    void addId(dynamic v) {
+      final id = v?.toString().trim();
+      if (id != null && id.isNotEmpty) out.add(id);
     }
+
+    if (raw is List) {
+      for (final e in raw) {
+        if (e is Map) {
+          addId(e['id'] ?? e['conversationId']);
+        } else {
+          addId(e);
+        }
+      }
+      return out.toList();
+    }
+
+    if (raw is Map) {
+      final map = Map<String, dynamic>.from(raw);
+      for (final key in ['conversationIds', 'ids', 'conversations']) {
+        final v = map[key];
+        if (v is List) {
+          for (final e in v) {
+            if (e is Map) {
+              addId(e['id'] ?? e['conversationId']);
+            } else {
+              addId(e);
+            }
+          }
+          return out.toList();
+        }
+      }
+      final single = map['conversationId'] ?? map['id'];
+      addId(single);
+    }
+    return out.toList();
   }
 }
 

@@ -24,8 +24,11 @@ class NurseDashboardOverview {
   final List<NurseCriticalAlert> criticalAlerts;
 
   factory NurseDashboardOverview.fromJson(Map<String, dynamic> json) {
+    final asOfRaw = json['asOf'];
     return NurseDashboardOverview(
-      asOf: DateTime.parse(json['asOf'] as String),
+      asOf: asOfRaw is String
+          ? DateTime.parse(asOfRaw)
+          : DateTime.now().toUtc(),
       timeRange: json['timeRange'] as String? ?? 'Today',
       window: NurseDashboardWindow.fromJson(
         _asMap(json['window'], const {}),
@@ -64,11 +67,15 @@ class NurseDashboardWindow {
   final DateTime start;
   final DateTime end;
 
-  factory NurseDashboardWindow.fromJson(Map<String, dynamic> json) =>
-      NurseDashboardWindow(
-        start: DateTime.parse(json['start'] as String),
-        end: DateTime.parse(json['end'] as String),
-      );
+  factory NurseDashboardWindow.fromJson(Map<String, dynamic> json) {
+    final now = DateTime.now().toUtc();
+    final startRaw = json['start'];
+    final endRaw = json['end'];
+    return NurseDashboardWindow(
+      start: startRaw is String ? DateTime.parse(startRaw) : now,
+      end: endRaw is String ? DateTime.parse(endRaw) : now,
+    );
+  }
 }
 
 class NurseDashboardHeader {

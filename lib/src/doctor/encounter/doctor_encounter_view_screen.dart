@@ -7,6 +7,7 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_forms_panel.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_gate.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
+import 'package:helty/src/doctor/encounter/widgets/patient_previous_encounters_sheet.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
@@ -466,6 +467,20 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  PatientPreviousEncountersSheet.show(
+                    context,
+                    patientId: widget.patientId,
+                    currentEncounterId: widget.encounterId,
+                  );
+                },
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('Previous encounters'),
+              ),
+            ),
             if (isAmend)
               Padding(
                 padding: const EdgeInsets.only(right: 8),

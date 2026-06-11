@@ -69,9 +69,10 @@ class _StaffChatThreadContentState
     super.initState();
     _shellNotifier = ref.read(staffChatShellProvider.notifier);
     _resolvedPeerStaffId = widget.peerStaffId;
+    // Mark active immediately so incoming socket events don't trigger alerts.
+    _shellNotifier.setActiveConversationId(widget.conversationId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _shellNotifier.setActiveConversationId(widget.conversationId);
       _socket = ref.read(internalChatSocketProvider);
       _scrollController.addListener(_onScroll);
       _load();
@@ -81,6 +82,14 @@ class _StaffChatThreadContentState
         (_) => _refreshPeerPresence(),
       );
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant StaffChatThreadContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.conversationId != widget.conversationId) {
+      _shellNotifier.setActiveConversationId(widget.conversationId);
+    }
   }
 
   @override
@@ -424,8 +433,6 @@ class _StaffChatThreadContentState
   Widget build(BuildContext context) {
     final staffId = ref.watch(currentStaffProvider)?.id;
     final theme = Theme.of(context);
-    final maxW =
-        MediaQuery.sizeOf(context).width * widget.maxBubbleWidthFraction;
 
     if (widget.embedded && !widget.compactChrome) {
       return Column(
@@ -436,18 +443,18 @@ class _StaffChatThreadContentState
             presence: _peerPresence,
             onBack: widget.onBack,
           ),
-          Expanded(child: _buildBody(theme, staffId, maxW)),
+          Expanded(child: _buildBody(theme, staffId)),
         ],
       );
     }
     if (widget.embedded && widget.compactChrome) {
-      return _buildBody(theme, staffId, maxW);
+      return _buildBody(theme, staffId);
     }
 
-    return _buildBody(theme, staffId, maxW);
+    return _buildBody(theme, staffId);
   }
 
-  Widget _buildBody(ThemeData theme, String? staffId, double maxW) {
+  Widget _buildBody(ThemeData theme, String? staffId) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -505,8 +512,14 @@ class _StaffChatThreadContentState
             ),
           ),
         Expanded(
-          child: _messages.isEmpty
-              ? Center(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final availableWidth = constraints.maxWidth;
+              final bubbleMaxWidth = (availableWidth *
+                      widget.maxBubbleWidthFraction)
+                  .clamp(120.0, 350.0);
+              if (_messages.isEmpty) {
+                return Center(
                   child: Text(
                     'No messages yet. Say hello!',
                     textAlign: TextAlign.center,
@@ -514,43 +527,41 @@ class _StaffChatThreadContentState
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                )
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, i) {
-                    final m = _messages[i];
-                    final mine =
-                        staffId != null &&
-                        m.senderStaffId != null &&
-                        m.senderStaffId == staffId;
-                    final prevMine =
-                        i > 0 &&
-                        staffId != null &&
-                        _messages[i - 1].senderStaffId != null &&
-                        _messages[i - 1].senderStaffId == staffId;
-                    final timestamp = _formatMessageTimestamp(m.createdAt);
-                    final sendState = _pendingByMessageId[m.id];
-                    final horizontalGap =
-                        MediaQuery.sizeOf(context).width * 0.16;
-                    final bubbleMaxWidth = maxW.clamp(150, 350).toDouble();
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        bottom: prevMine == mine ? 4 : 12,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          if (mine) SizedBox(width: horizontalGap),
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: bubbleMaxWidth,
-                            ),
-                            child: Container(
+                );
+              }
+              return ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                itemCount: _messages.length,
+                itemBuilder: (context, i) {
+                  final m = _messages[i];
+                  final mine =
+                      staffId != null &&
+                      m.senderStaffId != null &&
+                      m.senderStaffId == staffId;
+                  final prevMine =
+                      i > 0 &&
+                      staffId != null &&
+                      _messages[i - 1].senderStaffId != null &&
+                      _messages[i - 1].senderStaffId == staffId;
+                  final timestamp = _formatMessageTimestamp(m.createdAt);
+                  final sendState = _pendingByMessageId[m.id];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: prevMine == mine ? 4 : 12,
+                    ),
+                    child: Align(
+                      alignment: mine
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: bubbleMaxWidth,
+                        ),
+                        child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 13,
                                 vertical: 9,
@@ -635,12 +646,12 @@ class _StaffChatThreadContentState
                               ),
                             ),
                           ),
-                          if (!mine) SizedBox(width: horizontalGap),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                        ),
+                  );
+                },
+              );
+            },
+          ),
         ),
         const Divider(height: 1),
         if (_loadingOlder)

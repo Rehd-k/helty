@@ -192,7 +192,12 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
         final title = fromApi != 'Conversation' && fromApi.isNotEmpty
             ? fromApi
             : picked.displayName;
-        widget.onOpenConversation(conv.id, title: title);
+        ref.read(internalChatSocketProvider).joinConversation(conv.id);
+        widget.onOpenConversation(
+          conv.id,
+          title: title,
+          peerStaffId: picked.id,
+        );
         _load();
       }
     } catch (e) {

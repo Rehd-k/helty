@@ -42,12 +42,12 @@ class StaffService {
   // ── Write ─────────────────────────────────────────────────────────────────
 
   Future<Staff> createStaff(Staff s) async {
-    final resp = await _dio.post('/staff', data: s.toJson());
+    final resp = await _dio.post('/staff', data: s.toStaffWriteJson());
     return Staff.fromJson(resp.data as Map<String, dynamic>);
   }
 
   Future<Staff> updateStaff(Staff s) async {
-    final resp = await _dio.patch('/staff/${s.id}', data: s.toJson());
+    final resp = await _dio.patch('/staff/${s.id}', data: s.toStaffWriteJson());
     return Staff.fromJson(resp.data as Map<String, dynamic>);
   }
 

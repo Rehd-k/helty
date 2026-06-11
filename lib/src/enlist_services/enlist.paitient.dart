@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/models/staff_model.dart';
+import 'package:helty/src/billings/parked_billing_session.dart';
+import 'package:helty/src/billings/widgets/parked_billing_chips_bar.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/module_request_flow_provider.dart';
+import 'package:helty/src/providers/parked_billing_provider.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -63,6 +66,14 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
     });
   }
 
+  void _resumeParkedSession(ParkedBillingSession session) {
+    ref.read(billingRestoreProvider.notifier).state = session;
+    ref.read(parkedBillingProvider.notifier).remove(session.id);
+    ref.read(moduleRequestFlowProvider.notifier).state = session.flowConfig;
+    ref.read(patientProvider.notifier).selectPatient(session.patient);
+    context.router.push(const RenderServiceRoute());
+  }
+
   @override
   void dispose() {
     // Do not update Riverpod notifiers synchronously in dispose — it runs while
@@ -87,6 +98,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
         if (!isWide) {
           return Column(
             children: [
+              ParkedBillingChipsBar(onResume: _resumeParkedSession),
               SelectUser(
                 patients: patients,
                 serviceName: serviceName,
@@ -116,11 +128,16 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
 
         return Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              ParkedBillingChipsBar(onResume: _resumeParkedSession),
               Expanded(
-                flex: 2,
-                child: SelectUser(
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: SelectUser(
                   patients: patients,
                   serviceName: serviceName,
                   selectNoIdUser: selectNoIdUser,
@@ -139,29 +156,29 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                           null,
                         );
                   },
-                  onPatientSelected: (Patient value) {
-                    ref.read(patientProvider.notifier).selectPatient(value);
-                  },
-                ),
-              ),
-              const SizedBox(width: 20),
-              if (selectedPatient == null && data.isEmpty)
-                const Expanded(flex: 1, child: SizedBox())
-              else
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: SelectedPatientCard(),
+                        onPatientSelected: (Patient value) {
+                          ref.read(patientProvider.notifier).selectPatient(value);
+                        },
                       ),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: () {
+                    ),
+                    const SizedBox(width: 20),
+                    if (selectedPatient == null && data.isEmpty)
+                      const Expanded(flex: 1, child: SizedBox())
+                    else
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: SelectedPatientCard(),
+                            ),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: ElevatedButton(
+                                onPressed: () {
                             final moduleFlowNotifier = ref.read(
                               moduleRequestFlowProvider.notifier,
                             );
@@ -268,18 +285,21 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                               borderRadius: BorderRadius.circular(40),
                             ),
                           ),
-                          child: const Text(
-                            "Continue",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                                child: const Text(
+                                  "Continue",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
+              ),
             ],
           ),
         );

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../helper/app_timezone.dart';
 import '../models/medication_administration_model.dart';
 import 'api_service.dart';
 
@@ -49,10 +50,9 @@ class MedicationAdministrationService {
   }) async {
     final body = <String, dynamic>{
       'medicationOrderId': medicationOrderId,
-      'scheduledTime': scheduledTime.toUtc().toIso8601String(),
+      'scheduledTime': AppTimezone.toBackendIso(scheduledTime),
       'status': status,
-      if (actualTime != null)
-        'actualTime': actualTime.toUtc().toIso8601String(),
+      if (actualTime != null) 'actualTime': AppTimezone.toBackendIso(actualTime),
       if (quantity != null) 'quantity': quantity,
       if (reasonIfNotGiven != null && reasonIfNotGiven.isNotEmpty)
         'reasonIfNotGiven': reasonIfNotGiven,

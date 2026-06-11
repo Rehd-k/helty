@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../helper/app_timezone.dart';
 import '../models/iv_fluid_order_model.dart';
 import 'api_service.dart';
 
@@ -46,7 +47,7 @@ class IvFluidOrderService {
       if (nurseId != null && nurseId.isNotEmpty) 'nurseId': nurseId,
       if (complications != null && complications.isNotEmpty)
         'complications': complications,
-      if (stoppedAt != null) 'stoppedAt': stoppedAt.toUtc().toIso8601String(),
+      if (stoppedAt != null) 'stoppedAt': AppTimezone.toBackendIso(stoppedAt),
       if (reasonStopped != null && reasonStopped.isNotEmpty)
         'reasonStopped': reasonStopped,
     };
@@ -68,7 +69,7 @@ class IvFluidOrderService {
       if (status != null) 'status': status,
       if (rate != null) 'rate': rate,
       if (expectedEndTime != null)
-        'expectedEndTime': expectedEndTime.toUtc().toIso8601String(),
+        'expectedEndTime': AppTimezone.toBackendIso(expectedEndTime),
     };
     final response = await _dio.patch<Map<String, dynamic>>(
       '/admissions/$admissionId/iv-fluid-orders/$orderId',

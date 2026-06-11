@@ -21,7 +21,13 @@ class WardService {
     );
 
     final data = resp.data;
-    final list = data is List ? data : (data['wards'] as List);
+    final list = data is List
+        ? data
+        : (data is Map<String, dynamic>
+            ? (data['wards'] as List? ??
+                  data['data'] as List? ??
+                  const [])
+            : const []);
     return list
         .whereType<Map<String, dynamic>>()
         .map(Ward.fromJson)

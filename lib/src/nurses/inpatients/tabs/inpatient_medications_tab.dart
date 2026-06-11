@@ -1,6 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/app_timezone.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/medication_administration_model.dart';
 import 'package:helty/src/models/medication_order_model.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
@@ -60,21 +62,6 @@ class _InpatientMedicationsScreenState
     }
   }
 
-  static DateTime _parseAdministrationTime(String text) {
-    final t = text.trim();
-    final now = DateTime.now();
-    if (t.isEmpty) return now;
-    final parts = t.split(':');
-    if (parts.length >= 2) {
-      final h = int.tryParse(parts[0].trim());
-      final m = int.tryParse(parts[1].trim());
-      if (h != null && m != null && h >= 0 && h < 24 && m >= 0 && m < 60) {
-        return DateTime(now.year, now.month, now.day, h, m);
-      }
-    }
-    return now;
-  }
-
   static String _dioErrorMessage(DioException e) {
     final data = e.response?.data;
     if (data is Map && data['message'] != null) {
@@ -87,13 +74,7 @@ class _InpatientMedicationsScreenState
   static String _formatHistoryTime(MedicationAdministrationModel a) {
     final t = a.sortTime;
     if (t == null) return '—';
-    final d =
-        '${t.day.toString().padLeft(2, '0')}/'
-        '${t.month.toString().padLeft(2, '0')}/'
-        '${t.year}';
-    final time =
-        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-    return '$time · $d';
+    return '${DateFormatter.timeOnly(t)} · ${DateFormatter.shortDate(t)}';
   }
 
   static String _formatAdministeredQuantity(double? quantity) {
@@ -534,7 +515,9 @@ class _AdministerMedicationDialogState
   void initState() {
     super.initState();
     final order = widget.order;
-    _timeCtrl = TextEditingController();
+    _timeCtrl = TextEditingController(
+      text: DateFormatter.timeOnly(AppTimezone.now()),
+    );
     _quantityCtrl = TextEditingController(
       text: order.quantity != null && order.quantity! > 0
           ? order.quantity.toString()
@@ -563,10 +546,16 @@ class _AdministerMedicationDialogState
     final apiStatus = _InpatientMedicationsScreenState._mapAdminStatusToApi(
       _status,
     );
-    final scheduled = _InpatientMedicationsScreenState._parseAdministrationTime(
+    final parsedTime = AppTimezone.parseTimeOnDate(
       _timeCtrl.text,
+      AppTimezone.now(),
     );
-    final actualTime = apiStatus == 'GIVEN' ? scheduled : null;
+    if (parsedTime == null) {
+      _showMessage('Enter a valid time (e.g. 2:30 PM).');
+      return;
+    }
+    final scheduled = parsedTime;
+    final actualTime = apiStatus == 'GIVEN' ? parsedTime : null;
 
     double? administeredQuantity;
     if (apiStatus == 'GIVEN') {
@@ -657,7 +646,8 @@ class _AdministerMedicationDialogState
               enabled: !_saving,
               decoration: const InputDecoration(
                 labelText: 'Actual administration time',
-                hintText: 'e.g. 13:45',
+                hintText: 'e.g. 2:30 PM',
+                helperText: 'Enter time as hh:mm AM or PM',
               ),
             ),
             const SizedBox(height: 12),

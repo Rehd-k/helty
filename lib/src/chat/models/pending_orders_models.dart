@@ -1,3 +1,5 @@
+import '../../helper/app_timezone.dart';
+
 enum PendingOrdersDomain { lab, radiology, drug, unknown }
 
 extension PendingOrdersDomainX on PendingOrdersDomain {
@@ -144,9 +146,5 @@ class PendingNotificationState {
 
 bool isDateInLocalToday(DateTime? utcLikeTimestamp) {
   if (utcLikeTimestamp == null) return false;
-  final local = utcLikeTimestamp.toLocal();
-  final now = DateTime.now();
-  return local.year == now.year &&
-      local.month == now.month &&
-      local.day == now.day;
+  return AppTimezone.isToday(utcLikeTimestamp);
 }

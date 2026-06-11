@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../helper/app_timezone.dart';
 import '../models/appointment_model.dart';
 import 'api_service.dart';
 
@@ -34,8 +35,8 @@ class AppointmentService {
         queryParameters: {
           'skip': skip,
           'take': take,
-          if (fromDate != null) 'fromDate': fromDate.toUtc().toIso8601String(),
-          if (toDate != null) 'toDate': toDate.toUtc().toIso8601String(),
+          if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
+          if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
           if (q != null && q.isNotEmpty) 'q': q,
         },
       );
@@ -71,8 +72,8 @@ class AppointmentService {
       final resp = await _dio.get(
         '/appointments/calendar-counts',
         queryParameters: {
-          'fromDate': fromDate.toUtc().toIso8601String(),
-          'toDate': toDate.toUtc().toIso8601String(),
+          'fromDate': AppTimezone.toBackendIso(fromDate),
+          'toDate': AppTimezone.toBackendIso(toDate),
         },
       );
       final raw = resp.data;
@@ -193,8 +194,8 @@ class AppointmentService {
         '/appointments',
         data: {
           'patientId': patientId,
-          'date': appointmentDate.toUtc().toIso8601String(),
-          'appointmentDate': appointmentDate.toUtc().toIso8601String(),
+          'date': AppTimezone.toBackendIso(appointmentDate),
+          'appointmentDate': AppTimezone.toBackendIso(appointmentDate),
           'status': status,
           if (assigned != null && assigned.isNotEmpty) 'staffId': assigned,
           if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
@@ -230,8 +231,8 @@ class AppointmentService {
         '/appointments/$id',
         data: {
           if (appointmentDate != null) ...{
-            'date': appointmentDate.toUtc().toIso8601String(),
-            'appointmentDate': appointmentDate.toUtc().toIso8601String(),
+            'date': AppTimezone.toBackendIso(appointmentDate),
+            'appointmentDate': AppTimezone.toBackendIso(appointmentDate),
           },
           if (status != null) 'status': status,
           if (notes != null) 'notes': notes,

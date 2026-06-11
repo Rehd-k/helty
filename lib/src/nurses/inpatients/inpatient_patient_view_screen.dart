@@ -6,6 +6,7 @@ import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/patient_header_card.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/paitients/patient_model.dart';
+import 'package:helty/src/auth/nursing_permissions.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
 import '../../admissions/discharge_admission_dialog.dart';
@@ -126,15 +127,7 @@ class _InpatientPatientViewScreenState
         accountType == 'physician' ||
         accountType == 'consultant' ||
         accountType == 'inpatient_doctor';
-    final isNurse =
-        role == 'nurse' ||
-        role == 'head_nurse' ||
-        role == 'inpatient_nurse' ||
-        role == 'outpatient_nurse' ||
-        accountType == 'nurse' ||
-        accountType == 'head_nurse' ||
-        accountType == 'inpatient_nurse' ||
-        accountType == 'outpatient_nurse';
+    final isNurse = isNursingStaff(ref.watch(authProvider).staff);
 
     final identity = _patientIdentityLabels();
 

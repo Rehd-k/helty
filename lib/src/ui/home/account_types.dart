@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../app_router.gr.dart';
+import '../../auth/nursing_permissions.dart';
+import '../../models/staff_model.dart';
+import '../../nursing/models/nursing_models.dart';
 import 'home_screen.dart';
 
 final frontDesk = <MenuItem>[
@@ -38,6 +41,11 @@ final frontDesk = <MenuItem>[
         label: 'View Patients',
         icon: Icons.add_alarm_outlined,
         route: PatientListRoute(),
+      ),
+      MenuItem(
+        label: 'Registered today',
+        icon: Icons.today_outlined,
+        route: TodayPatientsRoute(),
       ),
     ],
   ),
@@ -176,6 +184,16 @@ final nurses = <MenuItem>[
     route: NursesDashboardRoute(),
   ),
   MenuItem(
+    label: 'Shift roster',
+    icon: Icons.calendar_month_outlined,
+    route: NursingRosterRoute(),
+  ),
+  MenuItem(
+    label: 'Patient assignments',
+    icon: Icons.assignment_ind_outlined,
+    route: NursingAssignmentsRoute(),
+  ),
+  MenuItem(
     label: 'ED Board',
     icon: Icons.emergency_outlined,
     route: EdBoardRoute(),
@@ -238,6 +256,45 @@ final nurses = <MenuItem>[
     ],
   ),
 ];
+
+/// Role-filtered nursing menu (see docs/nursing-roles-frontend-guide.md).
+List<MenuItem> nurseMenuFor(Staff? staff, NursingDashboardMe? bootstrap) {
+  if (!isNursingStaff(staff)) return const [];
+
+  final matron = isMatron(staff);
+  final charge = isChargeNurse(staff);
+  final wardCharge = isWardIcuErChargeNurse(staff);
+  final opdOngCharge = isOpdOngChargeNurse(staff);
+  final erCharge = isEmergencyChargeNurse(staff);
+  final ongCharge = isOngChargeNurse(staff);
+  final inpatientLine = isInpatientLineNurse(staff);
+  final outpatientLine = isOutpatientLineNurse(staff);
+
+  final showWaiting =
+      matron || opdOngCharge || outpatientLine;
+  final showInpatients =
+      matron || wardCharge || inpatientLine;
+  final showEd = matron || erCharge;
+  final showOng = matron || ongCharge;
+  final showRoster = canManageShiftRoster(staff, bootstrap);
+  final showAssignments = charge || matron;
+
+  return nurses.where((item) {
+    final route = item.route;
+    if (route is NursesDashboardRoute) return true;
+    if (route is NursingRosterRoute) return showRoster;
+    if (route is NursingAssignmentsRoute) return showAssignments;
+    if (route is EdBoardRoute) return showEd;
+    if (route is WaitingPatientsRoute) return showWaiting;
+    if (route is InpatientsListRoute) return showInpatients;
+    if (route is ObstetricsDashboardRoute ||
+        route is ObstetricsPatientSelectRoute ||
+        route is ObstetricsGynaeProceduresRoute) {
+      return showOng;
+    }
+    return true;
+  }).toList();
+}
 
 final doctors = <MenuItem>[
   MenuItem(

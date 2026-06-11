@@ -252,6 +252,7 @@ class Ward {
     required this.capacity,
     required this.type,
     this.departmentId,
+    this.departmentName,
     this.drugPricePercentage,
     this.createdAt,
     this.updatedAt,
@@ -264,6 +265,9 @@ class Ward {
   final int capacity;
   final WardType type;
   final String? departmentId;
+
+  /// From nested `department` on GET /wards when included.
+  final String? departmentName;
   final double? drugPricePercentage;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -279,6 +283,9 @@ class Ward {
       capacity: (json['capacity'] as num?)?.toInt() ?? 0,
       type: _wardTypeFromJson(json['type'] as String?),
       departmentId: json['departmentId'] as String?,
+      departmentName: json['department'] is Map
+          ? (json['department'] as Map)['name'] as String?
+          : null,
       drugPricePercentage: () {
         final v = json['drugPricePercentage'];
         if (v == null) return null;

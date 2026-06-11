@@ -82,6 +82,8 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: SystemSetupRoute.page),
         AutoRoute(page: BankManagementRoute.page),
         AutoRoute(page: NursesDashboardRoute.page),
+        AutoRoute(page: NursingRosterRoute.page),
+        AutoRoute(page: NursingAssignmentsRoute.page),
         AutoRoute(page: NurseConsumableUsageRoute.page),
         AutoRoute(page: WaitingPatientsRoute.page),
         AutoRoute(page: ConsultingRoomsRoute.page),

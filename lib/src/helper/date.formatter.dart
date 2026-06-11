@@ -1,44 +1,48 @@
 import 'package:intl/intl.dart';
 
+import 'app_timezone.dart';
+
 class DateFormatter {
+  static DateTime _asLagos(DateTime date) => AppTimezone.toLocal(date);
+
   // 1. Just the date: 23/12/1990
   static String shortDate(DateTime date) {
-    return DateFormat('dd/MM/yyyy').format(date);
+    return DateFormat('dd/MM/yyyy').format(_asLagos(date));
   }
 
   // 2. Full readable date: Monday, December 23, 1990
   static String fullDate(DateTime date) {
-    return DateFormat('EEEE, MMMM d, yyyy').format(date);
+    return DateFormat('EEEE, MMMM d, yyyy').format(_asLagos(date));
   }
 
-  // 3. Date with Time (24h): 23/12/1990 14:30
+  // 3. Date with Time (12h): 23/12/1990 02:30 PM
   static String dateTime(DateTime date) {
-    return DateFormat('dd/MM/yyyy HH:mm').format(date);
+    return DateFormat('dd/MM/yyyy hh:mm a').format(_asLagos(date));
   }
 
-  /// Date with time including seconds (24h): 23/12/1990 14:30:05
+  /// Date with time including seconds (12h): 23/12/1990 02:30:05 PM
   static String dateTimeWithSeconds(DateTime date) {
-    return DateFormat('dd/MM/yyyy HH:mm:ss').format(date);
+    return DateFormat('dd/MM/yyyy hh:mm:ss a').format(_asLagos(date));
   }
 
   // 4. Time only: 02:30 PM
   static String timeOnly(DateTime date) {
-    return DateFormat('hh:mm a').format(date);
+    return DateFormat('hh:mm a').format(_asLagos(date));
   }
 
   // 5. Medical Style (e.g., for Patient records): 23 Dec 1990
   static String medicalDate(DateTime date) {
-    return DateFormat('dd MMM yyyy').format(date);
+    return DateFormat('dd MMM yyyy').format(_asLagos(date));
   }
 
   /// US-style short date: 4/5/2026 (month/day/year, no leading zeros).
   static String shortNumericUs(DateTime date) {
-    return DateFormat('M/d/yyyy').format(date);
+    return DateFormat('M/d/yyyy').format(_asLagos(date));
   }
 
   /// Human-readable elapsed time from [past] until [now] (e.g. "3 days ago").
   static String relativeTimeAgo(DateTime past, [DateTime? now]) {
-    final clock = now ?? DateTime.now();
+    final clock = now ?? AppTimezone.now();
     if (!past.isBefore(clock)) return 'just now';
 
     var years = clock.year - past.year;
@@ -90,7 +94,7 @@ class DateFormatter {
   ) {
     if (dateStr == null || dateStr.isEmpty) return 'N/A';
     try {
-      DateTime dt = DateTime.parse(dateStr);
+      final dt = DateTime.parse(dateStr);
       return formatType(dt);
     } catch (e) {
       return 'Invalid Date';
@@ -99,26 +103,27 @@ class DateFormatter {
 
   /// Age for bedside display: years if 1y+, months if under 1y, weeks/days for newborns.
   static String patientAgeFromDob(DateTime dob, [DateTime? now]) {
-    final clock = now ?? DateTime.now();
-    if (dob.isAfter(clock)) return '0 d';
+    final clock = now != null ? AppTimezone.toLocal(now) : AppTimezone.now();
+    final lagosDob = _asLagos(dob);
+    if (lagosDob.isAfter(clock)) return '0 d';
 
-    var years = clock.year - dob.year;
-    if (clock.month < dob.month ||
-        (clock.month == dob.month && clock.day < dob.day)) {
+    var years = clock.year - lagosDob.year;
+    if (clock.month < lagosDob.month ||
+        (clock.month == lagosDob.month && clock.day < lagosDob.day)) {
       years--;
     }
     if (years >= 1) {
       return years == 1 ? '1 yr' : '$years yrs';
     }
 
-    var months = (clock.year - dob.year) * 12 + clock.month - dob.month;
-    if (clock.day < dob.day) months--;
+    var months = (clock.year - lagosDob.year) * 12 + clock.month - lagosDob.month;
+    if (clock.day < lagosDob.day) months--;
     if (months >= 1) {
       return months == 1 ? '1 mo' : '$months mo';
     }
 
-    final startDay = DateTime(dob.year, dob.month, dob.day);
-    final today = DateTime(clock.year, clock.month, clock.day);
+    final startDay = AppTimezone.startOfDay(lagosDob);
+    final today = AppTimezone.startOfDay(clock);
     final days = today.difference(startDay).inDays;
     if (days >= 7) {
       final w = days ~/ 7;
@@ -129,13 +134,9 @@ class DateFormatter {
 
   /// Calendar days from [admissionDate] to today (same calendar day → 0).
   static int calendarDaysSince(DateTime admissionInstant, [DateTime? now]) {
-    final clock = now ?? DateTime.now();
-    final a = DateTime(
-      admissionInstant.year,
-      admissionInstant.month,
-      admissionInstant.day,
-    );
-    final n = DateTime(clock.year, clock.month, clock.day);
+    final clock = now != null ? AppTimezone.toLocal(now) : AppTimezone.now();
+    final a = AppTimezone.startOfDay(_asLagos(admissionInstant));
+    final n = AppTimezone.startOfDay(clock);
     return n.difference(a).inDays;
   }
 }

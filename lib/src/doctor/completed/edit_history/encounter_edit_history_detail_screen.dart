@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/models/encounter_edit_meta.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/services/encounter_service.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 @RoutePage()
 class EncounterEditHistoryDetailScreen extends StatefulWidget {
@@ -101,7 +101,6 @@ class _EncounterEditHistoryDetailScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final df = DateFormat('d MMM yyyy, HH:mm');
 
     return Scaffold(
       appBar: AppBar(
@@ -126,7 +125,7 @@ class _EncounterEditHistoryDetailScreenState
                     ),
                   ),
                 )
-              : _buildBody(context, theme, scheme, df),
+              : _buildBody(context, theme, scheme),
     );
   }
 
@@ -134,7 +133,6 @@ class _EncounterEditHistoryDetailScreenState
     BuildContext context,
     ThemeData theme,
     ColorScheme scheme,
-    DateFormat df,
   ) {
     final detail = _detail!;
     final snap = detail.snapshot.encounter;
@@ -143,7 +141,7 @@ class _EncounterEditHistoryDetailScreenState
       padding: const EdgeInsets.all(20),
       children: [
         Text(
-          df.format(detail.editedAt),
+          DateFormatter.dateTime(detail.editedAt),
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),

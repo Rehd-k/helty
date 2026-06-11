@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/staff_model.dart';
+import '../models/ward_models.dart';
 import '../services/department_service.dart';
 import '../services/staff_service.dart';
-import '../models/staff_model.dart';
+import '../services/ward_service.dart';
 
 // ── Department Providers ─────────────────────────────────────────────────────
 
@@ -16,6 +18,13 @@ final departmentListProvider = FutureProvider.family<List<Department>, String?>(
     return service.fetchDepartments(query: query);
   },
 );
+
+final wardServiceProvider = Provider<WardService>((ref) => WardService());
+
+final wardListProvider = FutureProvider<List<Ward>>((ref) async {
+  final service = ref.read(wardServiceProvider);
+  return service.fetchWards();
+});
 
 // ── Staff Providers ──────────────────────────────────────────────────────────
 

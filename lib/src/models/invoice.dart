@@ -40,6 +40,9 @@ abstract class Invoice with _$Invoice {
           (sum, item) => sum + ((item.qty ?? 1) * item.cost),
         );
 
+  bool get hasDrugItems =>
+      invoiceItems.any((item) => item.drugId?.trim().isNotEmpty ?? false);
+
   static double _parseDouble(dynamic value) {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;

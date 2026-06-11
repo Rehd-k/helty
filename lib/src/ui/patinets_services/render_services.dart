@@ -13,11 +13,14 @@ import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/paitients/patient.state.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 
+import '../../billings/parked_billing_session.dart';
 import '../../billings/pay.bill.dart';
+import '../../billings/widgets/parked_billing_chips_bar.dart';
 import '../../enlist_services/selected.user.dart';
 import '../../models/service_category_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/module_request_flow_provider.dart';
+import '../../providers/parked_billing_provider.dart';
 import '../../services/department_service.dart';
 import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
@@ -312,12 +315,148 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     });
   }
 
+  void _consumeBillingRestore() {
+    final session = ref.read(billingRestoreProvider);
+    if (session == null) return;
+    ref.read(billingRestoreProvider.notifier).state = null;
+    _applyRestoredSession(session, showSnack: true);
+  }
+
+  void _applyRestoredSession(
+    ParkedBillingSession session, {
+    bool showSnack = false,
+  }) {
+    ref.read(moduleRequestFlowProvider.notifier).state = session.flowConfig;
+    ref.read(patientProvider.notifier).selectPatient(session.patient);
+    setState(() {
+      _flowConfig = session.flowConfig;
+      _selectedItems
+        ..clear()
+        ..addAll(deepCopyServiceLines(session.items));
+    });
+    _repriceSelectedItems();
+    _loadServices(resetPage: true);
+    if (showSnack) {
+      final name = session.patient.firstName.trim();
+      _snack(name.isEmpty ? 'Bill restored.' : 'Bill restored for $name.');
+    }
+  }
+
+  Future<bool> _confirmReplaceCart() async {
+    if (_selectedItems.isEmpty) return true;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Replace current selection?'),
+        content: const Text(
+          'You have services in the cart. Restoring a parked bill will replace them.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Replace'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _resumeParkedSession(ParkedBillingSession session) async {
+    if (!await _confirmReplaceCart()) return;
+    ref.read(parkedBillingProvider.notifier).remove(session.id);
+    _applyRestoredSession(session, showSnack: true);
+  }
+
+  ParkBillResult _parkCurrentBill({bool popOnSuccess = true}) {
+    final patient = ref.read(patientProvider).selectedPatient;
+    if (patient == null || _selectedItems.isEmpty) {
+      return ParkBillResult.duplicatePatient;
+    }
+
+    final result = ref
+        .read(parkedBillingProvider.notifier)
+        .park(
+          patient: patient,
+          items: _selectedItems,
+          flowConfig: _flowConfig,
+          totalDue: _totalDue,
+        );
+
+    switch (result) {
+      case ParkBillResult.duplicatePatient:
+        _snack('This patient already has a parked bill.');
+        return result;
+      case ParkBillResult.queueFull:
+        _snack('Too many parked bills. Resume or dismiss one first.');
+        return result;
+      case ParkBillResult.success:
+        _emptySelection();
+        ref.read(patientProvider.notifier).clearPatient();
+        final name = patient.firstName.trim();
+        _snack(
+          name.isEmpty
+              ? 'Bill parked. Select the next patient.'
+              : 'Bill parked for $name. Select the next patient.',
+        );
+        if (popOnSuccess && mounted) {
+          context.router.pop();
+        }
+        return result;
+    }
+  }
+
+  Future<bool> _handleBeforeClearPatient() async {
+    if (_selectedItems.isEmpty) return true;
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cart has selected services'),
+        content: const Text(
+          'Park this bill to serve another patient, or discard the selection.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('cancel'),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('discard'),
+            child: const Text('Discard'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop('park'),
+            child: const Text('Park bill'),
+          ),
+        ],
+      ),
+    );
+
+    if (action == 'park') {
+      _parkCurrentBill(popOnSuccess: true);
+      return false;
+    }
+    if (action == 'discard') {
+      _emptySelection();
+      return true;
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
     _flowConfig = ref.read(moduleRequestFlowProvider);
     _loadMeta();
     _loadServices();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _consumeBillingRestore(),
+    );
   }
 
   @override
@@ -396,39 +535,47 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           ],
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ==========================================
-            // LEFT PANE: SEARCH & AVAILABLE SERVICES
-            // ==========================================
-            Expanded(
-              flex: 5,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ParkedBillingChipsBar(onResume: _resumeParkedSession),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSearchAndFilterCard(),
-                  const SizedBox(height: 16),
-                  Expanded(child: _buildAvailableServicesList()),
-                  const SizedBox(height: 8),
-                  _buildPagination(),
+                  // ==========================================
+                  // LEFT PANE: SEARCH & AVAILABLE SERVICES
+                  // ==========================================
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildSearchAndFilterCard(),
+                        const SizedBox(height: 16),
+                        Expanded(child: _buildAvailableServicesList()),
+                        const SizedBox(height: 8),
+                        _buildPagination(),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 16),
+
+                  // ==========================================
+                  // RIGHT PANE: SELECTED SERVICES TABLE
+                  // ==========================================
+                  Expanded(
+                    flex: 4,
+                    child: _buildSelectedServicesPanel(selectedPatient, auth),
+                  ),
                 ],
               ),
             ),
-
-            const SizedBox(width: 16),
-
-            // ==========================================
-            // RIGHT PANE: SELECTED SERVICES TABLE
-            // ==========================================
-            Expanded(
-              flex: 4,
-              child: _buildSelectedServicesPanel(selectedPatient, auth),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -722,9 +869,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                           children: [
                             if (!_flowConfig.hideServicePrices)
                               Text(
-                                _effectiveUnitPrice(item).toFinancial(
-                                  isMoney: true,
-                                ),
+                                _effectiveUnitPrice(
+                                  item,
+                                ).toFinancial(isMoney: true),
                                 style: TextStyle(
                                   color: Colors.grey.shade800,
                                   fontWeight: FontWeight.bold,
@@ -857,7 +1004,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (hasPatient)
-            const SelectedPatientCard()
+            SelectedPatientCard(onBeforeClear: _handleBeforeClearPatient)
           else
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -903,7 +1050,24 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     color: Colors.blueAccent,
                   ),
                 ),
-                if (_selectedItems.isNotEmpty)
+                if (hasPatient && _selectedItems.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () => _parkCurrentBill(),
+                    icon: Icon(
+                      Icons.pause_circle_outline,
+                      size: 18,
+                      color: Colors.orange.shade800,
+                    ),
+                    label: Text(
+                      'Park bill',
+                      style: TextStyle(
+                        color: Colors.orange.shade800,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                if (_selectedItems.isNotEmpty) ...[
+                  const SizedBox(width: 4),
                   TextButton.icon(
                     onPressed: _emptySelection,
                     icon: const Icon(
@@ -912,13 +1076,14 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                       color: Colors.redAccent,
                     ),
                     label: const Text(
-                      'Empty Selection',
+                      'Empty',
                       style: TextStyle(
                         color: Colors.redAccent,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ),

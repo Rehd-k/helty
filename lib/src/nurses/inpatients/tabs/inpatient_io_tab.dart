@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/intake_output_record_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
@@ -197,10 +198,14 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
                             final d = await showDatePicker(
                               context: ctx,
                               initialDate: recorded,
-                              firstDate: DateTime.now()
-                                  .subtract(const Duration(days: 30)),
-                              lastDate: DateTime.now()
-                                  .add(const Duration(days: 1)),
+                              firstDate: AppTimezone.startOfDay(
+                                AppTimezone.now().subtract(
+                                  const Duration(days: 30),
+                                ),
+                              ),
+                              lastDate: AppTimezone.endOfDay(
+                                AppTimezone.now().add(const Duration(days: 1)),
+                              ),
                             );
                             if (d == null || !ctx.mounted) return;
                             final time = await showTimePicker(
@@ -209,12 +214,9 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
                             );
                             if (time == null || !ctx.mounted) return;
                             setLocal(() {
-                              recorded = DateTime(
-                                d.year,
-                                d.month,
-                                d.day,
-                                time.hour,
-                                time.minute,
+                              recorded = AppTimezone.combineDateAndTime(
+                                d,
+                                time,
                               );
                             });
                           },

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../helper/app_timezone.dart';
 import '../models/procedure_record_model.dart';
 import 'api_service.dart';
 
@@ -46,7 +47,7 @@ class ProcedureRecordService {
       if (outcome != null && outcome.isNotEmpty) 'outcome': outcome,
       if (complications != null && complications.isNotEmpty)
         'complications': complications,
-      'recordedAt': (recordedAt ?? DateTime.now()).toUtc().toIso8601String(),
+      'recordedAt': AppTimezone.toBackendIso(recordedAt ?? AppTimezone.now()),
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/admissions/$admissionId/procedure-records',

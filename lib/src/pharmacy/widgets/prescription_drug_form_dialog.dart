@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/medication_order_model.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_queue_models.dart';
@@ -735,9 +735,7 @@ Future<PrescriptionDrugFormResult?> showPrescriptionDrugFormDialog(
                                 label: Text(
                                   startDateTime == null
                                       ? 'Start'
-                                      : DateFormat(
-                                          'dd MMM yyyy, HH:mm',
-                                        ).format(startDateTime!),
+                                      : DateFormatter.dateTime(startDateTime!),
                                 ),
                               ),
                             ),
@@ -764,9 +762,7 @@ Future<PrescriptionDrugFormResult?> showPrescriptionDrugFormDialog(
                                 label: Text(
                                   endDateTime == null
                                       ? 'End'
-                                      : DateFormat(
-                                          'dd MMM yyyy, HH:mm',
-                                        ).format(endDateTime!),
+                                      : DateFormatter.dateTime(endDateTime!),
                                 ),
                               ),
                             ),

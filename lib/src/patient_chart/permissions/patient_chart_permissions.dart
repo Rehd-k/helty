@@ -1,3 +1,4 @@
+import '../../auth/nursing_permissions.dart';
 import '../../models/staff_model.dart';
 import '../models/patient_chart_models.dart';
 
@@ -11,22 +12,11 @@ List<String> allowedChartSectionsForStaff(Staff? staff) {
     return PatientChartSectionKeys.all;
   }
 
-  if (_isNurseStaff(at, r)) {
+  if (isNursingStaff(staff)) {
     return PatientChartSectionKeys.clinicalNurse;
   }
 
   return const [];
-}
-
-bool _isNurseStaff(String accountType, String role) {
-  return accountType == 'nurse' ||
-      accountType == 'head_nurse' ||
-      accountType == 'inpatient_nurse' ||
-      accountType == 'outpatient_nurse' ||
-      role == 'nurse' ||
-      role == 'head_nurse' ||
-      role == 'inpatient_nurse' ||
-      role == 'outpatient_nurse';
 }
 
 /// Tabs visible for staff (intersection with API available sections applied in UI).
@@ -59,5 +49,5 @@ bool staffHasPatientChartAccess(Staff? staff) {
   final r = staff.staffRole.toLowerCase();
   return at == 'medical_records' ||
       r == 'medical_records' ||
-      _isNurseStaff(at, r);
+      isNursingStaff(staff);
 }

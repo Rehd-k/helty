@@ -155,19 +155,31 @@ class ChatApiService {
     );
   }
 
+  /// Opens or returns an existing 1:1 chat. [otherStaffId] must be the staff
+  /// UUID (`Staff.id`), not the employee code (`Staff.staffId`).
   Future<ChatConversationSummary?> openDirect({required String otherStaffId}) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/chat/conversations/direct',
       data: {'otherStaffId': otherStaffId},
     );
-    final data = res.data;
-    if (data == null) return null;
-    var map = Map<String, dynamic>.from(data);
-    final inner = map['data'];
-    if (inner is Map) {
-      map = Map<String, dynamic>.from(inner);
+    final parsed = _unwrapConversation(res.data);
+    return parsed != null ? ChatConversationSummary.tryParse(parsed) : null;
+  }
+
+  /// Direct-chat responses may be `{ conversation: { id, ... } }`, `{ data: ... }`, or flat.
+  static Map<String, dynamic>? _unwrapConversation(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is! Map) return null;
+    var map = Map<String, dynamic>.from(raw);
+    final data = map['data'];
+    if (data is Map) {
+      map = Map<String, dynamic>.from(data);
     }
-    return ChatConversationSummary.tryParse(map);
+    final conversation = map['conversation'];
+    if (conversation is Map) {
+      map = Map<String, dynamic>.from(conversation);
+    }
+    return map;
   }
 }
 

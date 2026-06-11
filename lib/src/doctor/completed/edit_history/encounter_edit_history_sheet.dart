@@ -4,7 +4,7 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/models/encounter_edit_meta.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/services/encounter_service.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 /// Bottom sheet listing post-completion edit history for an encounter.
 class EncounterEditHistorySheet extends StatefulWidget {
@@ -82,7 +82,6 @@ class _EncounterEditHistorySheetState extends State<EncounterEditHistorySheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final df = DateFormat('d MMM yyyy, HH:mm');
 
     return Material(
       color: scheme.surface,
@@ -174,7 +173,7 @@ class _EncounterEditHistorySheetState extends State<EncounterEditHistorySheet> {
                                   ),
                                 ),
                                 child: ListTile(
-                                  title: Text(df.format(item.editedAt)),
+                                  title: Text(DateFormatter.dateTime(item.editedAt)),
                                   subtitle: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,

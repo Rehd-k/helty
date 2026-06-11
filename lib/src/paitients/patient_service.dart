@@ -3,6 +3,7 @@ import 'package:helty/src/paitients/noid_patient.model.dart';
 
 import '../models/consultation_credit_model.dart';
 import 'patient_model.dart';
+import 'registered_today_response.dart';
 import '../services/api_service.dart';
 
 class PatientService {
@@ -80,6 +81,29 @@ class PatientService {
     }
 
     return Patient.fromJson(raw);
+  }
+
+  /// GET /patients/registered/today — patients created today (includes no-ID).
+  Future<RegisteredTodayResponse> fetchRegisteredToday({
+    int skip = 0,
+    int take = 50,
+    String? q,
+    DateTime? asOf,
+  }) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/patients/registered/today',
+      queryParameters: {
+        'skip': skip,
+        'take': take,
+        if (q != null && q.isNotEmpty) 'q': q,
+        if (asOf != null) 'asOf': asOf.toIso8601String(),
+      },
+    );
+    final data = resp.data;
+    if (data == null) {
+      throw StateError('Registered today response was empty');
+    }
+    return RegisteredTodayResponse.fromJson(data);
   }
 
   /// GET /patients/:patientId/consultation-credits — OPD visit bundles.

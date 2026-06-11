@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
+import '../helper/app_timezone.dart';
+import '../helper/date.formatter.dart';
 import '../helper/theme.dart';
 import '../models/server_time_model.dart';
 import '../services/api_endpoint_selector.dart';
@@ -83,14 +83,12 @@ class _ClockSyncGateState extends State<ClockSyncGate> {
   }
 
   static String _formatDeviceTime() {
-    final fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
-    return fmt.format(DateTime.now());
+    return DateFormatter.dateTimeWithSeconds(AppTimezone.now());
   }
 
   static String _formatServerInstant(ServerTimePayload s) {
-    final fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
     final instant = DateTime.fromMillisecondsSinceEpoch(s.unixMs);
-    return fmt.format(instant);
+    return DateFormatter.dateTimeWithSeconds(instant);
   }
 
   @override

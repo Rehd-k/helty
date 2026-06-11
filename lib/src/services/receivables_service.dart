@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/models/receivables_models.dart';
 import 'package:helty/src/services/api_service.dart';
 
@@ -47,8 +48,8 @@ class ReceivablesService {
           if (take != null) 'take': take,
           if (search != null && search.trim().isNotEmpty) 'search': search,
           if (status != null && status.trim().isNotEmpty) 'status': status,
-          if (from != null) 'from': from.toUtc().toIso8601String(),
-          if (to != null) 'to': to.toUtc().toIso8601String(),
+          if (from != null) 'from': AppTimezone.toBackendIso(from),
+          if (to != null) 'to': AppTimezone.toBackendIso(to),
         },
       );
       final list = _extractList(response.data);
@@ -79,8 +80,8 @@ class ReceivablesService {
           if (take != null) 'take': take,
           if (search != null && search.trim().isNotEmpty) 'search': search,
           if (status != null && status.trim().isNotEmpty) 'status': status,
-          if (from != null) 'from': from.toUtc().toIso8601String(),
-          if (to != null) 'to': to.toUtc().toIso8601String(),
+          if (from != null) 'from': AppTimezone.toBackendIso(from),
+          if (to != null) 'to': AppTimezone.toBackendIso(to),
         },
       );
       final list = _extractList(response.data);
@@ -149,8 +150,8 @@ class ReceivablesService {
       final response = await _dio.get(
         '/receivables/analytics/hmo-coverage',
         queryParameters: {
-          'fromDate': fromDate.toUtc().toIso8601String(),
-          'toDate': toDate.toUtc().toIso8601String(),
+          'fromDate': AppTimezone.toBackendIso(fromDate),
+          'toDate': AppTimezone.toBackendIso(toDate),
         },
       );
       return HmoCoverageAnalytics.fromJson(_asMap(response.data));
@@ -169,8 +170,8 @@ class ReceivablesService {
       final response = await _dio.get(
         '/receivables/analytics/discount-coverage',
         queryParameters: {
-          'fromDate': fromDate.toUtc().toIso8601String(),
-          'toDate': toDate.toUtc().toIso8601String(),
+          'fromDate': AppTimezone.toBackendIso(fromDate),
+          'toDate': AppTimezone.toBackendIso(toDate),
         },
       );
       return DiscountCoverageAnalytics.fromJson(_asMap(response.data));
@@ -189,8 +190,8 @@ class ReceivablesService {
       final response = await _dio.get(
         '/receivables/analytics/remittance-collections',
         queryParameters: {
-          'fromDate': fromDate.toUtc().toIso8601String(),
-          'toDate': toDate.toUtc().toIso8601String(),
+          'fromDate': AppTimezone.toBackendIso(fromDate),
+          'toDate': AppTimezone.toBackendIso(toDate),
         },
       );
       return RemittanceCollectionsAnalytics.fromJson(_asMap(response.data));

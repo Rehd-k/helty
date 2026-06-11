@@ -1,8 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-
+import '../../helper/date.formatter.dart';
 import '../../models/staff_model.dart';
 import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
@@ -32,8 +31,6 @@ class PurchasesRequisitionHistoryScreen extends ConsumerStatefulWidget {
 class _PurchasesRequisitionHistoryScreenState
     extends ConsumerState<PurchasesRequisitionHistoryScreen> {
   final PurchasesApiService _api = PurchasesApiService();
-  final _dateFmt = DateFormat('yyyy-MM-dd HH:mm');
-
   List<Requisition> _rows = [];
   bool _loading = true;
   String? _error;
@@ -140,7 +137,7 @@ class _PurchasesRequisitionHistoryScreenState
               Text('Status: ${req.status.name}'),
               Text('Requested by: ${req.requestedByName ?? '-'}'),
               if (req.createdAt != null)
-                Text('Created: ${_dateFmt.format(req.createdAt!)}'),
+                Text('Created: ${DateFormatter.dateTime(req.createdAt!)}'),
               const SizedBox(height: 12),
               const Text('Line items:', style: TextStyle(fontWeight: FontWeight.bold)),
               ...req.lines.map(
@@ -227,7 +224,7 @@ class _PurchasesRequisitionHistoryScreenState
                           ),
                           subtitle: Text(
                             '${req.status.name} · ${req.requestedByName ?? 'Unknown'} · '
-                            '${req.createdAt != null ? _dateFmt.format(req.createdAt!) : ''}',
+                            '${req.createdAt != null ? DateFormatter.dateTime(req.createdAt!) : ''}',
                           ),
                           trailing: req.status == RequisitionStatus.PENDING && isHead
                               ? Wrap(

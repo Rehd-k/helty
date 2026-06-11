@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../models/auth_response.dart';
 import '../models/staff_model.dart';
+import '../nursing/ward_matching.dart';
 import 'api_service.dart';
 
 /// All authentication-related API calls.
@@ -35,8 +36,10 @@ class AuthService {
     String? email,
     String? phone,
     String? departmentId,
+    String? wardId,
     AccountType? accountType,
   }) async {
+    final isCharge = isChargeNurseStaffRole(staffRole);
     final resp = await _dio.post(
       '/staff',
       data: {
@@ -47,7 +50,8 @@ class AuthService {
         'password': password,
         if (email != null) 'email': email,
         if (phone != null) 'phone': phone,
-        if (departmentId != null) 'departmentId': departmentId,
+        if (!isCharge && departmentId != null) 'departmentId': departmentId,
+        if (isCharge && wardId != null) 'wardId': wardId,
         if (accountType != null) 'accountType': accountType.name.toUpperCase(),
       },
     );

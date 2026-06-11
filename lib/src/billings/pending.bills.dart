@@ -678,7 +678,9 @@ void _showContextMenu(
       if (_staffIsBilling(auth.staff))
         PopupMenuItem(
           value: 'Make Payment',
-          onTap: () => openCustomModal(context, invoice, auth.staff?.id ?? ''),
+          onTap: () => Future.microtask(
+            () => openCustomModal(context, invoice, auth.staff?.id ?? ''),
+          ),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [Icon(Icons.payment_outlined), Text('Make Payment')],
@@ -746,7 +748,35 @@ void _showContextMenu(
   }
 }
 
-void openCustomModal(BuildContext context, Invoice invoice, String staffId) {
+Future<void> openCustomModal(
+  BuildContext context,
+  Invoice invoice,
+  String staffId,
+) async {
+  if (invoice.hasDrugItems) {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pharmacy items on bill'),
+        content: const Text(
+          'There are drugs on this bill. Please make sure the patient has '
+          'visited pharmacy before paying.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Proceed to Payment'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || proceed != true) return;
+  }
+
   showGeneralDialog(
     context: context,
     barrierDismissible: true,

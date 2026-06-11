@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../helper/app_timezone.dart';
 import '../helper/date.formatter.dart';
 
 /// Below this width, From/To stack vertically with compact date labels.
@@ -46,8 +47,8 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
   void initState() {
     super.initState();
     doRefresh = widget.doRefresh;
-    _fromDate = DateTime.now();
-    _toDate = DateTime.now();
+    _fromDate = AppTimezone.startOfDay();
+    _toDate = AppTimezone.endOfDay();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _notifyParent();
     });
@@ -55,8 +56,8 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
 
   void _resetFilters() {
     setState(() {
-      _fromDate = DateTime.now();
-      _toDate = DateTime.now();
+      _fromDate = AppTimezone.startOfDay();
+      _toDate = AppTimezone.endOfDay();
     });
     _notifyParent();
     doRefresh?.call();
@@ -69,7 +70,7 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
   Future<void> _pickFromDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _fromDate ?? DateTime.now(),
+      initialDate: _fromDate ?? AppTimezone.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/doctor/completed/edit_history/encounter_edit_history_sheet.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/encounter_edit_meta.dart';
-import 'package:intl/intl.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_forms_panel.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
 import 'package:helty/src/models/encounter_model.dart';
@@ -331,7 +331,7 @@ class _DoctorCompletedEncounterViewScreenState
     ];
     if (meta.lastEditedAt != null) {
       parts.add(
-        'Last: ${DateFormat('d MMM yyyy, HH:mm').format(meta.lastEditedAt!)}',
+        'Last: ${DateFormatter.dateTime(meta.lastEditedAt!)}',
       );
     }
     return parts.join('\n');

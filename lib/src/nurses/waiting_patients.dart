@@ -1,8 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math';
 
+import '../auth/nursing_permissions.dart';
 import '../helper/date.formatter.dart';
+import '../nursing/models/nursing_models.dart';
+import '../nursing/providers/nursing_providers.dart';
+import '../providers/auth_provider.dart';
 import '../models/consulting_room_model.dart';
 import '../widgets/date.filter.dart';
 import '../models/patient_vitals_model.dart';
@@ -12,14 +17,15 @@ import '../services/waiting_patient_service.dart';
 import '../widgets/consultation_credit_chip.dart';
 
 @RoutePage()
-class WaitingPatientsScreen extends StatefulWidget {
+class WaitingPatientsScreen extends ConsumerStatefulWidget {
   const WaitingPatientsScreen({super.key});
 
   @override
-  State<WaitingPatientsScreen> createState() => _WaitingPatientsScreenState();
+  ConsumerState<WaitingPatientsScreen> createState() =>
+      _WaitingPatientsScreenState();
 }
 
-class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
+class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
   /// Vitals use the right-hand panel at this width; below, a bottom sheet.
   static const double _vitalsSidePanelMinWidth = 960;
 
@@ -382,6 +388,94 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
     );
   }
 
+  Future<void> _assignNurse(WaitingPatientModel waiting) async {
+    final staff = ref.read(authProvider).staff;
+    final bootstrap = ref.read(nursingBootstrapDataProvider);
+    if (!canAssignOutpatientPatients(staff, bootstrap)) return;
+
+    var nurseId = staff?.id ?? '';
+    var shiftType = ShiftType.morning.apiValue;
+    var nursingUnit = bootstrap?.nursingUnit ?? NursingUnit.opd.apiValue;
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('Assign nurse'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Patient: ${waiting.patient?.firstName ?? waiting.patientId}'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: shiftType,
+                decoration: const InputDecoration(labelText: 'Shift'),
+                items: ShiftType.values
+                    .map(
+                      (s) => DropdownMenuItem(
+                        value: s.apiValue,
+                        child: Text(s.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => setDialog(() => shiftType = v ?? shiftType),
+              ),
+              if (isMatron(staff)) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: nursingUnit,
+                  decoration: const InputDecoration(labelText: 'Unit'),
+                  items: NursingUnit.values
+                      .where((u) => u == NursingUnit.opd || u == NursingUnit.ong)
+                      .map(
+                        (u) => DropdownMenuItem(
+                          value: u.apiValue,
+                          child: Text(u.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) =>
+                      setDialog(() => nursingUnit = v ?? nursingUnit),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: nurseId.isEmpty ? null : () => Navigator.pop(ctx, true),
+              child: const Text('Assign'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true || nurseId.isEmpty) return;
+
+    try {
+      await ref.read(nursingApiServiceProvider).createOutpatientAssignment(
+        nurseId: nurseId,
+        invoiceId: waiting.invoiceId,
+        nursingUnit: nursingUnit,
+        shiftDate: DateTime.now(),
+        shiftType: shiftType,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nurse assigned')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   Future<void> _sendToConsulting(
     WaitingPatientModel waiting, {
     BuildContext? popAfterSuccessContext,
@@ -684,7 +778,7 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                                 final consultation =
                                     waiting.consultationName ?? '\u2014';
                                 final createdTime = DateFormatter.dateTime(
-                                  waiting.createdAt.toLocal(),
+                                  waiting.createdAt,
                                 );
                                 final roomLabel = waiting.status;
 
@@ -1478,7 +1572,21 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                   ),
                 ),
               ),
-              child: ElevatedButton.icon(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (canAssignOutpatientPatients(
+                    ref.read(authProvider).staff,
+                    ref.read(nursingBootstrapDataProvider),
+                  )) ...[
+                    OutlinedButton.icon(
+                      onPressed: () => _assignNurse(waiting),
+                      icon: const Icon(Icons.person_add_alt_1, size: 18),
+                      label: const Text('Assign nurse'),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  ElevatedButton.icon(
                 onPressed: _sending
                     ? null
                     : () async {
@@ -1503,6 +1611,8 @@ class _WaitingPatientsScreenState extends State<WaitingPatientsScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
+              ),
+                ],
               ),
             ),
           if (!isSidePanel)

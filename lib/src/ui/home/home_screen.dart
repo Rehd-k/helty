@@ -11,6 +11,8 @@ import 'package:helty/app_router.gr.dart';
 import '../../accounts/auth/accounting_permissions.dart';
 import '../../auth/billing_permissions.dart';
 import '../../auth/dialysis_permissions.dart';
+import '../../auth/nursing_permissions.dart';
+import '../../nursing/providers/nursing_providers.dart';
 import '../../helper/theme.dart';
 import '../../chat/providers/pending_orders_tick_provider.dart';
 import '../../chat/providers/staff_chat_shell_provider.dart';
@@ -384,17 +386,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    final isNurse =
-        at == 'nurse' ||
-        at == 'head_nurse' ||
-        at == 'inpatient_nurse' ||
-        at == 'outpatient_nurse' ||
-        r == 'nurse' ||
-        r == 'head_nurse' ||
-        r == 'inpatient_nurse' ||
-        r == 'outpatient_nurse';
-    if (isNurse) {
-      common.addAll(nurses);
+    final bootstrap = ref.watch(nursingBootstrapDataProvider);
+    if (isNursingStaff(staff)) {
+      common.addAll(nurseMenuFor(staff, bootstrap));
     }
 
     final isPharmacyDept =

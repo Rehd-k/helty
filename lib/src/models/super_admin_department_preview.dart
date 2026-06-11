@@ -65,8 +65,8 @@ const List<SuperAdminHubDepartment> kSuperAdminHubDepartments = [
     category: StaffAccountCategory.nurse,
     tileTitle: 'Nurse',
     previewAccountType: 'nurse',
-    previewRole: 'head_nurse',
-    previewBannerLabel: 'Nursing (Head)',
+    previewRole: 'matron',
+    previewBannerLabel: 'Nursing (Matron)',
   ),
   SuperAdminHubDepartment(
     category: StaffAccountCategory.physician,

@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import '../helper/date.formatter.dart';
+
 /// Receivable line from `/receivables/hmo` or `/receivables/discount`.
 ///
 /// API may nest `policy`, `invoice`, `invoice.patient`, and `payer`. Amount fields
@@ -89,7 +91,7 @@ class ReceivableItem {
     if (pid != null && pid.isNotEmpty) parts.add(pid);
     final dt = displayCreatedAt;
     if (dt != null) {
-      parts.add(DateFormat('dd/MM/yyyy HH:mm').format(dt.toLocal()));
+      parts.add(DateFormatter.dateTime(dt));
     }
     return parts.isEmpty ? coverageId : parts.join(' · ');
   }

@@ -6,6 +6,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'src/helper/app_timezone.dart';
 import 'src/helper/theme.dart';
 import 'src/chat/services/chat_notification_coordinator.dart';
 import 'src/core/providers/app_lifecycle_provider.dart';
@@ -18,6 +19,7 @@ import 'src/widgets/notifications/app_notification_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppTimezone.initialize();
   final prefs = await SharedPreferences.getInstance();
   final initialThemeMode = ThemeModePersistence.read(prefs);
 

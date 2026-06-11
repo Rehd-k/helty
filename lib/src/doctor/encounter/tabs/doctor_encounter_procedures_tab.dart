@@ -8,14 +8,30 @@ import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
+import 'package:helty/src/purchases/models/purchases_model.dart';
+import 'package:helty/src/purchases/services/purchases_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/service_service.dart';
-import 'package:helty/src/store/models/consumable_models.dart';
-import 'package:helty/src/store/models/store_models.dart';
-import 'package:helty/src/store/services/store_api_service.dart';
-import 'package:helty/src/store/services/store_consumable_api_service.dart';
 import 'package:helty/src/store/utils/consumable_invoice_helper.dart';
+
+bool _isPurchaseConsumableCategory(String? category) {
+  final c = category?.trim().toLowerCase();
+  return c == 'consumable' || c == 'consumables';
+}
+
+Future<int> _stockAtLocation(
+  PurchasesApiService api,
+  String purchaseItemId,
+  String locationId,
+) async {
+  final rows = await api.getItemLocationQuantities(
+    purchaseItemId,
+    locationId: locationId,
+  );
+  if (rows.isEmpty) return 0;
+  return rows.fold<int>(0, (sum, row) => sum + row.quantity);
+}
 
 @RoutePage()
 class DoctorEncounterProceduresTab extends ConsumerStatefulWidget {
@@ -30,8 +46,7 @@ class _DoctorEncounterProceduresTabState
     extends ConsumerState<DoctorEncounterProceduresTab> {
   final _encounterService = EncounterService();
   final _serviceService = ServiceService();
-  final _storeApi = StoreApiService();
-  final _storeConsumables = StoreConsumableApiService();
+  final _purchasesApi = PurchasesApiService();
   final _notesCtrl = TextEditingController();
   final _complicationsCtrl = TextEditingController();
 
@@ -49,15 +64,15 @@ class _DoctorEncounterProceduresTabState
   // Pending consumables for the current procedure (before Save)
   final List<Map<String, dynamic>> _pendingConsumables = [];
 
-  List<StoreLocation> _storeLocations = [];
-  bool _storeLocsRequested = false;
+  List<PurchasesLocation> _purchasesLocations = [];
+  bool _purchasesLocsRequested = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_storeLocsRequested && EncounterScope.of(context) != null) {
-      _storeLocsRequested = true;
-      _loadStoreLocations();
+    if (!_purchasesLocsRequested && EncounterScope.of(context) != null) {
+      _purchasesLocsRequested = true;
+      _loadPurchasesLocations();
     }
     if (!_loadScheduled) {
       _loadScheduled = true;
@@ -67,13 +82,19 @@ class _DoctorEncounterProceduresTabState
     }
   }
 
-  Future<void> _loadStoreLocations() async {
+  Future<void> _loadPurchasesLocations() async {
     try {
-      final r = await _storeApi.getLocations();
+      final r = await _purchasesApi.getLocations(
+        const PurchasesQueryParams(pageSize: 50),
+      );
+      final active = r.items.where((l) => l.isActive).toList();
+      final stores = active
+          .where((l) => l.type == PurchasesLocationType.STORE)
+          .toList();
       if (!mounted) return;
-      setState(() => _storeLocations = r.data);
+      setState(() => _purchasesLocations = stores.isNotEmpty ? stores : active);
     } catch (_) {
-      if (mounted) setState(() => _storeLocations = []);
+      if (mounted) setState(() => _purchasesLocations = []);
     }
   }
 
@@ -126,6 +147,42 @@ class _DoctorEncounterProceduresTabState
     }
   }
 
+  Future<String?> _validatePendingConsumables() async {
+    for (final c in _pendingConsumables) {
+      final qty = c['qty']?.toString().trim() ?? '';
+      final n = int.tryParse(qty);
+      if (n == null || n < 1) {
+        return 'Each consumable must have a quantity ≥ 1';
+      }
+      final loc = c['purchasesLocationId']?.toString().trim() ?? '';
+      if (loc.isEmpty) {
+        return 'Each consumable needs a purchases store location';
+      }
+      final maxQty = c['maxQuantity'] is int
+          ? c['maxQuantity'] as int
+          : int.tryParse(c['maxQuantity']?.toString() ?? '') ?? 0;
+      if (n > maxQty) {
+        return 'Quantity for ${c['name']} cannot exceed available stock ($maxQty)';
+      }
+      final up = double.tryParse(c['unitPrice']?.toString().trim() ?? '') ?? -1;
+      if (up < 0) {
+        return 'Each consumable needs a unit price ≥ 0';
+      }
+      final itemId = c['purchaseItemId']?.toString().trim() ?? '';
+      if (itemId.isNotEmpty) {
+        try {
+          final liveStock = await _stockAtLocation(_purchasesApi, itemId, loc);
+          if (n > liveStock) {
+            return 'Only $liveStock of ${c['name']} available at the selected store';
+          }
+        } catch (_) {
+          return 'Could not verify stock — try again';
+        }
+      }
+    }
+    return null;
+  }
+
   Future<void> _addProcedure() async {
     final scope = EncounterScope.of(context);
     if (scope == null) return;
@@ -142,38 +199,13 @@ class _DoctorEncounterProceduresTabState
       ).showSnackBar(const SnackBar(content: Text('Please confirm consent')));
       return;
     }
-    // Validate consumable quantities
-    for (final c in _pendingConsumables) {
-      final qty = c['qty']?.toString().trim() ?? '';
-      final n = int.tryParse(qty);
-      if (n == null || n < 1) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Each consumable must have a quantity ≥ 1'),
-          ),
-        );
-        return;
-      }
-      final loc = c['storeLocationId']?.toString().trim() ?? '';
-      if (loc.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Each consumable needs a store location'),
-          ),
-        );
-        return;
-      }
-      if (c['isBillable'] == true) {
-        final up = double.tryParse(c['unitPrice']?.toString().trim() ?? '') ?? -1;
-        if (up < 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Billable consumables need a unit price ≥ 0'),
-            ),
-          );
-          return;
-        }
-      }
+    final consumableError = await _validatePendingConsumables();
+    if (consumableError != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(consumableError)),
+      );
+      return;
     }
     setState(() => _saving = true);
     final procedureMap = <String, dynamic>{
@@ -188,13 +220,11 @@ class _DoctorEncounterProceduresTabState
       procedureMap['consumables'] = pendingCopy
           .map(
             (c) => {
-              'id': c['id'] ?? '',
+              'purchaseItemId': c['purchaseItemId'] ?? '',
               'name': c['name'] ?? '',
               'qty': c['qty']?.toString().trim() ?? '1',
-              'storeLocationId': c['storeLocationId'] ?? '',
-              'isBillable': c['isBillable'] == true,
-              if (c['isBillable'] == true)
-                'unitPrice': c['unitPrice']?.toString().trim() ?? '0',
+              'purchasesLocationId': c['purchasesLocationId'] ?? '',
+              'unitPrice': c['unitPrice']?.toString().trim() ?? '0',
             },
           )
           .toList();
@@ -207,32 +237,8 @@ class _DoctorEncounterProceduresTabState
           'proceduresJson': jsonEncode(_procedures),
         }),
       );
-      final usageErrors = <String>[];
-      for (final c in pendingCopy) {
-        if (c['isBillable'] == true) continue;
-        final cid = c['id']?.toString().trim() ?? '';
-        final loc = c['storeLocationId']?.toString().trim() ?? '';
-        if (cid.isEmpty || loc.isEmpty) continue;
-        final qty = int.tryParse(c['qty']?.toString().trim() ?? '1') ?? 1;
-        try {
-          await _storeConsumables.recordUsage(
-            RecordConsumableUsageDto(
-              consumableId: cid,
-              storeLocationId: loc,
-              patientId: scope.patientId,
-              encounterId: scope.encounterId,
-              source: ConsumableUsageSource.encounterProcedure,
-              quantity: qty,
-            ),
-          );
-        } catch (e) {
-          usageErrors.add('$e');
-        }
-      }
-
       final invoiceErrors = <String>[];
-      final billable = pendingCopy.where((c) => c['isBillable'] == true).toList();
-      if (billable.isNotEmpty) {
+      if (pendingCopy.isNotEmpty) {
         String? invoiceId;
         try {
           invoiceId = await resolveOrCreateOpenInvoiceId(ref, scope.patientId);
@@ -241,10 +247,10 @@ class _DoctorEncounterProceduresTabState
         }
         if (invoiceId != null) {
           final svc = InvoiceService();
-          for (final c in billable) {
-            final cid = c['id']?.toString().trim() ?? '';
-            final loc = c['storeLocationId']?.toString().trim() ?? '';
-            if (cid.isEmpty || loc.isEmpty) continue;
+          for (final c in pendingCopy) {
+            final pid = c['purchaseItemId']?.toString().trim() ?? '';
+            final loc = c['purchasesLocationId']?.toString().trim() ?? '';
+            if (pid.isEmpty || loc.isEmpty) continue;
             final qty = int.tryParse(c['qty']?.toString().trim() ?? '1') ?? 1;
             final unit =
                 double.tryParse(c['unitPrice']?.toString().trim() ?? '0') ?? 0;
@@ -252,8 +258,8 @@ class _DoctorEncounterProceduresTabState
               await svc.addBillingItem(
                 invoiceId: invoiceId,
                 payload: AddInvoiceItemPayload(
-                  consumableId: cid,
-                  storeLocationId: loc,
+                  purchaseItemId: pid,
+                  purchasesLocationId: loc,
                   unitPrice: unit,
                   quantity: qty,
                 ),
@@ -274,22 +280,15 @@ class _DoctorEncounterProceduresTabState
         _consentConfirmed = false;
         _saving = false;
       });
-      if (usageErrors.isEmpty && invoiceErrors.isEmpty) {
+      if (invoiceErrors.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Procedure saved')),
         );
       } else {
-        final parts = <String>[];
-        if (usageErrors.isNotEmpty) {
-          parts.add('usage: ${usageErrors.first}');
-        }
-        if (invoiceErrors.isNotEmpty) {
-          parts.add('invoice: ${invoiceErrors.first}');
-        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Procedure saved; some consumable steps failed (${parts.join('; ')})',
+              'Procedure saved; invoice step failed (${invoiceErrors.first})',
             ),
             duration: const Duration(seconds: 8),
           ),
@@ -378,34 +377,16 @@ class _DoctorEncounterProceduresTabState
           ),
           const SizedBox(height: 8),
           _ConsumablesSelector(
-            storeLocations: _storeLocations,
-            consumableApi: _storeConsumables,
+            purchasesApi: _purchasesApi,
+            purchasesLocations: _purchasesLocations,
             pendingConsumables: _pendingConsumables,
             onAdd: (c) => setState(() => _pendingConsumables.add(c)),
             onRemove: (c) => setState(() => _pendingConsumables.remove(c)),
-            onUpdateQty: (index, qty) => setState(() {
-              if (index >= 0 &&
-                  index < _pendingConsumables.length &&
-                  qty != null) {
-                _pendingConsumables[index] = {
-                  ..._pendingConsumables[index],
-                  'qty': qty,
-                };
-              }
-            }),
-            onUpdateLocation: (index, locId) => setState(() {
+            onUpdateRow: (index, updates) => setState(() {
               if (index >= 0 && index < _pendingConsumables.length) {
                 _pendingConsumables[index] = {
                   ..._pendingConsumables[index],
-                  'storeLocationId': locId,
-                };
-              }
-            }),
-            onUpdateUnitPrice: (index, price) => setState(() {
-              if (index >= 0 && index < _pendingConsumables.length) {
-                _pendingConsumables[index] = {
-                  ..._pendingConsumables[index],
-                  'unitPrice': price,
+                  ...updates,
                 };
               }
             }),
@@ -611,27 +592,23 @@ class _ProcedureTypeSelectorState extends State<_ProcedureTypeSelector> {
   }
 }
 
-/// Consumables selector: billable + non-billable catalog search, location per row.
+/// Consumables selector: purchases/items with consumable category, stock-capped qty.
 class _ConsumablesSelector extends StatefulWidget {
   const _ConsumablesSelector({
-    required this.storeLocations,
-    required this.consumableApi,
+    required this.purchasesApi,
+    required this.purchasesLocations,
     required this.pendingConsumables,
     required this.onAdd,
     required this.onRemove,
-    required this.onUpdateQty,
-    required this.onUpdateLocation,
-    required this.onUpdateUnitPrice,
+    required this.onUpdateRow,
   });
 
-  final List<StoreLocation> storeLocations;
-  final StoreConsumableApiService consumableApi;
+  final PurchasesApiService purchasesApi;
+  final List<PurchasesLocation> purchasesLocations;
   final List<Map<String, dynamic>> pendingConsumables;
   final void Function(Map<String, dynamic> c) onAdd;
   final void Function(Map<String, dynamic> c) onRemove;
-  final void Function(int index, String? qty) onUpdateQty;
-  final void Function(int index, String? storeLocationId) onUpdateLocation;
-  final void Function(int index, String? unitPrice) onUpdateUnitPrice;
+  final void Function(int index, Map<String, dynamic> updates) onUpdateRow;
 
   @override
   State<_ConsumablesSelector> createState() => _ConsumablesSelectorState();
@@ -641,7 +618,7 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
   static const int _pageSize = 10;
 
   final _searchCtrl = TextEditingController();
-  List<Map<String, dynamic>> _suggestions = [];
+  List<PurchaseItem> _suggestions = [];
   bool _loading = false;
   int _page = 1;
   Timer? _debounce;
@@ -666,21 +643,18 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
     }
     setState(() => _loading = true);
     try {
-      final resp = await widget.consumableApi.listConsumables(
-        StoreConsumableListParams(
+      final resp = await widget.purchasesApi.searchItems(
+        SearchPurchaseItemParams(
           search: q,
+          category: 'consumable',
+          inStock: true,
           page: page,
           pageSize: _pageSize,
+          sortOrder: 'asc',
         ),
       );
       final list = resp.items
-          .map(
-            (c) => <String, dynamic>{
-              'id': c.id ?? '',
-              'name': c.name,
-              'isBillable': c.isBillable,
-            },
-          )
+          .where((item) => _isPurchaseConsumableCategory(item.category))
           .toList();
       if (!mounted) return;
       setState(() {
@@ -698,8 +672,52 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
   }
 
   String? _defaultLocationId() {
-    if (widget.storeLocations.isEmpty) return null;
-    return widget.storeLocations.first.id;
+    if (widget.purchasesLocations.isEmpty) return null;
+    return widget.purchasesLocations.first.id;
+  }
+
+  Future<void> _addItem(PurchaseItem item) async {
+    final itemId = item.id?.trim() ?? '';
+    final locId = _defaultLocationId() ?? '';
+    if (itemId.isEmpty) return;
+    if (locId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No purchases store location — configure under Purchases'),
+        ),
+      );
+      return;
+    }
+    try {
+      final stock = await _stockAtLocation(widget.purchasesApi, itemId, locId);
+      if (stock <= 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Cannot add "${item.itemName}" — out of stock at the selected store.',
+            ),
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+      widget.onAdd({
+        'purchaseItemId': itemId,
+        'name': item.itemName,
+        'qty': '1',
+        'purchasesLocationId': locId,
+        'maxQuantity': stock,
+        'unitPrice': (item.sellingPrice ?? 0).toString(),
+      });
+      _searchCtrl.clear();
+      setState(() => _suggestions = []);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not check stock — try again')),
+      );
+    }
   }
 
   @override
@@ -711,7 +729,8 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
         TextField(
           controller: _searchCtrl,
           decoration: InputDecoration(
-            hintText: 'Search consumables — billable & non-billable (min 2 chars)...',
+            hintText:
+                'Search purchases consumables (min 2 chars)...',
             border: const OutlineInputBorder(),
             suffixIcon: _loading
                 ? const Padding(
@@ -756,37 +775,21 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
                   label: const Text('Load more'),
                 );
               }
-              final c = _suggestions[i];
-              final name = c['name']?.toString() ?? '';
-              final id = c['id']?.toString() ?? '';
-              final bill = c['isBillable'] == true;
+              final item = _suggestions[i];
               return ListTile(
                 dense: true,
-                title: Text(name),
-                subtitle: Text(bill ? 'Billable (invoice line)' : 'Non-billable (stock use)'),
-                onTap: () {
-                  final loc = _defaultLocationId() ?? '';
-                  widget.onAdd({
-                    'id': id,
-                    'name': name,
-                    'qty': '1',
-                    'storeLocationId': loc,
-                    'isBillable': bill,
-                    'unitPrice': bill ? '0' : '0',
-                  });
-                  _searchCtrl.clear();
-                  _suggestions = [];
-                  setState(() {});
-                },
+                title: Text(item.itemName),
+                subtitle: Text(item.category ?? 'Consumable'),
+                onTap: () => _addItem(item),
               );
             },
           ),
         ),
-        if (widget.storeLocations.isEmpty)
+        if (widget.purchasesLocations.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'No store locations — add locations under Store before recording usage.',
+              'No purchases store locations — add locations under Purchases first.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error,
               ),
@@ -796,7 +799,7 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'No consumables added. Search billable or non-billable items above.',
+              'No consumables added. Search purchases items above.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontStyle: FontStyle.italic,
@@ -808,15 +811,17 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
             final i = entry.key;
             final c = entry.value;
             return _ConsumableRow(
+              purchasesApi: widget.purchasesApi,
+              purchaseItemId: c['purchaseItemId']?.toString() ?? '',
               name: c['name']?.toString() ?? '',
               initialQty: c['qty']?.toString() ?? '1',
-              isBillable: c['isBillable'] == true,
               initialUnitPrice: c['unitPrice']?.toString() ?? '0',
-              storeLocations: widget.storeLocations,
-              selectedLocationId: c['storeLocationId']?.toString(),
-              onLocationChanged: (loc) => widget.onUpdateLocation(i, loc),
-              onQtyChanged: (v) => widget.onUpdateQty(i, v),
-              onUnitPriceChanged: (p) => widget.onUpdateUnitPrice(i, p),
+              initialMaxQuantity: c['maxQuantity'] is int
+                  ? c['maxQuantity'] as int
+                  : int.tryParse(c['maxQuantity']?.toString() ?? '') ?? 0,
+              purchasesLocations: widget.purchasesLocations,
+              selectedLocationId: c['purchasesLocationId']?.toString(),
+              onRowUpdated: (updates) => widget.onUpdateRow(i, updates),
               onRemove: () => widget.onRemove(c),
             );
           }),
@@ -827,27 +832,27 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
 
 class _ConsumableRow extends StatefulWidget {
   const _ConsumableRow({
+    required this.purchasesApi,
+    required this.purchaseItemId,
     required this.name,
     required this.initialQty,
-    required this.isBillable,
     required this.initialUnitPrice,
-    required this.storeLocations,
+    required this.initialMaxQuantity,
+    required this.purchasesLocations,
     required this.selectedLocationId,
-    required this.onLocationChanged,
-    required this.onQtyChanged,
-    required this.onUnitPriceChanged,
+    required this.onRowUpdated,
     required this.onRemove,
   });
 
+  final PurchasesApiService purchasesApi;
+  final String purchaseItemId;
   final String name;
   final String initialQty;
-  final bool isBillable;
   final String initialUnitPrice;
-  final List<StoreLocation> storeLocations;
+  final int initialMaxQuantity;
+  final List<PurchasesLocation> purchasesLocations;
   final String? selectedLocationId;
-  final void Function(String? locId) onLocationChanged;
-  final void Function(String?) onQtyChanged;
-  final void Function(String?) onUnitPriceChanged;
+  final void Function(Map<String, dynamic> updates) onRowUpdated;
   final VoidCallback onRemove;
 
   @override
@@ -857,12 +862,16 @@ class _ConsumableRow extends StatefulWidget {
 class _ConsumableRowState extends State<_ConsumableRow> {
   late TextEditingController _qtyCtrl;
   late TextEditingController _priceCtrl;
+  int _maxQuantity = 0;
+  bool _loadingStock = false;
 
   @override
   void initState() {
     super.initState();
+    _maxQuantity = widget.initialMaxQuantity;
     _qtyCtrl = TextEditingController(text: widget.initialQty);
     _priceCtrl = TextEditingController(text: widget.initialUnitPrice);
+    _refreshStock(widget.selectedLocationId);
   }
 
   @override
@@ -876,6 +885,9 @@ class _ConsumableRowState extends State<_ConsumableRow> {
         _priceCtrl.text != widget.initialUnitPrice) {
       _priceCtrl.text = widget.initialUnitPrice;
     }
+    if (oldWidget.initialMaxQuantity != widget.initialMaxQuantity) {
+      _maxQuantity = widget.initialMaxQuantity;
+    }
   }
 
   @override
@@ -885,10 +897,51 @@ class _ConsumableRowState extends State<_ConsumableRow> {
     super.dispose();
   }
 
+  Future<void> _refreshStock(String? locationId) async {
+    final locId = locationId?.trim() ?? '';
+    final itemId = widget.purchaseItemId.trim();
+    if (locId.isEmpty || itemId.isEmpty) return;
+    setState(() => _loadingStock = true);
+    try {
+      final stock = await _stockAtLocation(widget.purchasesApi, itemId, locId);
+      if (!mounted) return;
+      final currentQty = int.tryParse(_qtyCtrl.text.trim()) ?? 1;
+      final clamped = stock > 0 ? currentQty.clamp(1, stock) : 0;
+      if (clamped != currentQty) {
+        _qtyCtrl.text = clamped.toString();
+      }
+      setState(() => _maxQuantity = stock);
+      widget.onRowUpdated({
+        'purchasesLocationId': locId,
+        'maxQuantity': stock,
+        'qty': clamped > 0 ? clamped.toString() : '1',
+      });
+    } catch (_) {
+      if (mounted) setState(() => _maxQuantity = 0);
+    } finally {
+      if (mounted) setState(() => _loadingStock = false);
+    }
+  }
+
+  void _onQtyChanged(String? value) {
+    final parsed = int.tryParse(value?.trim() ?? '');
+    if (parsed == null) {
+      widget.onRowUpdated({'qty': value});
+      return;
+    }
+    if (_maxQuantity <= 0) return;
+    final clamped = parsed.clamp(1, _maxQuantity);
+    if (clamped != parsed) {
+      _qtyCtrl.text = clamped.toString();
+      _qtyCtrl.selection = TextSelection.collapsed(offset: _qtyCtrl.text.length);
+    }
+    widget.onRowUpdated({'qty': clamped.toString()});
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final locs = widget.storeLocations;
+    final locs = widget.purchasesLocations;
     final locId = widget.selectedLocationId?.trim().isNotEmpty == true
         ? widget.selectedLocationId
         : (locs.isNotEmpty ? locs.first.id : null);
@@ -903,52 +956,43 @@ class _ConsumableRowState extends State<_ConsumableRow> {
               children: [
                 Expanded(
                   flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.name,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (widget.isBillable)
-                        Text(
-                          'Billable → invoice line',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (widget.isBillable)
-                  SizedBox(
-                    width: 88,
-                    child: TextField(
-                      controller: _priceCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Price',
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: widget.onUnitPriceChanged,
+                  child: Text(
+                    widget.name,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                ),
+                SizedBox(
+                  width: 88,
+                  child: TextField(
+                    controller: _priceCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Price',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => widget.onRowUpdated({'unitPrice': v}),
+                  ),
+                ),
                 SizedBox(
                   width: 72,
                   child: TextField(
                     controller: _qtyCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Qty',
                       isDense: true,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
+                      helperText: _loadingStock
+                          ? '...'
+                          : (_maxQuantity > 0 ? 'Max $_maxQuantity' : null),
+                      helperMaxLines: 1,
                     ),
-                    onChanged: widget.onQtyChanged,
+                    onChanged: _onQtyChanged,
                   ),
                 ),
                 IconButton(
@@ -957,6 +1001,13 @@ class _ConsumableRowState extends State<_ConsumableRow> {
                 ),
               ],
             ),
+            if (_maxQuantity > 0 && !_loadingStock)
+              Text(
+                'Available: $_maxQuantity',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
             if (locs.isNotEmpty) ...[
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
@@ -966,7 +1017,7 @@ class _ConsumableRowState extends State<_ConsumableRow> {
                     : locs.first.id,
                 isDense: true,
                 decoration: const InputDecoration(
-                  labelText: 'Store location',
+                  labelText: 'Purchases store',
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -978,7 +1029,7 @@ class _ConsumableRowState extends State<_ConsumableRow> {
                       ),
                     )
                     .toList(),
-                onChanged: widget.onLocationChanged,
+                onChanged: (loc) => _refreshStock(loc),
               ),
             ],
           ],

@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
+import '../helper/date.formatter.dart';
 import '../helper/snack.bar.dart';
 import '../models/consulting_room_model.dart';
 import '../services/waiting_patient_service.dart';
@@ -439,18 +438,14 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
                     _InfoRow(
                       label: 'Date added',
                       value: room.createdAt != null
-                          ? DateFormat('MMM d, y – HH:mm').format(
-                              room.createdAt!.toLocal(),
-                            )
+                          ? DateFormatter.dateTime(room.createdAt!)
                           : '—',
                     ),
                     const SizedBox(height: 6),
                     _InfoRow(
                       label: 'Last updated',
                       value: room.updatedAt != null
-                          ? DateFormat('MMM d, y – HH:mm').format(
-                              room.updatedAt!.toLocal(),
-                            )
+                          ? DateFormatter.dateTime(room.updatedAt!)
                           : '—',
                     ),
                     const SizedBox(height: 16),

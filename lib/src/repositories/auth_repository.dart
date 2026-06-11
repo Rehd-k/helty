@@ -32,6 +32,7 @@ class AuthRepository {
     String? email,
     String? phone,
     String? departmentId,
+    String? wardId,
     AccountType? accountType,
   }) async {
     final response = await _authService.register(
@@ -43,6 +44,7 @@ class AuthRepository {
       email: email,
       phone: phone,
       departmentId: departmentId,
+      wardId: wardId,
       accountType: accountType,
     );
     await _persist(response);

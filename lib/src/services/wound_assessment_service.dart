@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../helper/app_timezone.dart';
 import '../helper/clinical_image_picker.dart';
 import '../models/wound_assessment_model.dart';
 import 'api_service.dart';
@@ -39,7 +40,7 @@ class WoundAssessmentService {
       'odor': odor,
       'infectionSigns': infectionSigns,
       if (recordedAt != null)
-        'recordedAt': recordedAt.toUtc().toIso8601String(),
+        'recordedAt': AppTimezone.toBackendIso(recordedAt),
     };
   }
 
