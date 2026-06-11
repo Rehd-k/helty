@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 /// Single MAR row from GET `/admissions/:admissionId/medication-administrations`.
 class MedicationAdministrationModel {
   const MedicationAdministrationModel({
@@ -33,11 +35,7 @@ class MedicationAdministrationModel {
 
   static String _str(dynamic v) => v?.toString() ?? '';
 
-  static double? _parseQuantity(dynamic v) {
-    if (v == null) return null;
-    if (v is num) return v.toDouble();
-    return double.tryParse(v.toString());
-  }
+  static double? _parseQuantity(dynamic v) => tryParseApiDecimal(v);
 
   factory MedicationAdministrationModel.fromJson(Map<String, dynamic> json) {
     Map<String, dynamic>? asMap(dynamic e) =>

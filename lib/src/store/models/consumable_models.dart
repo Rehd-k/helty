@@ -1,5 +1,6 @@
 // Consumables under /store/consumables — DTOs and list params (decoupled from pharmacy).
 
+import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/store/models/store_models.dart';
 
 /// Query for `GET /store/consumables` (aligned with common Helty list params).
@@ -126,11 +127,7 @@ int _asInt(dynamic v, int d) {
   return int.tryParse(v?.toString() ?? '') ?? d;
 }
 
-double? _asDoubleOrNull(dynamic v) {
-  if (v == null) return null;
-  if (v is num) return v.toDouble();
-  return double.tryParse(v.toString());
-}
+double? _asDoubleOrNull(dynamic v) => tryParseApiDecimal(v);
 
 class RecordConsumableUsageDto {
   const RecordConsumableUsageDto({

@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 import '../../pharmacy/models/pharmacy_model.dart';
 
 class PurchaseUsageHistoryQuery {
@@ -101,16 +103,8 @@ class PurchaseUsageHistoryItem {
           if (v is num) return v.toInt();
           return int.tryParse(v?.toString() ?? '') ?? 0;
         }(),
-        unitPrice: () {
-          final v = json['unitPrice'];
-          if (v is num) return v.toDouble();
-          return double.tryParse(v?.toString() ?? '') ?? 0;
-        }(),
-        amountPaid: () {
-          final v = json['amountPaid'];
-          if (v is num) return v.toDouble();
-          return double.tryParse(v?.toString() ?? '') ?? 0;
-        }(),
+        unitPrice: parseApiDecimal(json['unitPrice']),
+        amountPaid: parseApiDecimal(json['amountPaid']),
         purchaseItem: PurchaseUsageHistoryCatalogItem.fromJson(
           Map<String, dynamic>.from(
             (json['purchaseItem'] as Map?) ?? const {},

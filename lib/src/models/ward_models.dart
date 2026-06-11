@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 enum WardType { general, private, icu, maternity, paediatric, surgical }
 
 WardType _wardTypeFromJson(String? value) {
@@ -286,12 +288,7 @@ class Ward {
       departmentName: json['department'] is Map
           ? (json['department'] as Map)['name'] as String?
           : null,
-      drugPricePercentage: () {
-        final v = json['drugPricePercentage'];
-        if (v == null) return null;
-        if (v is num) return v.toDouble();
-        return double.tryParse(v.toString());
-      }(),
+      drugPricePercentage: tryParseApiDecimal(json['drugPricePercentage']),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,

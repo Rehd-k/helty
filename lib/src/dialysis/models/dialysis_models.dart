@@ -1,5 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 import '../../providers/module_request_flow_provider.dart';
 
 enum DialysisSessionStatus {
@@ -305,11 +307,7 @@ int _toInt(dynamic value, int fallback) {
   return int.tryParse(value.toString()) ?? fallback;
 }
 
-double _toDouble(dynamic value) {
-  if (value is num) return value.toDouble();
-  if (value == null) return 0;
-  return double.tryParse(value.toString()) ?? 0;
-}
+double _toDouble(dynamic value) => parseApiDecimal(value);
 
 DateTime? _parseDate(dynamic value) {
   if (value == null) return null;

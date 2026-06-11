@@ -21,7 +21,7 @@ class AuthService {
       '/auth/login',
       data: {'emailOrPhone': emailOrPhone, 'password': password},
     );
-    return AuthResponse.fromJson(resp.data as Map<String, dynamic>);
+    return AuthResponse.fromJson(_jsonMap(resp.data));
   }
 
   // ── Register ────────────────────────────────────────────────────────────────
@@ -55,8 +55,8 @@ class AuthService {
         if (accountType != null) 'accountType': accountType.name.toUpperCase(),
       },
     );
-    final raw = resp.data;
-    if (raw is! Map<String, dynamic>) {
+    final raw = _tryJsonMap(resp.data);
+    if (raw == null) {
       throw DioException(
         requestOptions: resp.requestOptions,
         response: resp,
@@ -65,14 +65,14 @@ class AuthService {
     }
 
     // Same shape as login: { accessToken, refreshToken?, staff }
-    if (raw['accessToken'] is String && raw['staff'] is Map<String, dynamic>) {
+    if (raw['accessToken'] is String && raw['staff'] is Map) {
       return AuthResponse.fromJson(raw);
     }
 
     // POST /staff often returns the created Staff only (no JWT).
     Map<String, dynamic>? staffJson;
-    if (raw['staff'] is Map<String, dynamic>) {
-      staffJson = raw['staff'] as Map<String, dynamic>;
+    if (raw['staff'] is Map) {
+      staffJson = Map<String, dynamic>.from(raw['staff'] as Map);
     } else if (raw.containsKey('id') &&
         raw.containsKey('staffId') &&
         raw['accessToken'] == null) {
@@ -139,7 +139,7 @@ class AuthService {
   /// GET /auth/me  →  Staff (requires valid token)
   Future<Staff> getMe() async {
     final resp = await _dio.get('/auth/me');
-    return Staff.fromJson(resp.data as Map<String, dynamic>);
+    return Staff.fromJson(_jsonMap(resp.data));
   }
 
   // ── Logout ──────────────────────────────────────────────────────────────────
@@ -148,4 +148,18 @@ class AuthService {
   Future<void> logout() async {
     await _dio.post('/auth/logout');
   }
+}
+
+Map<String, dynamic> _jsonMap(dynamic data) {
+  final map = _tryJsonMap(data);
+  if (map == null) {
+    throw FormatException('Expected JSON object, got ${data.runtimeType}');
+  }
+  return map;
+}
+
+Map<String, dynamic>? _tryJsonMap(dynamic data) {
+  if (data is Map<String, dynamic>) return data;
+  if (data is Map) return Map<String, dynamic>.from(data);
+  return null;
 }

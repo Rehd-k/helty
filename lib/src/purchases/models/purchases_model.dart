@@ -1,5 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 enum PurchasesLocationType { STORE, WAREHOUSE, DEPARTMENT, COLD_ROOM }
 
 enum PurchasesInventoryMovementType {
@@ -892,14 +894,7 @@ int _toInt(dynamic value, int fallback) {
   return int.tryParse(value.toString()) ?? fallback;
 }
 
-double _toDouble(dynamic value, double fallback) {
-  if (value is num) return value.toDouble();
-  if (value == null) return fallback;
-  return double.tryParse(value.toString()) ?? fallback;
-}
+double _toDouble(dynamic value, double fallback) =>
+    parseApiDecimal(value, fallback: fallback);
 
-double? _toDoubleOrNull(dynamic value) {
-  if (value == null) return null;
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString());
-}
+double? _toDoubleOrNull(dynamic value) => tryParseApiDecimal(value);

@@ -1,5 +1,6 @@
 // Models for the pharmacy prescription queue (drugs sent to pharmacy on behalf of patients).
 
+import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 
 import 'pharmacy_model.dart';
@@ -200,11 +201,7 @@ class PrescribedMedication {
     return int.tryParse(v.toString());
   }
 
-  static double _parseDouble(dynamic v) {
-    if (v == null) return 0;
-    if (v is num) return v.toDouble();
-    return double.tryParse(v.toString()) ?? 0;
-  }
+  static double _parseDouble(dynamic v) => parseApiDecimal(v);
 
   static DateTime? _parseDateTime(dynamic v) {
     if (v == null) return null;

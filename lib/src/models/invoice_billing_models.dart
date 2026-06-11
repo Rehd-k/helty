@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 /// When the invoice is linked to a single active billing transaction (`billingLink` on API).
 class BillingInvoiceBillingLink {
   BillingInvoiceBillingLink({
@@ -999,11 +1001,8 @@ String? _nullableString(dynamic value) {
   return text.isEmpty ? null : text;
 }
 
-double _asDouble(dynamic value, {double fallback = 0}) {
-  if (value == null) return fallback;
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? fallback;
-}
+double _asDouble(dynamic value, {double fallback = 0}) =>
+    parseApiDecimal(value, fallback: fallback);
 
 int _asInt(dynamic value, {int fallback = 0}) {
   if (value == null) return fallback;

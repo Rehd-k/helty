@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 import 'invoice.dart';
 
 /// Lightweight row for paid invoices eligible for frontdesk re-enlist.
@@ -94,11 +96,7 @@ class PaidWithoutEncounterInvoice {
       if (name.isNotEmpty) serviceNames.add(name);
     }
 
-    double parseAmount(dynamic v) {
-      if (v is num) return v.toDouble();
-      if (v is String) return double.tryParse(v) ?? 0;
-      return 0;
-    }
+    double parseAmount(dynamic v) => parseApiDecimal(v);
 
     double total = parseAmount(json['totalAmount'] ?? json['total']);
     if (total <= 0 && items.isNotEmpty) {

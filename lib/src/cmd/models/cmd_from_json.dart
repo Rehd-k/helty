@@ -1,8 +1,10 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 import 'cmd_models.dart';
 
 double _num(dynamic v) {
-  if (v is num) return v.toDouble();
-  if (v is String) return double.parse(v);
+  final parsed = tryParseApiDecimal(v);
+  if (parsed != null) return parsed;
   throw FormatException('Expected number, got $v');
 }
 

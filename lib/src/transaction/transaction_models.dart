@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart' show DateTimeRange;
+import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:intl/intl.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,15 +94,7 @@ class TransactionItemModel {
       );
 }
 
-double? _itemNum(dynamic v) {
-  if (v == null) return null;
-  if (v is num) return v.toDouble();
-  if (v is String) {
-    final n = num.tryParse(v);
-    return n?.toDouble();
-  }
-  return null;
-}
+double? _itemNum(dynamic v) => tryParseApiDecimal(v);
 
 /// Mirrors the `TransactionPayment` model from schema.prisma.
 class TransactionPaymentModel {

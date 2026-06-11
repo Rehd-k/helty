@@ -1,10 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:helty/src/core/utils/api_decimal.dart';
 
-double _toDouble(Object? v) {
-  if (v == null) return 0;
-  if (v is num) return v.toDouble();
-  return double.tryParse(v.toString()) ?? 0;
-}
+double _toDouble(Object? v) => parseApiDecimal(v);
 
 Object? _pick(Map<String, dynamic> json, String camel, String snake) =>
     json[camel] ?? json[snake];

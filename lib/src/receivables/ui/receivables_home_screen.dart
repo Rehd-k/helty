@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/auth/billing_permissions.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
@@ -255,7 +256,7 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
     final from = _parseDate(data['from']);
     final to = _parseDate(data['to']);
     final totalAmount =
-        double.tryParse(data['totalAmount']?.toString() ?? '0') ?? 0;
+        parseApiDecimal(data['totalAmount']);
     final rows =
         (data['rows'] as List?)?.whereType<Map>().toList() ?? const <Map>[];
 
@@ -296,7 +297,7 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
                   rows: List<DataRow>.generate(rows.length, (i) {
                     final row = Map<String, dynamic>.from(rows[i]);
                     final amount =
-                        double.tryParse(row['amount']?.toString() ?? '0') ?? 0;
+                        parseApiDecimal(row['amount']);
                     final invoice = row['invoice'] is Map
                         ? Map<String, dynamic>.from(row['invoice'] as Map)
                         : <String, dynamic>{};

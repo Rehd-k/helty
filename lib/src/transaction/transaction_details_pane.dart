@@ -673,7 +673,10 @@ class _ActionButtons extends StatelessWidget {
               icon: const Icon(Icons.event, size: 14),
               label: const Text('Change date', style: TextStyle(fontSize: 12)),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
             ),
           if (showRefund)
@@ -685,7 +688,10 @@ class _ActionButtons extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: Colors.red),
               ),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
               ),
             ),

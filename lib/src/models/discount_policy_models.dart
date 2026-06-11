@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 class DiscountPolicy {
   DiscountPolicy({
     required this.id,
@@ -58,11 +60,8 @@ class DiscountPolicyPayload {
   };
 }
 
-double _asDouble(dynamic value, {double fallback = 0}) {
-  if (value == null) return fallback;
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? fallback;
-}
+double _asDouble(dynamic value, {double fallback = 0}) =>
+    parseApiDecimal(value, fallback: fallback);
 
 bool _asBool(dynamic value, {bool fallback = false}) {
   if (value is bool) return value;

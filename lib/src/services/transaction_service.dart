@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../core/utils/api_decimal.dart';
 import 'api_service.dart';
 import '../transaction/transaction_models.dart';
 
@@ -319,13 +320,8 @@ class TransactionService {
 
   // ── Parsing ───────────────────────────────────────────────────────────────
 
-  /// Parse numeric value from API (Prisma Decimal often comes as string).
-  static double _toDouble(dynamic v) {
-    if (v == null) return 0;
-    if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v) ?? 0;
-    return 0;
-  }
+  /// Parse numeric value from API (Prisma Decimal as string or `{s,e,d}`).
+  static double _toDouble(dynamic v) => parseApiDecimal(v);
 
   static int _toInt(dynamic v) {
     if (v == null) return 0;

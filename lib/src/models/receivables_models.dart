@@ -1,3 +1,4 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:intl/intl.dart';
 
 import '../helper/date.formatter.dart';
@@ -221,11 +222,8 @@ class RecordRemittancePayload {
   };
 }
 
-double _asDouble(dynamic value, {double fallback = 0}) {
-  if (value == null) return fallback;
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? fallback;
-}
+double _asDouble(dynamic value, {double fallback = 0}) =>
+    parseApiDecimal(value, fallback: fallback);
 
 String? _nullableString(dynamic value) {
   if (value == null) return null;

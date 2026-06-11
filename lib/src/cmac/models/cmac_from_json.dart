@@ -1,18 +1,11 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 import 'cmac_analytics_models.dart';
 import 'cmac_quality_safety_models.dart';
 
-double? _numOpt(dynamic v) {
-  if (v == null) return null;
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
-  return null;
-}
+double? _numOpt(dynamic v) => tryParseApiDecimal(v);
 
-num _num(dynamic v) {
-  if (v is num) return v;
-  if (v is String) return num.tryParse(v) ?? 0;
-  return 0;
-}
+num _num(dynamic v) => tryParseApiDecimal(v) ?? 0;
 
 String _str(dynamic v, [String fallback = '']) =>
     v?.toString() ?? fallback;

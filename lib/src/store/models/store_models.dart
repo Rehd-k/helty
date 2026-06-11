@@ -1,11 +1,10 @@
 // Store module — typed models for /store API.
 // Matches backend DTOs and list response shapes.
 
-double _storeParseDouble(dynamic value, [double fallback = 0]) {
-  if (value == null) return fallback;
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? fallback;
-}
+import 'package:helty/src/core/utils/api_decimal.dart';
+
+double _storeParseDouble(dynamic value, [double fallback = 0]) =>
+    parseApiDecimal(value, fallback: fallback);
 
 int _storeParseInt(dynamic value, [int fallback = 0]) {
   if (value == null) return fallback;

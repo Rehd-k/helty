@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/models/service_model.dart';
 
 import '../paitients/patient_model.dart';
@@ -43,11 +44,7 @@ abstract class Invoice with _$Invoice {
   bool get hasDrugItems =>
       invoiceItems.any((item) => item.drugId?.trim().isNotEmpty ?? false);
 
-  static double _parseDouble(dynamic value) {
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
+  static double _parseDouble(dynamic value) => parseApiDecimal(value);
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
     final patientRaw = json['patient'];

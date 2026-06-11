@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 /// HMO tariff row embedded on a service from `GET /services?hmoId=...`.
 class ServiceHmoPrice {
   const ServiceHmoPrice({
@@ -13,10 +15,7 @@ class ServiceHmoPrice {
   final String? hmoCode;
 
   factory ServiceHmoPrice.fromJson(Map<String, dynamic> json) {
-    final costValue = json['cost'];
-    final parsedCost = costValue is num
-        ? costValue.toDouble()
-        : double.tryParse(costValue?.toString() ?? '') ?? 0.0;
+    final parsedCost = parseApiDecimal(json['cost']);
     return ServiceHmoPrice(
       hmoId: '${json['hmoId'] ?? ''}',
       cost: parsedCost,
@@ -157,9 +156,7 @@ class ServiceModel {
         json['cost'] ??
         service?['cost'] ??
         drug?['price'];
-    final parsedCost = costValue is num
-        ? costValue.toDouble()
-        : double.tryParse(costValue?.toString() ?? '') ?? 0.0;
+    final parsedCost = parseApiDecimal(costValue);
 
     // 5. Category & Department (Typically from service, but check drug too)
     final categoryId =
@@ -201,10 +198,7 @@ class ServiceModel {
         recurringRaw == 1 ||
         recurringRaw?.toString().toLowerCase() == 'true';
 
-    final ap = json['amountPaid'];
-    final amountPaid = ap is num
-        ? ap.toDouble()
-        : double.tryParse(ap?.toString() ?? '') ?? 0.0;
+    final amountPaid = parseApiDecimal(json['amountPaid']);
 
     final s = json['settled'];
     final settled = s is bool ? s : s?.toString().toLowerCase() == 'true';

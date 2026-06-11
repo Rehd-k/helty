@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/interceptors/auth_interceptor.dart';
+import '../core/interceptors/decimal_normalize_interceptor.dart';
 import '../core/interceptors/error_interceptor.dart';
 import '../core/interceptors/refresh_token_interceptor.dart';
 
@@ -50,6 +51,7 @@ class ApiService {
           responseBody: true,
           logPrint: (o) => debugPrint(o.toString()),
         ),
+      DecimalNormalizeInterceptor(),
     ]);
   }
 

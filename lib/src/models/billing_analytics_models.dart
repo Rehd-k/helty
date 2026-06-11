@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 // Models for GET /billing/analytics/* (see docs/billing-dashboard-api.md).
 
 class DateWindow {
@@ -443,11 +445,7 @@ class RecentInvoicesResponse {
   }
 }
 
-double _toDouble(Object? value) {
-  if (value == null) return 0;
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? 0;
-}
+double _toDouble(Object? value) => parseApiDecimal(value);
 
 int _toInt(Object? value) {
   if (value == null) return 0;

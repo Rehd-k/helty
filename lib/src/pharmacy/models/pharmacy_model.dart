@@ -1,5 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 enum PharmacyLocationType { STORE, DISPENSARY, WARD, COLD_ROOM }
 
 enum InventoryMovementType {
@@ -587,12 +589,7 @@ class Drug {
     expiryDate: json['expiryDate'] != null
         ? DateTime.tryParse(json['expiryDate'].toString())
         : null,
-    price: () {
-      final v = json['price'];
-      if (v == null) return null;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString());
-    }(),
+    price: tryParseApiDecimal(json['price']),
     manufacturerName: json['manufacturerName']?.toString(),
   );
 
@@ -797,11 +794,8 @@ class PurchaseOrder {
     );
   }
 
-  static double _toDouble(dynamic v, double def) {
-    if (v == null) return def;
-    if (v is num) return v.toDouble();
-    return double.tryParse(v.toString()) ?? def;
-  }
+  static double _toDouble(dynamic v, double def) =>
+      parseApiDecimal(v, fallback: def);
 
   Map<String, dynamic> toJson() => {
     if (id != null) 'id': id,

@@ -20,7 +20,7 @@ class AuthResponse {
       );
     }
     final staffRaw = json['staff'];
-    if (staffRaw is! Map<String, dynamic>) {
+    if (staffRaw is! Map) {
       throw FormatException('AuthResponse: missing or invalid staff object');
     }
     return AuthResponse(
@@ -28,7 +28,7 @@ class AuthResponse {
       refreshToken: json['refreshToken'] != null
           ? json['refreshToken'] as String
           : null,
-      staff: Staff.fromJson(staffRaw),
+      staff: Staff.fromJson(Map<String, dynamic>.from(staffRaw)),
     );
   }
 }

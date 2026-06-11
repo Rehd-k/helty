@@ -1,25 +1,23 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
+
 // Models for GET/POST/PATCH `/hmos` (see docs/hmo-service-pricing-guide.md).
 
 double _moneyFromJson(dynamic v, [double fallback = 0]) {
-  if (v == null) return fallback;
-  if (v is num) return v.toDouble();
   if (v is String) {
     final t = v.trim().replaceAll(',', '');
     if (t.isEmpty) return fallback;
-    return double.tryParse(t) ?? fallback;
+    return parseApiDecimal(t, fallback: fallback);
   }
-  return fallback;
+  return parseApiDecimal(v, fallback: fallback);
 }
 
 double? _moneyFromJsonNullable(dynamic v) {
-  if (v == null) return null;
-  if (v is num) return v.toDouble();
   if (v is String) {
     final t = v.trim().replaceAll(',', '');
     if (t.isEmpty) return null;
-    return double.tryParse(t);
+    return tryParseApiDecimal(t);
   }
-  return null;
+  return tryParseApiDecimal(v);
 }
 
 class HmoCounts {

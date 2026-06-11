@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
@@ -164,7 +165,7 @@ class _DoctorEncounterProceduresTabState
       if (n > maxQty) {
         return 'Quantity for ${c['name']} cannot exceed available stock ($maxQty)';
       }
-      final up = double.tryParse(c['unitPrice']?.toString().trim() ?? '') ?? -1;
+      final up = tryParseApiDecimal(c['unitPrice']) ?? -1;
       if (up < 0) {
         return 'Each consumable needs a unit price ≥ 0';
       }
@@ -253,7 +254,7 @@ class _DoctorEncounterProceduresTabState
             if (pid.isEmpty || loc.isEmpty) continue;
             final qty = int.tryParse(c['qty']?.toString().trim() ?? '1') ?? 1;
             final unit =
-                double.tryParse(c['unitPrice']?.toString().trim() ?? '0') ?? 0;
+                parseApiDecimal(c['unitPrice']);
             try {
               await svc.addBillingItem(
                 invoiceId: invoiceId,
