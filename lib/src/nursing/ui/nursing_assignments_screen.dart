@@ -284,7 +284,7 @@ class _NursingAssignmentsScreenState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: selectedWardId,
+                      initialValue: selectedWardId,
                       decoration: const InputDecoration(labelText: 'Ward'),
                       items: wardOptions
                           .map(
@@ -302,7 +302,7 @@ class _NursingAssignmentsScreenState
                     else
                       DropdownButtonFormField<String>(
                         key: ValueKey('admission-$wardId-${patients.length}'),
-                        value: selectedAdmissionId,
+                        initialValue: selectedAdmissionId,
                         decoration: InputDecoration(
                           labelText: 'Admitted patient',
                           hintText: patients.isEmpty
@@ -329,7 +329,7 @@ class _NursingAssignmentsScreenState
                       ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedNurseId,
+                      initialValue: selectedNurseId,
                       decoration: const InputDecoration(labelText: 'Nurse'),
                       items: nurseOptions
                           .map(

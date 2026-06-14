@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
+import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
+import 'package:helty/src/billings/widgets/purchases_consumable_billing_panel.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/purchases/models/purchases_model.dart';
@@ -15,24 +17,6 @@ import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/service_service.dart';
 import 'package:helty/src/store/utils/consumable_invoice_helper.dart';
-
-bool _isPurchaseConsumableCategory(String? category) {
-  final c = category?.trim().toLowerCase();
-  return c == 'consumable' || c == 'consumables';
-}
-
-Future<int> _stockAtLocation(
-  PurchasesApiService api,
-  String purchaseItemId,
-  String locationId,
-) async {
-  final rows = await api.getItemLocationQuantities(
-    purchaseItemId,
-    locationId: locationId,
-  );
-  if (rows.isEmpty) return 0;
-  return rows.fold<int>(0, (sum, row) => sum + row.quantity);
-}
 
 @RoutePage()
 class DoctorEncounterProceduresTab extends ConsumerStatefulWidget {
@@ -56,6 +40,7 @@ class _DoctorEncounterProceduresTabState
   List<Map<String, dynamic>> _procedures = [];
   bool _loaded = false;
   bool _loadScheduled = false;
+  int _lastReloadGeneration = 0;
 
   // Procedure type: either a selected service, or "other" with free text
   ServiceModel? _selectedService;
@@ -71,6 +56,13 @@ class _DoctorEncounterProceduresTabState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    reloadEncounterTabIfTemplateApplied(
+      context: context,
+      lastReloadGeneration: _lastReloadGeneration,
+      updateLastReloadGeneration: (v) => _lastReloadGeneration = v,
+      loaded: _loaded,
+      reload: _load,
+    );
     if (!_purchasesLocsRequested && EncounterScope.of(context) != null) {
       _purchasesLocsRequested = true;
       _loadPurchasesLocations();
@@ -172,7 +164,11 @@ class _DoctorEncounterProceduresTabState
       final itemId = c['purchaseItemId']?.toString().trim() ?? '';
       if (itemId.isNotEmpty) {
         try {
-          final liveStock = await _stockAtLocation(_purchasesApi, itemId, loc);
+          final liveStock = await purchasesStockAtLocation(
+            _purchasesApi,
+            itemId,
+            loc,
+          );
           if (n > liveStock) {
             return 'Only $liveStock of ${c['name']} available at the selected store';
           }
@@ -203,9 +199,9 @@ class _DoctorEncounterProceduresTabState
     final consumableError = await _validatePendingConsumables();
     if (consumableError != null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(consumableError)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(consumableError)));
       return;
     }
     setState(() => _saving = true);
@@ -253,8 +249,7 @@ class _DoctorEncounterProceduresTabState
             final loc = c['purchasesLocationId']?.toString().trim() ?? '';
             if (pid.isEmpty || loc.isEmpty) continue;
             final qty = int.tryParse(c['qty']?.toString().trim() ?? '1') ?? 1;
-            final unit =
-                parseApiDecimal(c['unitPrice']);
+            final unit = parseApiDecimal(c['unitPrice']);
             try {
               await svc.addBillingItem(
                 invoiceId: invoiceId,
@@ -282,9 +277,9 @@ class _DoctorEncounterProceduresTabState
         _saving = false;
       });
       if (invoiceErrors.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Procedure saved')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Procedure saved')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -593,7 +588,7 @@ class _ProcedureTypeSelectorState extends State<_ProcedureTypeSelector> {
   }
 }
 
-/// Consumables selector: purchases/items with consumable category, stock-capped qty.
+/// Purchase item selector: searches catalog items with a selling price > 0.
 class _ConsumablesSelector extends StatefulWidget {
   const _ConsumablesSelector({
     required this.purchasesApi,
@@ -616,83 +611,22 @@ class _ConsumablesSelector extends StatefulWidget {
 }
 
 class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
-  static const int _pageSize = 10;
-
-  final _searchCtrl = TextEditingController();
-  List<PurchaseItem> _suggestions = [];
-  bool _loading = false;
-  int _page = 1;
-  Timer? _debounce;
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _runSearch({int page = 1, bool append = false}) async {
-    final q = _searchCtrl.text.trim();
-    if (q.length < 2) {
-      if (mounted) {
-        setState(() {
-          _suggestions = [];
-          _loading = false;
-        });
-      }
-      return;
-    }
-    setState(() => _loading = true);
-    try {
-      final resp = await widget.purchasesApi.searchItems(
-        SearchPurchaseItemParams(
-          search: q,
-          category: 'consumable',
-          inStock: true,
-          page: page,
-          pageSize: _pageSize,
-          sortOrder: 'asc',
-        ),
-      );
-      final list = resp.items
-          .where((item) => _isPurchaseConsumableCategory(item.category))
-          .toList();
-      if (!mounted) return;
-      setState(() {
-        if (append) {
-          _suggestions = [..._suggestions, ...list];
-        } else {
-          _suggestions = list;
-        }
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    }
-  }
-
-  String? _defaultLocationId() {
-    if (widget.purchasesLocations.isEmpty) return null;
-    return widget.purchasesLocations.first.id;
-  }
-
-  Future<void> _addItem(PurchaseItem item) async {
+  Future<void> _onConfirm(
+    PurchaseItem item,
+    String locationId,
+    int qty,
+    double unitPrice,
+  ) async {
     final itemId = item.id?.trim() ?? '';
-    final locId = _defaultLocationId() ?? '';
     if (itemId.isEmpty) return;
-    if (locId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No purchases store location — configure under Purchases'),
-        ),
-      );
-      return;
-    }
     try {
-      final stock = await _stockAtLocation(widget.purchasesApi, itemId, locId);
+      final stock = await purchasesStockAtLocation(
+        widget.purchasesApi,
+        itemId,
+        locationId,
+      );
+      if (!mounted) return;
       if (stock <= 0) {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -702,17 +636,15 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
         );
         return;
       }
-      if (!mounted) return;
+      final clampedQty = qty.clamp(1, stock);
       widget.onAdd({
         'purchaseItemId': itemId,
         'name': item.itemName,
-        'qty': '1',
-        'purchasesLocationId': locId,
+        'qty': clampedQty.toString(),
+        'purchasesLocationId': locationId,
         'maxQuantity': stock,
-        'unitPrice': (item.sellingPrice ?? 0).toString(),
+        'unitPrice': unitPrice.toString(),
       });
-      _searchCtrl.clear();
-      setState(() => _suggestions = []);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -727,75 +659,12 @@ class _ConsumablesSelectorState extends State<_ConsumablesSelector> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _searchCtrl,
-          decoration: InputDecoration(
-            hintText:
-                'Search purchases consumables (min 2 chars)...',
-            border: const OutlineInputBorder(),
-            suffixIcon: _loading
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
-          ),
-          onChanged: (v) {
-            _debounce?.cancel();
-            _debounce = Timer(
-              const Duration(milliseconds: 300),
-              () {
-                _page = 1;
-                _runSearch(page: 1, append: false);
-              },
-            );
-          },
+        PurchasesConsumableBillingPanel(
+          purchasesApi: widget.purchasesApi,
+          purchasesLocations: widget.purchasesLocations,
+          confirmButtonLabel: 'Add to procedure',
+          onConfirm: _onConfirm,
         ),
-        const SizedBox(height: 6),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 180),
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount:
-                _suggestions.length +
-                (_suggestions.length >= _pageSize ? 1 : 0),
-            itemBuilder: (_, i) {
-              if (i == _suggestions.length) {
-                return TextButton.icon(
-                  onPressed: _loading
-                      ? null
-                      : () {
-                          _page += 1;
-                          _runSearch(page: _page, append: true);
-                        },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Load more'),
-                );
-              }
-              final item = _suggestions[i];
-              return ListTile(
-                dense: true,
-                title: Text(item.itemName),
-                subtitle: Text(item.category ?? 'Consumable'),
-                onTap: () => _addItem(item),
-              );
-            },
-          ),
-        ),
-        if (widget.purchasesLocations.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'No purchases store locations — add locations under Purchases first.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-          ),
         if (widget.pendingConsumables.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -904,7 +773,11 @@ class _ConsumableRowState extends State<_ConsumableRow> {
     if (locId.isEmpty || itemId.isEmpty) return;
     setState(() => _loadingStock = true);
     try {
-      final stock = await _stockAtLocation(widget.purchasesApi, itemId, locId);
+      final stock = await purchasesStockAtLocation(
+        widget.purchasesApi,
+        itemId,
+        locId,
+      );
       if (!mounted) return;
       final currentQty = int.tryParse(_qtyCtrl.text.trim()) ?? 1;
       final clamped = stock > 0 ? currentQty.clamp(1, stock) : 0;
@@ -934,7 +807,9 @@ class _ConsumableRowState extends State<_ConsumableRow> {
     final clamped = parsed.clamp(1, _maxQuantity);
     if (clamped != parsed) {
       _qtyCtrl.text = clamped.toString();
-      _qtyCtrl.selection = TextSelection.collapsed(offset: _qtyCtrl.text.length);
+      _qtyCtrl.selection = TextSelection.collapsed(
+        offset: _qtyCtrl.text.length,
+      );
     }
     widget.onRowUpdated({'qty': clamped.toString()});
   }

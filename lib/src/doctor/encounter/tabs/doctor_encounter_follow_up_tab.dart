@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/appointment_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
@@ -26,6 +27,7 @@ class _DoctorEncounterFollowUpTabState
   bool _loading = false;
   bool _loaded = false;
   bool _loadScheduled = false;
+  int _lastReloadGeneration = 0;
 
   @override
   void dispose() {
@@ -37,6 +39,13 @@ class _DoctorEncounterFollowUpTabState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    reloadEncounterTabIfTemplateApplied(
+      context: context,
+      lastReloadGeneration: _lastReloadGeneration,
+      updateLastReloadGeneration: (v) => _lastReloadGeneration = v,
+      loaded: _loaded,
+      reload: _load,
+    );
     if (!_loadScheduled) {
       _loadScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {

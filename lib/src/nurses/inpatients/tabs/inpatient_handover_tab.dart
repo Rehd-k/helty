@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/handover_report_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
+import 'package:helty/src/nurses/inpatients/services/handover_summary_builder.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
-import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/handover_report_service.dart';
 
 @RoutePage()
@@ -21,10 +21,11 @@ class InpatientHandoverScreen extends StatefulWidget {
 class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
   final _summaryCtrl = TextEditingController();
   final _handoverService = HandoverReportService();
-  final _admissionService = AdmissionService();
+  final _summaryBuilder = HandoverSummaryBuilder();
   List<HandoverReportModel> _reports = [];
   bool _loading = true;
   bool _locked = false;
+  bool _generating = false;
   String? _error;
   String? _lastAdmissionId;
   String _shiftType = 'MORNING';
@@ -97,36 +98,23 @@ class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
   }
 
   Future<void> _generateSummary(String admissionId) async {
+    setState(() => _generating = true);
     try {
-      final admission = await _admissionService.getOneById(admissionId);
-      final vitals = admission.patientVitals;
-      vitals.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      final latest = vitals.isEmpty ? null : vitals.first;
-      final buf = StringBuffer();
-      buf.writeln('Handover summary (generated)');
-      if (latest != null) {
-        buf.writeln(
-          'Latest vitals (${DateFormatter.dateTime(latest.createdAt)}): '
-          'Temp ${latest.temperature?.toString() ?? "—"} °C, '
-          'BP ${latest.systolic ?? "—"}/${latest.diastolic ?? "—"}, '
-          'HR ${latest.pulseRate?.toString() ?? "—"}, '
-          'SpO₂ ${latest.spo2?.toString() ?? "—"}%.',
-        );
-      } else {
-        buf.writeln('No vitals on file for this admission yet.');
-      }
-      buf.writeln();
-      buf.writeln('Medications: see MAR tab for administrations.');
-      buf.writeln('Outstanding: review labs and alerts on respective tabs.');
+      final summary = await _summaryBuilder.buildTodaySummary(
+        admissionId: admissionId,
+        shiftType: _shiftType,
+      );
       if (!mounted) return;
       setState(() {
-        _summaryCtrl.text = buf.toString();
+        _summaryCtrl.text = summary;
       });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not build summary: $e')),
+        SnackBar(content: Text('Could not build handover summary: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _generating = false);
     }
   }
 
@@ -206,11 +194,17 @@ class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
                 ),
               if (!_locked && !_loading)
                 FilledButton.icon(
-                  onPressed: _submitting
+                  onPressed: _submitting || _generating
                       ? null
                       : () => _generateSummary(admissionId),
-                  icon: const Icon(Icons.auto_awesome, size: 18),
-                  label: const Text('Generate Shift Summary'),
+                  icon: _generating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome, size: 18),
+                  label: const Text('Generate Shift Handover'),
                 ),
             ],
             child: Column(

@@ -21,11 +21,15 @@ class InpatientViewScope extends InheritedWidget {
     this.accountType,
     this.isDoctor = false,
     this.isNurse = false,
+    this.admissionStatus,
     required super.child,
   });
 
   final String patientId;
   final String? admissionId;
+
+  /// Admission lifecycle status from GET `/admissions/:id` (e.g. ACTIVE, DISCHARGED).
+  final String? admissionStatus;
 
   /// Display name from patient record (title, first, surname), when loaded.
   final String? patientDisplayName;
@@ -48,6 +52,12 @@ class InpatientViewScope extends InheritedWidget {
   final bool isDoctor;
   final bool isNurse;
 
+  /// Whether nursing/clinical actions are allowed on this admission.
+  bool get isAdmissionActive {
+    final st = (admissionStatus ?? '').toUpperCase();
+    return st == 'ACTIVE' || st == 'ADMITTED';
+  }
+
   static InpatientViewScope? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<InpatientViewScope>();
 
@@ -62,5 +72,6 @@ class InpatientViewScope extends InheritedWidget {
       role != old.role ||
       accountType != old.accountType ||
       isDoctor != old.isDoctor ||
-      isNurse != old.isNurse;
+      isNurse != old.isNurse ||
+      admissionStatus != old.admissionStatus;
 }

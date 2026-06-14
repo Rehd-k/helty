@@ -28,6 +28,7 @@ class PendingBatchEntry {
   final double enteredCostPrice;
   final int? unitsPerPack;
   final int? packsPerCarton;
+
   /// Normalized per-unit selling price; null = inherit catalog at save time.
   final double? sellingPricePerUnit;
   final double? enteredSellingPrice;
@@ -404,7 +405,9 @@ class _PurchasesAddPurchaseScreenState
       packsPerCarton: packsPerCarton,
     );
     if (unitPrice == null) {
-      onError?.call('Complete pack/carton fields before setting selling price.');
+      onError?.call(
+        'Complete pack/carton fields before setting selling price.',
+      );
     }
     return unitPrice;
   }
@@ -688,10 +691,10 @@ class _PurchasesAddPurchaseScreenState
                             const SizedBox(width: 16),
                             Expanded(
                               child: _buildModernDropdown<String?>(
-                                label: 'PurchasesSupplier (Optional)',
+                                label: 'Supplier (Optional)',
                                 hint: selectableSuppliers.isEmpty
                                     ? 'No suppliers available'
-                                    : 'Select origin PurchasesSupplier',
+                                    : 'Select origin Supplier',
                                 value:
                                     selectableSuppliers.any(
                                       (s) => s.id == _selectedSupplierId,
@@ -786,6 +789,7 @@ class _PurchasesAddPurchaseScreenState
                             });
                           },
                         ),
+                        const SizedBox(height: 10),
                         if (_receiveUnit != BatchReceiveUnit.unit) ...[
                           const SizedBox(height: 8),
                           Row(
@@ -857,9 +861,7 @@ class _PurchasesAddPurchaseScreenState
                                 controller: _costPriceCtrl,
                                 validator: (v) => v == null || v.trim().isEmpty
                                     ? 'Required'
-                                    : double.tryParse(
-                                            v.replaceAll(',', '.'),
-                                          ) ==
+                                    : double.tryParse(v.replaceAll(',', '.')) ==
                                           null
                                     ? 'Invalid'
                                     : null,

@@ -5,6 +5,7 @@ import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
+import 'package:helty/src/obstetrics/ui/widgets/pregnancy_booking_form_fields.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/providers/service_providers.dart';
 
@@ -29,8 +30,23 @@ class _ObstetricsAddPregnancyScreenState
   final _eddCtrl = TextEditingController();
   final _bookingDateCtrl = TextEditingController();
   final _outcomeCtrl = TextEditingController();
+  final _respiratoryRateCtrl = TextEditingController();
+  final _heartRateCtrl = TextEditingController();
+  final _systolicCtrl = TextEditingController();
+  final _diastolicCtrl = TextEditingController();
+  final _spo2Ctrl = TextEditingController();
+  final _pcvCtrl = TextEditingController();
+  final _ttImmunizationCtrl = TextEditingController();
 
   PregnancyStatus? _status = PregnancyStatus.ONGOING;
+  String? _genotype;
+  String? _bloodGroup;
+  String? _hcv;
+  String? _hbsAg;
+  String? _vdrl;
+  String? _hiv12;
+  String? _urinalysisProtein;
+  String? _urinalysisGlucose;
   bool _saving = false;
   String? _error;
 
@@ -75,6 +91,13 @@ class _ObstetricsAddPregnancyScreenState
     _eddCtrl.dispose();
     _bookingDateCtrl.dispose();
     _outcomeCtrl.dispose();
+    _respiratoryRateCtrl.dispose();
+    _heartRateCtrl.dispose();
+    _systolicCtrl.dispose();
+    _diastolicCtrl.dispose();
+    _spo2Ctrl.dispose();
+    _pcvCtrl.dispose();
+    _ttImmunizationCtrl.dispose();
     super.dispose();
   }
 
@@ -119,18 +142,33 @@ class _ObstetricsAddPregnancyScreenState
     }
     setState(() => _saving = true);
     try {
-      await _service.createPregnancy({
-        'patientId': patientId,
-        'gravida': gravida,
-        'para': para,
-        'lmp': lmp,
-        'edd': edd,
-        if (_bookingDateCtrl.text.trim().isNotEmpty)
-          'bookingDate': _bookingDateCtrl.text.trim(),
-        if (_status != null) 'status': _status!.apiValue,
-        if (_outcomeCtrl.text.trim().isNotEmpty)
-          'outcome': _outcomeCtrl.text.trim(),
-      });
+      await _service.createPregnancy(
+        buildPregnancyBookingPayload(
+          patientId: patientId,
+          gravida: gravida,
+          para: para,
+          lmp: lmp,
+          edd: edd,
+          bookingDateController: _bookingDateCtrl,
+          status: _status,
+          outcomeController: _outcomeCtrl,
+          respiratoryRateController: _respiratoryRateCtrl,
+          heartRateController: _heartRateCtrl,
+          systolicController: _systolicCtrl,
+          diastolicController: _diastolicCtrl,
+          spo2Controller: _spo2Ctrl,
+          genotype: _genotype,
+          bloodGroup: _bloodGroup,
+          pcvController: _pcvCtrl,
+          hcv: _hcv,
+          hbsAg: _hbsAg,
+          vdrl: _vdrl,
+          hiv12: _hiv12,
+          urinalysisProtein: _urinalysisProtein,
+          urinalysisGlucose: _urinalysisGlucose,
+          ttImmunizationController: _ttImmunizationCtrl,
+        ),
+      );
       if (!mounted) return;
       context.router.maybePop(true);
       ScaffoldMessenger.of(
@@ -195,9 +233,7 @@ class _ObstetricsAddPregnancyScreenState
       error: _error,
       saving: _saving,
       saveLabel: 'Save pregnancy',
-      onSave: _saving ? null : () {
-        _submit();
-      },
+      onSave: _saving ? null : _submit,
       leading: IconButton(
         icon: const Icon(Icons.close),
         onPressed: () => context.router.maybePop(),
@@ -286,6 +322,36 @@ class _ObstetricsAddPregnancyScreenState
             ),
           ],
         ),
+        PregnancyBookingVitalsFields(
+          respiratoryRateController: _respiratoryRateCtrl,
+          heartRateController: _heartRateCtrl,
+          systolicController: _systolicCtrl,
+          diastolicController: _diastolicCtrl,
+          spo2Controller: _spo2Ctrl,
+        ),
+        PregnancyBookingBloodTypeFields(
+          genotype: _genotype,
+          onGenotypeChanged: (v) => setState(() => _genotype = v),
+          bloodGroup: _bloodGroup,
+          onBloodGroupChanged: (v) => setState(() => _bloodGroup = v),
+        ),
+        PregnancyBookingLaboratoryFields(
+          pcvController: _pcvCtrl,
+          hcv: _hcv,
+          onHcvChanged: (v) => setState(() => _hcv = v),
+          hbsAg: _hbsAg,
+          onHbsAgChanged: (v) => setState(() => _hbsAg = v),
+          vdrl: _vdrl,
+          onVdrlChanged: (v) => setState(() => _vdrl = v),
+          hiv12: _hiv12,
+          onHiv12Changed: (v) => setState(() => _hiv12 = v),
+          urinalysisProtein: _urinalysisProtein,
+          onUrinalysisProteinChanged: (v) =>
+              setState(() => _urinalysisProtein = v),
+          urinalysisGlucose: _urinalysisGlucose,
+          onUrinalysisGlucoseChanged: (v) =>
+              setState(() => _urinalysisGlucose = v),
+        ),
         ObFormSectionCard(
           title: 'Clinical',
           useTertiaryAccent: true,
@@ -301,6 +367,15 @@ class _ObstetricsAddPregnancyScreenState
                   .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                   .toList(),
               onChanged: (v) => setState(() => _status = v),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _ttImmunizationCtrl,
+              decoration: const InputDecoration(
+                labelText: 'T-T immunization',
+                hintText: 'e.g. TT1, TT2',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
             TextFormField(

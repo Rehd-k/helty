@@ -147,6 +147,21 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
       staffRole: 'INPATIENT_NURSE',
     ),
     const StaffRoleOption(
+      label: 'Emergency Nurse',
+      accountType: AccountType.nurse,
+      staffRole: 'EMERGENCY_NURSE',
+    ),
+    const StaffRoleOption(
+      label: 'ICU Nurse',
+      accountType: AccountType.nurse,
+      staffRole: 'ICU_NURSE',
+    ),
+    const StaffRoleOption(
+      label: 'O&G Nurse',
+      accountType: AccountType.nurse,
+      staffRole: 'ONG_NURSE',
+    ),
+    const StaffRoleOption(
       label: 'Outpatient Nurse',
       accountType: AccountType.nurse,
       staffRole: 'OUTPATIENT_NURSE',

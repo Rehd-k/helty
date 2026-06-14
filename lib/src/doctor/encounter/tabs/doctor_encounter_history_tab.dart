@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
+import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_question_models.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_questionnaire_section.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/history_questionnaire_defs.dart';
@@ -27,6 +28,7 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
   bool _loading = false;
   bool _loaded = false;
   bool _draftLoadScheduled = false;
+  int _lastReloadGeneration = 0;
 
   @override
   void initState() {
@@ -41,6 +43,13 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    reloadEncounterTabIfTemplateApplied(
+      context: context,
+      lastReloadGeneration: _lastReloadGeneration,
+      updateLastReloadGeneration: (v) => _lastReloadGeneration = v,
+      loaded: _loaded,
+      reload: _loadDraft,
+    );
     if (!_draftLoadScheduled) {
       _draftLoadScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -130,7 +139,6 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final scope = EncounterScope.of(context);
     if (scope == null) {
       return const Padding(
@@ -150,15 +158,6 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
         children: [
           Row(
             children: [
-              DropdownButton<String>(
-                value: null,
-                hint: Text('Templates', style: theme.textTheme.bodyMedium),
-                items: const [
-                  DropdownMenuItem(value: 'default', child: Text('Default')),
-                ],
-                onChanged: (_) {},
-              ),
-              const SizedBox(width: 16),
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(

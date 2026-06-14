@@ -35,6 +35,7 @@ Future<List<int>> buildInpatientInvoicePdf({
     ChargeCategory.daily: [],
     ChargeCategory.pharmacy: [],
     ChargeCategory.lab: [],
+    ChargeCategory.supplies: [],
     ChargeCategory.other: [],
   };
   for (final c in charges) {
@@ -353,6 +354,10 @@ Future<List<int>> buildInpatientInvoicePdf({
         section(
           chargeCategoryLabel(ChargeCategory.lab),
           grouped[ChargeCategory.lab] ?? const [],
+        ),
+        section(
+          chargeCategoryLabel(ChargeCategory.supplies),
+          grouped[ChargeCategory.supplies] ?? const [],
         ),
         section(
           chargeCategoryLabel(ChargeCategory.other),

@@ -15,6 +15,7 @@ import '../../../app_router.gr.dart';
 import '../../models/admission_model.dart';
 import '../../models/medication_order_model.dart';
 import '../../services/admission_service.dart';
+import 'tabs/inpatient_consumables_tab.dart';
 
 @RoutePage()
 class InpatientPatientViewScreen extends ConsumerStatefulWidget {
@@ -48,12 +49,21 @@ class InpatientPatientViewScreen extends ConsumerStatefulWidget {
 
 class _InpatientPatientViewScreenState
     extends ConsumerState<InpatientPatientViewScreen> {
+  static const int _consumablesUiTabIndex = 9;
+
   final _admissionService = AdmissionService();
 
   Patient? _patient;
   AdmissionModel? _admission;
   bool _loadingPatient = false;
   String? _patientError;
+  int _uiTabIndex = 0;
+
+  int? _routerIndexForUiTab(int uiIndex) {
+    if (uiIndex == _consumablesUiTabIndex) return null;
+    if (uiIndex < _consumablesUiTabIndex) return uiIndex;
+    return uiIndex - 1;
+  }
 
   @override
   void initState() {
@@ -145,6 +155,7 @@ class _InpatientPatientViewScreenState
       accountType: accountType,
       isDoctor: isDoctor,
       isNurse: isNurse,
+      admissionStatus: _admission?.status,
       child: AutoTabsRouter(
         routes: [
           InpatientOverviewRoute(),
@@ -180,10 +191,15 @@ class _InpatientPatientViewScreenState
                       : (constraints.maxWidth > 1400 ? 32 : 20);
                   final double verticalPadding = compact ? 16 : 24;
 
-                  final tabContent = _buildTabContentShell(
-                    colorScheme,
-                    child: child,
-                  );
+                  final tabContent = _uiTabIndex == _consumablesUiTabIndex
+                      ? _buildTabContentShell(
+                          colorScheme,
+                          child: const InpatientConsumablesScreen(),
+                        )
+                      : _buildTabContentShell(
+                          colorScheme,
+                          child: child,
+                        );
 
                   return Center(
                     child: ConstrainedBox(
@@ -209,6 +225,7 @@ class _InpatientPatientViewScreenState
                                         _buildHeaderRow(
                                           context,
                                           compact: compact,
+                                          isDoctor: isDoctor,
                                         ),
                                         SizedBox(height: compact ? 12 : 16),
                                         _buildPatientHeader(context),
@@ -240,7 +257,11 @@ class _InpatientPatientViewScreenState
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  _buildHeaderRow(context, compact: compact),
+                                  _buildHeaderRow(
+                                    context,
+                                    compact: compact,
+                                    isDoctor: isDoctor,
+                                  ),
                                   SizedBox(height: compact ? 12 : 16),
                                   _buildPatientHeader(context),
                                   SizedBox(height: compact ? 16 : 20),
@@ -265,7 +286,47 @@ class _InpatientPatientViewScreenState
     );
   }
 
-  Widget _buildHeaderRow(BuildContext context, {required bool compact}) {
+  String _resolveEncounterPatientId() {
+    final patient = _patient;
+    final id = patient?.id?.trim();
+    if (id != null && id.isNotEmpty) return id;
+    final hospitalId = patient?.patientId.trim();
+    if (hospitalId != null && hospitalId.isNotEmpty) return hospitalId;
+    return _admission?.patientId.trim() ?? '';
+  }
+
+  void _openEncounter() {
+    final encounterId = _admission?.encounterId?.trim();
+    if (encounterId == null || encounterId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No encounter linked to this admission.'),
+        ),
+      );
+      return;
+    }
+
+    final patientId = _resolveEncounterPatientId();
+    if (patientId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient ID unavailable.')),
+      );
+      return;
+    }
+
+    context.router.push(
+      DoctorEncounterViewRoute(
+        encounterId: encounterId,
+        patientId: patientId,
+      ),
+    );
+  }
+
+  Widget _buildHeaderRow(
+    BuildContext context, {
+    required bool compact,
+    required bool isDoctor,
+  }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
@@ -280,11 +341,21 @@ class _InpatientPatientViewScreenState
       color: scheme.onSurface.withValues(alpha: 0.7),
     );
 
+    final encounterId = _admission?.encounterId?.trim();
+    final hasEncounter =
+        encounterId != null && encounterId.isNotEmpty;
+
     final actions = Wrap(
       spacing: 8,
       runSpacing: 8,
       alignment: compact ? WrapAlignment.start : WrapAlignment.end,
       children: [
+        if (isDoctor && hasEncounter)
+          OutlinedButton.icon(
+            onPressed: _openEncounter,
+            icon: const Icon(Icons.medical_information_outlined, size: 18),
+            label: const Text('Encounter'),
+          ),
         FilledButton.tonalIcon(
           onPressed: _admission == null ? null : _attemptDischarge,
           icon: const Icon(Icons.logout, size: 18),
@@ -337,17 +408,32 @@ class _InpatientPatientViewScreenState
       ],
     );
 
+    final backButton = IconButton(
+      tooltip: 'Back',
+      onPressed: () => context.router.maybePop(),
+      icon: const Icon(Icons.arrow_back),
+      visualDensity: VisualDensity.compact,
+    );
+
+    final titleRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        backButton,
+        Expanded(child: titleBlock),
+      ],
+    );
+
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [titleBlock, const SizedBox(height: 12), actions],
+        children: [titleRow, const SizedBox(height: 12), actions],
       );
     }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: titleBlock),
+        Expanded(child: titleRow),
         actions,
       ],
     );
@@ -581,10 +667,11 @@ class _InpatientPatientViewScreenState
       'Medications',
       'IV',
       'I&O',
-      'Notes',
+      'Nursing Report',
       'Wound',
       'Ward round',
       'Procedures',
+      'Consumables',
       'Care Plan',
       'Monitoring',
       'Lab Results',
@@ -607,7 +694,7 @@ class _InpatientPatientViewScreenState
         scrollDirection: Axis.horizontal,
         child: Row(
           children: List.generate(labels.length, (index) {
-            final bool selected = tabsRouter.activeIndex == index;
+            final bool selected = _uiTabIndex == index;
             final label = labels[index];
 
             return Padding(
@@ -616,7 +703,13 @@ class _InpatientPatientViewScreenState
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(999),
-                  onTap: () => tabsRouter.setActiveIndex(index),
+                  onTap: () {
+                    setState(() => _uiTabIndex = index);
+                    final routerIndex = _routerIndexForUiTab(index);
+                    if (routerIndex != null) {
+                      tabsRouter.setActiveIndex(routerIndex);
+                    }
+                  },
                   child: ConstrainedBox(
                     constraints: BoxConstraints(minHeight: compact ? 48 : 0),
                     child: AnimatedContainer(

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../helper/app_timezone.dart';
 import '../models/iv_fluid_order_model.dart';
+import '../models/iv_monitoring_model.dart';
 import 'api_service.dart';
 
 class IvFluidOrderService {
@@ -30,11 +31,38 @@ class IvFluidOrderService {
         .toList();
   }
 
+  /// POST `/admissions/:admissionId/iv-fluid-orders`
+  Future<IvFluidOrderModel> create({
+    required String admissionId,
+    required String fluidType,
+    required int volume,
+    required int rate,
+    required DateTime startTime,
+    required DateTime expectedEndTime,
+  }) async {
+    final body = <String, dynamic>{
+      'fluidType': fluidType,
+      'volume': volume,
+      'rate': rate,
+      'startTime': AppTimezone.toBackendIso(startTime),
+      'expectedEndTime': AppTimezone.toBackendIso(expectedEndTime),
+    };
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/admissions/$admissionId/iv-fluid-orders',
+      data: body,
+    );
+    final data = response.data;
+    if (data == null) {
+      throw StateError('POST iv order returned no data');
+    }
+    return IvFluidOrderModel.fromJson(data);
+  }
+
   /// POST `/admissions/:admissionId/iv-fluid-orders/:orderId/monitorings`
   Future<void> createMonitoring({
     required String admissionId,
     required String orderId,
-    required String currentRate,
+    required int currentRate,
     required String insertionSiteCondition,
     String? complications,
     DateTime? stoppedAt,
@@ -57,12 +85,27 @@ class IvFluidOrderService {
     );
   }
 
+  /// GET `/admissions/:admissionId/iv-fluid-orders/:orderId/monitorings`
+  Future<List<IvMonitoringModel>> listMonitorings({
+    required String admissionId,
+    required String orderId,
+  }) async {
+    final response = await _dio.get<dynamic>(
+      '/admissions/$admissionId/iv-fluid-orders/$orderId/monitorings',
+    );
+    return _listData(response.data)
+        .map(
+          (e) => IvMonitoringModel.fromJson(e as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
   /// PATCH `/admissions/:admissionId/iv-fluid-orders/:orderId`
   Future<IvFluidOrderModel> patchOrder({
     required String admissionId,
     required String orderId,
     String? status,
-    String? rate,
+    int? rate,
     DateTime? expectedEndTime,
   }) async {
     final body = <String, dynamic>{

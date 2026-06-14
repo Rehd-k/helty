@@ -740,7 +740,7 @@ class PayBillState extends ConsumerState<PayBill> {
   List<Map<String, dynamic>> _receiptItemSnapshots() {
     return _itemsForPrint.map((s) {
       final qty = s.qty ?? 1;
-      final lineTotal = s.cost * qty;
+      final lineTotal = s.displayLineTotal;
       return {
         'description': s.name,
         'quantity': qty,
@@ -1406,7 +1406,7 @@ class PayBillState extends ConsumerState<PayBill> {
           ],
           ..._items.map((c) {
             final qty = c.qty ?? 1;
-            final lineTotal = c.cost * qty;
+            final lineTotal = c.displayLineTotal;
             final label = qty > 1 ? '${c.name}  x$qty' : c.name;
             return _invoiceRow(label, lineTotal.toFinancial(isMoney: true));
           }),

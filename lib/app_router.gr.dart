@@ -9,9 +9,9 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'package:auto_route/auto_route.dart' as _i230;
-import 'package:collection/collection.dart' as _i234;
-import 'package:flutter/material.dart' as _i231;
+import 'package:auto_route/auto_route.dart' as _i232;
+import 'package:collection/collection.dart' as _i236;
+import 'package:flutter/material.dart' as _i233;
 import 'package:helty/src/accounts/ui/accounts_aging_report_screen.dart' as _i1;
 import 'package:helty/src/accounts/ui/accounts_approvals_screen.dart' as _i2;
 import 'package:helty/src/accounts/ui/accounts_audit_log_screen.dart' as _i3;
@@ -57,11 +57,11 @@ import 'package:helty/src/accounts/ui/accounts_staff_activity_screen.dart'
 import 'package:helty/src/accounts/ui/accounts_wallets_overview_screen.dart'
     as _i27;
 import 'package:helty/src/billings/dashboard.dart' as _i37;
-import 'package:helty/src/billings/inpatient.bills.dart' as _i172;
-import 'package:helty/src/billings/inpatient_bills_list_screen.dart' as _i119;
-import 'package:helty/src/billings/pending.bills.dart' as _i177;
-import 'package:helty/src/chat/ui/staff_chat_screen.dart' as _i204;
-import 'package:helty/src/chat/ui/staff_chat_thread_screen.dart' as _i205;
+import 'package:helty/src/billings/inpatient.bills.dart' as _i174;
+import 'package:helty/src/billings/inpatient_bills_list_screen.dart' as _i120;
+import 'package:helty/src/billings/pending.bills.dart' as _i179;
+import 'package:helty/src/chat/ui/staff_chat_screen.dart' as _i206;
+import 'package:helty/src/chat/ui/staff_chat_thread_screen.dart' as _i207;
 import 'package:helty/src/cmac/ui/cmac_clinical_screen.dart' as _i50;
 import 'package:helty/src/cmac/ui/cmac_insights_screen.dart' as _i51;
 import 'package:helty/src/cmac/ui/cmac_laboratory_screen.dart' as _i52;
@@ -102,7 +102,7 @@ import 'package:helty/src/doctor/completed/doctor_completed_encounter_view_scree
 import 'package:helty/src/doctor/completed/doctor_completed_encounters_screen.dart'
     as _i83;
 import 'package:helty/src/doctor/completed/edit_history/encounter_edit_history_detail_screen.dart'
-    as _i107;
+    as _i108;
 import 'package:helty/src/doctor/completed/tabs/completed_encounter_appointments_tab.dart'
     as _i62;
 import 'package:helty/src/doctor/completed/tabs/completed_encounter_diagnosis_tab.dart'
@@ -149,129 +149,133 @@ import 'package:helty/src/doctor/encounter/tabs/doctor_encounter_prescription_ta
     as _i94;
 import 'package:helty/src/doctor/encounter/tabs/doctor_encounter_procedures_tab.dart'
     as _i95;
-import 'package:helty/src/doctor/outpatient/doctor_outpatient_list_screen.dart'
+import 'package:helty/src/doctor/ongoing/doctor_ongoing_encounters_screen.dart'
     as _i97;
-import 'package:helty/src/doctor/pending/doctor_pending_imaging_screen.dart'
+import 'package:helty/src/doctor/outpatient/doctor_outpatient_list_screen.dart'
     as _i98;
-import 'package:helty/src/doctor/pending/doctor_pending_labs_screen.dart'
+import 'package:helty/src/doctor/pending/doctor_pending_imaging_screen.dart'
     as _i99;
-import 'package:helty/src/doctor/pending/doctor_pending_prescriptions_screen.dart'
+import 'package:helty/src/doctor/pending/doctor_pending_labs_screen.dart'
     as _i100;
-import 'package:helty/src/doctor/profile/doctor_profile_screen.dart' as _i101;
+import 'package:helty/src/doctor/pending/doctor_pending_prescriptions_screen.dart'
+    as _i101;
+import 'package:helty/src/doctor/profile/doctor_profile_screen.dart' as _i102;
 import 'package:helty/src/doctor/templates/doctor_templates_screen.dart'
-    as _i102;
-import 'package:helty/src/doctor/walk_in/doctor_walk_in_queue_screen.dart'
     as _i103;
-import 'package:helty/src/doctor/ward_rounds/ward_rounds_screen.dart' as _i229;
-import 'package:helty/src/emergency/screens/ed_board_screen.dart' as _i104;
+import 'package:helty/src/doctor/walk_in/doctor_walk_in_queue_screen.dart'
+    as _i104;
+import 'package:helty/src/doctor/ward_rounds/ward_rounds_screen.dart' as _i231;
+import 'package:helty/src/emergency/screens/ed_board_screen.dart' as _i105;
 import 'package:helty/src/emergency/screens/ed_registration_screen.dart'
-    as _i105;
-import 'package:helty/src/emergency/screens/ed_triage_screen.dart' as _i106;
-import 'package:helty/src/enlist_services/enlist.paitient.dart' as _i108;
-import 'package:helty/src/frontdesk/dashboard.dart' as _i111;
-import 'package:helty/src/help/ui/help_center_screen.dart' as _i112;
-import 'package:helty/src/help/ui/support_ticket_detail_screen.dart' as _i221;
-import 'package:helty/src/hmo/ui/hmo_detail_screen.dart' as _i113;
-import 'package:helty/src/hmo/ui/hmo_form_screen.dart' as _i114;
-import 'package:helty/src/hmo/ui/hmo_list_screen.dart' as _i115;
-import 'package:helty/src/hmo/ui/hmo_service_pricing_screen.dart' as _i116;
-import 'package:helty/src/hospital_service/service_screen.dart' as _i222;
-import 'package:helty/src/hospital_service/wards/ward.screen.dart' as _i228;
-import 'package:helty/src/lab/ui/lab_config_screen.dart' as _i136;
-import 'package:helty/src/lab/ui/lab_create_order_screen.dart' as _i137;
-import 'package:helty/src/lab/ui/lab_dashboard_screen.dart' as _i138;
-import 'package:helty/src/lab/ui/lab_order_detail_screen.dart' as _i139;
-import 'package:helty/src/lab/ui/lab_result_entry_screen.dart' as _i140;
+    as _i106;
+import 'package:helty/src/emergency/screens/ed_triage_screen.dart' as _i107;
+import 'package:helty/src/enlist_services/enlist.paitient.dart' as _i109;
+import 'package:helty/src/frontdesk/dashboard.dart' as _i112;
+import 'package:helty/src/help/ui/help_center_screen.dart' as _i113;
+import 'package:helty/src/help/ui/support_ticket_detail_screen.dart' as _i223;
+import 'package:helty/src/hmo/ui/hmo_detail_screen.dart' as _i114;
+import 'package:helty/src/hmo/ui/hmo_form_screen.dart' as _i115;
+import 'package:helty/src/hmo/ui/hmo_list_screen.dart' as _i116;
+import 'package:helty/src/hmo/ui/hmo_service_pricing_screen.dart' as _i117;
+import 'package:helty/src/hospital_service/service_screen.dart' as _i224;
+import 'package:helty/src/hospital_service/wards/ward.screen.dart' as _i230;
+import 'package:helty/src/lab/ui/lab_config_screen.dart' as _i138;
+import 'package:helty/src/lab/ui/lab_create_order_screen.dart' as _i139;
+import 'package:helty/src/lab/ui/lab_dashboard_screen.dart' as _i140;
+import 'package:helty/src/lab/ui/lab_order_detail_screen.dart' as _i141;
+import 'package:helty/src/lab/ui/lab_result_entry_screen.dart' as _i142;
 import 'package:helty/src/medical_records/ui/consultation_payment_report_screen.dart'
     as _i72;
-import 'package:helty/src/models/patient_vitals_model.dart' as _i235;
-import 'package:helty/src/nurses/dashboard.dart' as _i147;
+import 'package:helty/src/models/patient_vitals_model.dart' as _i237;
+import 'package:helty/src/nurses/dashboard.dart' as _i149;
 import 'package:helty/src/nurses/inpatients/inpatient_patient_view_screen.dart'
-    as _i130;
-import 'package:helty/src/nurses/inpatients/inpatients_list_screen.dart'
-    as _i135;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_alerts_tab.dart'
-    as _i118;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_care_plan_tab.dart'
-    as _i120;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_handover_tab.dart'
-    as _i121;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_imaging_results_tab.dart'
-    as _i124;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_io_tab.dart'
-    as _i122;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_iv_tab.dart'
-    as _i123;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_lab_results_tab.dart'
-    as _i125;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_medications_tab.dart'
-    as _i126;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_monitoring_tab.dart'
-    as _i127;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_notes_tab.dart'
-    as _i128;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_overview_tab.dart'
-    as _i129;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_procedures_tab.dart'
-    as _i131;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_vitals_tab.dart'
     as _i132;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_ward_round_tab.dart'
+import 'package:helty/src/nurses/inpatients/inpatients_list_screen.dart'
+    as _i137;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_alerts_tab.dart'
+    as _i119;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_care_plan_tab.dart'
+    as _i121;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_consumables_tab.dart'
+    as _i122;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_handover_tab.dart'
+    as _i123;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_imaging_results_tab.dart'
+    as _i126;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_io_tab.dart'
+    as _i124;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_iv_tab.dart'
+    as _i125;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_lab_results_tab.dart'
+    as _i127;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_medications_tab.dart'
+    as _i128;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_monitoring_tab.dart'
+    as _i129;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_notes_tab.dart'
+    as _i130;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_overview_tab.dart'
+    as _i131;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_procedures_tab.dart'
     as _i133;
-import 'package:helty/src/nurses/inpatients/tabs/inpatient_wound_assessment_tab.dart'
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_vitals_tab.dart'
     as _i134;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_ward_round_tab.dart'
+    as _i135;
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_wound_assessment_tab.dart'
+    as _i136;
 import 'package:helty/src/nurses/ui/nurse_consumable_usage_screen.dart'
-    as _i146;
-import 'package:helty/src/nurses/waiting_patients.dart' as _i227;
-import 'package:helty/src/nursing/ui/nursing_assignments_screen.dart' as _i148;
-import 'package:helty/src/nursing/ui/nursing_roster_screen.dart' as _i149;
+    as _i148;
+import 'package:helty/src/nurses/waiting_patients.dart' as _i229;
+import 'package:helty/src/nursing/ui/nursing_assignments_screen.dart' as _i150;
+import 'package:helty/src/nursing/ui/nursing_roster_screen.dart' as _i151;
 import 'package:helty/src/obstetrics/ui/forms/add_antenatal_visit_screen.dart'
-    as _i150;
-import 'package:helty/src/obstetrics/ui/forms/add_baby_screen.dart' as _i151;
-import 'package:helty/src/obstetrics/ui/forms/add_gynae_procedure_screen.dart'
     as _i152;
-import 'package:helty/src/obstetrics/ui/forms/add_labour_delivery_screen.dart'
-    as _i153;
-import 'package:helty/src/obstetrics/ui/forms/add_partogram_entry_screen.dart'
+import 'package:helty/src/obstetrics/ui/forms/add_baby_screen.dart' as _i153;
+import 'package:helty/src/obstetrics/ui/forms/add_gynae_procedure_screen.dart'
     as _i154;
-import 'package:helty/src/obstetrics/ui/forms/add_postnatal_visit_screen.dart'
+import 'package:helty/src/obstetrics/ui/forms/add_labour_delivery_screen.dart'
     as _i155;
-import 'package:helty/src/obstetrics/ui/forms/add_pregnancy_screen.dart'
+import 'package:helty/src/obstetrics/ui/forms/add_partogram_entry_screen.dart'
     as _i156;
-import 'package:helty/src/obstetrics/ui/forms/edit_antenatal_visit_screen.dart'
-    as _i159;
-import 'package:helty/src/obstetrics/ui/forms/edit_baby_screen.dart' as _i160;
-import 'package:helty/src/obstetrics/ui/forms/edit_gynae_procedure_screen.dart'
-    as _i161;
-import 'package:helty/src/obstetrics/ui/forms/register_baby_screen.dart'
-    as _i171;
-import 'package:helty/src/obstetrics/ui/gynae_procedures_screen.dart' as _i162;
-import 'package:helty/src/obstetrics/ui/labour_delivery_view_screen.dart'
-    as _i164;
-import 'package:helty/src/obstetrics/ui/obstetrics_dashboard_screen.dart'
-    as _i158;
-import 'package:helty/src/obstetrics/ui/obstetrics_patient_select_screen.dart'
-    as _i165;
-import 'package:helty/src/obstetrics/ui/postnatal_list_screen.dart' as _i166;
-import 'package:helty/src/obstetrics/ui/pregnancies_list_screen.dart' as _i168;
-import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart' as _i170;
-import 'package:helty/src/obstetrics/ui/tabs/antenatal_visits_tab.dart'
+import 'package:helty/src/obstetrics/ui/forms/add_postnatal_visit_screen.dart'
     as _i157;
-import 'package:helty/src/obstetrics/ui/tabs/labour_delivery_tab.dart' as _i163;
-import 'package:helty/src/obstetrics/ui/tabs/postnatal_tab.dart' as _i167;
+import 'package:helty/src/obstetrics/ui/forms/add_pregnancy_screen.dart'
+    as _i158;
+import 'package:helty/src/obstetrics/ui/forms/edit_antenatal_visit_screen.dart'
+    as _i161;
+import 'package:helty/src/obstetrics/ui/forms/edit_baby_screen.dart' as _i162;
+import 'package:helty/src/obstetrics/ui/forms/edit_gynae_procedure_screen.dart'
+    as _i163;
+import 'package:helty/src/obstetrics/ui/forms/register_baby_screen.dart'
+    as _i173;
+import 'package:helty/src/obstetrics/ui/gynae_procedures_screen.dart' as _i164;
+import 'package:helty/src/obstetrics/ui/labour_delivery_view_screen.dart'
+    as _i166;
+import 'package:helty/src/obstetrics/ui/obstetrics_dashboard_screen.dart'
+    as _i160;
+import 'package:helty/src/obstetrics/ui/obstetrics_patient_select_screen.dart'
+    as _i167;
+import 'package:helty/src/obstetrics/ui/postnatal_list_screen.dart' as _i168;
+import 'package:helty/src/obstetrics/ui/pregnancies_list_screen.dart' as _i170;
+import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart' as _i172;
+import 'package:helty/src/obstetrics/ui/tabs/antenatal_visits_tab.dart'
+    as _i159;
+import 'package:helty/src/obstetrics/ui/tabs/labour_delivery_tab.dart' as _i165;
+import 'package:helty/src/obstetrics/ui/tabs/postnatal_tab.dart' as _i169;
 import 'package:helty/src/obstetrics/ui/tabs/pregnancy_overview_tab.dart'
-    as _i169;
-import 'package:helty/src/paitients/patient_form_screen.dart' as _i175;
-import 'package:helty/src/paitients/patient_list_screen.dart' as _i176;
-import 'package:helty/src/paitients/patient_model.dart' as _i236;
-import 'package:helty/src/paitients/view_waiting_patient.dart' as _i144;
-import 'package:helty/src/patient_chart/ui/patient_chart_screen.dart' as _i173;
+    as _i171;
+import 'package:helty/src/paitients/patient_form_screen.dart' as _i177;
+import 'package:helty/src/paitients/patient_list_screen.dart' as _i178;
+import 'package:helty/src/paitients/patient_model.dart' as _i238;
+import 'package:helty/src/paitients/view_waiting_patient.dart' as _i146;
+import 'package:helty/src/patient_chart/ui/patient_chart_screen.dart' as _i175;
 import 'package:helty/src/patient_chart/ui/patient_chart_select_screen.dart'
-    as _i174;
-import 'package:helty/src/pharmacy/models/pharmacy_model.dart' as _i232;
+    as _i176;
+import 'package:helty/src/pharmacy/models/pharmacy_model.dart' as _i234;
 import 'package:helty/src/pharmacy/services/pharmacy_queue_service.dart'
-    as _i239;
-import 'package:helty/src/pharmacy/services/pharmacy_service.dart' as _i233;
+    as _i241;
+import 'package:helty/src/pharmacy/services/pharmacy_service.dart' as _i235;
 import 'package:helty/src/pharmacy/ui/add.batches.dart' as _i28;
 import 'package:helty/src/pharmacy/ui/add_drug_screen.dart' as _i31;
 import 'package:helty/src/pharmacy/ui/add_supplier_screen.dart' as _i33;
@@ -280,96 +284,96 @@ import 'package:helty/src/pharmacy/ui/batches_preview_ward_pricing_screen.dart'
 import 'package:helty/src/pharmacy/ui/create_requisition.dart' as _i74;
 import 'package:helty/src/pharmacy/ui/dispense_history_screen.dart' as _i80;
 import 'package:helty/src/pharmacy/ui/dispense_screen.dart' as _i81;
-import 'package:helty/src/pharmacy/ui/dispensory.screen.dart' as _i181;
-import 'package:helty/src/pharmacy/ui/location.screen.dart' as _i180;
-import 'package:helty/src/pharmacy/ui/medicine_inventory.dart' as _i142;
-import 'package:helty/src/pharmacy/ui/pharmacy_dashboard_screen.dart' as _i179;
-import 'package:helty/src/pharmacy/ui/stock_transfer.dart' as _i206;
-import 'package:helty/src/pharmacy/ui/suppliy.history.screen.dart' as _i220;
-import 'package:helty/src/pharmacy/ui/waiting.patient.dart' as _i226;
-import 'package:helty/src/purchases/models/purchases_model.dart' as _i237;
-import 'package:helty/src/purchases/services/purchases_service.dart' as _i238;
-import 'package:helty/src/purchases/ui/add_item_screen.dart' as _i183;
-import 'package:helty/src/purchases/ui/add_purchase_screen.dart' as _i184;
-import 'package:helty/src/purchases/ui/purchase_history_screen.dart' as _i189;
+import 'package:helty/src/pharmacy/ui/dispensory.screen.dart' as _i183;
+import 'package:helty/src/pharmacy/ui/location.screen.dart' as _i182;
+import 'package:helty/src/pharmacy/ui/medicine_inventory.dart' as _i144;
+import 'package:helty/src/pharmacy/ui/pharmacy_dashboard_screen.dart' as _i181;
+import 'package:helty/src/pharmacy/ui/stock_transfer.dart' as _i208;
+import 'package:helty/src/pharmacy/ui/suppliy.history.screen.dart' as _i222;
+import 'package:helty/src/pharmacy/ui/waiting.patient.dart' as _i228;
+import 'package:helty/src/purchases/models/purchases_model.dart' as _i239;
+import 'package:helty/src/purchases/services/purchases_service.dart' as _i240;
+import 'package:helty/src/purchases/ui/add_item_screen.dart' as _i185;
+import 'package:helty/src/purchases/ui/add_purchase_screen.dart' as _i186;
+import 'package:helty/src/purchases/ui/purchase_history_screen.dart' as _i191;
 import 'package:helty/src/purchases/ui/purchase_item_sales_screen.dart'
-    as _i182;
+    as _i184;
 import 'package:helty/src/purchases/ui/purchases_add_supplier_screen.dart'
-    as _i185;
-import 'package:helty/src/purchases/ui/purchases_dashboard_screen.dart'
-    as _i186;
-import 'package:helty/src/purchases/ui/purchases_inventory_screen.dart'
     as _i187;
-import 'package:helty/src/purchases/ui/purchases_location_screen.dart' as _i188;
+import 'package:helty/src/purchases/ui/purchases_dashboard_screen.dart'
+    as _i188;
+import 'package:helty/src/purchases/ui/purchases_inventory_screen.dart'
+    as _i189;
+import 'package:helty/src/purchases/ui/purchases_location_screen.dart' as _i190;
 import 'package:helty/src/purchases/ui/purchases_stock_transfer_screen.dart'
-    as _i191;
-import 'package:helty/src/purchases/ui/purchases_usage_history_screen.dart'
     as _i193;
-import 'package:helty/src/purchases/ui/requisition_history_screen.dart'
-    as _i190;
-import 'package:helty/src/purchases/ui/transfer_history_screen.dart' as _i192;
-import 'package:helty/src/radiology/ui/radiology_create_request_screen.dart'
-    as _i194;
-import 'package:helty/src/radiology/ui/radiology_dashboard_screen.dart'
+import 'package:helty/src/purchases/ui/purchases_usage_history_screen.dart'
     as _i195;
-import 'package:helty/src/radiology/ui/radiology_patient_history_screen.dart'
+import 'package:helty/src/purchases/ui/requisition_history_screen.dart'
+    as _i192;
+import 'package:helty/src/purchases/ui/transfer_history_screen.dart' as _i194;
+import 'package:helty/src/radiology/ui/radiology_create_request_screen.dart'
     as _i196;
-import 'package:helty/src/radiology/ui/radiology_request_detail_screen.dart'
+import 'package:helty/src/radiology/ui/radiology_dashboard_screen.dart'
     as _i197;
-import 'package:helty/src/radiology/ui/radiology_worklist_screen.dart' as _i198;
-import 'package:helty/src/receivables/ui/receivables_analytics_screen.dart'
+import 'package:helty/src/radiology/ui/radiology_patient_history_screen.dart'
+    as _i198;
+import 'package:helty/src/radiology/ui/radiology_request_detail_screen.dart'
     as _i199;
-import 'package:helty/src/receivables/ui/receivables_home_screen.dart' as _i200;
-import 'package:helty/src/store/ui/store_analytics_screen.dart' as _i207;
-import 'package:helty/src/store/ui/store_categories_screen.dart' as _i208;
+import 'package:helty/src/radiology/ui/radiology_worklist_screen.dart' as _i200;
+import 'package:helty/src/receivables/ui/receivables_analytics_screen.dart'
+    as _i201;
+import 'package:helty/src/receivables/ui/receivables_home_screen.dart' as _i202;
+import 'package:helty/src/store/ui/store_analytics_screen.dart' as _i209;
+import 'package:helty/src/store/ui/store_categories_screen.dart' as _i210;
 import 'package:helty/src/store/ui/store_consumable_analytics_screen.dart'
-    as _i209;
-import 'package:helty/src/store/ui/store_consumable_detail_screen.dart'
-    as _i210;
-import 'package:helty/src/store/ui/store_consumables_catalog_screen.dart'
     as _i211;
-import 'package:helty/src/store/ui/store_dashboard_screen.dart' as _i212;
-import 'package:helty/src/store/ui/store_items_screen.dart' as _i213;
-import 'package:helty/src/store/ui/store_locations_screen.dart' as _i214;
-import 'package:helty/src/store/ui/store_movements_screen.dart' as _i215;
-import 'package:helty/src/store/ui/store_stock_screen.dart' as _i216;
-import 'package:helty/src/transaction/transactions.screen.dart' as _i224;
+import 'package:helty/src/store/ui/store_consumable_detail_screen.dart'
+    as _i212;
+import 'package:helty/src/store/ui/store_consumables_catalog_screen.dart'
+    as _i213;
+import 'package:helty/src/store/ui/store_dashboard_screen.dart' as _i214;
+import 'package:helty/src/store/ui/store_items_screen.dart' as _i215;
+import 'package:helty/src/store/ui/store_locations_screen.dart' as _i216;
+import 'package:helty/src/store/ui/store_movements_screen.dart' as _i217;
+import 'package:helty/src/store/ui/store_stock_screen.dart' as _i218;
+import 'package:helty/src/transaction/transactions.screen.dart' as _i226;
 import 'package:helty/src/ui/appointments/appointment_list_screen.dart' as _i34;
-import 'package:helty/src/ui/appointments/create_appointment.dart' as _i143;
-import 'package:helty/src/ui/auth/forgot_password_screen.dart' as _i110;
-import 'package:helty/src/ui/auth/login_screen.dart' as _i141;
-import 'package:helty/src/ui/auth/register_screen.dart' as _i201;
-import 'package:helty/src/ui/auth/reset_password_screen.dart' as _i203;
+import 'package:helty/src/ui/appointments/create_appointment.dart' as _i145;
+import 'package:helty/src/ui/auth/forgot_password_screen.dart' as _i111;
+import 'package:helty/src/ui/auth/login_screen.dart' as _i143;
+import 'package:helty/src/ui/auth/register_screen.dart' as _i203;
+import 'package:helty/src/ui/auth/reset_password_screen.dart' as _i205;
 import 'package:helty/src/ui/dashboard/dashboard_screen.dart' as _i75;
-import 'package:helty/src/ui/home/home_screen.dart' as _i117;
-import 'package:helty/src/ui/patients/today_patients.dart' as _i223;
+import 'package:helty/src/ui/home/home_screen.dart' as _i118;
+import 'package:helty/src/ui/patients/today_patients.dart' as _i225;
 import 'package:helty/src/ui/patinets_services/add_category_screen.dart'
     as _i29;
 import 'package:helty/src/ui/patinets_services/add_department_screen.dart'
     as _i30;
 import 'package:helty/src/ui/patinets_services/add_service_screen.dart' as _i32;
 import 'package:helty/src/ui/patinets_services/enlist_service_screen.dart'
-    as _i109;
-import 'package:helty/src/ui/patinets_services/render_services.dart' as _i202;
-import 'package:helty/src/ui/patinets_services/view_services.dart' as _i225;
-import 'package:helty/src/ui/super_admin/super_admin_hub_screen.dart' as _i217;
+    as _i110;
+import 'package:helty/src/ui/patinets_services/render_services.dart' as _i204;
+import 'package:helty/src/ui/patinets_services/view_services.dart' as _i227;
+import 'package:helty/src/ui/super_admin/super_admin_hub_screen.dart' as _i219;
 import 'package:helty/src/ui/super_admin/super_admin_staff_detail_screen.dart'
-    as _i218;
+    as _i220;
 import 'package:helty/src/ui/super_admin/super_admin_staff_list_screen.dart'
-    as _i219;
+    as _i221;
 import 'package:helty/src/ui/system_setup/bank_management_screen.dart' as _i35;
-import 'package:helty/src/ui/transactions/pending_transactions.dart' as _i178;
-import 'package:helty/src/widgets/not_avaliable.dart' as _i145;
+import 'package:helty/src/ui/transactions/pending_transactions.dart' as _i180;
+import 'package:helty/src/widgets/not_avaliable.dart' as _i147;
 
 /// generated route for
 /// [_i1.AccountsAgingReportScreen]
-class AccountsAgingReportRoute extends _i230.PageRouteInfo<void> {
-  const AccountsAgingReportRoute({List<_i230.PageRouteInfo>? children})
+class AccountsAgingReportRoute extends _i232.PageRouteInfo<void> {
+  const AccountsAgingReportRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsAgingReportRoute.name, initialChildren: children);
 
   static const String name = 'AccountsAgingReportRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i1.AccountsAgingReportScreen();
@@ -379,13 +383,13 @@ class AccountsAgingReportRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i2.AccountsApprovalsScreen]
-class AccountsApprovalsRoute extends _i230.PageRouteInfo<void> {
-  const AccountsApprovalsRoute({List<_i230.PageRouteInfo>? children})
+class AccountsApprovalsRoute extends _i232.PageRouteInfo<void> {
+  const AccountsApprovalsRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsApprovalsRoute.name, initialChildren: children);
 
   static const String name = 'AccountsApprovalsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i2.AccountsApprovalsScreen();
@@ -395,13 +399,13 @@ class AccountsApprovalsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i3.AccountsAuditLogScreen]
-class AccountsAuditLogRoute extends _i230.PageRouteInfo<void> {
-  const AccountsAuditLogRoute({List<_i230.PageRouteInfo>? children})
+class AccountsAuditLogRoute extends _i232.PageRouteInfo<void> {
+  const AccountsAuditLogRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsAuditLogRoute.name, initialChildren: children);
 
   static const String name = 'AccountsAuditLogRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i3.AccountsAuditLogScreen();
@@ -411,13 +415,13 @@ class AccountsAuditLogRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i4.AccountsBankReconScreen]
-class AccountsBankReconRoute extends _i230.PageRouteInfo<void> {
-  const AccountsBankReconRoute({List<_i230.PageRouteInfo>? children})
+class AccountsBankReconRoute extends _i232.PageRouteInfo<void> {
+  const AccountsBankReconRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsBankReconRoute.name, initialChildren: children);
 
   static const String name = 'AccountsBankReconRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i4.AccountsBankReconScreen();
@@ -427,13 +431,13 @@ class AccountsBankReconRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i5.AccountsBanksScreen]
-class AccountsBanksRoute extends _i230.PageRouteInfo<void> {
-  const AccountsBanksRoute({List<_i230.PageRouteInfo>? children})
+class AccountsBanksRoute extends _i232.PageRouteInfo<void> {
+  const AccountsBanksRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsBanksRoute.name, initialChildren: children);
 
   static const String name = 'AccountsBanksRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i5.AccountsBanksScreen();
@@ -443,13 +447,13 @@ class AccountsBanksRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i6.AccountsCashFlowScreen]
-class AccountsCashFlowRoute extends _i230.PageRouteInfo<void> {
-  const AccountsCashFlowRoute({List<_i230.PageRouteInfo>? children})
+class AccountsCashFlowRoute extends _i232.PageRouteInfo<void> {
+  const AccountsCashFlowRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsCashFlowRoute.name, initialChildren: children);
 
   static const String name = 'AccountsCashFlowRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i6.AccountsCashFlowScreen();
@@ -459,13 +463,13 @@ class AccountsCashFlowRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i7.AccountsChartOfAccountsScreen]
-class AccountsChartOfAccountsRoute extends _i230.PageRouteInfo<void> {
-  const AccountsChartOfAccountsRoute({List<_i230.PageRouteInfo>? children})
+class AccountsChartOfAccountsRoute extends _i232.PageRouteInfo<void> {
+  const AccountsChartOfAccountsRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsChartOfAccountsRoute.name, initialChildren: children);
 
   static const String name = 'AccountsChartOfAccountsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i7.AccountsChartOfAccountsScreen();
@@ -475,13 +479,13 @@ class AccountsChartOfAccountsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i8.AccountsCollectionEfficiencyScreen]
-class AccountsCollectionEfficiencyRoute extends _i230.PageRouteInfo<void> {
-  const AccountsCollectionEfficiencyRoute({List<_i230.PageRouteInfo>? children})
+class AccountsCollectionEfficiencyRoute extends _i232.PageRouteInfo<void> {
+  const AccountsCollectionEfficiencyRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsCollectionEfficiencyRoute.name, initialChildren: children);
 
   static const String name = 'AccountsCollectionEfficiencyRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i8.AccountsCollectionEfficiencyScreen();
@@ -491,13 +495,13 @@ class AccountsCollectionEfficiencyRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i9.AccountsComplianceScreen]
-class AccountsComplianceRoute extends _i230.PageRouteInfo<void> {
-  const AccountsComplianceRoute({List<_i230.PageRouteInfo>? children})
+class AccountsComplianceRoute extends _i232.PageRouteInfo<void> {
+  const AccountsComplianceRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsComplianceRoute.name, initialChildren: children);
 
   static const String name = 'AccountsComplianceRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i9.AccountsComplianceScreen();
@@ -507,13 +511,13 @@ class AccountsComplianceRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i10.AccountsDailyCashReconScreen]
-class AccountsDailyCashReconRoute extends _i230.PageRouteInfo<void> {
-  const AccountsDailyCashReconRoute({List<_i230.PageRouteInfo>? children})
+class AccountsDailyCashReconRoute extends _i232.PageRouteInfo<void> {
+  const AccountsDailyCashReconRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsDailyCashReconRoute.name, initialChildren: children);
 
   static const String name = 'AccountsDailyCashReconRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i10.AccountsDailyCashReconScreen();
@@ -523,13 +527,13 @@ class AccountsDailyCashReconRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i11.AccountsDailyCollectionsScreen]
-class AccountsDailyCollectionsRoute extends _i230.PageRouteInfo<void> {
-  const AccountsDailyCollectionsRoute({List<_i230.PageRouteInfo>? children})
+class AccountsDailyCollectionsRoute extends _i232.PageRouteInfo<void> {
+  const AccountsDailyCollectionsRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsDailyCollectionsRoute.name, initialChildren: children);
 
   static const String name = 'AccountsDailyCollectionsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i11.AccountsDailyCollectionsScreen();
@@ -539,13 +543,13 @@ class AccountsDailyCollectionsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i12.AccountsDashboardScreen]
-class AccountsDashboardRoute extends _i230.PageRouteInfo<void> {
-  const AccountsDashboardRoute({List<_i230.PageRouteInfo>? children})
+class AccountsDashboardRoute extends _i232.PageRouteInfo<void> {
+  const AccountsDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsDashboardRoute.name, initialChildren: children);
 
   static const String name = 'AccountsDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i12.AccountsDashboardScreen();
@@ -555,13 +559,13 @@ class AccountsDashboardRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i13.AccountsExpenseVsBudgetScreen]
-class AccountsExpenseVsBudgetRoute extends _i230.PageRouteInfo<void> {
-  const AccountsExpenseVsBudgetRoute({List<_i230.PageRouteInfo>? children})
+class AccountsExpenseVsBudgetRoute extends _i232.PageRouteInfo<void> {
+  const AccountsExpenseVsBudgetRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsExpenseVsBudgetRoute.name, initialChildren: children);
 
   static const String name = 'AccountsExpenseVsBudgetRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i13.AccountsExpenseVsBudgetScreen();
@@ -571,13 +575,13 @@ class AccountsExpenseVsBudgetRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i14.AccountsFinancialReportsHubScreen]
-class AccountsFinancialReportsHubRoute extends _i230.PageRouteInfo<void> {
-  const AccountsFinancialReportsHubRoute({List<_i230.PageRouteInfo>? children})
+class AccountsFinancialReportsHubRoute extends _i232.PageRouteInfo<void> {
+  const AccountsFinancialReportsHubRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsFinancialReportsHubRoute.name, initialChildren: children);
 
   static const String name = 'AccountsFinancialReportsHubRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i14.AccountsFinancialReportsHubScreen();
@@ -587,13 +591,13 @@ class AccountsFinancialReportsHubRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i15.AccountsInvoiceChangesScreen]
-class AccountsInvoiceChangesRoute extends _i230.PageRouteInfo<void> {
-  const AccountsInvoiceChangesRoute({List<_i230.PageRouteInfo>? children})
+class AccountsInvoiceChangesRoute extends _i232.PageRouteInfo<void> {
+  const AccountsInvoiceChangesRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsInvoiceChangesRoute.name, initialChildren: children);
 
   static const String name = 'AccountsInvoiceChangesRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i15.AccountsInvoiceChangesScreen();
@@ -603,13 +607,13 @@ class AccountsInvoiceChangesRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i16.AccountsJournalEntriesScreen]
-class AccountsJournalEntriesRoute extends _i230.PageRouteInfo<void> {
-  const AccountsJournalEntriesRoute({List<_i230.PageRouteInfo>? children})
+class AccountsJournalEntriesRoute extends _i232.PageRouteInfo<void> {
+  const AccountsJournalEntriesRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsJournalEntriesRoute.name, initialChildren: children);
 
   static const String name = 'AccountsJournalEntriesRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i16.AccountsJournalEntriesScreen();
@@ -619,13 +623,13 @@ class AccountsJournalEntriesRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i17.AccountsLeakDetectionScreen]
-class AccountsLeakDetectionRoute extends _i230.PageRouteInfo<void> {
-  const AccountsLeakDetectionRoute({List<_i230.PageRouteInfo>? children})
+class AccountsLeakDetectionRoute extends _i232.PageRouteInfo<void> {
+  const AccountsLeakDetectionRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsLeakDetectionRoute.name, initialChildren: children);
 
   static const String name = 'AccountsLeakDetectionRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i17.AccountsLeakDetectionScreen();
@@ -635,13 +639,13 @@ class AccountsLeakDetectionRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i18.AccountsPaymentMixScreen]
-class AccountsPaymentMixRoute extends _i230.PageRouteInfo<void> {
-  const AccountsPaymentMixRoute({List<_i230.PageRouteInfo>? children})
+class AccountsPaymentMixRoute extends _i232.PageRouteInfo<void> {
+  const AccountsPaymentMixRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsPaymentMixRoute.name, initialChildren: children);
 
   static const String name = 'AccountsPaymentMixRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i18.AccountsPaymentMixScreen();
@@ -651,13 +655,13 @@ class AccountsPaymentMixRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i19.AccountsPeriodCloseScreen]
-class AccountsPeriodCloseRoute extends _i230.PageRouteInfo<void> {
-  const AccountsPeriodCloseRoute({List<_i230.PageRouteInfo>? children})
+class AccountsPeriodCloseRoute extends _i232.PageRouteInfo<void> {
+  const AccountsPeriodCloseRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsPeriodCloseRoute.name, initialChildren: children);
 
   static const String name = 'AccountsPeriodCloseRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i19.AccountsPeriodCloseScreen();
@@ -667,13 +671,13 @@ class AccountsPeriodCloseRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i20.AccountsPeriodComparisonScreen]
-class AccountsPeriodComparisonRoute extends _i230.PageRouteInfo<void> {
-  const AccountsPeriodComparisonRoute({List<_i230.PageRouteInfo>? children})
+class AccountsPeriodComparisonRoute extends _i232.PageRouteInfo<void> {
+  const AccountsPeriodComparisonRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsPeriodComparisonRoute.name, initialChildren: children);
 
   static const String name = 'AccountsPeriodComparisonRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i20.AccountsPeriodComparisonScreen();
@@ -683,13 +687,13 @@ class AccountsPeriodComparisonRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i21.AccountsProfitLossScreen]
-class AccountsProfitLossRoute extends _i230.PageRouteInfo<void> {
-  const AccountsProfitLossRoute({List<_i230.PageRouteInfo>? children})
+class AccountsProfitLossRoute extends _i232.PageRouteInfo<void> {
+  const AccountsProfitLossRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsProfitLossRoute.name, initialChildren: children);
 
   static const String name = 'AccountsProfitLossRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i21.AccountsProfitLossScreen();
@@ -699,13 +703,13 @@ class AccountsProfitLossRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i22.AccountsRefundHistoryScreen]
-class AccountsRefundHistoryRoute extends _i230.PageRouteInfo<void> {
-  const AccountsRefundHistoryRoute({List<_i230.PageRouteInfo>? children})
+class AccountsRefundHistoryRoute extends _i232.PageRouteInfo<void> {
+  const AccountsRefundHistoryRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsRefundHistoryRoute.name, initialChildren: children);
 
   static const String name = 'AccountsRefundHistoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i22.AccountsRefundHistoryScreen();
@@ -715,13 +719,13 @@ class AccountsRefundHistoryRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i23.AccountsRefundRequestsScreen]
-class AccountsRefundRequestsRoute extends _i230.PageRouteInfo<void> {
-  const AccountsRefundRequestsRoute({List<_i230.PageRouteInfo>? children})
+class AccountsRefundRequestsRoute extends _i232.PageRouteInfo<void> {
+  const AccountsRefundRequestsRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsRefundRequestsRoute.name, initialChildren: children);
 
   static const String name = 'AccountsRefundRequestsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i23.AccountsRefundRequestsScreen();
@@ -731,13 +735,13 @@ class AccountsRefundRequestsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i24.AccountsRevenueByServiceScreen]
-class AccountsRevenueByServiceRoute extends _i230.PageRouteInfo<void> {
-  const AccountsRevenueByServiceRoute({List<_i230.PageRouteInfo>? children})
+class AccountsRevenueByServiceRoute extends _i232.PageRouteInfo<void> {
+  const AccountsRevenueByServiceRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsRevenueByServiceRoute.name, initialChildren: children);
 
   static const String name = 'AccountsRevenueByServiceRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i24.AccountsRevenueByServiceScreen();
@@ -747,13 +751,13 @@ class AccountsRevenueByServiceRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i25.AccountsRevenueSummaryScreen]
-class AccountsRevenueSummaryRoute extends _i230.PageRouteInfo<void> {
-  const AccountsRevenueSummaryRoute({List<_i230.PageRouteInfo>? children})
+class AccountsRevenueSummaryRoute extends _i232.PageRouteInfo<void> {
+  const AccountsRevenueSummaryRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsRevenueSummaryRoute.name, initialChildren: children);
 
   static const String name = 'AccountsRevenueSummaryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i25.AccountsRevenueSummaryScreen();
@@ -763,13 +767,13 @@ class AccountsRevenueSummaryRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i26.AccountsStaffActivityScreen]
-class AccountsStaffActivityRoute extends _i230.PageRouteInfo<void> {
-  const AccountsStaffActivityRoute({List<_i230.PageRouteInfo>? children})
+class AccountsStaffActivityRoute extends _i232.PageRouteInfo<void> {
+  const AccountsStaffActivityRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsStaffActivityRoute.name, initialChildren: children);
 
   static const String name = 'AccountsStaffActivityRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i26.AccountsStaffActivityScreen();
@@ -779,13 +783,13 @@ class AccountsStaffActivityRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i27.AccountsWalletsOverviewScreen]
-class AccountsWalletsOverviewRoute extends _i230.PageRouteInfo<void> {
-  const AccountsWalletsOverviewRoute({List<_i230.PageRouteInfo>? children})
+class AccountsWalletsOverviewRoute extends _i232.PageRouteInfo<void> {
+  const AccountsWalletsOverviewRoute({List<_i232.PageRouteInfo>? children})
     : super(AccountsWalletsOverviewRoute.name, initialChildren: children);
 
   static const String name = 'AccountsWalletsOverviewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i27.AccountsWalletsOverviewScreen();
@@ -795,13 +799,13 @@ class AccountsWalletsOverviewRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i28.AddBatchScreen]
-class AddBatchRoute extends _i230.PageRouteInfo<void> {
-  const AddBatchRoute({List<_i230.PageRouteInfo>? children})
+class AddBatchRoute extends _i232.PageRouteInfo<void> {
+  const AddBatchRoute({List<_i232.PageRouteInfo>? children})
     : super(AddBatchRoute.name, initialChildren: children);
 
   static const String name = 'AddBatchRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i28.AddBatchScreen();
@@ -811,13 +815,13 @@ class AddBatchRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i29.AddCategoryScreen]
-class AddCategoryRoute extends _i230.PageRouteInfo<void> {
-  const AddCategoryRoute({List<_i230.PageRouteInfo>? children})
+class AddCategoryRoute extends _i232.PageRouteInfo<void> {
+  const AddCategoryRoute({List<_i232.PageRouteInfo>? children})
     : super(AddCategoryRoute.name, initialChildren: children);
 
   static const String name = 'AddCategoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i29.AddCategoryScreen();
@@ -827,13 +831,13 @@ class AddCategoryRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i30.AddDepartmentScreen]
-class AddDepartmentRoute extends _i230.PageRouteInfo<void> {
-  const AddDepartmentRoute({List<_i230.PageRouteInfo>? children})
+class AddDepartmentRoute extends _i232.PageRouteInfo<void> {
+  const AddDepartmentRoute({List<_i232.PageRouteInfo>? children})
     : super(AddDepartmentRoute.name, initialChildren: children);
 
   static const String name = 'AddDepartmentRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i30.AddDepartmentScreen();
@@ -843,13 +847,13 @@ class AddDepartmentRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i31.AddDrugScreen]
-class AddDrugRoute extends _i230.PageRouteInfo<AddDrugRouteArgs> {
+class AddDrugRoute extends _i232.PageRouteInfo<AddDrugRouteArgs> {
   AddDrugRoute({
-    _i231.Key? key,
-    _i232.Drug? existingDrug,
-    _i233.PharmacyApiService? service,
-    _i231.VoidCallback? onSaved,
-    List<_i230.PageRouteInfo>? children,
+    _i233.Key? key,
+    _i234.Drug? existingDrug,
+    _i235.PharmacyApiService? service,
+    _i233.VoidCallback? onSaved,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          AddDrugRoute.name,
          args: AddDrugRouteArgs(
@@ -863,7 +867,7 @@ class AddDrugRoute extends _i230.PageRouteInfo<AddDrugRouteArgs> {
 
   static const String name = 'AddDrugRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<AddDrugRouteArgs>(
@@ -887,13 +891,13 @@ class AddDrugRouteArgs {
     this.onSaved,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
-  final _i232.Drug? existingDrug;
+  final _i234.Drug? existingDrug;
 
-  final _i233.PharmacyApiService? service;
+  final _i235.PharmacyApiService? service;
 
-  final _i231.VoidCallback? onSaved;
+  final _i233.VoidCallback? onSaved;
 
   @override
   String toString() {
@@ -920,13 +924,13 @@ class AddDrugRouteArgs {
 
 /// generated route for
 /// [_i32.AddServiceScreen]
-class AddServiceRoute extends _i230.PageRouteInfo<void> {
-  const AddServiceRoute({List<_i230.PageRouteInfo>? children})
+class AddServiceRoute extends _i232.PageRouteInfo<void> {
+  const AddServiceRoute({List<_i232.PageRouteInfo>? children})
     : super(AddServiceRoute.name, initialChildren: children);
 
   static const String name = 'AddServiceRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i32.AddServiceScreen();
@@ -936,13 +940,13 @@ class AddServiceRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i33.AddSupplierScreen]
-class AddSupplierRoute extends _i230.PageRouteInfo<void> {
-  const AddSupplierRoute({List<_i230.PageRouteInfo>? children})
+class AddSupplierRoute extends _i232.PageRouteInfo<void> {
+  const AddSupplierRoute({List<_i232.PageRouteInfo>? children})
     : super(AddSupplierRoute.name, initialChildren: children);
 
   static const String name = 'AddSupplierRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i33.AddSupplierScreen();
@@ -952,13 +956,13 @@ class AddSupplierRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i34.AppointmentListScreen]
-class AppointmentListRoute extends _i230.PageRouteInfo<void> {
-  const AppointmentListRoute({List<_i230.PageRouteInfo>? children})
+class AppointmentListRoute extends _i232.PageRouteInfo<void> {
+  const AppointmentListRoute({List<_i232.PageRouteInfo>? children})
     : super(AppointmentListRoute.name, initialChildren: children);
 
   static const String name = 'AppointmentListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i34.AppointmentListScreen();
@@ -968,13 +972,13 @@ class AppointmentListRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i35.BankManagementScreen]
-class BankManagementRoute extends _i230.PageRouteInfo<void> {
-  const BankManagementRoute({List<_i230.PageRouteInfo>? children})
+class BankManagementRoute extends _i232.PageRouteInfo<void> {
+  const BankManagementRoute({List<_i232.PageRouteInfo>? children})
     : super(BankManagementRoute.name, initialChildren: children);
 
   static const String name = 'BankManagementRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i35.BankManagementScreen();
@@ -985,11 +989,11 @@ class BankManagementRoute extends _i230.PageRouteInfo<void> {
 /// generated route for
 /// [_i36.BatchesPreviewWardPricingScreen]
 class BatchesPreviewWardPricingRoute
-    extends _i230.PageRouteInfo<BatchesPreviewWardPricingRouteArgs> {
+    extends _i232.PageRouteInfo<BatchesPreviewWardPricingRouteArgs> {
   BatchesPreviewWardPricingRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String id,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          BatchesPreviewWardPricingRoute.name,
          args: BatchesPreviewWardPricingRouteArgs(key: key, id: id),
@@ -999,7 +1003,7 @@ class BatchesPreviewWardPricingRoute
 
   static const String name = 'BatchesPreviewWardPricingRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final pathParams = data.inheritedPathParams;
@@ -1015,7 +1019,7 @@ class BatchesPreviewWardPricingRoute
 class BatchesPreviewWardPricingRouteArgs {
   const BatchesPreviewWardPricingRouteArgs({this.key, required this.id});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String id;
 
@@ -1037,13 +1041,13 @@ class BatchesPreviewWardPricingRouteArgs {
 
 /// generated route for
 /// [_i37.BillingDashboardScreen]
-class BillingDashboardRoute extends _i230.PageRouteInfo<void> {
-  const BillingDashboardRoute({List<_i230.PageRouteInfo>? children})
+class BillingDashboardRoute extends _i232.PageRouteInfo<void> {
+  const BillingDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(BillingDashboardRoute.name, initialChildren: children);
 
   static const String name = 'BillingDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i37.BillingDashboardScreen();
@@ -1053,13 +1057,13 @@ class BillingDashboardRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i38.CMDAlertsIncidentsScreen]
-class CMDAlertsIncidentsRoute extends _i230.PageRouteInfo<void> {
-  const CMDAlertsIncidentsRoute({List<_i230.PageRouteInfo>? children})
+class CMDAlertsIncidentsRoute extends _i232.PageRouteInfo<void> {
+  const CMDAlertsIncidentsRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDAlertsIncidentsRoute.name, initialChildren: children);
 
   static const String name = 'CMDAlertsIncidentsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i38.CMDAlertsIncidentsScreen();
@@ -1069,13 +1073,13 @@ class CMDAlertsIncidentsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i39.CMDAuditComplianceScreen]
-class CMDAuditComplianceRoute extends _i230.PageRouteInfo<void> {
-  const CMDAuditComplianceRoute({List<_i230.PageRouteInfo>? children})
+class CMDAuditComplianceRoute extends _i232.PageRouteInfo<void> {
+  const CMDAuditComplianceRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDAuditComplianceRoute.name, initialChildren: children);
 
   static const String name = 'CMDAuditComplianceRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i39.CMDAuditComplianceScreen();
@@ -1085,13 +1089,13 @@ class CMDAuditComplianceRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i40.CMDBedsFacilitiesScreen]
-class CMDBedsFacilitiesRoute extends _i230.PageRouteInfo<void> {
-  const CMDBedsFacilitiesRoute({List<_i230.PageRouteInfo>? children})
+class CMDBedsFacilitiesRoute extends _i232.PageRouteInfo<void> {
+  const CMDBedsFacilitiesRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDBedsFacilitiesRoute.name, initialChildren: children);
 
   static const String name = 'CMDBedsFacilitiesRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i40.CMDBedsFacilitiesScreen();
@@ -1101,13 +1105,13 @@ class CMDBedsFacilitiesRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i41.CMDCommunicationCenterScreen]
-class CMDCommunicationCenterRoute extends _i230.PageRouteInfo<void> {
-  const CMDCommunicationCenterRoute({List<_i230.PageRouteInfo>? children})
+class CMDCommunicationCenterRoute extends _i232.PageRouteInfo<void> {
+  const CMDCommunicationCenterRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDCommunicationCenterRoute.name, initialChildren: children);
 
   static const String name = 'CMDCommunicationCenterRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i41.CMDCommunicationCenterScreen();
@@ -1117,13 +1121,13 @@ class CMDCommunicationCenterRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i42.CMDDashboardScreen]
-class CMDDashboardRoute extends _i230.PageRouteInfo<void> {
-  const CMDDashboardRoute({List<_i230.PageRouteInfo>? children})
+class CMDDashboardRoute extends _i232.PageRouteInfo<void> {
+  const CMDDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDDashboardRoute.name, initialChildren: children);
 
   static const String name = 'CMDDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i42.CMDDashboardScreen();
@@ -1133,13 +1137,13 @@ class CMDDashboardRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i43.CMDFinancialCommandScreen]
-class CMDFinancialCommandRoute extends _i230.PageRouteInfo<void> {
-  const CMDFinancialCommandRoute({List<_i230.PageRouteInfo>? children})
+class CMDFinancialCommandRoute extends _i232.PageRouteInfo<void> {
+  const CMDFinancialCommandRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDFinancialCommandRoute.name, initialChildren: children);
 
   static const String name = 'CMDFinancialCommandRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i43.CMDFinancialCommandScreen();
@@ -1149,13 +1153,13 @@ class CMDFinancialCommandRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i44.CMDHospitalOverviewScreen]
-class CMDHospitalOverviewRoute extends _i230.PageRouteInfo<void> {
-  const CMDHospitalOverviewRoute({List<_i230.PageRouteInfo>? children})
+class CMDHospitalOverviewRoute extends _i232.PageRouteInfo<void> {
+  const CMDHospitalOverviewRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDHospitalOverviewRoute.name, initialChildren: children);
 
   static const String name = 'CMDHospitalOverviewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i44.CMDHospitalOverviewScreen();
@@ -1165,13 +1169,13 @@ class CMDHospitalOverviewRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i45.CMDLabMonitoringScreen]
-class CMDLabMonitoringRoute extends _i230.PageRouteInfo<void> {
-  const CMDLabMonitoringRoute({List<_i230.PageRouteInfo>? children})
+class CMDLabMonitoringRoute extends _i232.PageRouteInfo<void> {
+  const CMDLabMonitoringRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDLabMonitoringRoute.name, initialChildren: children);
 
   static const String name = 'CMDLabMonitoringRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i45.CMDLabMonitoringScreen();
@@ -1181,13 +1185,13 @@ class CMDLabMonitoringRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i46.CMDPatientExperienceScreen]
-class CMDPatientExperienceRoute extends _i230.PageRouteInfo<void> {
-  const CMDPatientExperienceRoute({List<_i230.PageRouteInfo>? children})
+class CMDPatientExperienceRoute extends _i232.PageRouteInfo<void> {
+  const CMDPatientExperienceRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDPatientExperienceRoute.name, initialChildren: children);
 
   static const String name = 'CMDPatientExperienceRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i46.CMDPatientExperienceScreen();
@@ -1197,13 +1201,13 @@ class CMDPatientExperienceRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i47.CMDReportsAnalyticsScreen]
-class CMDReportsAnalyticsRoute extends _i230.PageRouteInfo<void> {
-  const CMDReportsAnalyticsRoute({List<_i230.PageRouteInfo>? children})
+class CMDReportsAnalyticsRoute extends _i232.PageRouteInfo<void> {
+  const CMDReportsAnalyticsRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDReportsAnalyticsRoute.name, initialChildren: children);
 
   static const String name = 'CMDReportsAnalyticsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i47.CMDReportsAnalyticsScreen();
@@ -1213,13 +1217,13 @@ class CMDReportsAnalyticsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i48.CMDStaffOversightScreen]
-class CMDStaffOversightRoute extends _i230.PageRouteInfo<void> {
-  const CMDStaffOversightRoute({List<_i230.PageRouteInfo>? children})
+class CMDStaffOversightRoute extends _i232.PageRouteInfo<void> {
+  const CMDStaffOversightRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDStaffOversightRoute.name, initialChildren: children);
 
   static const String name = 'CMDStaffOversightRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i48.CMDStaffOversightScreen();
@@ -1229,13 +1233,13 @@ class CMDStaffOversightRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i49.CMDSystemControlScreen]
-class CMDSystemControlRoute extends _i230.PageRouteInfo<void> {
-  const CMDSystemControlRoute({List<_i230.PageRouteInfo>? children})
+class CMDSystemControlRoute extends _i232.PageRouteInfo<void> {
+  const CMDSystemControlRoute({List<_i232.PageRouteInfo>? children})
     : super(CMDSystemControlRoute.name, initialChildren: children);
 
   static const String name = 'CMDSystemControlRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i49.CMDSystemControlScreen();
@@ -1245,13 +1249,13 @@ class CMDSystemControlRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i50.CmacClinicalScreen]
-class CmacClinicalRoute extends _i230.PageRouteInfo<void> {
-  const CmacClinicalRoute({List<_i230.PageRouteInfo>? children})
+class CmacClinicalRoute extends _i232.PageRouteInfo<void> {
+  const CmacClinicalRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacClinicalRoute.name, initialChildren: children);
 
   static const String name = 'CmacClinicalRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i50.CmacClinicalScreen();
@@ -1261,13 +1265,13 @@ class CmacClinicalRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i51.CmacInsightsScreen]
-class CmacInsightsRoute extends _i230.PageRouteInfo<void> {
-  const CmacInsightsRoute({List<_i230.PageRouteInfo>? children})
+class CmacInsightsRoute extends _i232.PageRouteInfo<void> {
+  const CmacInsightsRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacInsightsRoute.name, initialChildren: children);
 
   static const String name = 'CmacInsightsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i51.CmacInsightsScreen();
@@ -1277,13 +1281,13 @@ class CmacInsightsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i52.CmacLaboratoryScreen]
-class CmacLaboratoryRoute extends _i230.PageRouteInfo<void> {
-  const CmacLaboratoryRoute({List<_i230.PageRouteInfo>? children})
+class CmacLaboratoryRoute extends _i232.PageRouteInfo<void> {
+  const CmacLaboratoryRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacLaboratoryRoute.name, initialChildren: children);
 
   static const String name = 'CmacLaboratoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i52.CmacLaboratoryScreen();
@@ -1293,13 +1297,13 @@ class CmacLaboratoryRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i53.CmacOperationsScreen]
-class CmacOperationsRoute extends _i230.PageRouteInfo<void> {
-  const CmacOperationsRoute({List<_i230.PageRouteInfo>? children})
+class CmacOperationsRoute extends _i232.PageRouteInfo<void> {
+  const CmacOperationsRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacOperationsRoute.name, initialChildren: children);
 
   static const String name = 'CmacOperationsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i53.CmacOperationsScreen();
@@ -1309,13 +1313,13 @@ class CmacOperationsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i54.CmacOverviewScreen]
-class CmacOverviewRoute extends _i230.PageRouteInfo<void> {
-  const CmacOverviewRoute({List<_i230.PageRouteInfo>? children})
+class CmacOverviewRoute extends _i232.PageRouteInfo<void> {
+  const CmacOverviewRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacOverviewRoute.name, initialChildren: children);
 
   static const String name = 'CmacOverviewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i54.CmacOverviewScreen();
@@ -1325,13 +1329,13 @@ class CmacOverviewRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i55.CmacPatientActivityScreen]
-class CmacPatientActivityRoute extends _i230.PageRouteInfo<void> {
-  const CmacPatientActivityRoute({List<_i230.PageRouteInfo>? children})
+class CmacPatientActivityRoute extends _i232.PageRouteInfo<void> {
+  const CmacPatientActivityRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacPatientActivityRoute.name, initialChildren: children);
 
   static const String name = 'CmacPatientActivityRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i55.CmacPatientActivityScreen();
@@ -1341,13 +1345,13 @@ class CmacPatientActivityRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i56.CmacPharmacyScreen]
-class CmacPharmacyRoute extends _i230.PageRouteInfo<void> {
-  const CmacPharmacyRoute({List<_i230.PageRouteInfo>? children})
+class CmacPharmacyRoute extends _i232.PageRouteInfo<void> {
+  const CmacPharmacyRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacPharmacyRoute.name, initialChildren: children);
 
   static const String name = 'CmacPharmacyRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i56.CmacPharmacyScreen();
@@ -1357,13 +1361,13 @@ class CmacPharmacyRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i57.CmacQualityComplaintsScreen]
-class CmacQualityComplaintsRoute extends _i230.PageRouteInfo<void> {
-  const CmacQualityComplaintsRoute({List<_i230.PageRouteInfo>? children})
+class CmacQualityComplaintsRoute extends _i232.PageRouteInfo<void> {
+  const CmacQualityComplaintsRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacQualityComplaintsRoute.name, initialChildren: children);
 
   static const String name = 'CmacQualityComplaintsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i57.CmacQualityComplaintsScreen();
@@ -1374,12 +1378,12 @@ class CmacQualityComplaintsRoute extends _i230.PageRouteInfo<void> {
 /// generated route for
 /// [_i58.CmacQualityDetailScreen]
 class CmacQualityDetailRoute
-    extends _i230.PageRouteInfo<CmacQualityDetailRouteArgs> {
+    extends _i232.PageRouteInfo<CmacQualityDetailRouteArgs> {
   CmacQualityDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String entity,
     required String recordId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          CmacQualityDetailRoute.name,
          args: CmacQualityDetailRouteArgs(
@@ -1393,7 +1397,7 @@ class CmacQualityDetailRoute
 
   static const String name = 'CmacQualityDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final pathParams = data.inheritedPathParams;
@@ -1419,7 +1423,7 @@ class CmacQualityDetailRouteArgs {
     required this.recordId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String entity;
 
@@ -1445,13 +1449,13 @@ class CmacQualityDetailRouteArgs {
 
 /// generated route for
 /// [_i57.CmacQualityIncidentsScreen]
-class CmacQualityIncidentsRoute extends _i230.PageRouteInfo<void> {
-  const CmacQualityIncidentsRoute({List<_i230.PageRouteInfo>? children})
+class CmacQualityIncidentsRoute extends _i232.PageRouteInfo<void> {
+  const CmacQualityIncidentsRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacQualityIncidentsRoute.name, initialChildren: children);
 
   static const String name = 'CmacQualityIncidentsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i57.CmacQualityIncidentsScreen();
@@ -1461,13 +1465,13 @@ class CmacQualityIncidentsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i57.CmacQualityInfectionsScreen]
-class CmacQualityInfectionsRoute extends _i230.PageRouteInfo<void> {
-  const CmacQualityInfectionsRoute({List<_i230.PageRouteInfo>? children})
+class CmacQualityInfectionsRoute extends _i232.PageRouteInfo<void> {
+  const CmacQualityInfectionsRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacQualityInfectionsRoute.name, initialChildren: children);
 
   static const String name = 'CmacQualityInfectionsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i57.CmacQualityInfectionsScreen();
@@ -1477,13 +1481,13 @@ class CmacQualityInfectionsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i57.CmacQualityReferralsScreen]
-class CmacQualityReferralsRoute extends _i230.PageRouteInfo<void> {
-  const CmacQualityReferralsRoute({List<_i230.PageRouteInfo>? children})
+class CmacQualityReferralsRoute extends _i232.PageRouteInfo<void> {
+  const CmacQualityReferralsRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacQualityReferralsRoute.name, initialChildren: children);
 
   static const String name = 'CmacQualityReferralsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i57.CmacQualityReferralsScreen();
@@ -1493,13 +1497,13 @@ class CmacQualityReferralsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i59.CmacQualitySafetyHubScreen]
-class CmacQualitySafetyHubRoute extends _i230.PageRouteInfo<void> {
-  const CmacQualitySafetyHubRoute({List<_i230.PageRouteInfo>? children})
+class CmacQualitySafetyHubRoute extends _i232.PageRouteInfo<void> {
+  const CmacQualitySafetyHubRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacQualitySafetyHubRoute.name, initialChildren: children);
 
   static const String name = 'CmacQualitySafetyHubRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i59.CmacQualitySafetyHubScreen();
@@ -1509,13 +1513,13 @@ class CmacQualitySafetyHubRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i60.CmacQualityScreen]
-class CmacQualityRoute extends _i230.PageRouteInfo<void> {
-  const CmacQualityRoute({List<_i230.PageRouteInfo>? children})
+class CmacQualityRoute extends _i232.PageRouteInfo<void> {
+  const CmacQualityRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacQualityRoute.name, initialChildren: children);
 
   static const String name = 'CmacQualityRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i60.CmacQualityScreen();
@@ -1525,13 +1529,13 @@ class CmacQualityRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i61.CmacStaffScreen]
-class CmacStaffRoute extends _i230.PageRouteInfo<void> {
-  const CmacStaffRoute({List<_i230.PageRouteInfo>? children})
+class CmacStaffRoute extends _i232.PageRouteInfo<void> {
+  const CmacStaffRoute({List<_i232.PageRouteInfo>? children})
     : super(CmacStaffRoute.name, initialChildren: children);
 
   static const String name = 'CmacStaffRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i61.CmacStaffScreen();
@@ -1541,13 +1545,13 @@ class CmacStaffRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i62.CompletedEncounterAppointmentsTab]
-class CompletedEncounterAppointmentsTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterAppointmentsTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterAppointmentsTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterAppointmentsTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterAppointmentsTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterAppointmentsTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i62.CompletedEncounterAppointmentsTab();
@@ -1557,13 +1561,13 @@ class CompletedEncounterAppointmentsTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i63.CompletedEncounterDiagnosisTab]
-class CompletedEncounterDiagnosisTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterDiagnosisTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterDiagnosisTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterDiagnosisTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterDiagnosisTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterDiagnosisTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i63.CompletedEncounterDiagnosisTab();
@@ -1573,13 +1577,13 @@ class CompletedEncounterDiagnosisTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i64.CompletedEncounterExaminationTab]
-class CompletedEncounterExaminationTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterExaminationTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterExaminationTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterExaminationTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterExaminationTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterExaminationTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i64.CompletedEncounterExaminationTab();
@@ -1589,13 +1593,13 @@ class CompletedEncounterExaminationTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i65.CompletedEncounterFollowUpTab]
-class CompletedEncounterFollowUpTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterFollowUpTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterFollowUpTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterFollowUpTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterFollowUpTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterFollowUpTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i65.CompletedEncounterFollowUpTab();
@@ -1605,13 +1609,13 @@ class CompletedEncounterFollowUpTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i66.CompletedEncounterHistoryTab]
-class CompletedEncounterHistoryTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterHistoryTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterHistoryTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterHistoryTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterHistoryTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterHistoryTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i66.CompletedEncounterHistoryTab();
@@ -1621,13 +1625,13 @@ class CompletedEncounterHistoryTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i67.CompletedEncounterImagingTab]
-class CompletedEncounterImagingTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterImagingTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterImagingTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterImagingTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterImagingTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterImagingTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i67.CompletedEncounterImagingTab();
@@ -1637,13 +1641,13 @@ class CompletedEncounterImagingTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i68.CompletedEncounterLabsTab]
-class CompletedEncounterLabsTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterLabsTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterLabsTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterLabsTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterLabsTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterLabsTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i68.CompletedEncounterLabsTab();
@@ -1653,13 +1657,13 @@ class CompletedEncounterLabsTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i69.CompletedEncounterNotesTab]
-class CompletedEncounterNotesTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterNotesTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterNotesTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterNotesTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterNotesTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterNotesTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i69.CompletedEncounterNotesTab();
@@ -1669,9 +1673,9 @@ class CompletedEncounterNotesTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i70.CompletedEncounterPrescriptionsTab]
-class CompletedEncounterPrescriptionsTab extends _i230.PageRouteInfo<void> {
+class CompletedEncounterPrescriptionsTab extends _i232.PageRouteInfo<void> {
   const CompletedEncounterPrescriptionsTab({
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          CompletedEncounterPrescriptionsTab.name,
          initialChildren: children,
@@ -1679,7 +1683,7 @@ class CompletedEncounterPrescriptionsTab extends _i230.PageRouteInfo<void> {
 
   static const String name = 'CompletedEncounterPrescriptionsTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i70.CompletedEncounterPrescriptionsTab();
@@ -1689,13 +1693,13 @@ class CompletedEncounterPrescriptionsTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i71.CompletedEncounterSummaryTab]
-class CompletedEncounterSummaryTab extends _i230.PageRouteInfo<void> {
-  const CompletedEncounterSummaryTab({List<_i230.PageRouteInfo>? children})
+class CompletedEncounterSummaryTab extends _i232.PageRouteInfo<void> {
+  const CompletedEncounterSummaryTab({List<_i232.PageRouteInfo>? children})
     : super(CompletedEncounterSummaryTab.name, initialChildren: children);
 
   static const String name = 'CompletedEncounterSummaryTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i71.CompletedEncounterSummaryTab();
@@ -1705,13 +1709,13 @@ class CompletedEncounterSummaryTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i72.ConsultationPaymentReportScreen]
-class ConsultationPaymentReportRoute extends _i230.PageRouteInfo<void> {
-  const ConsultationPaymentReportRoute({List<_i230.PageRouteInfo>? children})
+class ConsultationPaymentReportRoute extends _i232.PageRouteInfo<void> {
+  const ConsultationPaymentReportRoute({List<_i232.PageRouteInfo>? children})
     : super(ConsultationPaymentReportRoute.name, initialChildren: children);
 
   static const String name = 'ConsultationPaymentReportRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i72.ConsultationPaymentReportScreen();
@@ -1721,13 +1725,13 @@ class ConsultationPaymentReportRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i73.ConsultingRoomsScreen]
-class ConsultingRoomsRoute extends _i230.PageRouteInfo<void> {
-  const ConsultingRoomsRoute({List<_i230.PageRouteInfo>? children})
+class ConsultingRoomsRoute extends _i232.PageRouteInfo<void> {
+  const ConsultingRoomsRoute({List<_i232.PageRouteInfo>? children})
     : super(ConsultingRoomsRoute.name, initialChildren: children);
 
   static const String name = 'ConsultingRoomsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i73.ConsultingRoomsScreen();
@@ -1737,13 +1741,13 @@ class ConsultingRoomsRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i74.CreateRequisitionScreen]
-class CreateRequisitionRoute extends _i230.PageRouteInfo<void> {
-  const CreateRequisitionRoute({List<_i230.PageRouteInfo>? children})
+class CreateRequisitionRoute extends _i232.PageRouteInfo<void> {
+  const CreateRequisitionRoute({List<_i232.PageRouteInfo>? children})
     : super(CreateRequisitionRoute.name, initialChildren: children);
 
   static const String name = 'CreateRequisitionRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i74.CreateRequisitionScreen();
@@ -1753,13 +1757,13 @@ class CreateRequisitionRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i75.DashboardScreen]
-class DashboardRoute extends _i230.PageRouteInfo<void> {
-  const DashboardRoute({List<_i230.PageRouteInfo>? children})
+class DashboardRoute extends _i232.PageRouteInfo<void> {
+  const DashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(DashboardRoute.name, initialChildren: children);
 
   static const String name = 'DashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i75.DashboardScreen();
@@ -1769,13 +1773,13 @@ class DashboardRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i76.DialysisCreateSessionScreen]
-class DialysisCreateSessionRoute extends _i230.PageRouteInfo<void> {
-  const DialysisCreateSessionRoute({List<_i230.PageRouteInfo>? children})
+class DialysisCreateSessionRoute extends _i232.PageRouteInfo<void> {
+  const DialysisCreateSessionRoute({List<_i232.PageRouteInfo>? children})
     : super(DialysisCreateSessionRoute.name, initialChildren: children);
 
   static const String name = 'DialysisCreateSessionRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i76.DialysisCreateSessionScreen();
@@ -1785,13 +1789,13 @@ class DialysisCreateSessionRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i77.DialysisDashboardScreen]
-class DialysisDashboardRoute extends _i230.PageRouteInfo<void> {
-  const DialysisDashboardRoute({List<_i230.PageRouteInfo>? children})
+class DialysisDashboardRoute extends _i232.PageRouteInfo<void> {
+  const DialysisDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(DialysisDashboardRoute.name, initialChildren: children);
 
   static const String name = 'DialysisDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i77.DialysisDashboardScreen();
@@ -1802,11 +1806,11 @@ class DialysisDashboardRoute extends _i230.PageRouteInfo<void> {
 /// generated route for
 /// [_i78.DialysisSessionDetailScreen]
 class DialysisSessionDetailRoute
-    extends _i230.PageRouteInfo<DialysisSessionDetailRouteArgs> {
+    extends _i232.PageRouteInfo<DialysisSessionDetailRouteArgs> {
   DialysisSessionDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String sessionId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          DialysisSessionDetailRoute.name,
          args: DialysisSessionDetailRouteArgs(key: key, sessionId: sessionId),
@@ -1815,7 +1819,7 @@ class DialysisSessionDetailRoute
 
   static const String name = 'DialysisSessionDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<DialysisSessionDetailRouteArgs>();
@@ -1830,7 +1834,7 @@ class DialysisSessionDetailRoute
 class DialysisSessionDetailRouteArgs {
   const DialysisSessionDetailRouteArgs({this.key, required this.sessionId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String sessionId;
 
@@ -1852,13 +1856,13 @@ class DialysisSessionDetailRouteArgs {
 
 /// generated route for
 /// [_i79.DiscountPolicyManagementScreen]
-class DiscountPolicyManagementRoute extends _i230.PageRouteInfo<void> {
-  const DiscountPolicyManagementRoute({List<_i230.PageRouteInfo>? children})
+class DiscountPolicyManagementRoute extends _i232.PageRouteInfo<void> {
+  const DiscountPolicyManagementRoute({List<_i232.PageRouteInfo>? children})
     : super(DiscountPolicyManagementRoute.name, initialChildren: children);
 
   static const String name = 'DiscountPolicyManagementRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i79.DiscountPolicyManagementScreen();
@@ -1869,15 +1873,15 @@ class DiscountPolicyManagementRoute extends _i230.PageRouteInfo<void> {
 /// generated route for
 /// [_i80.DispenseHistoryScreen]
 class DispenseHistoryRoute
-    extends _i230.PageRouteInfo<DispenseHistoryRouteArgs> {
+    extends _i232.PageRouteInfo<DispenseHistoryRouteArgs> {
   DispenseHistoryRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? fromDate,
     String? toDate,
     String? drugId,
     String? patientQuery,
     int? page,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          DispenseHistoryRoute.name,
          args: DispenseHistoryRouteArgs(
@@ -1900,7 +1904,7 @@ class DispenseHistoryRoute
 
   static const String name = 'DispenseHistoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final queryParams = data.queryParams;
@@ -1935,7 +1939,7 @@ class DispenseHistoryRouteArgs {
     this.page,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? fromDate;
 
@@ -1976,15 +1980,15 @@ class DispenseHistoryRouteArgs {
 
 /// generated route for
 /// [_i81.DispenseScreen]
-class DispenseRoute extends _i230.PageRouteInfo<DispenseRouteArgs> {
+class DispenseRoute extends _i232.PageRouteInfo<DispenseRouteArgs> {
   DispenseRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String patientId,
     required String patientName,
     required String id,
     String? invoiceId,
     String? staffId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          DispenseRoute.name,
          args: DispenseRouteArgs(
@@ -2000,7 +2004,7 @@ class DispenseRoute extends _i230.PageRouteInfo<DispenseRouteArgs> {
 
   static const String name = 'DispenseRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<DispenseRouteArgs>();
@@ -2026,7 +2030,7 @@ class DispenseRouteArgs {
     this.staffId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String patientId;
 
@@ -2068,12 +2072,12 @@ class DispenseRouteArgs {
 /// generated route for
 /// [_i82.DoctorCompletedEncounterViewScreen]
 class DoctorCompletedEncounterViewRoute
-    extends _i230.PageRouteInfo<DoctorCompletedEncounterViewRouteArgs> {
+    extends _i232.PageRouteInfo<DoctorCompletedEncounterViewRouteArgs> {
   DoctorCompletedEncounterViewRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String encounterId,
     required String patientId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          DoctorCompletedEncounterViewRoute.name,
          args: DoctorCompletedEncounterViewRouteArgs(
@@ -2086,7 +2090,7 @@ class DoctorCompletedEncounterViewRoute
 
   static const String name = 'DoctorCompletedEncounterViewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<DoctorCompletedEncounterViewRouteArgs>();
@@ -2106,7 +2110,7 @@ class DoctorCompletedEncounterViewRouteArgs {
     required this.patientId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String encounterId;
 
@@ -2132,13 +2136,13 @@ class DoctorCompletedEncounterViewRouteArgs {
 
 /// generated route for
 /// [_i83.DoctorCompletedEncountersScreen]
-class DoctorCompletedEncountersRoute extends _i230.PageRouteInfo<void> {
-  const DoctorCompletedEncountersRoute({List<_i230.PageRouteInfo>? children})
+class DoctorCompletedEncountersRoute extends _i232.PageRouteInfo<void> {
+  const DoctorCompletedEncountersRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorCompletedEncountersRoute.name, initialChildren: children);
 
   static const String name = 'DoctorCompletedEncountersRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i83.DoctorCompletedEncountersScreen();
@@ -2148,13 +2152,13 @@ class DoctorCompletedEncountersRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i84.DoctorDashboardScreen]
-class DoctorDashboardRoute extends _i230.PageRouteInfo<void> {
-  const DoctorDashboardRoute({List<_i230.PageRouteInfo>? children})
+class DoctorDashboardRoute extends _i232.PageRouteInfo<void> {
+  const DoctorDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorDashboardRoute.name, initialChildren: children);
 
   static const String name = 'DoctorDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i84.DoctorDashboardScreen();
@@ -2164,13 +2168,13 @@ class DoctorDashboardRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i85.DoctorEmergencyStartScreen]
-class DoctorEmergencyStartRoute extends _i230.PageRouteInfo<void> {
-  const DoctorEmergencyStartRoute({List<_i230.PageRouteInfo>? children})
+class DoctorEmergencyStartRoute extends _i232.PageRouteInfo<void> {
+  const DoctorEmergencyStartRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorEmergencyStartRoute.name, initialChildren: children);
 
   static const String name = 'DoctorEmergencyStartRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i85.DoctorEmergencyStartScreen();
@@ -2180,13 +2184,13 @@ class DoctorEmergencyStartRoute extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i86.DoctorEncounterAdmissionTab]
-class DoctorEncounterAdmissionTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterAdmissionTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterAdmissionTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterAdmissionTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterAdmissionTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterAdmissionTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i86.DoctorEncounterAdmissionTab();
@@ -2196,13 +2200,13 @@ class DoctorEncounterAdmissionTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i87.DoctorEncounterDiagnosisTab]
-class DoctorEncounterDiagnosisTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterDiagnosisTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterDiagnosisTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterDiagnosisTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterDiagnosisTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterDiagnosisTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i87.DoctorEncounterDiagnosisTab();
@@ -2212,13 +2216,13 @@ class DoctorEncounterDiagnosisTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i88.DoctorEncounterExaminationTab]
-class DoctorEncounterExaminationTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterExaminationTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterExaminationTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterExaminationTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterExaminationTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterExaminationTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i88.DoctorEncounterExaminationTab();
@@ -2228,13 +2232,13 @@ class DoctorEncounterExaminationTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i89.DoctorEncounterFollowUpTab]
-class DoctorEncounterFollowUpTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterFollowUpTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterFollowUpTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterFollowUpTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterFollowUpTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterFollowUpTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i89.DoctorEncounterFollowUpTab();
@@ -2244,13 +2248,13 @@ class DoctorEncounterFollowUpTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i90.DoctorEncounterHistoryTab]
-class DoctorEncounterHistoryTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterHistoryTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterHistoryTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterHistoryTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterHistoryTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterHistoryTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i90.DoctorEncounterHistoryTab();
@@ -2260,13 +2264,13 @@ class DoctorEncounterHistoryTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i91.DoctorEncounterImagingTab]
-class DoctorEncounterImagingTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterImagingTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterImagingTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterImagingTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterImagingTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterImagingTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i91.DoctorEncounterImagingTab();
@@ -2276,13 +2280,13 @@ class DoctorEncounterImagingTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i92.DoctorEncounterInvestigationsTab]
-class DoctorEncounterInvestigationsTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterInvestigationsTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterInvestigationsTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterInvestigationsTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterInvestigationsTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterInvestigationsTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i92.DoctorEncounterInvestigationsTab();
@@ -2292,13 +2296,13 @@ class DoctorEncounterInvestigationsTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i93.DoctorEncounterNotesTab]
-class DoctorEncounterNotesTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterNotesTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterNotesTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterNotesTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterNotesTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterNotesTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i93.DoctorEncounterNotesTab();
@@ -2308,13 +2312,13 @@ class DoctorEncounterNotesTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i94.DoctorEncounterPrescriptionTab]
-class DoctorEncounterPrescriptionTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterPrescriptionTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterPrescriptionTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterPrescriptionTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterPrescriptionTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterPrescriptionTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i94.DoctorEncounterPrescriptionTab();
@@ -2324,13 +2328,13 @@ class DoctorEncounterPrescriptionTab extends _i230.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i95.DoctorEncounterProceduresTab]
-class DoctorEncounterProceduresTab extends _i230.PageRouteInfo<void> {
-  const DoctorEncounterProceduresTab({List<_i230.PageRouteInfo>? children})
+class DoctorEncounterProceduresTab extends _i232.PageRouteInfo<void> {
+  const DoctorEncounterProceduresTab({List<_i232.PageRouteInfo>? children})
     : super(DoctorEncounterProceduresTab.name, initialChildren: children);
 
   static const String name = 'DoctorEncounterProceduresTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       return const _i95.DoctorEncounterProceduresTab();
@@ -2341,15 +2345,15 @@ class DoctorEncounterProceduresTab extends _i230.PageRouteInfo<void> {
 /// generated route for
 /// [_i96.DoctorEncounterViewScreen]
 class DoctorEncounterViewRoute
-    extends _i230.PageRouteInfo<DoctorEncounterViewRouteArgs> {
+    extends _i232.PageRouteInfo<DoctorEncounterViewRouteArgs> {
   DoctorEncounterViewRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String encounterId,
     required String patientId,
     String? patientVitalsJson,
     bool amendMode = false,
     String? emergencyVisitId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          DoctorEncounterViewRoute.name,
          args: DoctorEncounterViewRouteArgs(
@@ -2365,7 +2369,7 @@ class DoctorEncounterViewRoute
 
   static const String name = 'DoctorEncounterViewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<DoctorEncounterViewRouteArgs>();
@@ -2391,7 +2395,7 @@ class DoctorEncounterViewRouteArgs {
     this.emergencyVisitId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String encounterId;
 
@@ -2431,158 +2435,174 @@ class DoctorEncounterViewRouteArgs {
 }
 
 /// generated route for
-/// [_i97.DoctorOutpatientListScreen]
-class DoctorOutpatientListRoute extends _i230.PageRouteInfo<void> {
-  const DoctorOutpatientListRoute({List<_i230.PageRouteInfo>? children})
+/// [_i97.DoctorOngoingEncountersScreen]
+class DoctorOngoingEncountersRoute extends _i232.PageRouteInfo<void> {
+  const DoctorOngoingEncountersRoute({List<_i232.PageRouteInfo>? children})
+    : super(DoctorOngoingEncountersRoute.name, initialChildren: children);
+
+  static const String name = 'DoctorOngoingEncountersRoute';
+
+  static _i232.PageInfo page = _i232.PageInfo(
+    name,
+    builder: (data) {
+      return const _i97.DoctorOngoingEncountersScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [_i98.DoctorOutpatientListScreen]
+class DoctorOutpatientListRoute extends _i232.PageRouteInfo<void> {
+  const DoctorOutpatientListRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorOutpatientListRoute.name, initialChildren: children);
 
   static const String name = 'DoctorOutpatientListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i97.DoctorOutpatientListScreen();
+      return const _i98.DoctorOutpatientListScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i98.DoctorPendingImagingScreen]
-class DoctorPendingImagingRoute extends _i230.PageRouteInfo<void> {
-  const DoctorPendingImagingRoute({List<_i230.PageRouteInfo>? children})
+/// [_i99.DoctorPendingImagingScreen]
+class DoctorPendingImagingRoute extends _i232.PageRouteInfo<void> {
+  const DoctorPendingImagingRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorPendingImagingRoute.name, initialChildren: children);
 
   static const String name = 'DoctorPendingImagingRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i98.DoctorPendingImagingScreen();
+      return const _i99.DoctorPendingImagingScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i99.DoctorPendingLabsScreen]
-class DoctorPendingLabsRoute extends _i230.PageRouteInfo<void> {
-  const DoctorPendingLabsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i100.DoctorPendingLabsScreen]
+class DoctorPendingLabsRoute extends _i232.PageRouteInfo<void> {
+  const DoctorPendingLabsRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorPendingLabsRoute.name, initialChildren: children);
 
   static const String name = 'DoctorPendingLabsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i99.DoctorPendingLabsScreen();
+      return const _i100.DoctorPendingLabsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i100.DoctorPendingPrescriptionsScreen]
-class DoctorPendingPrescriptionsRoute extends _i230.PageRouteInfo<void> {
-  const DoctorPendingPrescriptionsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i101.DoctorPendingPrescriptionsScreen]
+class DoctorPendingPrescriptionsRoute extends _i232.PageRouteInfo<void> {
+  const DoctorPendingPrescriptionsRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorPendingPrescriptionsRoute.name, initialChildren: children);
 
   static const String name = 'DoctorPendingPrescriptionsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i100.DoctorPendingPrescriptionsScreen();
+      return const _i101.DoctorPendingPrescriptionsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i101.DoctorProfileScreen]
-class DoctorProfileRoute extends _i230.PageRouteInfo<void> {
-  const DoctorProfileRoute({List<_i230.PageRouteInfo>? children})
+/// [_i102.DoctorProfileScreen]
+class DoctorProfileRoute extends _i232.PageRouteInfo<void> {
+  const DoctorProfileRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorProfileRoute.name, initialChildren: children);
 
   static const String name = 'DoctorProfileRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i101.DoctorProfileScreen();
+      return const _i102.DoctorProfileScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i102.DoctorTemplatesScreen]
-class DoctorTemplatesRoute extends _i230.PageRouteInfo<void> {
-  const DoctorTemplatesRoute({List<_i230.PageRouteInfo>? children})
+/// [_i103.DoctorTemplatesScreen]
+class DoctorTemplatesRoute extends _i232.PageRouteInfo<void> {
+  const DoctorTemplatesRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorTemplatesRoute.name, initialChildren: children);
 
   static const String name = 'DoctorTemplatesRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i102.DoctorTemplatesScreen();
+      return const _i103.DoctorTemplatesScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i103.DoctorWalkInQueueScreen]
-class DoctorWalkInQueueRoute extends _i230.PageRouteInfo<void> {
-  const DoctorWalkInQueueRoute({List<_i230.PageRouteInfo>? children})
+/// [_i104.DoctorWalkInQueueScreen]
+class DoctorWalkInQueueRoute extends _i232.PageRouteInfo<void> {
+  const DoctorWalkInQueueRoute({List<_i232.PageRouteInfo>? children})
     : super(DoctorWalkInQueueRoute.name, initialChildren: children);
 
   static const String name = 'DoctorWalkInQueueRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i103.DoctorWalkInQueueScreen();
+      return const _i104.DoctorWalkInQueueScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i104.EdBoardScreen]
-class EdBoardRoute extends _i230.PageRouteInfo<void> {
-  const EdBoardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i105.EdBoardScreen]
+class EdBoardRoute extends _i232.PageRouteInfo<void> {
+  const EdBoardRoute({List<_i232.PageRouteInfo>? children})
     : super(EdBoardRoute.name, initialChildren: children);
 
   static const String name = 'EdBoardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i104.EdBoardScreen();
+      return const _i105.EdBoardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i105.EdRegistrationScreen]
-class EdRegistrationRoute extends _i230.PageRouteInfo<void> {
-  const EdRegistrationRoute({List<_i230.PageRouteInfo>? children})
+/// [_i106.EdRegistrationScreen]
+class EdRegistrationRoute extends _i232.PageRouteInfo<void> {
+  const EdRegistrationRoute({List<_i232.PageRouteInfo>? children})
     : super(EdRegistrationRoute.name, initialChildren: children);
 
   static const String name = 'EdRegistrationRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i105.EdRegistrationScreen();
+      return const _i106.EdRegistrationScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i106.EdTriageScreen]
-class EdTriageRoute extends _i230.PageRouteInfo<EdTriageRouteArgs> {
+/// [_i107.EdTriageScreen]
+class EdTriageRoute extends _i232.PageRouteInfo<EdTriageRouteArgs> {
   EdTriageRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String encounterId,
     required String patientId,
     String? emergencyVisitId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          EdTriageRoute.name,
          args: EdTriageRouteArgs(
@@ -2596,11 +2616,11 @@ class EdTriageRoute extends _i230.PageRouteInfo<EdTriageRouteArgs> {
 
   static const String name = 'EdTriageRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<EdTriageRouteArgs>();
-      return _i106.EdTriageScreen(
+      return _i107.EdTriageScreen(
         key: args.key,
         encounterId: args.encounterId,
         patientId: args.patientId,
@@ -2618,7 +2638,7 @@ class EdTriageRouteArgs {
     this.emergencyVisitId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String encounterId;
 
@@ -2650,14 +2670,14 @@ class EdTriageRouteArgs {
 }
 
 /// generated route for
-/// [_i107.EncounterEditHistoryDetailScreen]
+/// [_i108.EncounterEditHistoryDetailScreen]
 class EncounterEditHistoryDetailRoute
-    extends _i230.PageRouteInfo<EncounterEditHistoryDetailRouteArgs> {
+    extends _i232.PageRouteInfo<EncounterEditHistoryDetailRouteArgs> {
   EncounterEditHistoryDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String encounterId,
     required String historyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          EncounterEditHistoryDetailRoute.name,
          args: EncounterEditHistoryDetailRouteArgs(
@@ -2670,11 +2690,11 @@ class EncounterEditHistoryDetailRoute
 
   static const String name = 'EncounterEditHistoryDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<EncounterEditHistoryDetailRouteArgs>();
-      return _i107.EncounterEditHistoryDetailScreen(
+      return _i108.EncounterEditHistoryDetailScreen(
         key: args.key,
         encounterId: args.encounterId,
         historyId: args.historyId,
@@ -2690,7 +2710,7 @@ class EncounterEditHistoryDetailRouteArgs {
     required this.historyId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String encounterId;
 
@@ -2715,12 +2735,12 @@ class EncounterEditHistoryDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i108.EnlistPaitientScreen]
-class EnlistPaitientRoute extends _i230.PageRouteInfo<EnlistPaitientRouteArgs> {
+/// [_i109.EnlistPaitientScreen]
+class EnlistPaitientRoute extends _i232.PageRouteInfo<EnlistPaitientRouteArgs> {
   EnlistPaitientRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String serviceName,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          EnlistPaitientRoute.name,
          args: EnlistPaitientRouteArgs(key: key, serviceName: serviceName),
@@ -2729,11 +2749,11 @@ class EnlistPaitientRoute extends _i230.PageRouteInfo<EnlistPaitientRouteArgs> {
 
   static const String name = 'EnlistPaitientRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<EnlistPaitientRouteArgs>();
-      return _i108.EnlistPaitientScreen(
+      return _i109.EnlistPaitientScreen(
         key: args.key,
         serviceName: args.serviceName,
       );
@@ -2744,7 +2764,7 @@ class EnlistPaitientRoute extends _i230.PageRouteInfo<EnlistPaitientRouteArgs> {
 class EnlistPaitientRouteArgs {
   const EnlistPaitientRouteArgs({this.key, required this.serviceName});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String serviceName;
 
@@ -2765,76 +2785,76 @@ class EnlistPaitientRouteArgs {
 }
 
 /// generated route for
-/// [_i109.EnlistServiceScreen]
-class EnlistServiceRoute extends _i230.PageRouteInfo<void> {
-  const EnlistServiceRoute({List<_i230.PageRouteInfo>? children})
+/// [_i110.EnlistServiceScreen]
+class EnlistServiceRoute extends _i232.PageRouteInfo<void> {
+  const EnlistServiceRoute({List<_i232.PageRouteInfo>? children})
     : super(EnlistServiceRoute.name, initialChildren: children);
 
   static const String name = 'EnlistServiceRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i109.EnlistServiceScreen();
+      return const _i110.EnlistServiceScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i110.ForgotPasswordScreen]
-class ForgotPasswordRoute extends _i230.PageRouteInfo<void> {
-  const ForgotPasswordRoute({List<_i230.PageRouteInfo>? children})
+/// [_i111.ForgotPasswordScreen]
+class ForgotPasswordRoute extends _i232.PageRouteInfo<void> {
+  const ForgotPasswordRoute({List<_i232.PageRouteInfo>? children})
     : super(ForgotPasswordRoute.name, initialChildren: children);
 
   static const String name = 'ForgotPasswordRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i110.ForgotPasswordScreen();
+      return const _i111.ForgotPasswordScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i111.FrontDeskDashboardScreen]
-class FrontDeskDashboardRoute extends _i230.PageRouteInfo<void> {
-  const FrontDeskDashboardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i112.FrontDeskDashboardScreen]
+class FrontDeskDashboardRoute extends _i232.PageRouteInfo<void> {
+  const FrontDeskDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(FrontDeskDashboardRoute.name, initialChildren: children);
 
   static const String name = 'FrontDeskDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i111.FrontDeskDashboardScreen();
+      return const _i112.FrontDeskDashboardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i112.HelpCenterScreen]
-class HelpCenterRoute extends _i230.PageRouteInfo<void> {
-  const HelpCenterRoute({List<_i230.PageRouteInfo>? children})
+/// [_i113.HelpCenterScreen]
+class HelpCenterRoute extends _i232.PageRouteInfo<void> {
+  const HelpCenterRoute({List<_i232.PageRouteInfo>? children})
     : super(HelpCenterRoute.name, initialChildren: children);
 
   static const String name = 'HelpCenterRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i112.HelpCenterScreen();
+      return const _i113.HelpCenterScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i113.HmoDetailScreen]
-class HmoDetailRoute extends _i230.PageRouteInfo<HmoDetailRouteArgs> {
+/// [_i114.HmoDetailScreen]
+class HmoDetailRoute extends _i232.PageRouteInfo<HmoDetailRouteArgs> {
   HmoDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String hmoId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          HmoDetailRoute.name,
          args: HmoDetailRouteArgs(key: key, hmoId: hmoId),
@@ -2843,11 +2863,11 @@ class HmoDetailRoute extends _i230.PageRouteInfo<HmoDetailRouteArgs> {
 
   static const String name = 'HmoDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<HmoDetailRouteArgs>();
-      return _i113.HmoDetailScreen(key: args.key, hmoId: args.hmoId);
+      return _i114.HmoDetailScreen(key: args.key, hmoId: args.hmoId);
     },
   );
 }
@@ -2855,7 +2875,7 @@ class HmoDetailRoute extends _i230.PageRouteInfo<HmoDetailRouteArgs> {
 class HmoDetailRouteArgs {
   const HmoDetailRouteArgs({this.key, required this.hmoId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String hmoId;
 
@@ -2876,12 +2896,12 @@ class HmoDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i114.HmoFormScreen]
-class HmoFormRoute extends _i230.PageRouteInfo<HmoFormRouteArgs> {
+/// [_i115.HmoFormScreen]
+class HmoFormRoute extends _i232.PageRouteInfo<HmoFormRouteArgs> {
   HmoFormRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? hmoId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          HmoFormRoute.name,
          args: HmoFormRouteArgs(key: key, hmoId: hmoId),
@@ -2890,13 +2910,13 @@ class HmoFormRoute extends _i230.PageRouteInfo<HmoFormRouteArgs> {
 
   static const String name = 'HmoFormRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<HmoFormRouteArgs>(
         orElse: () => const HmoFormRouteArgs(),
       );
-      return _i114.HmoFormScreen(key: args.key, hmoId: args.hmoId);
+      return _i115.HmoFormScreen(key: args.key, hmoId: args.hmoId);
     },
   );
 }
@@ -2904,7 +2924,7 @@ class HmoFormRoute extends _i230.PageRouteInfo<HmoFormRouteArgs> {
 class HmoFormRouteArgs {
   const HmoFormRouteArgs({this.key, this.hmoId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? hmoId;
 
@@ -2925,30 +2945,30 @@ class HmoFormRouteArgs {
 }
 
 /// generated route for
-/// [_i115.HmoListScreen]
-class HmoListRoute extends _i230.PageRouteInfo<void> {
-  const HmoListRoute({List<_i230.PageRouteInfo>? children})
+/// [_i116.HmoListScreen]
+class HmoListRoute extends _i232.PageRouteInfo<void> {
+  const HmoListRoute({List<_i232.PageRouteInfo>? children})
     : super(HmoListRoute.name, initialChildren: children);
 
   static const String name = 'HmoListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i115.HmoListScreen();
+      return const _i116.HmoListScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i116.HmoServicePricingScreen]
+/// [_i117.HmoServicePricingScreen]
 class HmoServicePricingRoute
-    extends _i230.PageRouteInfo<HmoServicePricingRouteArgs> {
+    extends _i232.PageRouteInfo<HmoServicePricingRouteArgs> {
   HmoServicePricingRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? initialHmoId,
     String? initialServiceId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          HmoServicePricingRoute.name,
          args: HmoServicePricingRouteArgs(
@@ -2961,13 +2981,13 @@ class HmoServicePricingRoute
 
   static const String name = 'HmoServicePricingRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<HmoServicePricingRouteArgs>(
         orElse: () => const HmoServicePricingRouteArgs(),
       );
-      return _i116.HmoServicePricingScreen(
+      return _i117.HmoServicePricingScreen(
         key: args.key,
         initialHmoId: args.initialHmoId,
         initialServiceId: args.initialServiceId,
@@ -2983,7 +3003,7 @@ class HmoServicePricingRouteArgs {
     this.initialServiceId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? initialHmoId;
 
@@ -3009,219 +3029,235 @@ class HmoServicePricingRouteArgs {
 }
 
 /// generated route for
-/// [_i117.HomeScreen]
-class HomeRoute extends _i230.PageRouteInfo<void> {
-  const HomeRoute({List<_i230.PageRouteInfo>? children})
+/// [_i118.HomeScreen]
+class HomeRoute extends _i232.PageRouteInfo<void> {
+  const HomeRoute({List<_i232.PageRouteInfo>? children})
     : super(HomeRoute.name, initialChildren: children);
 
   static const String name = 'HomeRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i117.HomeScreen();
+      return const _i118.HomeScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i118.InpatientAlertsScreen]
-class InpatientAlertsRoute extends _i230.PageRouteInfo<void> {
-  const InpatientAlertsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i119.InpatientAlertsScreen]
+class InpatientAlertsRoute extends _i232.PageRouteInfo<void> {
+  const InpatientAlertsRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientAlertsRoute.name, initialChildren: children);
 
   static const String name = 'InpatientAlertsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i118.InpatientAlertsScreen();
+      return const _i119.InpatientAlertsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i119.InpatientBillsListScreen]
-class InpatientBillsListRoute extends _i230.PageRouteInfo<void> {
-  const InpatientBillsListRoute({List<_i230.PageRouteInfo>? children})
+/// [_i120.InpatientBillsListScreen]
+class InpatientBillsListRoute extends _i232.PageRouteInfo<void> {
+  const InpatientBillsListRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientBillsListRoute.name, initialChildren: children);
 
   static const String name = 'InpatientBillsListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i119.InpatientBillsListScreen();
+      return const _i120.InpatientBillsListScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i120.InpatientCarePlanScreen]
-class InpatientCarePlanRoute extends _i230.PageRouteInfo<void> {
-  const InpatientCarePlanRoute({List<_i230.PageRouteInfo>? children})
+/// [_i121.InpatientCarePlanScreen]
+class InpatientCarePlanRoute extends _i232.PageRouteInfo<void> {
+  const InpatientCarePlanRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientCarePlanRoute.name, initialChildren: children);
 
   static const String name = 'InpatientCarePlanRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i120.InpatientCarePlanScreen();
+      return const _i121.InpatientCarePlanScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i121.InpatientHandoverScreen]
-class InpatientHandoverRoute extends _i230.PageRouteInfo<void> {
-  const InpatientHandoverRoute({List<_i230.PageRouteInfo>? children})
+/// [_i122.InpatientConsumablesScreen]
+class InpatientConsumablesRoute extends _i232.PageRouteInfo<void> {
+  const InpatientConsumablesRoute({List<_i232.PageRouteInfo>? children})
+    : super(InpatientConsumablesRoute.name, initialChildren: children);
+
+  static const String name = 'InpatientConsumablesRoute';
+
+  static _i232.PageInfo page = _i232.PageInfo(
+    name,
+    builder: (data) {
+      return const _i122.InpatientConsumablesScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [_i123.InpatientHandoverScreen]
+class InpatientHandoverRoute extends _i232.PageRouteInfo<void> {
+  const InpatientHandoverRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientHandoverRoute.name, initialChildren: children);
 
   static const String name = 'InpatientHandoverRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i121.InpatientHandoverScreen();
+      return const _i123.InpatientHandoverScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i122.InpatientIOScreen]
-class InpatientIORoute extends _i230.PageRouteInfo<void> {
-  const InpatientIORoute({List<_i230.PageRouteInfo>? children})
+/// [_i124.InpatientIOScreen]
+class InpatientIORoute extends _i232.PageRouteInfo<void> {
+  const InpatientIORoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientIORoute.name, initialChildren: children);
 
   static const String name = 'InpatientIORoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i122.InpatientIOScreen();
+      return const _i124.InpatientIOScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i123.InpatientIVScreen]
-class InpatientIVRoute extends _i230.PageRouteInfo<void> {
-  const InpatientIVRoute({List<_i230.PageRouteInfo>? children})
+/// [_i125.InpatientIVScreen]
+class InpatientIVRoute extends _i232.PageRouteInfo<void> {
+  const InpatientIVRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientIVRoute.name, initialChildren: children);
 
   static const String name = 'InpatientIVRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i123.InpatientIVScreen();
+      return const _i125.InpatientIVScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i124.InpatientImagingResultsScreen]
-class InpatientImagingResultsRoute extends _i230.PageRouteInfo<void> {
-  const InpatientImagingResultsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i126.InpatientImagingResultsScreen]
+class InpatientImagingResultsRoute extends _i232.PageRouteInfo<void> {
+  const InpatientImagingResultsRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientImagingResultsRoute.name, initialChildren: children);
 
   static const String name = 'InpatientImagingResultsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i124.InpatientImagingResultsScreen();
+      return const _i126.InpatientImagingResultsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i125.InpatientLabResultsScreen]
-class InpatientLabResultsRoute extends _i230.PageRouteInfo<void> {
-  const InpatientLabResultsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i127.InpatientLabResultsScreen]
+class InpatientLabResultsRoute extends _i232.PageRouteInfo<void> {
+  const InpatientLabResultsRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientLabResultsRoute.name, initialChildren: children);
 
   static const String name = 'InpatientLabResultsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i125.InpatientLabResultsScreen();
+      return const _i127.InpatientLabResultsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i126.InpatientMedicationsScreen]
-class InpatientMedicationsRoute extends _i230.PageRouteInfo<void> {
-  const InpatientMedicationsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i128.InpatientMedicationsScreen]
+class InpatientMedicationsRoute extends _i232.PageRouteInfo<void> {
+  const InpatientMedicationsRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientMedicationsRoute.name, initialChildren: children);
 
   static const String name = 'InpatientMedicationsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i126.InpatientMedicationsScreen();
+      return const _i128.InpatientMedicationsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i127.InpatientMonitoringScreen]
-class InpatientMonitoringRoute extends _i230.PageRouteInfo<void> {
-  const InpatientMonitoringRoute({List<_i230.PageRouteInfo>? children})
+/// [_i129.InpatientMonitoringScreen]
+class InpatientMonitoringRoute extends _i232.PageRouteInfo<void> {
+  const InpatientMonitoringRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientMonitoringRoute.name, initialChildren: children);
 
   static const String name = 'InpatientMonitoringRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i127.InpatientMonitoringScreen();
+      return const _i129.InpatientMonitoringScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i128.InpatientNotesScreen]
-class InpatientNotesRoute extends _i230.PageRouteInfo<void> {
-  const InpatientNotesRoute({List<_i230.PageRouteInfo>? children})
+/// [_i130.InpatientNotesScreen]
+class InpatientNotesRoute extends _i232.PageRouteInfo<void> {
+  const InpatientNotesRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientNotesRoute.name, initialChildren: children);
 
   static const String name = 'InpatientNotesRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i128.InpatientNotesScreen();
+      return const _i130.InpatientNotesScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i129.InpatientOverviewScreen]
-class InpatientOverviewRoute extends _i230.PageRouteInfo<void> {
-  const InpatientOverviewRoute({List<_i230.PageRouteInfo>? children})
+/// [_i131.InpatientOverviewScreen]
+class InpatientOverviewRoute extends _i232.PageRouteInfo<void> {
+  const InpatientOverviewRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientOverviewRoute.name, initialChildren: children);
 
   static const String name = 'InpatientOverviewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i129.InpatientOverviewScreen();
+      return const _i131.InpatientOverviewScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i130.InpatientPatientViewScreen]
+/// [_i132.InpatientPatientViewScreen]
 class InpatientPatientViewRoute
-    extends _i230.PageRouteInfo<InpatientPatientViewRouteArgs> {
+    extends _i232.PageRouteInfo<InpatientPatientViewRouteArgs> {
   InpatientPatientViewRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String admissionId,
     String? ward,
     String? bedNumber,
@@ -3231,7 +3267,7 @@ class InpatientPatientViewRoute
     List<String>? allergies,
     String? codeStatus,
     List<String>? riskFlags,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          InpatientPatientViewRoute.name,
          args: InpatientPatientViewRouteArgs(
@@ -3251,11 +3287,11 @@ class InpatientPatientViewRoute
 
   static const String name = 'InpatientPatientViewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<InpatientPatientViewRouteArgs>();
-      return _i130.InpatientPatientViewScreen(
+      return _i132.InpatientPatientViewScreen(
         key: args.key,
         admissionId: args.admissionId,
         ward: args.ward,
@@ -3285,7 +3321,7 @@ class InpatientPatientViewRouteArgs {
     this.riskFlags,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String admissionId;
 
@@ -3321,9 +3357,9 @@ class InpatientPatientViewRouteArgs {
         attendingDoctor == other.attendingDoctor &&
         diagnosis == other.diagnosis &&
         admissionDate == other.admissionDate &&
-        const _i234.ListEquality<String>().equals(allergies, other.allergies) &&
+        const _i236.ListEquality<String>().equals(allergies, other.allergies) &&
         codeStatus == other.codeStatus &&
-        const _i234.ListEquality<String>().equals(riskFlags, other.riskFlags);
+        const _i236.ListEquality<String>().equals(riskFlags, other.riskFlags);
   }
 
   @override
@@ -3335,36 +3371,36 @@ class InpatientPatientViewRouteArgs {
       attendingDoctor.hashCode ^
       diagnosis.hashCode ^
       admissionDate.hashCode ^
-      const _i234.ListEquality<String>().hash(allergies) ^
+      const _i236.ListEquality<String>().hash(allergies) ^
       codeStatus.hashCode ^
-      const _i234.ListEquality<String>().hash(riskFlags);
+      const _i236.ListEquality<String>().hash(riskFlags);
 }
 
 /// generated route for
-/// [_i131.InpatientProceduresScreen]
-class InpatientProceduresRoute extends _i230.PageRouteInfo<void> {
-  const InpatientProceduresRoute({List<_i230.PageRouteInfo>? children})
+/// [_i133.InpatientProceduresScreen]
+class InpatientProceduresRoute extends _i232.PageRouteInfo<void> {
+  const InpatientProceduresRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientProceduresRoute.name, initialChildren: children);
 
   static const String name = 'InpatientProceduresRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i131.InpatientProceduresScreen();
+      return const _i133.InpatientProceduresScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i132.InpatientVitalsScreen]
+/// [_i134.InpatientVitalsScreen]
 class InpatientVitalsRoute
-    extends _i230.PageRouteInfo<InpatientVitalsRouteArgs> {
+    extends _i232.PageRouteInfo<InpatientVitalsRouteArgs> {
   InpatientVitalsRoute({
-    _i231.Key? key,
-    required List<_i235.PatientVitalsModel> vitals,
+    _i233.Key? key,
+    required List<_i237.PatientVitalsModel> vitals,
     required String admissionId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          InpatientVitalsRoute.name,
          args: InpatientVitalsRouteArgs(
@@ -3377,11 +3413,11 @@ class InpatientVitalsRoute
 
   static const String name = 'InpatientVitalsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<InpatientVitalsRouteArgs>();
-      return _i132.InpatientVitalsScreen(
+      return _i134.InpatientVitalsScreen(
         key: args.key,
         vitals: args.vitals,
         admissionId: args.admissionId,
@@ -3397,9 +3433,9 @@ class InpatientVitalsRouteArgs {
     required this.admissionId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
-  final List<_i235.PatientVitalsModel> vitals;
+  final List<_i237.PatientVitalsModel> vitals;
 
   final String admissionId;
 
@@ -3413,7 +3449,7 @@ class InpatientVitalsRouteArgs {
     if (identical(this, other)) return true;
     if (other is! InpatientVitalsRouteArgs) return false;
     return key == other.key &&
-        const _i234.ListEquality<_i235.PatientVitalsModel>().equals(
+        const _i236.ListEquality<_i237.PatientVitalsModel>().equals(
           vitals,
           other.vitals,
         ) &&
@@ -3423,113 +3459,113 @@ class InpatientVitalsRouteArgs {
   @override
   int get hashCode =>
       key.hashCode ^
-      const _i234.ListEquality<_i235.PatientVitalsModel>().hash(vitals) ^
+      const _i236.ListEquality<_i237.PatientVitalsModel>().hash(vitals) ^
       admissionId.hashCode;
 }
 
 /// generated route for
-/// [_i133.InpatientWardRoundTab]
-class InpatientWardRoundTab extends _i230.PageRouteInfo<void> {
-  const InpatientWardRoundTab({List<_i230.PageRouteInfo>? children})
+/// [_i135.InpatientWardRoundTab]
+class InpatientWardRoundTab extends _i232.PageRouteInfo<void> {
+  const InpatientWardRoundTab({List<_i232.PageRouteInfo>? children})
     : super(InpatientWardRoundTab.name, initialChildren: children);
 
   static const String name = 'InpatientWardRoundTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i133.InpatientWardRoundTab();
+      return const _i135.InpatientWardRoundTab();
     },
   );
 }
 
 /// generated route for
-/// [_i134.InpatientWoundAssessmentScreen]
-class InpatientWoundAssessmentRoute extends _i230.PageRouteInfo<void> {
-  const InpatientWoundAssessmentRoute({List<_i230.PageRouteInfo>? children})
+/// [_i136.InpatientWoundAssessmentScreen]
+class InpatientWoundAssessmentRoute extends _i232.PageRouteInfo<void> {
+  const InpatientWoundAssessmentRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientWoundAssessmentRoute.name, initialChildren: children);
 
   static const String name = 'InpatientWoundAssessmentRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i134.InpatientWoundAssessmentScreen();
+      return const _i136.InpatientWoundAssessmentScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i135.InpatientsListScreen]
-class InpatientsListRoute extends _i230.PageRouteInfo<void> {
-  const InpatientsListRoute({List<_i230.PageRouteInfo>? children})
+/// [_i137.InpatientsListScreen]
+class InpatientsListRoute extends _i232.PageRouteInfo<void> {
+  const InpatientsListRoute({List<_i232.PageRouteInfo>? children})
     : super(InpatientsListRoute.name, initialChildren: children);
 
   static const String name = 'InpatientsListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i135.InpatientsListScreen();
+      return const _i137.InpatientsListScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i136.LabConfigScreen]
-class LabConfigRoute extends _i230.PageRouteInfo<void> {
-  const LabConfigRoute({List<_i230.PageRouteInfo>? children})
+/// [_i138.LabConfigScreen]
+class LabConfigRoute extends _i232.PageRouteInfo<void> {
+  const LabConfigRoute({List<_i232.PageRouteInfo>? children})
     : super(LabConfigRoute.name, initialChildren: children);
 
   static const String name = 'LabConfigRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i136.LabConfigScreen();
+      return const _i138.LabConfigScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i137.LabCreateOrderScreen]
-class LabCreateOrderRoute extends _i230.PageRouteInfo<void> {
-  const LabCreateOrderRoute({List<_i230.PageRouteInfo>? children})
+/// [_i139.LabCreateOrderScreen]
+class LabCreateOrderRoute extends _i232.PageRouteInfo<void> {
+  const LabCreateOrderRoute({List<_i232.PageRouteInfo>? children})
     : super(LabCreateOrderRoute.name, initialChildren: children);
 
   static const String name = 'LabCreateOrderRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i137.LabCreateOrderScreen();
+      return const _i139.LabCreateOrderScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i138.LabDashboardScreen]
-class LabDashboardRoute extends _i230.PageRouteInfo<void> {
-  const LabDashboardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i140.LabDashboardScreen]
+class LabDashboardRoute extends _i232.PageRouteInfo<void> {
+  const LabDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(LabDashboardRoute.name, initialChildren: children);
 
   static const String name = 'LabDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i138.LabDashboardScreen();
+      return const _i140.LabDashboardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i139.LabOrderDetailScreen]
-class LabOrderDetailRoute extends _i230.PageRouteInfo<LabOrderDetailRouteArgs> {
+/// [_i141.LabOrderDetailScreen]
+class LabOrderDetailRoute extends _i232.PageRouteInfo<LabOrderDetailRouteArgs> {
   LabOrderDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String orderId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          LabOrderDetailRoute.name,
          args: LabOrderDetailRouteArgs(key: key, orderId: orderId),
@@ -3538,11 +3574,11 @@ class LabOrderDetailRoute extends _i230.PageRouteInfo<LabOrderDetailRouteArgs> {
 
   static const String name = 'LabOrderDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<LabOrderDetailRouteArgs>();
-      return _i139.LabOrderDetailScreen(key: args.key, orderId: args.orderId);
+      return _i141.LabOrderDetailScreen(key: args.key, orderId: args.orderId);
     },
   );
 }
@@ -3550,7 +3586,7 @@ class LabOrderDetailRoute extends _i230.PageRouteInfo<LabOrderDetailRouteArgs> {
 class LabOrderDetailRouteArgs {
   const LabOrderDetailRouteArgs({this.key, required this.orderId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String orderId;
 
@@ -3571,13 +3607,13 @@ class LabOrderDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i140.LabResultEntryScreen]
-class LabResultEntryRoute extends _i230.PageRouteInfo<LabResultEntryRouteArgs> {
+/// [_i142.LabResultEntryScreen]
+class LabResultEntryRoute extends _i232.PageRouteInfo<LabResultEntryRouteArgs> {
   LabResultEntryRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String orderId,
     required String orderItemId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          LabResultEntryRoute.name,
          args: LabResultEntryRouteArgs(
@@ -3590,11 +3626,11 @@ class LabResultEntryRoute extends _i230.PageRouteInfo<LabResultEntryRouteArgs> {
 
   static const String name = 'LabResultEntryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<LabResultEntryRouteArgs>();
-      return _i140.LabResultEntryScreen(
+      return _i142.LabResultEntryScreen(
         key: args.key,
         orderId: args.orderId,
         orderItemId: args.orderItemId,
@@ -3610,7 +3646,7 @@ class LabResultEntryRouteArgs {
     required this.orderItemId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String orderId;
 
@@ -3635,12 +3671,12 @@ class LabResultEntryRouteArgs {
 }
 
 /// generated route for
-/// [_i141.LoginScreen]
-class LoginRoute extends _i230.PageRouteInfo<LoginRouteArgs> {
+/// [_i143.LoginScreen]
+class LoginRoute extends _i232.PageRouteInfo<LoginRouteArgs> {
   LoginRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? redirectTo,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          LoginRoute.name,
          args: LoginRouteArgs(key: key, redirectTo: redirectTo),
@@ -3650,7 +3686,7 @@ class LoginRoute extends _i230.PageRouteInfo<LoginRouteArgs> {
 
   static const String name = 'LoginRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final queryParams = data.queryParams;
@@ -3658,7 +3694,7 @@ class LoginRoute extends _i230.PageRouteInfo<LoginRouteArgs> {
         orElse: () =>
             LoginRouteArgs(redirectTo: queryParams.optString('redirectTo')),
       );
-      return _i141.LoginScreen(key: args.key, redirectTo: args.redirectTo);
+      return _i143.LoginScreen(key: args.key, redirectTo: args.redirectTo);
     },
   );
 }
@@ -3666,7 +3702,7 @@ class LoginRoute extends _i230.PageRouteInfo<LoginRouteArgs> {
 class LoginRouteArgs {
   const LoginRouteArgs({this.key, this.redirectTo});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? redirectTo;
 
@@ -3687,45 +3723,45 @@ class LoginRouteArgs {
 }
 
 /// generated route for
-/// [_i142.MedicineInventoryScreen]
-class MedicineInventoryRoute extends _i230.PageRouteInfo<void> {
-  const MedicineInventoryRoute({List<_i230.PageRouteInfo>? children})
+/// [_i144.MedicineInventoryScreen]
+class MedicineInventoryRoute extends _i232.PageRouteInfo<void> {
+  const MedicineInventoryRoute({List<_i232.PageRouteInfo>? children})
     : super(MedicineInventoryRoute.name, initialChildren: children);
 
   static const String name = 'MedicineInventoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i142.MedicineInventoryScreen();
+      return const _i144.MedicineInventoryScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i143.NewAppointmentScreen]
-class NewAppointmentRoute extends _i230.PageRouteInfo<void> {
-  const NewAppointmentRoute({List<_i230.PageRouteInfo>? children})
+/// [_i145.NewAppointmentScreen]
+class NewAppointmentRoute extends _i232.PageRouteInfo<void> {
+  const NewAppointmentRoute({List<_i232.PageRouteInfo>? children})
     : super(NewAppointmentRoute.name, initialChildren: children);
 
   static const String name = 'NewAppointmentRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i143.NewAppointmentScreen();
+      return const _i145.NewAppointmentScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i144.NewPatientScreen]
-class NewPatientRoute extends _i230.PageRouteInfo<NewPatientRouteArgs> {
+/// [_i146.NewPatientScreen]
+class NewPatientRoute extends _i232.PageRouteInfo<NewPatientRouteArgs> {
   NewPatientRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String use = 'For Register',
     List<String> categoryQueries = const ['Laboratory', 'Laboratory Tests'],
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          NewPatientRoute.name,
          args: NewPatientRouteArgs(
@@ -3738,13 +3774,13 @@ class NewPatientRoute extends _i230.PageRouteInfo<NewPatientRouteArgs> {
 
   static const String name = 'NewPatientRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<NewPatientRouteArgs>(
         orElse: () => const NewPatientRouteArgs(),
       );
-      return _i144.NewPatientScreen(
+      return _i146.NewPatientScreen(
         key: args.key,
         use: args.use,
         categoryQueries: args.categoryQueries,
@@ -3760,7 +3796,7 @@ class NewPatientRouteArgs {
     this.categoryQueries = const ['Laboratory', 'Laboratory Tests'],
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String use;
 
@@ -3777,7 +3813,7 @@ class NewPatientRouteArgs {
     if (other is! NewPatientRouteArgs) return false;
     return key == other.key &&
         use == other.use &&
-        const _i234.ListEquality<String>().equals(
+        const _i236.ListEquality<String>().equals(
           categoryQueries,
           other.categoryQueries,
         );
@@ -3787,98 +3823,98 @@ class NewPatientRouteArgs {
   int get hashCode =>
       key.hashCode ^
       use.hashCode ^
-      const _i234.ListEquality<String>().hash(categoryQueries);
+      const _i236.ListEquality<String>().hash(categoryQueries);
 }
 
 /// generated route for
-/// [_i145.NotAvailableScreen]
-class NotAvailableRoute extends _i230.PageRouteInfo<void> {
-  const NotAvailableRoute({List<_i230.PageRouteInfo>? children})
+/// [_i147.NotAvailableScreen]
+class NotAvailableRoute extends _i232.PageRouteInfo<void> {
+  const NotAvailableRoute({List<_i232.PageRouteInfo>? children})
     : super(NotAvailableRoute.name, initialChildren: children);
 
   static const String name = 'NotAvailableRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i145.NotAvailableScreen();
+      return const _i147.NotAvailableScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i146.NurseConsumableUsageScreen]
-class NurseConsumableUsageRoute extends _i230.PageRouteInfo<void> {
-  const NurseConsumableUsageRoute({List<_i230.PageRouteInfo>? children})
+/// [_i148.NurseConsumableUsageScreen]
+class NurseConsumableUsageRoute extends _i232.PageRouteInfo<void> {
+  const NurseConsumableUsageRoute({List<_i232.PageRouteInfo>? children})
     : super(NurseConsumableUsageRoute.name, initialChildren: children);
 
   static const String name = 'NurseConsumableUsageRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i146.NurseConsumableUsageScreen();
+      return const _i148.NurseConsumableUsageScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i147.NursesDashboardScreen]
-class NursesDashboardRoute extends _i230.PageRouteInfo<void> {
-  const NursesDashboardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i149.NursesDashboardScreen]
+class NursesDashboardRoute extends _i232.PageRouteInfo<void> {
+  const NursesDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(NursesDashboardRoute.name, initialChildren: children);
 
   static const String name = 'NursesDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i147.NursesDashboardScreen();
+      return const _i149.NursesDashboardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i148.NursingAssignmentsScreen]
-class NursingAssignmentsRoute extends _i230.PageRouteInfo<void> {
-  const NursingAssignmentsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i150.NursingAssignmentsScreen]
+class NursingAssignmentsRoute extends _i232.PageRouteInfo<void> {
+  const NursingAssignmentsRoute({List<_i232.PageRouteInfo>? children})
     : super(NursingAssignmentsRoute.name, initialChildren: children);
 
   static const String name = 'NursingAssignmentsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i148.NursingAssignmentsScreen();
+      return const _i150.NursingAssignmentsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i149.NursingRosterScreen]
-class NursingRosterRoute extends _i230.PageRouteInfo<void> {
-  const NursingRosterRoute({List<_i230.PageRouteInfo>? children})
+/// [_i151.NursingRosterScreen]
+class NursingRosterRoute extends _i232.PageRouteInfo<void> {
+  const NursingRosterRoute({List<_i232.PageRouteInfo>? children})
     : super(NursingRosterRoute.name, initialChildren: children);
 
   static const String name = 'NursingRosterRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i149.NursingRosterScreen();
+      return const _i151.NursingRosterScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i150.ObstetricsAddAntenatalVisitScreen]
+/// [_i152.ObstetricsAddAntenatalVisitScreen]
 class ObstetricsAddAntenatalVisitRoute
-    extends _i230.PageRouteInfo<ObstetricsAddAntenatalVisitRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsAddAntenatalVisitRouteArgs> {
   ObstetricsAddAntenatalVisitRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String pregnancyId,
     String? encounterId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsAddAntenatalVisitRoute.name,
          args: ObstetricsAddAntenatalVisitRouteArgs(
@@ -3891,11 +3927,11 @@ class ObstetricsAddAntenatalVisitRoute
 
   static const String name = 'ObstetricsAddAntenatalVisitRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsAddAntenatalVisitRouteArgs>();
-      return _i150.ObstetricsAddAntenatalVisitScreen(
+      return _i152.ObstetricsAddAntenatalVisitScreen(
         key: args.key,
         pregnancyId: args.pregnancyId,
         encounterId: args.encounterId,
@@ -3911,7 +3947,7 @@ class ObstetricsAddAntenatalVisitRouteArgs {
     this.encounterId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String pregnancyId;
 
@@ -3937,14 +3973,14 @@ class ObstetricsAddAntenatalVisitRouteArgs {
 }
 
 /// generated route for
-/// [_i151.ObstetricsAddBabyScreen]
+/// [_i153.ObstetricsAddBabyScreen]
 class ObstetricsAddBabyRoute
-    extends _i230.PageRouteInfo<ObstetricsAddBabyRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsAddBabyRouteArgs> {
   ObstetricsAddBabyRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String labourDeliveryId,
     required String pregnancyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsAddBabyRoute.name,
          args: ObstetricsAddBabyRouteArgs(
@@ -3957,11 +3993,11 @@ class ObstetricsAddBabyRoute
 
   static const String name = 'ObstetricsAddBabyRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsAddBabyRouteArgs>();
-      return _i151.ObstetricsAddBabyScreen(
+      return _i153.ObstetricsAddBabyScreen(
         key: args.key,
         labourDeliveryId: args.labourDeliveryId,
         pregnancyId: args.pregnancyId,
@@ -3977,7 +4013,7 @@ class ObstetricsAddBabyRouteArgs {
     required this.pregnancyId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String labourDeliveryId;
 
@@ -4003,14 +4039,14 @@ class ObstetricsAddBabyRouteArgs {
 }
 
 /// generated route for
-/// [_i152.ObstetricsAddGynaeProcedureScreen]
+/// [_i154.ObstetricsAddGynaeProcedureScreen]
 class ObstetricsAddGynaeProcedureRoute
-    extends _i230.PageRouteInfo<ObstetricsAddGynaeProcedureRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsAddGynaeProcedureRouteArgs> {
   ObstetricsAddGynaeProcedureRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? patientId,
     String? encounterId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsAddGynaeProcedureRoute.name,
          args: ObstetricsAddGynaeProcedureRouteArgs(
@@ -4023,13 +4059,13 @@ class ObstetricsAddGynaeProcedureRoute
 
   static const String name = 'ObstetricsAddGynaeProcedureRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsAddGynaeProcedureRouteArgs>(
         orElse: () => const ObstetricsAddGynaeProcedureRouteArgs(),
       );
-      return _i152.ObstetricsAddGynaeProcedureScreen(
+      return _i154.ObstetricsAddGynaeProcedureScreen(
         key: args.key,
         patientId: args.patientId,
         encounterId: args.encounterId,
@@ -4045,7 +4081,7 @@ class ObstetricsAddGynaeProcedureRouteArgs {
     this.encounterId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? patientId;
 
@@ -4070,13 +4106,13 @@ class ObstetricsAddGynaeProcedureRouteArgs {
 }
 
 /// generated route for
-/// [_i153.ObstetricsAddLabourDeliveryScreen]
+/// [_i155.ObstetricsAddLabourDeliveryScreen]
 class ObstetricsAddLabourDeliveryRoute
-    extends _i230.PageRouteInfo<ObstetricsAddLabourDeliveryRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsAddLabourDeliveryRouteArgs> {
   ObstetricsAddLabourDeliveryRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String pregnancyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsAddLabourDeliveryRoute.name,
          args: ObstetricsAddLabourDeliveryRouteArgs(
@@ -4088,11 +4124,11 @@ class ObstetricsAddLabourDeliveryRoute
 
   static const String name = 'ObstetricsAddLabourDeliveryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsAddLabourDeliveryRouteArgs>();
-      return _i153.ObstetricsAddLabourDeliveryScreen(
+      return _i155.ObstetricsAddLabourDeliveryScreen(
         key: args.key,
         pregnancyId: args.pregnancyId,
       );
@@ -4106,7 +4142,7 @@ class ObstetricsAddLabourDeliveryRouteArgs {
     required this.pregnancyId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String pregnancyId;
 
@@ -4127,13 +4163,13 @@ class ObstetricsAddLabourDeliveryRouteArgs {
 }
 
 /// generated route for
-/// [_i154.ObstetricsAddPartogramEntryScreen]
+/// [_i156.ObstetricsAddPartogramEntryScreen]
 class ObstetricsAddPartogramEntryRoute
-    extends _i230.PageRouteInfo<ObstetricsAddPartogramEntryRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsAddPartogramEntryRouteArgs> {
   ObstetricsAddPartogramEntryRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String labourDeliveryId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsAddPartogramEntryRoute.name,
          args: ObstetricsAddPartogramEntryRouteArgs(
@@ -4145,11 +4181,11 @@ class ObstetricsAddPartogramEntryRoute
 
   static const String name = 'ObstetricsAddPartogramEntryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsAddPartogramEntryRouteArgs>();
-      return _i154.ObstetricsAddPartogramEntryScreen(
+      return _i156.ObstetricsAddPartogramEntryScreen(
         key: args.key,
         labourDeliveryId: args.labourDeliveryId,
       );
@@ -4163,7 +4199,7 @@ class ObstetricsAddPartogramEntryRouteArgs {
     required this.labourDeliveryId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String labourDeliveryId;
 
@@ -4184,13 +4220,13 @@ class ObstetricsAddPartogramEntryRouteArgs {
 }
 
 /// generated route for
-/// [_i155.ObstetricsAddPostnatalVisitScreen]
+/// [_i157.ObstetricsAddPostnatalVisitScreen]
 class ObstetricsAddPostnatalVisitRoute
-    extends _i230.PageRouteInfo<ObstetricsAddPostnatalVisitRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsAddPostnatalVisitRouteArgs> {
   ObstetricsAddPostnatalVisitRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String labourDeliveryId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsAddPostnatalVisitRoute.name,
          args: ObstetricsAddPostnatalVisitRouteArgs(
@@ -4202,11 +4238,11 @@ class ObstetricsAddPostnatalVisitRoute
 
   static const String name = 'ObstetricsAddPostnatalVisitRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsAddPostnatalVisitRouteArgs>();
-      return _i155.ObstetricsAddPostnatalVisitScreen(
+      return _i157.ObstetricsAddPostnatalVisitScreen(
         key: args.key,
         labourDeliveryId: args.labourDeliveryId,
       );
@@ -4220,7 +4256,7 @@ class ObstetricsAddPostnatalVisitRouteArgs {
     required this.labourDeliveryId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String labourDeliveryId;
 
@@ -4241,13 +4277,13 @@ class ObstetricsAddPostnatalVisitRouteArgs {
 }
 
 /// generated route for
-/// [_i156.ObstetricsAddPregnancyScreen]
+/// [_i158.ObstetricsAddPregnancyScreen]
 class ObstetricsAddPregnancyRoute
-    extends _i230.PageRouteInfo<ObstetricsAddPregnancyRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsAddPregnancyRouteArgs> {
   ObstetricsAddPregnancyRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? patientId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsAddPregnancyRoute.name,
          args: ObstetricsAddPregnancyRouteArgs(key: key, patientId: patientId),
@@ -4256,13 +4292,13 @@ class ObstetricsAddPregnancyRoute
 
   static const String name = 'ObstetricsAddPregnancyRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsAddPregnancyRouteArgs>(
         orElse: () => const ObstetricsAddPregnancyRouteArgs(),
       );
-      return _i156.ObstetricsAddPregnancyScreen(
+      return _i158.ObstetricsAddPregnancyScreen(
         key: args.key,
         patientId: args.patientId,
       );
@@ -4273,7 +4309,7 @@ class ObstetricsAddPregnancyRoute
 class ObstetricsAddPregnancyRouteArgs {
   const ObstetricsAddPregnancyRouteArgs({this.key, this.patientId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? patientId;
 
@@ -4294,13 +4330,13 @@ class ObstetricsAddPregnancyRouteArgs {
 }
 
 /// generated route for
-/// [_i157.ObstetricsAntenatalVisitsTab]
+/// [_i159.ObstetricsAntenatalVisitsTab]
 class ObstetricsAntenatalVisitsTab
-    extends _i230.PageRouteInfo<ObstetricsAntenatalVisitsTabArgs> {
+    extends _i232.PageRouteInfo<ObstetricsAntenatalVisitsTabArgs> {
   ObstetricsAntenatalVisitsTab({
-    _i231.Key? key,
+    _i233.Key? key,
     String? pregnancyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsAntenatalVisitsTab.name,
          args: ObstetricsAntenatalVisitsTabArgs(
@@ -4312,13 +4348,13 @@ class ObstetricsAntenatalVisitsTab
 
   static const String name = 'ObstetricsAntenatalVisitsTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsAntenatalVisitsTabArgs>(
         orElse: () => const ObstetricsAntenatalVisitsTabArgs(),
       );
-      return _i157.ObstetricsAntenatalVisitsTab(
+      return _i159.ObstetricsAntenatalVisitsTab(
         key: args.key,
         pregnancyId: args.pregnancyId,
       );
@@ -4329,7 +4365,7 @@ class ObstetricsAntenatalVisitsTab
 class ObstetricsAntenatalVisitsTabArgs {
   const ObstetricsAntenatalVisitsTabArgs({this.key, this.pregnancyId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? pregnancyId;
 
@@ -4350,29 +4386,29 @@ class ObstetricsAntenatalVisitsTabArgs {
 }
 
 /// generated route for
-/// [_i158.ObstetricsDashboardScreen]
-class ObstetricsDashboardRoute extends _i230.PageRouteInfo<void> {
-  const ObstetricsDashboardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i160.ObstetricsDashboardScreen]
+class ObstetricsDashboardRoute extends _i232.PageRouteInfo<void> {
+  const ObstetricsDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(ObstetricsDashboardRoute.name, initialChildren: children);
 
   static const String name = 'ObstetricsDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i158.ObstetricsDashboardScreen();
+      return const _i160.ObstetricsDashboardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i159.ObstetricsEditAntenatalVisitScreen]
+/// [_i161.ObstetricsEditAntenatalVisitScreen]
 class ObstetricsEditAntenatalVisitRoute
-    extends _i230.PageRouteInfo<ObstetricsEditAntenatalVisitRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsEditAntenatalVisitRouteArgs> {
   ObstetricsEditAntenatalVisitRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String visitId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsEditAntenatalVisitRoute.name,
          args: ObstetricsEditAntenatalVisitRouteArgs(
@@ -4384,11 +4420,11 @@ class ObstetricsEditAntenatalVisitRoute
 
   static const String name = 'ObstetricsEditAntenatalVisitRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsEditAntenatalVisitRouteArgs>();
-      return _i159.ObstetricsEditAntenatalVisitScreen(
+      return _i161.ObstetricsEditAntenatalVisitScreen(
         key: args.key,
         visitId: args.visitId,
       );
@@ -4402,7 +4438,7 @@ class ObstetricsEditAntenatalVisitRouteArgs {
     required this.visitId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String visitId;
 
@@ -4423,13 +4459,13 @@ class ObstetricsEditAntenatalVisitRouteArgs {
 }
 
 /// generated route for
-/// [_i160.ObstetricsEditBabyScreen]
+/// [_i162.ObstetricsEditBabyScreen]
 class ObstetricsEditBabyRoute
-    extends _i230.PageRouteInfo<ObstetricsEditBabyRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsEditBabyRouteArgs> {
   ObstetricsEditBabyRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String babyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsEditBabyRoute.name,
          args: ObstetricsEditBabyRouteArgs(key: key, babyId: babyId),
@@ -4438,11 +4474,11 @@ class ObstetricsEditBabyRoute
 
   static const String name = 'ObstetricsEditBabyRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsEditBabyRouteArgs>();
-      return _i160.ObstetricsEditBabyScreen(key: args.key, babyId: args.babyId);
+      return _i162.ObstetricsEditBabyScreen(key: args.key, babyId: args.babyId);
     },
   );
 }
@@ -4450,7 +4486,7 @@ class ObstetricsEditBabyRoute
 class ObstetricsEditBabyRouteArgs {
   const ObstetricsEditBabyRouteArgs({this.key, required this.babyId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String babyId;
 
@@ -4471,13 +4507,13 @@ class ObstetricsEditBabyRouteArgs {
 }
 
 /// generated route for
-/// [_i161.ObstetricsEditGynaeProcedureScreen]
+/// [_i163.ObstetricsEditGynaeProcedureScreen]
 class ObstetricsEditGynaeProcedureRoute
-    extends _i230.PageRouteInfo<ObstetricsEditGynaeProcedureRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsEditGynaeProcedureRouteArgs> {
   ObstetricsEditGynaeProcedureRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String procedureId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsEditGynaeProcedureRoute.name,
          args: ObstetricsEditGynaeProcedureRouteArgs(
@@ -4489,11 +4525,11 @@ class ObstetricsEditGynaeProcedureRoute
 
   static const String name = 'ObstetricsEditGynaeProcedureRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsEditGynaeProcedureRouteArgs>();
-      return _i161.ObstetricsEditGynaeProcedureScreen(
+      return _i163.ObstetricsEditGynaeProcedureScreen(
         key: args.key,
         procedureId: args.procedureId,
       );
@@ -4507,7 +4543,7 @@ class ObstetricsEditGynaeProcedureRouteArgs {
     required this.procedureId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String procedureId;
 
@@ -4528,13 +4564,13 @@ class ObstetricsEditGynaeProcedureRouteArgs {
 }
 
 /// generated route for
-/// [_i162.ObstetricsGynaeProceduresScreen]
+/// [_i164.ObstetricsGynaeProceduresScreen]
 class ObstetricsGynaeProceduresRoute
-    extends _i230.PageRouteInfo<ObstetricsGynaeProceduresRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsGynaeProceduresRouteArgs> {
   ObstetricsGynaeProceduresRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? patientId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsGynaeProceduresRoute.name,
          args: ObstetricsGynaeProceduresRouteArgs(
@@ -4546,13 +4582,13 @@ class ObstetricsGynaeProceduresRoute
 
   static const String name = 'ObstetricsGynaeProceduresRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsGynaeProceduresRouteArgs>(
         orElse: () => const ObstetricsGynaeProceduresRouteArgs(),
       );
-      return _i162.ObstetricsGynaeProceduresScreen(
+      return _i164.ObstetricsGynaeProceduresScreen(
         key: args.key,
         patientId: args.patientId,
       );
@@ -4563,7 +4599,7 @@ class ObstetricsGynaeProceduresRoute
 class ObstetricsGynaeProceduresRouteArgs {
   const ObstetricsGynaeProceduresRouteArgs({this.key, this.patientId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? patientId;
 
@@ -4584,13 +4620,13 @@ class ObstetricsGynaeProceduresRouteArgs {
 }
 
 /// generated route for
-/// [_i163.ObstetricsLabourDeliveryTab]
+/// [_i165.ObstetricsLabourDeliveryTab]
 class ObstetricsLabourDeliveryTab
-    extends _i230.PageRouteInfo<ObstetricsLabourDeliveryTabArgs> {
+    extends _i232.PageRouteInfo<ObstetricsLabourDeliveryTabArgs> {
   ObstetricsLabourDeliveryTab({
-    _i231.Key? key,
+    _i233.Key? key,
     String? pregnancyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsLabourDeliveryTab.name,
          args: ObstetricsLabourDeliveryTabArgs(
@@ -4602,13 +4638,13 @@ class ObstetricsLabourDeliveryTab
 
   static const String name = 'ObstetricsLabourDeliveryTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsLabourDeliveryTabArgs>(
         orElse: () => const ObstetricsLabourDeliveryTabArgs(),
       );
-      return _i163.ObstetricsLabourDeliveryTab(
+      return _i165.ObstetricsLabourDeliveryTab(
         key: args.key,
         pregnancyId: args.pregnancyId,
       );
@@ -4619,7 +4655,7 @@ class ObstetricsLabourDeliveryTab
 class ObstetricsLabourDeliveryTabArgs {
   const ObstetricsLabourDeliveryTabArgs({this.key, this.pregnancyId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? pregnancyId;
 
@@ -4640,13 +4676,13 @@ class ObstetricsLabourDeliveryTabArgs {
 }
 
 /// generated route for
-/// [_i164.ObstetricsLabourDeliveryViewScreen]
+/// [_i166.ObstetricsLabourDeliveryViewScreen]
 class ObstetricsLabourDeliveryViewRoute
-    extends _i230.PageRouteInfo<ObstetricsLabourDeliveryViewRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsLabourDeliveryViewRouteArgs> {
   ObstetricsLabourDeliveryViewRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String labourDeliveryId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsLabourDeliveryViewRoute.name,
          args: ObstetricsLabourDeliveryViewRouteArgs(
@@ -4658,11 +4694,11 @@ class ObstetricsLabourDeliveryViewRoute
 
   static const String name = 'ObstetricsLabourDeliveryViewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsLabourDeliveryViewRouteArgs>();
-      return _i164.ObstetricsLabourDeliveryViewScreen(
+      return _i166.ObstetricsLabourDeliveryViewScreen(
         key: args.key,
         labourDeliveryId: args.labourDeliveryId,
       );
@@ -4676,7 +4712,7 @@ class ObstetricsLabourDeliveryViewRouteArgs {
     required this.labourDeliveryId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String labourDeliveryId;
 
@@ -4697,13 +4733,13 @@ class ObstetricsLabourDeliveryViewRouteArgs {
 }
 
 /// generated route for
-/// [_i165.ObstetricsPatientSelectScreen]
+/// [_i167.ObstetricsPatientSelectScreen]
 class ObstetricsPatientSelectRoute
-    extends _i230.PageRouteInfo<ObstetricsPatientSelectRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsPatientSelectRouteArgs> {
   ObstetricsPatientSelectRoute({
-    _i231.Key? key,
-    _i165.ObstetricsSelectTarget? target,
-    List<_i230.PageRouteInfo>? children,
+    _i233.Key? key,
+    _i167.ObstetricsSelectTarget? target,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsPatientSelectRoute.name,
          args: ObstetricsPatientSelectRouteArgs(key: key, target: target),
@@ -4712,13 +4748,13 @@ class ObstetricsPatientSelectRoute
 
   static const String name = 'ObstetricsPatientSelectRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsPatientSelectRouteArgs>(
         orElse: () => const ObstetricsPatientSelectRouteArgs(),
       );
-      return _i165.ObstetricsPatientSelectScreen(
+      return _i167.ObstetricsPatientSelectScreen(
         key: args.key,
         target: args.target,
       );
@@ -4729,9 +4765,9 @@ class ObstetricsPatientSelectRoute
 class ObstetricsPatientSelectRouteArgs {
   const ObstetricsPatientSelectRouteArgs({this.key, this.target});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
-  final _i165.ObstetricsSelectTarget? target;
+  final _i167.ObstetricsSelectTarget? target;
 
   @override
   String toString() {
@@ -4750,13 +4786,13 @@ class ObstetricsPatientSelectRouteArgs {
 }
 
 /// generated route for
-/// [_i166.ObstetricsPostnatalListScreen]
+/// [_i168.ObstetricsPostnatalListScreen]
 class ObstetricsPostnatalListRoute
-    extends _i230.PageRouteInfo<ObstetricsPostnatalListRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsPostnatalListRouteArgs> {
   ObstetricsPostnatalListRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? labourDeliveryId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsPostnatalListRoute.name,
          args: ObstetricsPostnatalListRouteArgs(
@@ -4768,13 +4804,13 @@ class ObstetricsPostnatalListRoute
 
   static const String name = 'ObstetricsPostnatalListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsPostnatalListRouteArgs>(
         orElse: () => const ObstetricsPostnatalListRouteArgs(),
       );
-      return _i166.ObstetricsPostnatalListScreen(
+      return _i168.ObstetricsPostnatalListScreen(
         key: args.key,
         labourDeliveryId: args.labourDeliveryId,
       );
@@ -4785,7 +4821,7 @@ class ObstetricsPostnatalListRoute
 class ObstetricsPostnatalListRouteArgs {
   const ObstetricsPostnatalListRouteArgs({this.key, this.labourDeliveryId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? labourDeliveryId;
 
@@ -4806,13 +4842,13 @@ class ObstetricsPostnatalListRouteArgs {
 }
 
 /// generated route for
-/// [_i167.ObstetricsPostnatalTab]
+/// [_i169.ObstetricsPostnatalTab]
 class ObstetricsPostnatalTab
-    extends _i230.PageRouteInfo<ObstetricsPostnatalTabArgs> {
+    extends _i232.PageRouteInfo<ObstetricsPostnatalTabArgs> {
   ObstetricsPostnatalTab({
-    _i231.Key? key,
+    _i233.Key? key,
     String? pregnancyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsPostnatalTab.name,
          args: ObstetricsPostnatalTabArgs(key: key, pregnancyId: pregnancyId),
@@ -4821,13 +4857,13 @@ class ObstetricsPostnatalTab
 
   static const String name = 'ObstetricsPostnatalTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsPostnatalTabArgs>(
         orElse: () => const ObstetricsPostnatalTabArgs(),
       );
-      return _i167.ObstetricsPostnatalTab(
+      return _i169.ObstetricsPostnatalTab(
         key: args.key,
         pregnancyId: args.pregnancyId,
       );
@@ -4838,7 +4874,7 @@ class ObstetricsPostnatalTab
 class ObstetricsPostnatalTabArgs {
   const ObstetricsPostnatalTabArgs({this.key, this.pregnancyId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? pregnancyId;
 
@@ -4859,14 +4895,14 @@ class ObstetricsPostnatalTabArgs {
 }
 
 /// generated route for
-/// [_i168.ObstetricsPregnanciesListScreen]
+/// [_i170.ObstetricsPregnanciesListScreen]
 class ObstetricsPregnanciesListRoute
-    extends _i230.PageRouteInfo<ObstetricsPregnanciesListRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsPregnanciesListRouteArgs> {
   ObstetricsPregnanciesListRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? patientId,
     String? encounterId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsPregnanciesListRoute.name,
          args: ObstetricsPregnanciesListRouteArgs(
@@ -4879,13 +4915,13 @@ class ObstetricsPregnanciesListRoute
 
   static const String name = 'ObstetricsPregnanciesListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsPregnanciesListRouteArgs>(
         orElse: () => const ObstetricsPregnanciesListRouteArgs(),
       );
-      return _i168.ObstetricsPregnanciesListScreen(
+      return _i170.ObstetricsPregnanciesListScreen(
         key: args.key,
         patientId: args.patientId,
         encounterId: args.encounterId,
@@ -4901,7 +4937,7 @@ class ObstetricsPregnanciesListRouteArgs {
     this.encounterId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? patientId;
 
@@ -4926,13 +4962,13 @@ class ObstetricsPregnanciesListRouteArgs {
 }
 
 /// generated route for
-/// [_i169.ObstetricsPregnancyOverviewTab]
+/// [_i171.ObstetricsPregnancyOverviewTab]
 class ObstetricsPregnancyOverviewTab
-    extends _i230.PageRouteInfo<ObstetricsPregnancyOverviewTabArgs> {
+    extends _i232.PageRouteInfo<ObstetricsPregnancyOverviewTabArgs> {
   ObstetricsPregnancyOverviewTab({
-    _i231.Key? key,
+    _i233.Key? key,
     String? pregnancyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsPregnancyOverviewTab.name,
          args: ObstetricsPregnancyOverviewTabArgs(
@@ -4944,13 +4980,13 @@ class ObstetricsPregnancyOverviewTab
 
   static const String name = 'ObstetricsPregnancyOverviewTab';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsPregnancyOverviewTabArgs>(
         orElse: () => const ObstetricsPregnancyOverviewTabArgs(),
       );
-      return _i169.ObstetricsPregnancyOverviewTab(
+      return _i171.ObstetricsPregnancyOverviewTab(
         key: args.key,
         pregnancyId: args.pregnancyId,
       );
@@ -4961,7 +4997,7 @@ class ObstetricsPregnancyOverviewTab
 class ObstetricsPregnancyOverviewTabArgs {
   const ObstetricsPregnancyOverviewTabArgs({this.key, this.pregnancyId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? pregnancyId;
 
@@ -4982,14 +5018,14 @@ class ObstetricsPregnancyOverviewTabArgs {
 }
 
 /// generated route for
-/// [_i170.ObstetricsPregnancyViewScreen]
+/// [_i172.ObstetricsPregnancyViewScreen]
 class ObstetricsPregnancyViewRoute
-    extends _i230.PageRouteInfo<ObstetricsPregnancyViewRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsPregnancyViewRouteArgs> {
   ObstetricsPregnancyViewRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String pregnancyId,
     String? encounterId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsPregnancyViewRoute.name,
          args: ObstetricsPregnancyViewRouteArgs(
@@ -5002,11 +5038,11 @@ class ObstetricsPregnancyViewRoute
 
   static const String name = 'ObstetricsPregnancyViewRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsPregnancyViewRouteArgs>();
-      return _i170.ObstetricsPregnancyViewScreen(
+      return _i172.ObstetricsPregnancyViewScreen(
         key: args.key,
         pregnancyId: args.pregnancyId,
         encounterId: args.encounterId,
@@ -5022,7 +5058,7 @@ class ObstetricsPregnancyViewRouteArgs {
     this.encounterId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String pregnancyId;
 
@@ -5048,13 +5084,13 @@ class ObstetricsPregnancyViewRouteArgs {
 }
 
 /// generated route for
-/// [_i171.ObstetricsRegisterBabyScreen]
+/// [_i173.ObstetricsRegisterBabyScreen]
 class ObstetricsRegisterBabyRoute
-    extends _i230.PageRouteInfo<ObstetricsRegisterBabyRouteArgs> {
+    extends _i232.PageRouteInfo<ObstetricsRegisterBabyRouteArgs> {
   ObstetricsRegisterBabyRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String babyId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ObstetricsRegisterBabyRoute.name,
          args: ObstetricsRegisterBabyRouteArgs(key: key, babyId: babyId),
@@ -5063,11 +5099,11 @@ class ObstetricsRegisterBabyRoute
 
   static const String name = 'ObstetricsRegisterBabyRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ObstetricsRegisterBabyRouteArgs>();
-      return _i171.ObstetricsRegisterBabyScreen(
+      return _i173.ObstetricsRegisterBabyScreen(
         key: args.key,
         babyId: args.babyId,
       );
@@ -5078,7 +5114,7 @@ class ObstetricsRegisterBabyRoute
 class ObstetricsRegisterBabyRouteArgs {
   const ObstetricsRegisterBabyRouteArgs({this.key, required this.babyId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String babyId;
 
@@ -5099,13 +5135,13 @@ class ObstetricsRegisterBabyRouteArgs {
 }
 
 /// generated route for
-/// [_i172.PatientBillingScreen]
-class PatientBillingRoute extends _i230.PageRouteInfo<PatientBillingRouteArgs> {
+/// [_i174.PatientBillingScreen]
+class PatientBillingRoute extends _i232.PageRouteInfo<PatientBillingRouteArgs> {
   PatientBillingRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String invoiceId,
     String patientName = '',
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          PatientBillingRoute.name,
          args: PatientBillingRouteArgs(
@@ -5118,11 +5154,11 @@ class PatientBillingRoute extends _i230.PageRouteInfo<PatientBillingRouteArgs> {
 
   static const String name = 'PatientBillingRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<PatientBillingRouteArgs>();
-      return _i172.PatientBillingScreen(
+      return _i174.PatientBillingScreen(
         key: args.key,
         invoiceId: args.invoiceId,
         patientName: args.patientName,
@@ -5138,7 +5174,7 @@ class PatientBillingRouteArgs {
     this.patientName = '',
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String invoiceId;
 
@@ -5163,12 +5199,12 @@ class PatientBillingRouteArgs {
 }
 
 /// generated route for
-/// [_i173.PatientChartScreen]
-class PatientChartRoute extends _i230.PageRouteInfo<PatientChartRouteArgs> {
+/// [_i175.PatientChartScreen]
+class PatientChartRoute extends _i232.PageRouteInfo<PatientChartRouteArgs> {
   PatientChartRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String patientUuid,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          PatientChartRoute.name,
          args: PatientChartRouteArgs(key: key, patientUuid: patientUuid),
@@ -5177,11 +5213,11 @@ class PatientChartRoute extends _i230.PageRouteInfo<PatientChartRouteArgs> {
 
   static const String name = 'PatientChartRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<PatientChartRouteArgs>();
-      return _i173.PatientChartScreen(
+      return _i175.PatientChartScreen(
         key: args.key,
         patientUuid: args.patientUuid,
       );
@@ -5192,7 +5228,7 @@ class PatientChartRoute extends _i230.PageRouteInfo<PatientChartRouteArgs> {
 class PatientChartRouteArgs {
   const PatientChartRouteArgs({this.key, required this.patientUuid});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String patientUuid;
 
@@ -5213,28 +5249,28 @@ class PatientChartRouteArgs {
 }
 
 /// generated route for
-/// [_i174.PatientChartSelectScreen]
-class PatientChartSelectRoute extends _i230.PageRouteInfo<void> {
-  const PatientChartSelectRoute({List<_i230.PageRouteInfo>? children})
+/// [_i176.PatientChartSelectScreen]
+class PatientChartSelectRoute extends _i232.PageRouteInfo<void> {
+  const PatientChartSelectRoute({List<_i232.PageRouteInfo>? children})
     : super(PatientChartSelectRoute.name, initialChildren: children);
 
   static const String name = 'PatientChartSelectRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i174.PatientChartSelectScreen();
+      return const _i176.PatientChartSelectScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i175.PatientFormScreen]
-class PatientFormRoute extends _i230.PageRouteInfo<PatientFormRouteArgs> {
+/// [_i177.PatientFormScreen]
+class PatientFormRoute extends _i232.PageRouteInfo<PatientFormRouteArgs> {
   PatientFormRoute({
-    _i231.Key? key,
-    _i236.Patient? patient,
-    List<_i230.PageRouteInfo>? children,
+    _i233.Key? key,
+    _i238.Patient? patient,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          PatientFormRoute.name,
          args: PatientFormRouteArgs(key: key, patient: patient),
@@ -5243,13 +5279,13 @@ class PatientFormRoute extends _i230.PageRouteInfo<PatientFormRouteArgs> {
 
   static const String name = 'PatientFormRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<PatientFormRouteArgs>(
         orElse: () => const PatientFormRouteArgs(),
       );
-      return _i175.PatientFormScreen(key: args.key, patient: args.patient);
+      return _i177.PatientFormScreen(key: args.key, patient: args.patient);
     },
   );
 }
@@ -5257,9 +5293,9 @@ class PatientFormRoute extends _i230.PageRouteInfo<PatientFormRouteArgs> {
 class PatientFormRouteArgs {
   const PatientFormRouteArgs({this.key, this.patient});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
-  final _i236.Patient? patient;
+  final _i238.Patient? patient;
 
   @override
   String toString() {
@@ -5278,113 +5314,113 @@ class PatientFormRouteArgs {
 }
 
 /// generated route for
-/// [_i176.PatientListScreen]
-class PatientListRoute extends _i230.PageRouteInfo<void> {
-  const PatientListRoute({List<_i230.PageRouteInfo>? children})
+/// [_i178.PatientListScreen]
+class PatientListRoute extends _i232.PageRouteInfo<void> {
+  const PatientListRoute({List<_i232.PageRouteInfo>? children})
     : super(PatientListRoute.name, initialChildren: children);
 
   static const String name = 'PatientListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i176.PatientListScreen();
+      return const _i178.PatientListScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i177.PendingBillsScreen]
-class PendingBillsRoute extends _i230.PageRouteInfo<void> {
-  const PendingBillsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i179.PendingBillsScreen]
+class PendingBillsRoute extends _i232.PageRouteInfo<void> {
+  const PendingBillsRoute({List<_i232.PageRouteInfo>? children})
     : super(PendingBillsRoute.name, initialChildren: children);
 
   static const String name = 'PendingBillsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i177.PendingBillsScreen();
+      return const _i179.PendingBillsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i178.PendingTransactionsScreen]
-class PendingTransactionsRoute extends _i230.PageRouteInfo<void> {
-  const PendingTransactionsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i180.PendingTransactionsScreen]
+class PendingTransactionsRoute extends _i232.PageRouteInfo<void> {
+  const PendingTransactionsRoute({List<_i232.PageRouteInfo>? children})
     : super(PendingTransactionsRoute.name, initialChildren: children);
 
   static const String name = 'PendingTransactionsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i178.PendingTransactionsScreen();
+      return const _i180.PendingTransactionsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i179.PharmacyDashboardScreen]
-class PharmacyDashboardRoute extends _i230.PageRouteInfo<void> {
-  const PharmacyDashboardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i181.PharmacyDashboardScreen]
+class PharmacyDashboardRoute extends _i232.PageRouteInfo<void> {
+  const PharmacyDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(PharmacyDashboardRoute.name, initialChildren: children);
 
   static const String name = 'PharmacyDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i179.PharmacyDashboardScreen();
+      return const _i181.PharmacyDashboardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i180.PharmacyLocationScreen]
-class PharmacyLocationRoute extends _i230.PageRouteInfo<void> {
-  const PharmacyLocationRoute({List<_i230.PageRouteInfo>? children})
+/// [_i182.PharmacyLocationScreen]
+class PharmacyLocationRoute extends _i232.PageRouteInfo<void> {
+  const PharmacyLocationRoute({List<_i232.PageRouteInfo>? children})
     : super(PharmacyLocationRoute.name, initialChildren: children);
 
   static const String name = 'PharmacyLocationRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i180.PharmacyLocationScreen();
+      return const _i182.PharmacyLocationScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i181.PharmacyPOSScreen]
-class PharmacyPOSRoute extends _i230.PageRouteInfo<void> {
-  const PharmacyPOSRoute({List<_i230.PageRouteInfo>? children})
+/// [_i183.PharmacyPOSScreen]
+class PharmacyPOSRoute extends _i232.PageRouteInfo<void> {
+  const PharmacyPOSRoute({List<_i232.PageRouteInfo>? children})
     : super(PharmacyPOSRoute.name, initialChildren: children);
 
   static const String name = 'PharmacyPOSRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i181.PharmacyPOSScreen();
+      return const _i183.PharmacyPOSScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i182.PurchaseItemSalesScreen]
+/// [_i184.PurchaseItemSalesScreen]
 class PurchaseItemSalesRoute
-    extends _i230.PageRouteInfo<PurchaseItemSalesRouteArgs> {
+    extends _i232.PageRouteInfo<PurchaseItemSalesRouteArgs> {
   PurchaseItemSalesRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String patientId,
     required String patientName,
     required String id,
     String? invoiceId,
     String? staffId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          PurchaseItemSalesRoute.name,
          args: PurchaseItemSalesRouteArgs(
@@ -5400,11 +5436,11 @@ class PurchaseItemSalesRoute
 
   static const String name = 'PurchaseItemSalesRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<PurchaseItemSalesRouteArgs>();
-      return _i182.PurchaseItemSalesScreen(
+      return _i184.PurchaseItemSalesScreen(
         key: args.key,
         patientId: args.patientId,
         patientName: args.patientName,
@@ -5426,7 +5462,7 @@ class PurchaseItemSalesRouteArgs {
     this.staffId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String patientId;
 
@@ -5466,15 +5502,15 @@ class PurchaseItemSalesRouteArgs {
 }
 
 /// generated route for
-/// [_i183.PurchasesAddItemScreen]
+/// [_i185.PurchasesAddItemScreen]
 class PurchasesAddItemRoute
-    extends _i230.PageRouteInfo<PurchasesAddItemRouteArgs> {
+    extends _i232.PageRouteInfo<PurchasesAddItemRouteArgs> {
   PurchasesAddItemRoute({
-    _i231.Key? key,
-    _i237.PurchaseItem? existingItem,
-    _i238.PurchasesApiService? service,
-    _i231.VoidCallback? onSaved,
-    List<_i230.PageRouteInfo>? children,
+    _i233.Key? key,
+    _i239.PurchaseItem? existingItem,
+    _i240.PurchasesApiService? service,
+    _i233.VoidCallback? onSaved,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          PurchasesAddItemRoute.name,
          args: PurchasesAddItemRouteArgs(
@@ -5488,13 +5524,13 @@ class PurchasesAddItemRoute
 
   static const String name = 'PurchasesAddItemRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<PurchasesAddItemRouteArgs>(
         orElse: () => const PurchasesAddItemRouteArgs(),
       );
-      return _i183.PurchasesAddItemScreen(
+      return _i185.PurchasesAddItemScreen(
         key: args.key,
         existingItem: args.existingItem,
         service: args.service,
@@ -5512,13 +5548,13 @@ class PurchasesAddItemRouteArgs {
     this.onSaved,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
-  final _i237.PurchaseItem? existingItem;
+  final _i239.PurchaseItem? existingItem;
 
-  final _i238.PurchasesApiService? service;
+  final _i240.PurchasesApiService? service;
 
-  final _i231.VoidCallback? onSaved;
+  final _i233.VoidCallback? onSaved;
 
   @override
   String toString() {
@@ -5544,162 +5580,162 @@ class PurchasesAddItemRouteArgs {
 }
 
 /// generated route for
-/// [_i184.PurchasesAddPurchaseScreen]
-class PurchasesAddPurchaseRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesAddPurchaseRoute({List<_i230.PageRouteInfo>? children})
+/// [_i186.PurchasesAddPurchaseScreen]
+class PurchasesAddPurchaseRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesAddPurchaseRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesAddPurchaseRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesAddPurchaseRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i184.PurchasesAddPurchaseScreen();
+      return const _i186.PurchasesAddPurchaseScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i185.PurchasesAddSupplierScreen]
-class PurchasesAddSupplierRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesAddSupplierRoute({List<_i230.PageRouteInfo>? children})
+/// [_i187.PurchasesAddSupplierScreen]
+class PurchasesAddSupplierRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesAddSupplierRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesAddSupplierRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesAddSupplierRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i185.PurchasesAddSupplierScreen();
+      return const _i187.PurchasesAddSupplierScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i186.PurchasesDashboardScreen]
-class PurchasesDashboardRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesDashboardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i188.PurchasesDashboardScreen]
+class PurchasesDashboardRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesDashboardRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i186.PurchasesDashboardScreen();
+      return const _i188.PurchasesDashboardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i187.PurchasesInventoryScreen]
-class PurchasesInventoryRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesInventoryRoute({List<_i230.PageRouteInfo>? children})
+/// [_i189.PurchasesInventoryScreen]
+class PurchasesInventoryRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesInventoryRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesInventoryRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesInventoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i187.PurchasesInventoryScreen();
+      return const _i189.PurchasesInventoryScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i188.PurchasesLocationScreen]
-class PurchasesLocationRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesLocationRoute({List<_i230.PageRouteInfo>? children})
+/// [_i190.PurchasesLocationScreen]
+class PurchasesLocationRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesLocationRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesLocationRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesLocationRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i188.PurchasesLocationScreen();
+      return const _i190.PurchasesLocationScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i189.PurchasesPurchaseHistoryScreen]
-class PurchasesPurchaseHistoryRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesPurchaseHistoryRoute({List<_i230.PageRouteInfo>? children})
+/// [_i191.PurchasesPurchaseHistoryScreen]
+class PurchasesPurchaseHistoryRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesPurchaseHistoryRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesPurchaseHistoryRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesPurchaseHistoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i189.PurchasesPurchaseHistoryScreen();
+      return const _i191.PurchasesPurchaseHistoryScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i190.PurchasesRequisitionHistoryScreen]
-class PurchasesRequisitionHistoryRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesRequisitionHistoryRoute({List<_i230.PageRouteInfo>? children})
+/// [_i192.PurchasesRequisitionHistoryScreen]
+class PurchasesRequisitionHistoryRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesRequisitionHistoryRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesRequisitionHistoryRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesRequisitionHistoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i190.PurchasesRequisitionHistoryScreen();
+      return const _i192.PurchasesRequisitionHistoryScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i191.PurchasesStockTransferScreen]
-class PurchasesStockTransferRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesStockTransferRoute({List<_i230.PageRouteInfo>? children})
+/// [_i193.PurchasesStockTransferScreen]
+class PurchasesStockTransferRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesStockTransferRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesStockTransferRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesStockTransferRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i191.PurchasesStockTransferScreen();
+      return const _i193.PurchasesStockTransferScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i192.PurchasesTransferHistoryScreen]
-class PurchasesTransferHistoryRoute extends _i230.PageRouteInfo<void> {
-  const PurchasesTransferHistoryRoute({List<_i230.PageRouteInfo>? children})
+/// [_i194.PurchasesTransferHistoryScreen]
+class PurchasesTransferHistoryRoute extends _i232.PageRouteInfo<void> {
+  const PurchasesTransferHistoryRoute({List<_i232.PageRouteInfo>? children})
     : super(PurchasesTransferHistoryRoute.name, initialChildren: children);
 
   static const String name = 'PurchasesTransferHistoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i192.PurchasesTransferHistoryScreen();
+      return const _i194.PurchasesTransferHistoryScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i193.PurchasesUsageHistoryScreen]
+/// [_i195.PurchasesUsageHistoryScreen]
 class PurchasesUsageHistoryRoute
-    extends _i230.PageRouteInfo<PurchasesUsageHistoryRouteArgs> {
+    extends _i232.PageRouteInfo<PurchasesUsageHistoryRouteArgs> {
   PurchasesUsageHistoryRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? fromDate,
     String? toDate,
     String? purchaseItemId,
     String? purchasesLocationId,
     String? patientQuery,
     int? page,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          PurchasesUsageHistoryRoute.name,
          args: PurchasesUsageHistoryRouteArgs(
@@ -5724,7 +5760,7 @@ class PurchasesUsageHistoryRoute
 
   static const String name = 'PurchasesUsageHistoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final queryParams = data.queryParams;
@@ -5738,7 +5774,7 @@ class PurchasesUsageHistoryRoute
           page: queryParams.optInt('page'),
         ),
       );
-      return _i193.PurchasesUsageHistoryScreen(
+      return _i195.PurchasesUsageHistoryScreen(
         key: args.key,
         fromDate: args.fromDate,
         toDate: args.toDate,
@@ -5762,7 +5798,7 @@ class PurchasesUsageHistoryRouteArgs {
     this.page,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? fromDate;
 
@@ -5806,13 +5842,13 @@ class PurchasesUsageHistoryRouteArgs {
 }
 
 /// generated route for
-/// [_i194.RadiologyCreateRequestScreen]
+/// [_i196.RadiologyCreateRequestScreen]
 class RadiologyCreateRequestRoute
-    extends _i230.PageRouteInfo<RadiologyCreateRequestRouteArgs> {
+    extends _i232.PageRouteInfo<RadiologyCreateRequestRouteArgs> {
   RadiologyCreateRequestRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? patientId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          RadiologyCreateRequestRoute.name,
          args: RadiologyCreateRequestRouteArgs(key: key, patientId: patientId),
@@ -5821,13 +5857,13 @@ class RadiologyCreateRequestRoute
 
   static const String name = 'RadiologyCreateRequestRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<RadiologyCreateRequestRouteArgs>(
         orElse: () => const RadiologyCreateRequestRouteArgs(),
       );
-      return _i194.RadiologyCreateRequestScreen(
+      return _i196.RadiologyCreateRequestScreen(
         key: args.key,
         patientId: args.patientId,
       );
@@ -5838,7 +5874,7 @@ class RadiologyCreateRequestRoute
 class RadiologyCreateRequestRouteArgs {
   const RadiologyCreateRequestRouteArgs({this.key, this.patientId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? patientId;
 
@@ -5859,29 +5895,29 @@ class RadiologyCreateRequestRouteArgs {
 }
 
 /// generated route for
-/// [_i195.RadiologyDashboardScreen]
-class RadiologyDashboardRoute extends _i230.PageRouteInfo<void> {
-  const RadiologyDashboardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i197.RadiologyDashboardScreen]
+class RadiologyDashboardRoute extends _i232.PageRouteInfo<void> {
+  const RadiologyDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(RadiologyDashboardRoute.name, initialChildren: children);
 
   static const String name = 'RadiologyDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i195.RadiologyDashboardScreen();
+      return const _i197.RadiologyDashboardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i196.RadiologyPatientHistoryScreen]
+/// [_i198.RadiologyPatientHistoryScreen]
 class RadiologyPatientHistoryRoute
-    extends _i230.PageRouteInfo<RadiologyPatientHistoryRouteArgs> {
+    extends _i232.PageRouteInfo<RadiologyPatientHistoryRouteArgs> {
   RadiologyPatientHistoryRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String patientId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          RadiologyPatientHistoryRoute.name,
          args: RadiologyPatientHistoryRouteArgs(key: key, patientId: patientId),
@@ -5890,11 +5926,11 @@ class RadiologyPatientHistoryRoute
 
   static const String name = 'RadiologyPatientHistoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<RadiologyPatientHistoryRouteArgs>();
-      return _i196.RadiologyPatientHistoryScreen(
+      return _i198.RadiologyPatientHistoryScreen(
         key: args.key,
         patientId: args.patientId,
       );
@@ -5905,7 +5941,7 @@ class RadiologyPatientHistoryRoute
 class RadiologyPatientHistoryRouteArgs {
   const RadiologyPatientHistoryRouteArgs({this.key, required this.patientId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String patientId;
 
@@ -5926,13 +5962,13 @@ class RadiologyPatientHistoryRouteArgs {
 }
 
 /// generated route for
-/// [_i197.RadiologyRequestDetailScreen]
+/// [_i199.RadiologyRequestDetailScreen]
 class RadiologyRequestDetailRoute
-    extends _i230.PageRouteInfo<RadiologyRequestDetailRouteArgs> {
+    extends _i232.PageRouteInfo<RadiologyRequestDetailRouteArgs> {
   RadiologyRequestDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String requestId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          RadiologyRequestDetailRoute.name,
          args: RadiologyRequestDetailRouteArgs(key: key, requestId: requestId),
@@ -5941,11 +5977,11 @@ class RadiologyRequestDetailRoute
 
   static const String name = 'RadiologyRequestDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<RadiologyRequestDetailRouteArgs>();
-      return _i197.RadiologyRequestDetailScreen(
+      return _i199.RadiologyRequestDetailScreen(
         key: args.key,
         requestId: args.requestId,
       );
@@ -5956,7 +5992,7 @@ class RadiologyRequestDetailRoute
 class RadiologyRequestDetailRouteArgs {
   const RadiologyRequestDetailRouteArgs({this.key, required this.requestId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String requestId;
 
@@ -5977,108 +6013,108 @@ class RadiologyRequestDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i198.RadiologyWorklistScreen]
-class RadiologyWorklistRoute extends _i230.PageRouteInfo<void> {
-  const RadiologyWorklistRoute({List<_i230.PageRouteInfo>? children})
+/// [_i200.RadiologyWorklistScreen]
+class RadiologyWorklistRoute extends _i232.PageRouteInfo<void> {
+  const RadiologyWorklistRoute({List<_i232.PageRouteInfo>? children})
     : super(RadiologyWorklistRoute.name, initialChildren: children);
 
   static const String name = 'RadiologyWorklistRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i198.RadiologyWorklistScreen();
+      return const _i200.RadiologyWorklistScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i199.ReceivablesAnalyticsScreen]
-class ReceivablesAnalyticsRoute extends _i230.PageRouteInfo<void> {
-  const ReceivablesAnalyticsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i201.ReceivablesAnalyticsScreen]
+class ReceivablesAnalyticsRoute extends _i232.PageRouteInfo<void> {
+  const ReceivablesAnalyticsRoute({List<_i232.PageRouteInfo>? children})
     : super(ReceivablesAnalyticsRoute.name, initialChildren: children);
 
   static const String name = 'ReceivablesAnalyticsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i199.ReceivablesAnalyticsScreen();
+      return const _i201.ReceivablesAnalyticsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i200.ReceivablesDiscountScreen]
-class ReceivablesDiscountRoute extends _i230.PageRouteInfo<void> {
-  const ReceivablesDiscountRoute({List<_i230.PageRouteInfo>? children})
+/// [_i202.ReceivablesDiscountScreen]
+class ReceivablesDiscountRoute extends _i232.PageRouteInfo<void> {
+  const ReceivablesDiscountRoute({List<_i232.PageRouteInfo>? children})
     : super(ReceivablesDiscountRoute.name, initialChildren: children);
 
   static const String name = 'ReceivablesDiscountRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i200.ReceivablesDiscountScreen();
+      return const _i202.ReceivablesDiscountScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i200.ReceivablesHmoScreen]
-class ReceivablesHmoRoute extends _i230.PageRouteInfo<void> {
-  const ReceivablesHmoRoute({List<_i230.PageRouteInfo>? children})
+/// [_i202.ReceivablesHmoScreen]
+class ReceivablesHmoRoute extends _i232.PageRouteInfo<void> {
+  const ReceivablesHmoRoute({List<_i232.PageRouteInfo>? children})
     : super(ReceivablesHmoRoute.name, initialChildren: children);
 
   static const String name = 'ReceivablesHmoRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i200.ReceivablesHmoScreen();
+      return const _i202.ReceivablesHmoScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i201.RegisterScreen]
-class RegisterRoute extends _i230.PageRouteInfo<void> {
-  const RegisterRoute({List<_i230.PageRouteInfo>? children})
+/// [_i203.RegisterScreen]
+class RegisterRoute extends _i232.PageRouteInfo<void> {
+  const RegisterRoute({List<_i232.PageRouteInfo>? children})
     : super(RegisterRoute.name, initialChildren: children);
 
   static const String name = 'RegisterRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i201.RegisterScreen();
+      return const _i203.RegisterScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i202.RenderServiceScreen]
-class RenderServiceRoute extends _i230.PageRouteInfo<void> {
-  const RenderServiceRoute({List<_i230.PageRouteInfo>? children})
+/// [_i204.RenderServiceScreen]
+class RenderServiceRoute extends _i232.PageRouteInfo<void> {
+  const RenderServiceRoute({List<_i232.PageRouteInfo>? children})
     : super(RenderServiceRoute.name, initialChildren: children);
 
   static const String name = 'RenderServiceRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i202.RenderServiceScreen();
+      return const _i204.RenderServiceScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i203.ResetPasswordScreen]
-class ResetPasswordRoute extends _i230.PageRouteInfo<ResetPasswordRouteArgs> {
+/// [_i205.ResetPasswordScreen]
+class ResetPasswordRoute extends _i232.PageRouteInfo<ResetPasswordRouteArgs> {
   ResetPasswordRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     String? email,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          ResetPasswordRoute.name,
          args: ResetPasswordRouteArgs(key: key, email: email),
@@ -6088,7 +6124,7 @@ class ResetPasswordRoute extends _i230.PageRouteInfo<ResetPasswordRouteArgs> {
 
   static const String name = 'ResetPasswordRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final queryParams = data.queryParams;
@@ -6096,7 +6132,7 @@ class ResetPasswordRoute extends _i230.PageRouteInfo<ResetPasswordRouteArgs> {
         orElse: () =>
             ResetPasswordRouteArgs(email: queryParams.optString('email')),
       );
-      return _i203.ResetPasswordScreen(key: args.key, email: args.email);
+      return _i205.ResetPasswordScreen(key: args.key, email: args.email);
     },
   );
 }
@@ -6104,7 +6140,7 @@ class ResetPasswordRoute extends _i230.PageRouteInfo<ResetPasswordRouteArgs> {
 class ResetPasswordRouteArgs {
   const ResetPasswordRouteArgs({this.key, this.email});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String? email;
 
@@ -6125,31 +6161,31 @@ class ResetPasswordRouteArgs {
 }
 
 /// generated route for
-/// [_i204.StaffChatScreen]
-class StaffChatRoute extends _i230.PageRouteInfo<void> {
-  const StaffChatRoute({List<_i230.PageRouteInfo>? children})
+/// [_i206.StaffChatScreen]
+class StaffChatRoute extends _i232.PageRouteInfo<void> {
+  const StaffChatRoute({List<_i232.PageRouteInfo>? children})
     : super(StaffChatRoute.name, initialChildren: children);
 
   static const String name = 'StaffChatRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i204.StaffChatScreen();
+      return const _i206.StaffChatScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i205.StaffChatThreadScreen]
+/// [_i207.StaffChatThreadScreen]
 class StaffChatThreadRoute
-    extends _i230.PageRouteInfo<StaffChatThreadRouteArgs> {
+    extends _i232.PageRouteInfo<StaffChatThreadRouteArgs> {
   StaffChatThreadRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String conversationId,
     String? title,
     String? peerStaffId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          StaffChatThreadRoute.name,
          args: StaffChatThreadRouteArgs(
@@ -6163,11 +6199,11 @@ class StaffChatThreadRoute
 
   static const String name = 'StaffChatThreadRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<StaffChatThreadRouteArgs>();
-      return _i205.StaffChatThreadScreen(
+      return _i207.StaffChatThreadScreen(
         key: args.key,
         conversationId: args.conversationId,
         title: args.title,
@@ -6185,7 +6221,7 @@ class StaffChatThreadRouteArgs {
     this.peerStaffId,
   });
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String conversationId;
 
@@ -6217,77 +6253,77 @@ class StaffChatThreadRouteArgs {
 }
 
 /// generated route for
-/// [_i206.StockTransferScreen]
-class StockTransferRoute extends _i230.PageRouteInfo<void> {
-  const StockTransferRoute({List<_i230.PageRouteInfo>? children})
+/// [_i208.StockTransferScreen]
+class StockTransferRoute extends _i232.PageRouteInfo<void> {
+  const StockTransferRoute({List<_i232.PageRouteInfo>? children})
     : super(StockTransferRoute.name, initialChildren: children);
 
   static const String name = 'StockTransferRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i206.StockTransferScreen();
+      return const _i208.StockTransferScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i207.StoreAnalyticsScreen]
-class StoreAnalyticsRoute extends _i230.PageRouteInfo<void> {
-  const StoreAnalyticsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i209.StoreAnalyticsScreen]
+class StoreAnalyticsRoute extends _i232.PageRouteInfo<void> {
+  const StoreAnalyticsRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreAnalyticsRoute.name, initialChildren: children);
 
   static const String name = 'StoreAnalyticsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i207.StoreAnalyticsScreen();
+      return const _i209.StoreAnalyticsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i208.StoreCategoriesScreen]
-class StoreCategoriesRoute extends _i230.PageRouteInfo<void> {
-  const StoreCategoriesRoute({List<_i230.PageRouteInfo>? children})
+/// [_i210.StoreCategoriesScreen]
+class StoreCategoriesRoute extends _i232.PageRouteInfo<void> {
+  const StoreCategoriesRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreCategoriesRoute.name, initialChildren: children);
 
   static const String name = 'StoreCategoriesRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i208.StoreCategoriesScreen();
+      return const _i210.StoreCategoriesScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i209.StoreConsumableAnalyticsScreen]
-class StoreConsumableAnalyticsRoute extends _i230.PageRouteInfo<void> {
-  const StoreConsumableAnalyticsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i211.StoreConsumableAnalyticsScreen]
+class StoreConsumableAnalyticsRoute extends _i232.PageRouteInfo<void> {
+  const StoreConsumableAnalyticsRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreConsumableAnalyticsRoute.name, initialChildren: children);
 
   static const String name = 'StoreConsumableAnalyticsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i209.StoreConsumableAnalyticsScreen();
+      return const _i211.StoreConsumableAnalyticsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i210.StoreConsumableDetailScreen]
+/// [_i212.StoreConsumableDetailScreen]
 class StoreConsumableDetailRoute
-    extends _i230.PageRouteInfo<StoreConsumableDetailRouteArgs> {
+    extends _i232.PageRouteInfo<StoreConsumableDetailRouteArgs> {
   StoreConsumableDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String consumableId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          StoreConsumableDetailRoute.name,
          args: StoreConsumableDetailRouteArgs(
@@ -6300,7 +6336,7 @@ class StoreConsumableDetailRoute
 
   static const String name = 'StoreConsumableDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final pathParams = data.inheritedPathParams;
@@ -6309,7 +6345,7 @@ class StoreConsumableDetailRoute
           consumableId: pathParams.getString('consumableId'),
         ),
       );
-      return _i210.StoreConsumableDetailScreen(
+      return _i212.StoreConsumableDetailScreen(
         key: args.key,
         consumableId: args.consumableId,
       );
@@ -6320,7 +6356,7 @@ class StoreConsumableDetailRoute
 class StoreConsumableDetailRouteArgs {
   const StoreConsumableDetailRouteArgs({this.key, required this.consumableId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String consumableId;
 
@@ -6341,125 +6377,125 @@ class StoreConsumableDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i211.StoreConsumablesCatalogScreen]
-class StoreConsumablesCatalogRoute extends _i230.PageRouteInfo<void> {
-  const StoreConsumablesCatalogRoute({List<_i230.PageRouteInfo>? children})
+/// [_i213.StoreConsumablesCatalogScreen]
+class StoreConsumablesCatalogRoute extends _i232.PageRouteInfo<void> {
+  const StoreConsumablesCatalogRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreConsumablesCatalogRoute.name, initialChildren: children);
 
   static const String name = 'StoreConsumablesCatalogRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i211.StoreConsumablesCatalogScreen();
+      return const _i213.StoreConsumablesCatalogScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i212.StoreDashboardScreen]
-class StoreDashboardRoute extends _i230.PageRouteInfo<void> {
-  const StoreDashboardRoute({List<_i230.PageRouteInfo>? children})
+/// [_i214.StoreDashboardScreen]
+class StoreDashboardRoute extends _i232.PageRouteInfo<void> {
+  const StoreDashboardRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreDashboardRoute.name, initialChildren: children);
 
   static const String name = 'StoreDashboardRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i212.StoreDashboardScreen();
+      return const _i214.StoreDashboardScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i213.StoreItemsScreen]
-class StoreItemsRoute extends _i230.PageRouteInfo<void> {
-  const StoreItemsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i215.StoreItemsScreen]
+class StoreItemsRoute extends _i232.PageRouteInfo<void> {
+  const StoreItemsRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreItemsRoute.name, initialChildren: children);
 
   static const String name = 'StoreItemsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i213.StoreItemsScreen();
+      return const _i215.StoreItemsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i214.StoreLocationsScreen]
-class StoreLocationsRoute extends _i230.PageRouteInfo<void> {
-  const StoreLocationsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i216.StoreLocationsScreen]
+class StoreLocationsRoute extends _i232.PageRouteInfo<void> {
+  const StoreLocationsRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreLocationsRoute.name, initialChildren: children);
 
   static const String name = 'StoreLocationsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i214.StoreLocationsScreen();
+      return const _i216.StoreLocationsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i215.StoreMovementsScreen]
-class StoreMovementsRoute extends _i230.PageRouteInfo<void> {
-  const StoreMovementsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i217.StoreMovementsScreen]
+class StoreMovementsRoute extends _i232.PageRouteInfo<void> {
+  const StoreMovementsRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreMovementsRoute.name, initialChildren: children);
 
   static const String name = 'StoreMovementsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i215.StoreMovementsScreen();
+      return const _i217.StoreMovementsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i216.StoreStockScreen]
-class StoreStockRoute extends _i230.PageRouteInfo<void> {
-  const StoreStockRoute({List<_i230.PageRouteInfo>? children})
+/// [_i218.StoreStockScreen]
+class StoreStockRoute extends _i232.PageRouteInfo<void> {
+  const StoreStockRoute({List<_i232.PageRouteInfo>? children})
     : super(StoreStockRoute.name, initialChildren: children);
 
   static const String name = 'StoreStockRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i216.StoreStockScreen();
+      return const _i218.StoreStockScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i217.SuperAdminHubScreen]
-class SuperAdminHubRoute extends _i230.PageRouteInfo<void> {
-  const SuperAdminHubRoute({List<_i230.PageRouteInfo>? children})
+/// [_i219.SuperAdminHubScreen]
+class SuperAdminHubRoute extends _i232.PageRouteInfo<void> {
+  const SuperAdminHubRoute({List<_i232.PageRouteInfo>? children})
     : super(SuperAdminHubRoute.name, initialChildren: children);
 
   static const String name = 'SuperAdminHubRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i217.SuperAdminHubScreen();
+      return const _i219.SuperAdminHubScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i218.SuperAdminStaffDetailScreen]
+/// [_i220.SuperAdminStaffDetailScreen]
 class SuperAdminStaffDetailRoute
-    extends _i230.PageRouteInfo<SuperAdminStaffDetailRouteArgs> {
+    extends _i232.PageRouteInfo<SuperAdminStaffDetailRouteArgs> {
   SuperAdminStaffDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String staffId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          SuperAdminStaffDetailRoute.name,
          args: SuperAdminStaffDetailRouteArgs(key: key, staffId: staffId),
@@ -6468,11 +6504,11 @@ class SuperAdminStaffDetailRoute
 
   static const String name = 'SuperAdminStaffDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<SuperAdminStaffDetailRouteArgs>();
-      return _i218.SuperAdminStaffDetailScreen(
+      return _i220.SuperAdminStaffDetailScreen(
         key: args.key,
         staffId: args.staffId,
       );
@@ -6483,7 +6519,7 @@ class SuperAdminStaffDetailRoute
 class SuperAdminStaffDetailRouteArgs {
   const SuperAdminStaffDetailRouteArgs({this.key, required this.staffId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String staffId;
 
@@ -6504,45 +6540,45 @@ class SuperAdminStaffDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i219.SuperAdminStaffListScreen]
-class SuperAdminStaffListRoute extends _i230.PageRouteInfo<void> {
-  const SuperAdminStaffListRoute({List<_i230.PageRouteInfo>? children})
+/// [_i221.SuperAdminStaffListScreen]
+class SuperAdminStaffListRoute extends _i232.PageRouteInfo<void> {
+  const SuperAdminStaffListRoute({List<_i232.PageRouteInfo>? children})
     : super(SuperAdminStaffListRoute.name, initialChildren: children);
 
   static const String name = 'SuperAdminStaffListRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i219.SuperAdminStaffListScreen();
+      return const _i221.SuperAdminStaffListScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i220.SupplyHistoryScreen]
-class SupplyHistoryRoute extends _i230.PageRouteInfo<void> {
-  const SupplyHistoryRoute({List<_i230.PageRouteInfo>? children})
+/// [_i222.SupplyHistoryScreen]
+class SupplyHistoryRoute extends _i232.PageRouteInfo<void> {
+  const SupplyHistoryRoute({List<_i232.PageRouteInfo>? children})
     : super(SupplyHistoryRoute.name, initialChildren: children);
 
   static const String name = 'SupplyHistoryRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i220.SupplyHistoryScreen();
+      return const _i222.SupplyHistoryScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i221.SupportTicketDetailScreen]
+/// [_i223.SupportTicketDetailScreen]
 class SupportTicketDetailRoute
-    extends _i230.PageRouteInfo<SupportTicketDetailRouteArgs> {
+    extends _i232.PageRouteInfo<SupportTicketDetailRouteArgs> {
   SupportTicketDetailRoute({
-    _i231.Key? key,
+    _i233.Key? key,
     required String ticketId,
-    List<_i230.PageRouteInfo>? children,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          SupportTicketDetailRoute.name,
          args: SupportTicketDetailRouteArgs(key: key, ticketId: ticketId),
@@ -6551,11 +6587,11 @@ class SupportTicketDetailRoute
 
   static const String name = 'SupportTicketDetailRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<SupportTicketDetailRouteArgs>();
-      return _i221.SupportTicketDetailScreen(
+      return _i223.SupportTicketDetailScreen(
         key: args.key,
         ticketId: args.ticketId,
       );
@@ -6566,7 +6602,7 @@ class SupportTicketDetailRoute
 class SupportTicketDetailRouteArgs {
   const SupportTicketDetailRouteArgs({this.key, required this.ticketId});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
   final String ticketId;
 
@@ -6587,76 +6623,76 @@ class SupportTicketDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i222.SystemSetupScreen]
-class SystemSetupRoute extends _i230.PageRouteInfo<void> {
-  const SystemSetupRoute({List<_i230.PageRouteInfo>? children})
+/// [_i224.SystemSetupScreen]
+class SystemSetupRoute extends _i232.PageRouteInfo<void> {
+  const SystemSetupRoute({List<_i232.PageRouteInfo>? children})
     : super(SystemSetupRoute.name, initialChildren: children);
 
   static const String name = 'SystemSetupRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i222.SystemSetupScreen();
+      return const _i224.SystemSetupScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i223.TodayPatientsScreen]
-class TodayPatientsRoute extends _i230.PageRouteInfo<void> {
-  const TodayPatientsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i225.TodayPatientsScreen]
+class TodayPatientsRoute extends _i232.PageRouteInfo<void> {
+  const TodayPatientsRoute({List<_i232.PageRouteInfo>? children})
     : super(TodayPatientsRoute.name, initialChildren: children);
 
   static const String name = 'TodayPatientsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i223.TodayPatientsScreen();
+      return const _i225.TodayPatientsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i224.TransactionsScreen]
-class TransactionsRoute extends _i230.PageRouteInfo<void> {
-  const TransactionsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i226.TransactionsScreen]
+class TransactionsRoute extends _i232.PageRouteInfo<void> {
+  const TransactionsRoute({List<_i232.PageRouteInfo>? children})
     : super(TransactionsRoute.name, initialChildren: children);
 
   static const String name = 'TransactionsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i224.TransactionsScreen();
+      return const _i226.TransactionsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i225.ViewServiceScreen]
-class ViewServiceRoute extends _i230.PageRouteInfo<void> {
-  const ViewServiceRoute({List<_i230.PageRouteInfo>? children})
+/// [_i227.ViewServiceScreen]
+class ViewServiceRoute extends _i232.PageRouteInfo<void> {
+  const ViewServiceRoute({List<_i232.PageRouteInfo>? children})
     : super(ViewServiceRoute.name, initialChildren: children);
 
   static const String name = 'ViewServiceRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i225.ViewServiceScreen();
+      return const _i227.ViewServiceScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i226.WaitingPatientScreen]
-class WaitingPatientRoute extends _i230.PageRouteInfo<WaitingPatientRouteArgs> {
+/// [_i228.WaitingPatientScreen]
+class WaitingPatientRoute extends _i232.PageRouteInfo<WaitingPatientRouteArgs> {
   WaitingPatientRoute({
-    _i231.Key? key,
-    _i239.IPharmacyQueueService? queueService,
-    List<_i230.PageRouteInfo>? children,
+    _i233.Key? key,
+    _i241.IPharmacyQueueService? queueService,
+    List<_i232.PageRouteInfo>? children,
   }) : super(
          WaitingPatientRoute.name,
          args: WaitingPatientRouteArgs(key: key, queueService: queueService),
@@ -6665,13 +6701,13 @@ class WaitingPatientRoute extends _i230.PageRouteInfo<WaitingPatientRouteArgs> {
 
   static const String name = 'WaitingPatientRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<WaitingPatientRouteArgs>(
         orElse: () => const WaitingPatientRouteArgs(),
       );
-      return _i226.WaitingPatientScreen(
+      return _i228.WaitingPatientScreen(
         key: args.key,
         queueService: args.queueService,
       );
@@ -6682,9 +6718,9 @@ class WaitingPatientRoute extends _i230.PageRouteInfo<WaitingPatientRouteArgs> {
 class WaitingPatientRouteArgs {
   const WaitingPatientRouteArgs({this.key, this.queueService});
 
-  final _i231.Key? key;
+  final _i233.Key? key;
 
-  final _i239.IPharmacyQueueService? queueService;
+  final _i241.IPharmacyQueueService? queueService;
 
   @override
   String toString() {
@@ -6703,49 +6739,49 @@ class WaitingPatientRouteArgs {
 }
 
 /// generated route for
-/// [_i227.WaitingPatientsScreen]
-class WaitingPatientsRoute extends _i230.PageRouteInfo<void> {
-  const WaitingPatientsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i229.WaitingPatientsScreen]
+class WaitingPatientsRoute extends _i232.PageRouteInfo<void> {
+  const WaitingPatientsRoute({List<_i232.PageRouteInfo>? children})
     : super(WaitingPatientsRoute.name, initialChildren: children);
 
   static const String name = 'WaitingPatientsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i227.WaitingPatientsScreen();
+      return const _i229.WaitingPatientsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i228.WardManagementScreen]
-class WardManagementRoute extends _i230.PageRouteInfo<void> {
-  const WardManagementRoute({List<_i230.PageRouteInfo>? children})
+/// [_i230.WardManagementScreen]
+class WardManagementRoute extends _i232.PageRouteInfo<void> {
+  const WardManagementRoute({List<_i232.PageRouteInfo>? children})
     : super(WardManagementRoute.name, initialChildren: children);
 
   static const String name = 'WardManagementRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i228.WardManagementScreen();
+      return const _i230.WardManagementScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i229.WardRoundsScreen]
-class WardRoundsRoute extends _i230.PageRouteInfo<void> {
-  const WardRoundsRoute({List<_i230.PageRouteInfo>? children})
+/// [_i231.WardRoundsScreen]
+class WardRoundsRoute extends _i232.PageRouteInfo<void> {
+  const WardRoundsRoute({List<_i232.PageRouteInfo>? children})
     : super(WardRoundsRoute.name, initialChildren: children);
 
   static const String name = 'WardRoundsRoute';
 
-  static _i230.PageInfo page = _i230.PageInfo(
+  static _i232.PageInfo page = _i232.PageInfo(
     name,
     builder: (data) {
-      return const _i229.WardRoundsScreen();
+      return const _i231.WardRoundsScreen();
     },
   );
 }

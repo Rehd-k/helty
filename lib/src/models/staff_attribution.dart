@@ -11,6 +11,8 @@ String _str(dynamic v) => v?.toString() ?? '';
 /// Resolves a staff display name from API JSON (nested nurse/staff or flat fields).
 String staffDisplayNameFromJson(Map<String, dynamic> json) {
   final nurseMap = _asMap(json['nurse']) ??
+      _asMap(json['orderedBy']) ??
+      _asMap(json['ordered_by']) ??
       _asMap(json['doctor']) ??
       _asMap(json['recorder']) ??
       _asMap(json['recordedBy']) ??

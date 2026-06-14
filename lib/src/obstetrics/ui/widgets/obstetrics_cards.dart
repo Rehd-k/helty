@@ -657,7 +657,10 @@ class AntenatalVisitCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final alert = urineProteinPositive(visit.urineProtein);
+    final proteinAlert = urineProteinPositive(visit.urineProtein);
+    final glucoseAlert = urineDipstickPositive(visit.urineGlucose);
+    final alert = proteinAlert || glucoseAlert;
+    final (gaWeeks, gaDays) = gestationalAgeParts(visit);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -678,18 +681,15 @@ class AntenatalVisitCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        DateFormatter.formatFromBackend(
-                          visit.visitDate,
-                          DateFormatter.shortDate,
-                        ),
+                        formatAntenatalVisitDate(visit.visitDate),
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    if (visit.gestationWeeks != null)
+                    if (gaWeeks != null || gaDays != null)
                       ObStatChip(
-                        label: '${visit.gestationWeeks!.round()} wks',
+                        label: formatGestationalAge(gaWeeks, gaDays),
                         backgroundColor: scheme.secondaryContainer,
                         color: scheme.onSecondaryContainer,
                       ),
@@ -713,11 +713,27 @@ class AntenatalVisitCard extends StatelessWidget {
                       _VitalChip(
                           icon: Icons.child_care,
                           label: formatPresentation(visit.presentation)),
+                    if (visit.descent != null && visit.descent!.isNotEmpty)
+                      _VitalChip(
+                        icon: Icons.arrow_downward,
+                        label: 'Descent ${visit.descent}',
+                      ),
                     if (visit.urineProtein != null && visit.urineProtein!.isNotEmpty)
                       _VitalChip(
                         icon: Icons.science,
-                        label: 'Urine ${visit.urineProtein}',
-                        alert: alert,
+                        label: 'Protein ${visit.urineProtein}',
+                        alert: proteinAlert,
+                      ),
+                    if (visit.urineGlucose != null && visit.urineGlucose!.isNotEmpty)
+                      _VitalChip(
+                        icon: Icons.water_drop,
+                        label: 'Glucose ${visit.urineGlucose}',
+                        alert: glucoseAlert,
+                      ),
+                    if (visit.pcv != null)
+                      _VitalChip(
+                        icon: Icons.bloodtype,
+                        label: 'PCV ${visit.pcv}%',
                       ),
                   ],
                 ),

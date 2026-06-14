@@ -30,14 +30,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscureConfirm = true;
 
   AccountType _selectedAccountType = AccountType.front_desk;
-  late StaffRoleOption _selectedRoleOption =
-      rolesForAccountType(AccountType.front_desk).first;
+  late StaffRoleOption _selectedRoleOption = rolesForAccountType(
+    AccountType.front_desk,
+  ).first;
   String? _wardId;
 
   bool get _isChargeNurse =>
       isChargeNurseStaffRole(_selectedRoleOption.staffRole);
 
-  PageRouteInfo _initialRouteAfterRegister(String accountTypeName, String role) {
+  PageRouteInfo _initialRouteAfterRegister(
+    String accountTypeName,
+    String role,
+  ) {
     final at = accountTypeName.toLowerCase();
     final r = role.toUpperCase();
 
@@ -119,9 +123,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       wardId: _wardId,
     );
     if (assignmentError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(assignmentError)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(assignmentError)));
       return;
     }
 
@@ -185,7 +189,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header
                   Icon(
                     Icons.person_add_outlined,
                     size: 48,
@@ -193,7 +196,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Create your account',
+                    'Create Your Account',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -209,7 +212,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // ── Section: Identity ──────────────────────────────────
                   _SectionLabel(
                     label: 'Staff Identity',
                     icon: Icons.badge_outlined,
@@ -262,7 +264,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Account type — backend AccountType enum (e.g. BILLING, NURSE)
                   DropdownButtonFormField<AccountType>(
                     key: ObjectKey(_selectedAccountType),
                     initialValue: _selectedAccountType,
@@ -290,7 +291,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Role (options depend on account type above)
                   DropdownButtonFormField<StaffRoleOption>(
                     key: ObjectKey(_selectedRoleOption),
                     initialValue: _selectedRoleOption,
@@ -306,9 +306,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         .toList(),
                     onChanged: (r) => setState(() {
                       _selectedRoleOption = r ?? _selectedRoleOption;
-                      if (!isChargeNurseStaffRole(_selectedRoleOption.staffRole)) {
-                        _wardId = null;
-                      }
+                      _wardId = null;
                     }),
                     validator: (v) => v == null ? 'Select a role' : null,
                   ),
@@ -367,7 +365,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ],
                   const SizedBox(height: 28),
 
-                  // ── Section: Contact ───────────────────────────────────
                   _SectionLabel(
                     label: 'Contact Information',
                     icon: Icons.contact_mail_outlined,
@@ -384,7 +381,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
-                        return null; // optional
+                        return null;
                       }
                       final emailReg = RegExp(
                         r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
@@ -418,7 +415,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // ── Section: Security ──────────────────────────────────
                   _SectionLabel(label: 'Security', icon: Icons.lock_outline),
                   const SizedBox(height: 12),
 
@@ -478,7 +474,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Submit
                   FilledButton(
                     onPressed: auth.isLoading ? null : _submit,
                     style: FilledButton.styleFrom(

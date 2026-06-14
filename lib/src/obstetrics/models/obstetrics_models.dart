@@ -146,6 +146,24 @@ class ObstetricsPatientRef {
 
 // ─── Pregnancy ───────────────────────────────────────────────────────────
 
+// ─── Pregnancy ─────────────────────────────────────────────────────────────
+
+const kBloodGroupOptions = [
+  'A+',
+  'A-',
+  'B+',
+  'B-',
+  'AB+',
+  'AB-',
+  'O+',
+  'O-',
+];
+
+const kGenotypeOptions = ['AA', 'AS', 'SS', 'AC', 'SC'];
+
+/// Serology screen results (HCV, HBsAg, VDRL, HIV).
+const kSerologyResultOptions = ['Negative', 'Positive', 'Indeterminate'];
+
 class Pregnancy {
   const Pregnancy({
     required this.id,
@@ -157,6 +175,21 @@ class Pregnancy {
     this.bookingDate,
     this.status,
     this.outcome,
+    this.respiratoryRate,
+    this.heartRate,
+    this.systolicBP,
+    this.diastolicBP,
+    this.spo2,
+    this.genotype,
+    this.bloodGroup,
+    this.pcv,
+    this.hcv,
+    this.hbsAg,
+    this.vdrl,
+    this.hiv12,
+    this.urinalysisProtein,
+    this.urinalysisGlucose,
+    this.ttImmunization,
     this.patient,
     this.antenatalVisits,
     this.labourDeliveries,
@@ -173,6 +206,21 @@ class Pregnancy {
   final String? bookingDate;
   final PregnancyStatus? status;
   final String? outcome;
+  final int? respiratoryRate;
+  final int? heartRate;
+  final int? systolicBP;
+  final int? diastolicBP;
+  final double? spo2;
+  final String? genotype;
+  final String? bloodGroup;
+  final double? pcv;
+  final String? hcv;
+  final String? hbsAg;
+  final String? vdrl;
+  final String? hiv12;
+  final String? urinalysisProtein;
+  final String? urinalysisGlucose;
+  final String? ttImmunization;
   final ObstetricsPatientRef? patient;
   final List<AntenatalVisit>? antenatalVisits;
   final List<LabourDelivery>? labourDeliveries;
@@ -190,6 +238,21 @@ class Pregnancy {
       bookingDate: json['bookingDate'] as String?,
       status: PregnancyStatus.fromString(json['status'] as String?),
       outcome: json['outcome'] as String?,
+      respiratoryRate: (json['respiratoryRate'] as num?)?.toInt(),
+      heartRate: (json['heartRate'] as num?)?.toInt(),
+      systolicBP: (json['systolicBP'] as num?)?.toInt(),
+      diastolicBP: (json['diastolicBP'] as num?)?.toInt(),
+      spo2: (json['spo2'] as num?)?.toDouble(),
+      genotype: json['genotype'] as String?,
+      bloodGroup: json['bloodGroup'] as String?,
+      pcv: (json['pcv'] as num?)?.toDouble(),
+      hcv: json['hcv'] as String?,
+      hbsAg: json['hbsAg'] as String?,
+      vdrl: json['vdrl'] as String?,
+      hiv12: json['hiv12'] as String?,
+      urinalysisProtein: json['urinalysisProtein'] as String?,
+      urinalysisGlucose: json['urinalysisGlucose'] as String?,
+      ttImmunization: json['ttImmunization'] as String?,
       patient: json['patient'] != null
           ? ObstetricsPatientRef.fromJson(
               json['patient'] as Map<String, dynamic>)
@@ -212,10 +275,31 @@ class Pregnancy {
         if (bookingDate != null) 'bookingDate': bookingDate,
         if (status != null) 'status': status!.apiValue,
         if (outcome != null) 'outcome': outcome,
+        if (respiratoryRate != null) 'respiratoryRate': respiratoryRate,
+        if (heartRate != null) 'heartRate': heartRate,
+        if (systolicBP != null) 'systolicBP': systolicBP,
+        if (diastolicBP != null) 'diastolicBP': diastolicBP,
+        if (spo2 != null) 'spo2': spo2,
+        if (genotype != null) 'genotype': genotype,
+        if (bloodGroup != null) 'bloodGroup': bloodGroup,
+        if (pcv != null) 'pcv': pcv,
+        if (hcv != null) 'hcv': hcv,
+        if (hbsAg != null) 'hbsAg': hbsAg,
+        if (vdrl != null) 'vdrl': vdrl,
+        if (hiv12 != null) 'hiv12': hiv12,
+        if (urinalysisProtein != null) 'urinalysisProtein': urinalysisProtein,
+        if (urinalysisGlucose != null) 'urinalysisGlucose': urinalysisGlucose,
+        if (ttImmunization != null) 'ttImmunization': ttImmunization,
       };
 }
 
 // ─── Antenatal visit ───────────────────────────────────────────────────────
+
+/// Fetal head descent options (palpable abdominally).
+const kFetalDescentOptions = ['1/5', '2/5', '3/5', '4/5', '5/5'];
+
+/// Urine dipstick result options (protein and glucose).
+const kUrineDipstickOptions = ['Negative', 'Trace', '1+', '2+', '3+'];
 
 class AntenatalVisit {
   const AntenatalVisit({
@@ -224,13 +308,17 @@ class AntenatalVisit {
     required this.visitDate,
     required this.staffId,
     this.gestationWeeks,
+    this.gestationDays,
     this.systolicBP,
     this.diastolicBP,
     this.weight,
     this.fundalHeight,
     this.fetalHeartRate,
     this.presentation,
+    this.descent,
     this.urineProtein,
+    this.urineGlucose,
+    this.pcv,
     this.notes,
     this.ultrasoundFindings,
     this.labResultsJson,
@@ -242,13 +330,17 @@ class AntenatalVisit {
   final String visitDate;
   final String staffId;
   final double? gestationWeeks;
+  final int? gestationDays;
   final int? systolicBP;
   final int? diastolicBP;
   final double? weight;
   final double? fundalHeight;
   final int? fetalHeartRate;
   final FetalPresentation? presentation;
+  final String? descent;
   final String? urineProtein;
+  final String? urineGlucose;
+  final double? pcv;
   final String? notes;
   final String? ultrasoundFindings;
   final Map<String, dynamic>? labResultsJson;
@@ -261,13 +353,17 @@ class AntenatalVisit {
       visitDate: json['visitDate'] as String? ?? '',
       staffId: json['staffId'] as String? ?? '',
       gestationWeeks: (json['gestationWeeks'] as num?)?.toDouble(),
+      gestationDays: (json['gestationDays'] as num?)?.toInt(),
       systolicBP: (json['systolicBP'] as num?)?.toInt(),
       diastolicBP: (json['diastolicBP'] as num?)?.toInt(),
       weight: (json['weight'] as num?)?.toDouble(),
       fundalHeight: (json['fundalHeight'] as num?)?.toDouble(),
       fetalHeartRate: (json['fetalHeartRate'] as num?)?.toInt(),
       presentation: FetalPresentation.fromString(json['presentation'] as String?),
+      descent: json['descent'] as String?,
       urineProtein: json['urineProtein'] as String?,
+      urineGlucose: json['urineGlucose'] as String?,
+      pcv: (json['pcv'] as num?)?.toDouble(),
       notes: json['notes'] as String?,
       ultrasoundFindings: json['ultrasoundFindings'] as String?,
       labResultsJson: json['labResultsJson'] as Map<String, dynamic>?,
@@ -279,13 +375,17 @@ class AntenatalVisit {
         'visitDate': visitDate,
         'staffId': staffId,
         if (gestationWeeks != null) 'gestationWeeks': gestationWeeks,
+        if (gestationDays != null) 'gestationDays': gestationDays,
         if (systolicBP != null) 'systolicBP': systolicBP,
         if (diastolicBP != null) 'diastolicBP': diastolicBP,
         if (weight != null) 'weight': weight,
         if (fundalHeight != null) 'fundalHeight': fundalHeight,
         if (fetalHeartRate != null) 'fetalHeartRate': fetalHeartRate,
         if (presentation != null) 'presentation': presentation!.apiValue,
+        if (descent != null) 'descent': descent,
         if (urineProtein != null) 'urineProtein': urineProtein,
+        if (urineGlucose != null) 'urineGlucose': urineGlucose,
+        if (pcv != null) 'pcv': pcv,
         if (notes != null) 'notes': notes,
         if (ultrasoundFindings != null) 'ultrasoundFindings': ultrasoundFindings,
         if (labResultsJson != null) 'labResultsJson': labResultsJson,

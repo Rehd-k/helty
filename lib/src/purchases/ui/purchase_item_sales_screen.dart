@@ -568,7 +568,6 @@ class _PurchaseItemSalesScreenState
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               price > 0
@@ -581,16 +580,17 @@ class _PurchaseItemSalesScreenState
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              item.itemName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                            Expanded(
+                              child: Text(
+                                item.itemName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                            const Spacer(),
                             if (stockLoading)
                               Text(
                                 'Checking stock…',

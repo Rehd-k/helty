@@ -6,6 +6,7 @@ import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 class PregnancyAtAGlance {
   const PregnancyAtAGlance({
     this.gestationalWeeks,
+    this.gestationalDays,
     this.daysUntilEdd,
     this.visitCount,
     this.deliveryCount,
@@ -16,6 +17,7 @@ class PregnancyAtAGlance {
   });
 
   final int? gestationalWeeks;
+  final int? gestationalDays;
   final int? daysUntilEdd;
   final int? visitCount;
   final int? deliveryCount;
@@ -125,7 +127,8 @@ AntenatalVisit? latestAntenatalVisit(Pregnancy pregnancy) {
 PregnancyAtAGlance pregnancyAtAGlance(Pregnancy pregnancy, [DateTime? now]) {
   final latest = latestAntenatalVisit(pregnancy);
   final gaFromLmp = gestationalWeeksFromLmp(pregnancy.lmp, now);
-  final gaWeeks = latest?.gestationWeeks?.round() ?? gaFromLmp;
+  final gaWeeks = latest?.gestationWeeks?.truncate() ?? gaFromLmp;
+  final gaDays = latest?.gestationDays;
 
   String? lastBp;
   if (latest?.systolicBP != null && latest?.diastolicBP != null) {
@@ -134,6 +137,7 @@ PregnancyAtAGlance pregnancyAtAGlance(Pregnancy pregnancy, [DateTime? now]) {
 
   return PregnancyAtAGlance(
     gestationalWeeks: gaWeeks,
+    gestationalDays: gaDays,
     daysUntilEdd: daysUntilEdd(pregnancy.edd, now),
     visitCount: pregnancy.antenatalVisits?.length,
     deliveryCount: pregnancy.labourDeliveries?.length,
@@ -173,13 +177,95 @@ String pregnancyDateRangeLabel(Pregnancy p) =>
     '${DateFormatter.formatFromBackend(p.lmp, DateFormatter.shortDate)} – '
     '${DateFormatter.formatFromBackend(p.edd, DateFormatter.shortDate)}';
 
-bool urineProteinPositive(String? urineProtein) {
-  if (urineProtein == null || urineProtein.isEmpty) return false;
-  final v = urineProtein.toLowerCase();
+/// Non-empty booking summary lines for pregnancy overview display.
+List<String> pregnancyBookingSummaryLines(Pregnancy p) {
+  final lines = <String>[];
+
+  if (p.respiratoryRate != null) lines.add('RR ${p.respiratoryRate}');
+  if (p.heartRate != null) lines.add('HR ${p.heartRate}');
+  if (p.systolicBP != null && p.diastolicBP != null) {
+    lines.add('BP ${p.systolicBP}/${p.diastolicBP}');
+  }
+  if (p.spo2 != null) lines.add('SpO₂ ${p.spo2}%');
+  if (p.genotype != null && p.genotype!.isNotEmpty) {
+    lines.add('Genotype ${p.genotype}');
+  }
+  if (p.bloodGroup != null && p.bloodGroup!.isNotEmpty) {
+    lines.add('Blood group ${p.bloodGroup}');
+  }
+  if (p.pcv != null) lines.add('PCV ${p.pcv}%');
+  if (p.hcv != null && p.hcv!.isNotEmpty) lines.add('HCV ${p.hcv}');
+  if (p.hbsAg != null && p.hbsAg!.isNotEmpty) lines.add('HBsAg ${p.hbsAg}');
+  if (p.vdrl != null && p.vdrl!.isNotEmpty) lines.add('VDRL ${p.vdrl}');
+  if (p.hiv12 != null && p.hiv12!.isNotEmpty) lines.add('HIV ${p.hiv12}');
+  if (p.urinalysisProtein != null && p.urinalysisProtein!.isNotEmpty) {
+    lines.add('Urine protein ${p.urinalysisProtein}');
+  }
+  if (p.urinalysisGlucose != null && p.urinalysisGlucose!.isNotEmpty) {
+    lines.add('Urine glucose ${p.urinalysisGlucose}');
+  }
+  if (p.ttImmunization != null && p.ttImmunization!.isNotEmpty) {
+    lines.add('T-T ${p.ttImmunization}');
+  }
+
+  return lines;
+}
+
+bool urineProteinPositive(String? urineProtein) =>
+    urineDipstickPositive(urineProtein);
+
+bool urineDipstickPositive(String? value) {
+  if (value == null || value.isEmpty) return false;
+  final v = value.toLowerCase();
+  if (v == 'trace') return true;
   return v.contains('+') ||
       v.contains('positive') ||
       v == 'pos' ||
       v == '1' ||
       v == '2' ||
       v == '3';
+}
+
+String formatGestationalAge(int? weeks, int? days) {
+  if (weeks == null && days == null) return '—';
+  if (weeks != null && days != null && days > 0) {
+    return '${weeks}w ${days}d';
+  }
+  if (weeks != null) return '${weeks}w';
+  if (days != null) return '${days}d';
+  return '—';
+}
+
+/// Formats visit date for display — includes time when present in ISO string.
+String formatAntenatalVisitDate(String? visitDate) {
+  if (visitDate == null || visitDate.isEmpty) return '—';
+  try {
+    final dt = DateTime.parse(visitDate);
+    final hasTime = visitDate.contains('T') &&
+        (dt.hour != 0 || dt.minute != 0 || visitDate.contains(':'));
+    if (hasTime) {
+      return DateFormatter.formatFromBackend(visitDate, DateFormatter.dateTime);
+    }
+    return DateFormatter.formatFromBackend(visitDate, DateFormatter.shortDate);
+  } catch (_) {
+    return visitDate;
+  }
+}
+
+/// Resolves gestational weeks and days from a visit (handles legacy decimal weeks).
+(int? weeks, int? days) gestationalAgeParts(AntenatalVisit visit) {
+  int? weeks;
+  int? days = visit.gestationDays;
+
+  if (visit.gestationWeeks != null) {
+    weeks = visit.gestationWeeks!.truncate();
+    if (days == null) {
+      final fractional = visit.gestationWeeks! - weeks;
+      if (fractional > 0) {
+        days = (fractional * 7).round();
+      }
+    }
+  }
+
+  return (weeks, days);
 }

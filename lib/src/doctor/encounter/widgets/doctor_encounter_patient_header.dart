@@ -10,6 +10,7 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
   final List<String> chronicConditions;
   final int pastAdmissionsCount;
   final String? insurance;
+  final String? doctorName;
 
   const DoctorEncounterPatientHeader({
     super.key,
@@ -20,6 +21,7 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
     this.chronicConditions = const [],
     this.pastAdmissionsCount = 0,
     this.insurance,
+    this.doctorName,
   });
 
   static String _initials(String name) {
@@ -91,6 +93,14 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
                         icon: Icons.person_outline,
                         label: ageGender,
                       ),
+                      if (doctorName != null && doctorName!.trim().isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        _metaChip(
+                          context,
+                          icon: Icons.medical_services_outlined,
+                          label: doctorName!.trim(),
+                        ),
+                      ],
                     ],
                   ),
                 ],

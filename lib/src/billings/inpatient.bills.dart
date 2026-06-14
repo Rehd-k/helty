@@ -160,20 +160,18 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       if (e.statusCode == 409) {
         await _loadBillingData();
       } else if (e.statusCode == 404) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
         if (mounted) context.router.maybePop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
@@ -198,9 +196,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
@@ -320,6 +316,15 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return b.difference(a).inDays + 1;
   }
 
+  String _chargeLinePaymentSummary(ChargeItem item, BillingInvoiceItem? line) {
+    final paid =
+        'Paid ${item.amountPaid.toFinancial(isMoney: true)} / ${item.displayLineTotal.toFinancial(isMoney: true)}';
+    if (line != null && line.lineCovered > 0.001) {
+      return '$paid · Covered ${line.lineCovered.toFinancial(isMoney: true)} · Due ${line.lineAmountDue.toFinancial(isMoney: true)}';
+    }
+    return paid;
+  }
+
   Widget _chargeLineKindBadge(BillingInvoiceItem line, ThemeData theme) {
     final cs = theme.colorScheme;
     if (line.isDrugLine) {
@@ -333,6 +338,52 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           ),
           label: Text(
             'Pharmacy',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSecondaryContainer,
+            ),
+          ),
+          backgroundColor: cs.secondaryContainer,
+          side: BorderSide.none,
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+        ),
+      );
+    }
+    if (line.isPurchaseItemLine) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Chip(
+          avatar: Icon(
+            Icons.inventory_2_outlined,
+            size: 16,
+            color: cs.onTertiaryContainer,
+          ),
+          label: Text(
+            'Supplies',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onTertiaryContainer,
+            ),
+          ),
+          backgroundColor: cs.tertiaryContainer,
+          side: BorderSide.none,
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+        ),
+      );
+    }
+    if (line.isConsumableLine) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Chip(
+          avatar: Icon(
+            Icons.medical_services_outlined,
+            size: 16,
+            color: cs.onSecondaryContainer,
+          ),
+          label: Text(
+            'Consumable',
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onSecondaryContainer,
             ),
@@ -399,7 +450,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     final staff = ref.read(authProvider).staff;
     if (!canRequestInvoiceItemRefund(staff)) return null;
 
-    final canCancel = line.refundPending &&
+    final canCancel =
+        line.refundPending &&
         canCancelInvoiceItemRefundRequest(staff, line.activeRefundRequest);
     final canSubmit = invoiceLineEligibleForRefundRequest(line);
     final tooltip = canCancel
@@ -481,17 +533,34 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
 
   ServiceModel _billingItemToServiceModel(BillingInvoiceItem item) {
     final label = item.displayLabel;
+    String? categoryName;
+    if (item.isDrugLine) {
+      categoryName = 'Pharmacy';
+    } else if (item.isPurchaseItemLine) {
+      categoryName = 'Supplies';
+    } else if (item.isConsumableLine) {
+      categoryName = 'Consumables';
+    } else {
+      categoryName = item.serviceCategoryName;
+    }
     return ServiceModel(
       id: item.id,
       serviceId: item.serviceId.isNotEmpty
           ? item.serviceId
-          : (item.drugId ?? item.id),
+          : (item.purchaseItemId ?? item.drugId ?? item.id),
       name: label,
       cost: item.unitPrice,
       qty: item.quantity,
-      categoryName: item.isDrugLine ? 'Pharmacy' : item.serviceCategoryName,
+      categoryName: categoryName,
       departmentName: item.serviceDepartmentName,
       drugId: item.drugId,
+      purchaseItemId: item.purchaseItemId,
+      purchasesLocationId: item.purchasesLocationId,
+      lineTotal: item.lineTotal,
+      lineCovered: item.lineCovered,
+      lineEffectiveDue: item.lineEffectiveDue,
+      lineAmountDue: item.lineAmountDue,
+      createdByName: item.createdByName,
     );
   }
 
@@ -1192,9 +1261,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     final colorScheme = Theme.of(context).colorScheme;
     final selectedPatient = ref.watch(patientProvider).selectedPatient;
     final detail = _billingDetail;
-    final patientUuid =
-        detail?.patientId ??
-        (selectedPatient?.id ?? '');
+    final patientUuid = detail?.patientId ?? (selectedPatient?.id ?? '');
     final patientDisplayId = resolveTenCharDisplayId([
       detail?.patientDisplayId,
       selectedPatient?.patientId,
@@ -1309,23 +1376,15 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Billing Dashboard', style: TextStyle(fontSize: 18)),
             Text(
-              'Patient ID: $patientDisplayId',
+              '${effectivePatientName.split(' ').first.toUpperCase()} ${effectivePatientName.split(' ').last.toUpperCase()}',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 18,
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
             Text(
               'Invoice ID: $invoiceDisplayId',
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            Text(
-              'Patient: $effectivePatientName',
               style: TextStyle(
                 fontSize: 12,
                 color: colorScheme.onSurfaceVariant,
@@ -1374,6 +1433,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             coveredAmount: invoiceDetail?.coveredAmount ?? 0,
             effectivePayable: invoiceDetail?.effectivePayable ?? balanceDue,
             walletBalance: walletBalance,
+            patientHmoName: invoiceDetail?.patientHmoName,
+            patientHmoDefaultCoveragePercent:
+                invoiceDetail?.patientHmoDefaultCoveragePercent,
           ),
           Expanded(
             child: TabBarView(
@@ -1508,8 +1570,16 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double coveredAmount,
     required double effectivePayable,
     required double walletBalance,
+    String? patientHmoName,
+    double? patientHmoDefaultCoveragePercent,
   }) {
     final bool isPaidOff = balanceDue <= 0;
+    final hmoName = patientHmoName?.trim() ?? '';
+    final hmoLabel = hmoName.isEmpty
+        ? null
+        : patientHmoDefaultCoveragePercent != null
+        ? '$hmoName (${patientHmoDefaultCoveragePercent.round()}% default)'
+        : hmoName;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1672,6 +1742,32 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       ),
                     ],
                   ),
+                  if (hmoLabel != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'HMO:',
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            hmoLabel,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1718,6 +1814,16 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           ...?groupedCharges[ChargeCategory.lab],
           ...?groupedCharges[ChargeCategory.radiology],
         ], detail),
+        const SizedBox(height: 24),
+
+        _buildSectionHeader('CONSUMABLES'),
+        _buildChargeGroup(
+          colorScheme,
+          groupedCharges[ChargeCategory.supplies] ?? [],
+          detail,
+        ),
+        const SizedBox(height: 24),
+
         _buildSectionHeader('Other'),
         _buildChargeGroup(
           colorScheme,
@@ -1872,11 +1978,24 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                     ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Paid ${item.amountPaid.toFinancial(isMoney: true)} / ${item.displayLineTotal.toFinancial(isMoney: true)}',
+                                    _chargeLinePaymentSummary(item, line),
                                     style: theme.textTheme.labelSmall?.copyWith(
                                       color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
+                                  if (line?.createdByName != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Added by ${line!.createdByName}',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                    ),
+                                  ],
                                 ],
                               ),
                               trailing: Row(
@@ -2176,7 +2295,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
 
     if (_refundRequests.isEmpty && historicalRefunds.isEmpty) {
       return const Center(
-        child: Text('No refund requests or completed refunds for this invoice.'),
+        child: Text(
+          'No refund requests or completed refunds for this invoice.',
+        ),
       );
     }
 
@@ -2199,9 +2320,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         if (historicalRefunds.isNotEmpty) ...[
           Text(
             'Completed refunds',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           ...historicalRefunds.map(
@@ -2225,9 +2346,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         ],
         Text(
           'Refund requests',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         if (_refundRequests.isEmpty)

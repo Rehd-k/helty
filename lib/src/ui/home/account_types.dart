@@ -269,13 +269,14 @@ List<MenuItem> nurseMenuFor(Staff? staff, NursingDashboardMe? bootstrap) {
   final ongCharge = isOngChargeNurse(staff);
   final inpatientLine = isInpatientLineNurse(staff);
   final outpatientLine = isOutpatientLineNurse(staff);
+  final regularNurse = isRegularNurse(staff);
 
   final showWaiting =
-      matron || opdOngCharge || outpatientLine;
+      matron || opdOngCharge || outpatientLine || regularNurse;
   final showInpatients =
-      matron || wardCharge || inpatientLine;
-  final showEd = matron || erCharge;
-  final showOng = matron || ongCharge;
+      matron || wardCharge || inpatientLine || regularNurse;
+  final showEd = matron || erCharge || regularNurse;
+  final showOng = matron || ongCharge || regularNurse;
   final showRoster = canManageShiftRoster(staff, bootstrap);
   final showAssignments = charge || matron;
 
@@ -301,6 +302,11 @@ final doctors = <MenuItem>[
     label: 'My Appointments',
     icon: Icons.calendar_today_outlined,
     route: DoctorOutpatientListRoute(),
+  ),
+  MenuItem(
+    label: 'Ongoing Encounters',
+    icon: Icons.pending_actions_outlined,
+    route: DoctorOngoingEncountersRoute(),
   ),
   MenuItem(
     label: 'Walk-in Queue',

@@ -106,6 +106,9 @@ enum AccountType {
       case 'opd_charge_nurse':
       case 'ong_charge_nurse':
       case 'inpatient_nurse':
+      case 'emergency_nurse':
+      case 'icu_nurse':
+      case 'ong_nurse':
       case 'outpatient_nurse':
       case 'nurse':
         return AccountType.nurse;

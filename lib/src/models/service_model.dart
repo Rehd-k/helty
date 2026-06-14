@@ -47,6 +47,12 @@ class ServiceModel {
     this.drugId,
     this.invoiceId,
     this.hmoPrices = const [],
+    this.purchaseItemId,
+    this.purchasesLocationId,
+    this.lineTotal,
+    this.lineCovered,
+    this.lineEffectiveDue,
+    this.lineAmountDue,
   });
 
   final String id;
@@ -69,6 +75,19 @@ class ServiceModel {
   final String? drugId;
   final String? invoiceId;
   final List<ServiceHmoPrice> hmoPrices;
+  final String? purchaseItemId;
+  final String? purchasesLocationId;
+  final double? lineTotal;
+  final double? lineCovered;
+  final double? lineEffectiveDue;
+  final double? lineAmountDue;
+
+  /// Prefer server line total when present; otherwise unit price × quantity.
+  double get displayLineTotal {
+    if (lineTotal != null && lineTotal! > 0) return lineTotal!;
+    final q = qty ?? 1;
+    return cost * q;
+  }
 
   /// Standard catalog price, or the HMO tariff when [hmoId] matches a row.
   double costForHmo(String? hmoId) {
@@ -200,6 +219,25 @@ class ServiceModel {
 
     final amountPaid = parseApiDecimal(json['amountPaid']);
 
+    final lineTotalRaw = json['lineTotal'];
+    final lineTotalParsed = lineTotalRaw != null
+        ? parseApiDecimal(lineTotalRaw)
+        : null;
+    final lineCoveredRaw = json['lineCovered'];
+    final lineCoveredParsed = lineCoveredRaw != null
+        ? parseApiDecimal(lineCoveredRaw)
+        : null;
+    final lineEffectiveDueRaw = json['lineEffectiveDue'];
+    final lineEffectiveDueParsed = lineEffectiveDueRaw != null
+        ? parseApiDecimal(lineEffectiveDueRaw)
+        : null;
+    final lineAmountDueRaw = json['lineAmountDue'];
+    final lineAmountDueParsed = lineAmountDueRaw != null
+        ? parseApiDecimal(lineAmountDueRaw)
+        : null;
+    final purchasesLocationId =
+        json['purchasesLocationId']?.toString().trim();
+
     final s = json['settled'];
     final settled = s is bool ? s : s?.toString().toLowerCase() == 'true';
 
@@ -242,6 +280,16 @@ class ServiceModel {
       drugId: drugId,
       invoiceId: json['invoiceId']?.toString(),
       hmoPrices: hmoPrices,
+      purchaseItemId: purchaseItemId?.trim().isEmpty ?? true
+          ? null
+          : purchaseItemId,
+      purchasesLocationId: purchasesLocationId?.isEmpty ?? true
+          ? null
+          : purchasesLocationId,
+      lineTotal: lineTotalParsed,
+      lineCovered: lineCoveredParsed,
+      lineEffectiveDue: lineEffectiveDueParsed,
+      lineAmountDue: lineAmountDueParsed,
     );
   }
   Map<String, dynamic> toJson() => {

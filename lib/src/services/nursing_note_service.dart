@@ -51,4 +51,26 @@ class NursingNoteService {
     }
     return NursingNoteModel.fromJson(data);
   }
+
+  /// PATCH `/admissions/:admissionId/nursing-notes/:noteId`
+  Future<NursingNoteModel> update({
+    required String admissionId,
+    required String noteId,
+    String? noteType,
+    String? content,
+  }) async {
+    final body = <String, dynamic>{
+      if (noteType != null) 'noteType': noteType,
+      if (content != null) 'content': content,
+    };
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/admissions/$admissionId/nursing-notes/$noteId',
+      data: body,
+    );
+    final data = response.data;
+    if (data == null) {
+      throw StateError('Update nursing note returned no data');
+    }
+    return NursingNoteModel.fromJson(data);
+  }
 }

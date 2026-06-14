@@ -147,6 +147,22 @@ class _ObstetricsPregnancyOverviewTabState
             );
           },
         ),
+        if (pregnancyBookingSummaryLines(p).isNotEmpty) ...[
+          const SizedBox(height: 20),
+          ObSectionHeader(title: 'Booking assessment'),
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: ObstetricsTheme.borderRadius,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                pregnancyBookingSummaryLines(p).join(' · '),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         ObSectionHeader(title: 'Last antenatal visit'),
         Card(
@@ -164,10 +180,7 @@ class _ObstetricsPregnancyOverviewTabState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        DateFormatter.formatFromBackend(
-                          latest.visitDate,
-                          DateFormatter.shortDate,
-                        ),
+                        formatAntenatalVisitDate(latest.visitDate),
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -175,8 +188,11 @@ class _ObstetricsPregnancyOverviewTabState
                       const SizedBox(height: 8),
                       Text(
                         [
-                          if (latest.gestationWeeks != null)
-                            '${latest.gestationWeeks!.round()} wks',
+                          () {
+                            final (weeks, days) = gestationalAgeParts(latest);
+                            final ga = formatGestationalAge(weeks, days);
+                            return ga != '—' ? ga : null;
+                          }(),
                           if (latest.systolicBP != null &&
                               latest.diastolicBP != null)
                             'BP ${latest.systolicBP}/${latest.diastolicBP}',
@@ -184,7 +200,17 @@ class _ObstetricsPregnancyOverviewTabState
                             'FHR ${latest.fetalHeartRate}',
                           if (latest.presentation != null)
                             formatPresentation(latest.presentation),
-                        ].join(' · '),
+                          if (latest.descent != null &&
+                              latest.descent!.isNotEmpty)
+                            'Descent ${latest.descent}',
+                          if (latest.urineProtein != null &&
+                              latest.urineProtein!.isNotEmpty)
+                            'Protein ${latest.urineProtein}',
+                          if (latest.urineGlucose != null &&
+                              latest.urineGlucose!.isNotEmpty)
+                            'Glucose ${latest.urineGlucose}',
+                          if (latest.pcv != null) 'PCV ${latest.pcv}%',
+                        ].whereType<String>().join(' · '),
                         style: theme.textTheme.bodyMedium,
                       ),
                     ],

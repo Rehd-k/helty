@@ -66,6 +66,10 @@ bool isMatron(Staff? staff) => _hasRole(staff, {'MATRON'});
 
 bool isChargeNurse(Staff? staff) => _hasRole(staff, _chargeNurseRoles);
 
+/// Line/unit nurses — not Matron and not a charge nurse.
+bool isRegularNurse(Staff? staff) =>
+    isNursingStaff(staff) && !isMatron(staff) && !isChargeNurse(staff);
+
 bool isLineNurse(Staff? staff) =>
     _hasRole(staff, {'INPATIENT_NURSE', 'OUTPATIENT_NURSE'});
 

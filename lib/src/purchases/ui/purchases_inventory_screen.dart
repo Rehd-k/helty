@@ -415,7 +415,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
             ElevatedButton.icon(
               onPressed: () => _showAddMedicineModal(context, theme),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Medicine'),
+              label: const Text('Add Item'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
@@ -1218,7 +1218,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
   Future<void> _createOrder() async {
     if (_supplierId == null || _supplierId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a PurchasesSupplier')),
+        const SnackBar(content: Text('Please select a Supplier')),
       );
       return;
     }
@@ -1275,7 +1275,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
               const Text('No suppliers available.')
             else ...[
               const Text(
-                'PurchasesSupplier',
+                'Supplier',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -1290,7 +1290,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
                 items: [
                   const DropdownMenuItem(
                     value: null,
-                    child: Text('— Select PurchasesSupplier —'),
+                    child: Text('— Select Supplier —'),
                   ),
                   ...widget.suppliers.map(
                     (s) => DropdownMenuItem<String?>(

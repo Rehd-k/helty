@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
+import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
@@ -30,6 +31,7 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
 
   bool get _isLocked => _lockedAt != null;
   bool _draftLoadScheduled = false;
+  int _lastReloadGeneration = 0;
 
   @override
   void initState() {
@@ -44,6 +46,13 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    reloadEncounterTabIfTemplateApplied(
+      context: context,
+      lastReloadGeneration: _lastReloadGeneration,
+      updateLastReloadGeneration: (v) => _lastReloadGeneration = v,
+      loaded: _loaded,
+      reload: _loadDraft,
+    );
     if (!_draftLoadScheduled) {
       _draftLoadScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {

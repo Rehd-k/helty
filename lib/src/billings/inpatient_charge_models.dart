@@ -1,6 +1,14 @@
 import 'package:helty/src/models/invoice_billing_models.dart';
 
-enum ChargeCategory { daily, pharmacy, lab, radiology, surgery, other }
+enum ChargeCategory {
+  daily,
+  pharmacy,
+  lab,
+  radiology,
+  surgery,
+  supplies,
+  other,
+}
 
 class ChargeItem {
   final String id;
@@ -57,6 +65,8 @@ String chargeCategoryLabel(ChargeCategory category) {
       return 'Daily Charge';
     case ChargeCategory.pharmacy:
       return 'Pharmacy and Medications';
+    case ChargeCategory.supplies:
+      return 'Supplies & Purchases';
     case ChargeCategory.lab:
     case ChargeCategory.radiology:
       return 'Laboratory and Investigations';
@@ -69,6 +79,8 @@ String chargeCategoryLabel(ChargeCategory category) {
 ChargeCategory chargeCategoryForBillingItem(BillingInvoiceItem item) {
   if (item.isRecurringDaily) return ChargeCategory.daily;
   if (item.isDrugLine) return ChargeCategory.pharmacy;
+  if (item.isPurchaseItemLine) return ChargeCategory.supplies;
+  if (item.isConsumableLine) return ChargeCategory.pharmacy;
   final name = (item.serviceCategoryName ?? '').trim().toLowerCase();
   if (name == 'laboratory tests' ||
       name == 'laboratory' ||

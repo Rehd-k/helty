@@ -16,7 +16,10 @@ import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/emergency/services/emergency_service.dart';
 import 'package:helty/src/emergency/widgets/ed_disposition_dialog.dart';
 import 'package:helty/src/emergency/widgets/esi_badge.dart';
+import 'package:helty/src/doctor/templates/widgets/encounter_template_picker_sheet.dart';
+import 'package:helty/src/doctor/templates/widgets/save_encounter_template_dialog.dart';
 import 'package:helty/src/services/encounter_service.dart';
+import 'package:helty/src/services/staff_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
 
 const double _contentMaxWidth = 1440;
@@ -34,6 +37,8 @@ class EncounterScope extends InheritedWidget {
     this.isEmergency = false,
     this.emergencyVisitId,
     this.edEsiLevel,
+    this.encounterType,
+    this.reloadGeneration = 0,
     required super.child,
   });
 
@@ -41,6 +46,10 @@ class EncounterScope extends InheritedWidget {
   final String patientId;
   final String? doctorId;
   final PatientVitalsModel? patientVitals;
+  final String? encounterType;
+
+  /// Incremented when a template is applied so tabs refetch drafts.
+  final int reloadGeneration;
 
   /// Amending a completed encounter (versioned saves + optional editReason).
   final bool amendMode;
@@ -70,7 +79,9 @@ class EncounterScope extends InheritedWidget {
       editReason != old.editReason ||
       isEmergency != old.isEmergency ||
       emergencyVisitId != old.emergencyVisitId ||
-      edEsiLevel != old.edEsiLevel;
+      edEsiLevel != old.edEsiLevel ||
+      encounterType != old.encounterType ||
+      reloadGeneration != old.reloadGeneration;
 }
 
 @RoutePage()
@@ -104,9 +115,11 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   final _encounterService = EncounterService();
   final _emergencyService = EmergencyService();
   final _waitingPatientService = WaitingPatientService();
+  final _staffService = StaffService();
 
   Patient? _patient;
   EncounterModel? _encounter;
+  String? _resolvedDoctorName;
   bool _loadingPatient = false;
   String? _patientError;
   PatientVitalsModel? _patientVitals;
@@ -118,6 +131,33 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   bool _isEmergency = false;
   String? _emergencyVisitId;
   int? _edEsiLevel;
+  int _reloadGeneration = 0;
+
+  void _notifyTemplateApplied() {
+    setState(() => _reloadGeneration++);
+  }
+
+  Future<void> _loadTemplate() async {
+    final scope = EncounterScope.of(context);
+    if (scope == null) return;
+    await EncounterTemplatePickerSheet.show(
+      context,
+      scope: scope,
+      onApplied: _notifyTemplateApplied,
+    );
+  }
+
+  Future<void> _saveAsTemplate() async {
+    final created = await SaveEncounterTemplateDialog.show(
+      context,
+      encounterId: widget.encounterId,
+      encounterType: _encounter?.encounterType,
+    );
+    if (!mounted || created == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Saved template "${created.name}"')),
+    );
+  }
 
   @override
   void initState() {
@@ -205,8 +245,32 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         _edEsiLevel = esi;
         if (isEm) _specialtyGateDismissed = true;
       });
+      if (enc != null) {
+        unawaited(_resolveDoctorName(enc));
+      }
     } catch (_) {
       if (mounted) setState(() => _encounter = null);
+    }
+  }
+
+  Future<void> _resolveDoctorName(EncounterModel enc) async {
+    final display = enc.doctorDisplayName?.trim();
+    if (display != null && display.isNotEmpty) {
+      if (!mounted) return;
+      setState(() => _resolvedDoctorName = enc.doctorLabel);
+      return;
+    }
+
+    final doctorId = enc.doctorId.trim();
+    if (doctorId.isEmpty) return;
+
+    try {
+      final staff = await _staffService.getStaffById(doctorId);
+      if (!mounted) return;
+      setState(() => _resolvedDoctorName = 'Dr ${staff.fullName}');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _resolvedDoctorName = enc.doctorLabel);
     }
   }
 
@@ -292,6 +356,8 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
           isEmergency: _isEmergency,
           emergencyVisitId: _emergencyVisitId,
           edEsiLevel: _edEsiLevel,
+          encounterType: _encounter?.encounterType,
+          reloadGeneration: _reloadGeneration,
           child: Scaffold(
             backgroundColor: colorScheme.surface,
             body: SafeArea(
@@ -481,6 +547,24 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                 label: const Text('Previous encounters'),
               ),
             ),
+            if (!isCompleted)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: OutlinedButton.icon(
+                  onPressed: _loadTemplate,
+                  icon: const Icon(Icons.description_outlined, size: 18),
+                  label: const Text('Load template'),
+                ),
+              ),
+            if (!isCompleted)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: OutlinedButton.icon(
+                  onPressed: _saveAsTemplate,
+                  icon: const Icon(Icons.save_as_outlined, size: 18),
+                  label: const Text('Save as template'),
+                ),
+              ),
             if (isAmend)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -697,6 +781,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
       chronicConditions: chronicConditions,
       pastAdmissionsCount: pastAdmissionsCount,
       insurance: insurance,
+      doctorName: _resolvedDoctorName,
     );
   }
 

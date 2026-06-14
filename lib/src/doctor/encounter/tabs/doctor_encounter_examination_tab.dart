@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
+import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_narrative_compiler.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_question_models.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_questionnaire_section.dart';
@@ -31,6 +32,7 @@ class _DoctorEncounterExaminationTabState
   bool _loaded = false;
   Map<String, String?> _vitals = {};
   bool _initialLoadScheduled = false;
+  int _lastReloadGeneration = 0;
 
   @override
   void initState() {
@@ -47,6 +49,13 @@ class _DoctorEncounterExaminationTabState
   void didChangeDependencies() {
     super.didChangeDependencies();
     _applyVitalsFromScope();
+    reloadEncounterTabIfTemplateApplied(
+      context: context,
+      lastReloadGeneration: _lastReloadGeneration,
+      updateLastReloadGeneration: (v) => _lastReloadGeneration = v,
+      loaded: _loaded,
+      reload: _loadDraft,
+    );
     if (!_initialLoadScheduled) {
       _initialLoadScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {

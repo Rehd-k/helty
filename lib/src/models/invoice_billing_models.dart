@@ -383,6 +383,9 @@ class BillingInvoiceItem {
     this.refundPending = false,
     this.refundBlockReason,
     this.activeRefundRequest,
+    this.createdById,
+    this.createdByName,
+    this.createdAt,
   });
 
   final String id;
@@ -434,6 +437,9 @@ class BillingInvoiceItem {
   final bool refundPending;
   final String? refundBlockReason;
   final BillingInvoiceItemActiveRefundRequest? activeRefundRequest;
+  final String? createdById;
+  final String? createdByName;
+  final DateTime? createdAt;
 
   /// Invoice line title for UI and payments (custom → purchase item → consumable → drug → service → id).
   String get displayLabel {
@@ -447,6 +453,7 @@ class BillingInvoiceItem {
     if (drug != null && drug.isNotEmpty) return drug;
     final svc = serviceName?.trim();
     if (svc != null && svc.isNotEmpty) return svc;
+    if (isPurchaseItemLine) return 'Purchase item';
     final sid = serviceId.trim();
     if (sid.isNotEmpty) return sid;
     return 'Line item';
@@ -532,6 +539,11 @@ class BillingInvoiceItem {
         Map<String, dynamic>.from(activeRaw),
       );
     }
+    final createdByRaw = json['createdBy'];
+    final createdBy = createdByRaw is Map
+        ? Map<String, dynamic>.from(createdByRaw)
+        : null;
+    final createdByName = _staffNameFromMap(createdBy);
     return BillingInvoiceItem(
       id: _asString(json['id']),
       serviceId: _asString(json['serviceId'] ?? serviceMap?['id']),
@@ -573,6 +585,9 @@ class BillingInvoiceItem {
       refundPending: _asBool(json['refundPending']),
       refundBlockReason: _nullableString(json['refundBlockReason']),
       activeRefundRequest: activeRefundRequest,
+      createdById: _nullableString(json['createdById'] ?? createdBy?['id']),
+      createdByName: createdByName.isNotEmpty ? createdByName : null,
+      createdAt: _asDate(json['createdAt']),
     );
   }
 }

@@ -147,9 +147,7 @@ class _PurchasesAddSupplierScreenState
                 final batches = data?.items ?? [];
                 if (batches.isEmpty) {
                   return const Center(
-                    child: Text(
-                      'No supplies found for this PurchasesSupplier.',
-                    ),
+                    child: Text('No supplies found for this Supplier.'),
                   );
                 }
 
@@ -214,8 +212,8 @@ class _PurchasesAddSupplierScreenState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ModernTextField(
-                  label: 'PurchasesSupplier Name',
-                  hint: 'e.g., Global Pharma Distributors',
+                  label: 'Supplier Name',
+                  hint: 'e.g., Global Distributors',
                   controller: _nameCtrl,
                   validator: (v) => v!.isEmpty ? 'Required' : null,
                 ),
@@ -227,7 +225,7 @@ class _PurchasesAddSupplierScreenState
                 const Divider(height: 32),
                 ModernTextField(
                   label: 'Email Address',
-                  hint: 'contact@PurchasesSupplier.com',
+                  hint: 'contact@supplier.com',
                   controller: _emailCtrl,
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
@@ -261,9 +259,9 @@ class _PurchasesAddSupplierScreenState
                   ],
                 ),
                 ModernSwitchCard(
-                  title: 'Blacklist PurchasesSupplier',
+                  title: 'Blacklist Supplier',
                   subtitle:
-                      'Prevent future purchase orders from being issued to this PurchasesSupplier.',
+                      'Prevent future purchase orders from being issued to this Supplier.',
                   value: _isBlacklisted,
                   onChanged: (v) => setState(() => _isBlacklisted = v),
                 ),
@@ -277,7 +275,7 @@ class _PurchasesAddSupplierScreenState
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator()
-                      : const Text('Save PurchasesSupplier'),
+                      : const Text('Save Supplier'),
                 ),
               ],
             ),
@@ -500,9 +498,7 @@ class _PurchasesAddSupplierScreenState
       await _apiService.createSupplier(supplier);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PurchasesSupplier added successfully!'),
-          ),
+          const SnackBar(content: Text('Supplier added successfully!')),
         );
       }
     } catch (e) {

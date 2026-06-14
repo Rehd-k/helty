@@ -239,6 +239,91 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     }
   }
 
+  bool _hasSellableStock(Drug drug) => (drug.stock ?? 0) > 0;
+
+  void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : null,
+      ),
+    );
+  }
+
+  Future<void> _hideDrug(Drug drug) async {
+    final id = drug.id;
+    if (id == null || id.isEmpty) return;
+
+    if (_hasSellableStock(drug)) {
+      _showSnack(
+        'Deplete or transfer stock before hiding this drug.',
+        isError: true,
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hide drug from catalog?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Hide ${drug.brandName} (${drug.genericName}) from the pharmacy catalog?',
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '• The drug will no longer appear in searches or new orders.',
+            ),
+            const Text('• Past prescriptions and invoices are not affected.'),
+            const Text(
+              '• You cannot hide a drug while sellable stock remains.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hide drug'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    try {
+      await _drugService.deleteDrug(id);
+      if (!mounted) return;
+      _showSnack('Drug hidden from catalog.');
+      setState(() {
+        _drugs.removeWhere((d) => d.id == id);
+        if (_totalItems > 0) _totalItems--;
+        if (_selectedDrug?.id == id) {
+          _selectedDrug = _drugs.isNotEmpty ? _drugs.first : null;
+        }
+        _drugLocationQuantities.remove(id);
+        _drugLocationErrors.remove(id);
+        _loadingDrugLocationIds.remove(id);
+      });
+      final selectedId = _selectedDrug?.id;
+      if (selectedId != null && selectedId.isNotEmpty) {
+        _fetchDrugLocationQuantities(selectedId);
+      }
+    } on AppException catch (e) {
+      if (mounted) _showSnack(e.message, isError: true);
+    } catch (e) {
+      if (mounted) _showSnack(e.toString(), isError: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -588,6 +673,16 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                     ),
                   ),
                 ),
+                const DataColumn(
+                  label: Text(
+                    'ACTIONS',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
               ],
               rows: _drugs.map((drug) {
                 final isSelected = _selectedDrug?.id == drug.id;
@@ -706,6 +801,41 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                       ),
                     ),
                     DataCell(_buildStatusChip(drug.displayStatus)),
+                    DataCell(
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, size: 20),
+                        tooltip: 'Actions',
+                        onSelected: (value) {
+                          if (value == 'hide') _hideDrug(drug);
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem<String>(
+                            value: 'hide',
+                            enabled: !_hasSellableStock(drug),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.visibility_off_outlined,
+                                  size: 18,
+                                  color: _hasSellableStock(drug)
+                                      ? Colors.grey
+                                      : Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Hide from catalog',
+                                  style: TextStyle(
+                                    color: _hasSellableStock(drug)
+                                        ? Colors.grey
+                                        : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 );
               }).toList(),
@@ -855,18 +985,40 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                   size: 32,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.grey),
-                onPressed: () => _showEditMedicineModal(context, theme, drug),
-              ),
-              IconButton(
-                icon: const Icon(Icons.sell_outlined, color: Colors.grey),
-                tooltip: 'Batch & ward pricing preview',
-                onPressed: drug.id == null || drug.id!.trim().isEmpty
-                    ? null
-                    : () => context.router.push(
-                        BatchesPreviewWardPricingRoute(id: drug.id!),
-                      ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.grey),
+                    onPressed: () =>
+                        _showEditMedicineModal(context, theme, drug),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.sell_outlined, color: Colors.grey),
+                    tooltip: 'Batch & ward pricing preview',
+                    onPressed: drug.id == null || drug.id!.trim().isEmpty
+                        ? null
+                        : () => context.router.push(
+                            BatchesPreviewWardPricingRoute(id: drug.id!),
+                          ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.visibility_off_outlined,
+                      color: _hasSellableStock(drug) ||
+                              drug.id == null ||
+                              drug.id!.trim().isEmpty
+                          ? Colors.grey.withValues(alpha: 0.4)
+                          : Colors.red,
+                    ),
+                    tooltip: 'Hide drug from catalog',
+                    onPressed: _hasSellableStock(drug) ||
+                            drug.id == null ||
+                            drug.id!.trim().isEmpty
+                        ? null
+                        : () => _hideDrug(drug),
+                  ),
+                ],
               ),
             ],
           ),
@@ -921,6 +1073,17 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                 ),
             ],
           ),
+          if (_hasSellableStock(drug)) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Deplete or transfer stock before hiding.',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
 
           // Stats Row

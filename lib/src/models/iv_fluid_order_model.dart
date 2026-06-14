@@ -11,6 +11,7 @@ class IvFluidOrderModel {
     this.expectedEndTime,
     this.status,
     this.recorderDisplayName,
+    this.latestSiteCondition,
   });
 
   final String id;
@@ -21,12 +22,23 @@ class IvFluidOrderModel {
   final DateTime? expectedEndTime;
   final String? status;
   final String? recorderDisplayName;
+  final String? latestSiteCondition;
 
   static String _str(dynamic v) => v?.toString() ?? '';
 
   static DateTime? _dt(dynamic v) {
     if (v == null) return null;
     return DateTime.tryParse(v.toString());
+  }
+
+  static String? _latestSiteFromMonitorings(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return null;
+    final first = raw.first;
+    if (first is! Map) return null;
+    final site = first['insertionSiteCondition'] ??
+        first['insertion_site_condition'];
+    final s = site?.toString().trim() ?? '';
+    return s.isEmpty ? null : s;
   }
 
   factory IvFluidOrderModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +52,7 @@ class IvFluidOrderModel {
       expectedEndTime: _dt(json['expectedEndTime'] ?? json['expected_end_time']),
       status: json['status']?.toString(),
       recorderDisplayName: recorder.isEmpty ? null : recorder,
+      latestSiteCondition: _latestSiteFromMonitorings(json['monitorings']),
     );
   }
 }

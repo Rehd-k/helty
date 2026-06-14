@@ -11,7 +11,6 @@ import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/medication_administration_service.dart';
 import 'package:helty/src/services/medication_order_service.dart';
-import 'package:helty/src/services/transaction_service.dart';
 
 @RoutePage()
 class InpatientMedicationsScreen extends StatefulWidget {
@@ -26,7 +25,6 @@ class _InpatientMedicationsScreenState
     extends State<InpatientMedicationsScreen> {
   final _medicationOrderService = MedicationOrderService();
   final _medicationAdministrationService = MedicationAdministrationService();
-  final _transactionService = TransactionService();
 
   List<MedicationOrderModel> _orders = [];
   List<MedicationAdministrationModel> _administrations = [];
