@@ -1,6 +1,7 @@
 // Models for the pharmacy prescription queue (drugs sent to pharmacy on behalf of patients).
 
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/models/medication_request_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 
 import 'pharmacy_model.dart';
@@ -38,6 +39,14 @@ class PrescribedMedication {
   final bool settled;
   /// When the API links an invoice line to a clinical order (optional).
   final String? medicationOrderId;
+  /// Linked medication request id when API provides it.
+  final String? medicationRequestId;
+  final MedicationRequestStaffRef? prescribingDoctor;
+  final MedicationRequestStaffRef? requestedByNurse;
+  final String? prescribedDrugName;
+  final String? prescribedDrugId;
+  final MedicationRequestStaffRef? substitutedByPharmacist;
+  final DateTime? substitutedAt;
   final DateTime? dispensedAt;
   final DispenseAuditStaff? dispensedBy;
   final DispenseAuditLocation? dispensaryLocation;
@@ -46,6 +55,27 @@ class PrescribedMedication {
   final double unitPrice;
 
   double get lineTotal => quantity * unitPrice;
+
+  bool get wasSubstituted =>
+      substitutedByPharmacist != null ||
+      (prescribedDrugId != null &&
+          prescribedDrugId!.isNotEmpty &&
+          drugId != null &&
+          prescribedDrugId != drugId);
+
+  String get prescribedDrugLabel {
+    final named = prescribedDrugName?.trim();
+    if (named != null && named.isNotEmpty) return named;
+    return name;
+  }
+
+  String get currentDrugLabel => name;
+
+  String get prescribingDoctorLabel {
+    final fromDoctor = prescribingDoctor?.displayName.trim();
+    if (fromDoctor != null && fromDoctor.isNotEmpty) return fromDoctor;
+    return createdByDisplayName;
+  }
 
   PrescribedMedication({
     required this.id,
@@ -60,6 +90,13 @@ class PrescribedMedication {
     this.drugId,
     this.settled = false,
     this.medicationOrderId,
+    this.medicationRequestId,
+    this.prescribingDoctor,
+    this.requestedByNurse,
+    this.prescribedDrugName,
+    this.prescribedDrugId,
+    this.substitutedByPharmacist,
+    this.substitutedAt,
     this.dispensedAt,
     this.dispensedBy,
     this.dispensaryLocation,
@@ -121,6 +158,10 @@ class PrescribedMedication {
     final medicationOrderId = mo != null
         ? mo['id']?.toString()
         : moRaw?.toString();
+    final requestRaw = json['medicationRequest'];
+    final requestMap =
+        requestRaw is Map ? Map<String, dynamic>.from(requestRaw) : null;
+    final attribution = _attributionFromInvoiceItem(json, mo, requestMap);
 
     final dose = _rxString(json, mo, 'dose', catalogDosage);
     final frequency = _rxString(json, mo, 'frequency');
@@ -151,6 +192,13 @@ class PrescribedMedication {
           medicationOrderId != null && medicationOrderId.isNotEmpty
           ? medicationOrderId
           : null,
+      medicationRequestId: attribution.medicationRequestId,
+      prescribingDoctor: attribution.prescribingDoctor,
+      requestedByNurse: attribution.requestedByNurse,
+      prescribedDrugName: attribution.prescribedDrugName,
+      prescribedDrugId: attribution.prescribedDrugId,
+      substitutedByPharmacist: attribution.substitutedByPharmacist,
+      substitutedAt: attribution.substitutedAt,
       dispensedAt: dispensedAt,
       dispensedBy: _parseDispensedBy(json['dispensedBy']),
       dispensaryLocation: _parseDispensaryLocation(
@@ -162,6 +210,48 @@ class PrescribedMedication {
             : null,
       ),
       unitPrice: _parseDouble(json['unitPrice']),
+    );
+  }
+
+  static _InvoiceItemAttribution _attributionFromInvoiceItem(
+    Map<String, dynamic> json,
+    Map<String, dynamic>? medicationOrder,
+    Map<String, dynamic>? medicationRequest,
+  ) {
+    Map<String, dynamic>? map(dynamic v) =>
+        v is Map ? Map<String, dynamic>.from(v) : null;
+
+    final mo = medicationOrder;
+    final req = medicationRequest;
+    final reqMo = map(req?['medicationOrder']);
+    final doctorRaw = map(mo?['doctor']) ?? map(reqMo?['doctor']);
+    final nurseRaw = map(req?['requestedByNurse']) ??
+        map(json['requestedByNurse']);
+    final substitutedRaw = map(mo?['substitutedByPharmacist']) ??
+        map(reqMo?['substitutedByPharmacist']);
+    final prescribedDrugRaw = map(mo?['prescribedDrug']);
+    final prescribedDrugId = mo?['prescribedDrugId']?.toString() ??
+        prescribedDrugRaw?['id']?.toString();
+    final prescribedDrugName = mo?['prescribedDrugName']?.toString() ??
+        (prescribedDrugRaw != null
+            ? MedicationRequestDrugRef.fromJson(prescribedDrugRaw).displayName
+            : null);
+    final substitutedAtRaw = mo?['substitutedAt'] ?? reqMo?['substitutedAt'];
+
+    return _InvoiceItemAttribution(
+      medicationRequestId: json['medicationRequestId']?.toString() ??
+          req?['id']?.toString(),
+      prescribingDoctor: doctorRaw != null
+          ? MedicationRequestStaffRef.fromJson(doctorRaw)
+          : null,
+      requestedByNurse:
+          nurseRaw != null ? MedicationRequestStaffRef.fromJson(nurseRaw) : null,
+      prescribedDrugName: prescribedDrugName,
+      prescribedDrugId: prescribedDrugId,
+      substitutedByPharmacist: substitutedRaw != null
+          ? MedicationRequestStaffRef.fromJson(substitutedRaw)
+          : null,
+      substitutedAt: DateTime.tryParse(substitutedAtRaw?.toString() ?? ''),
     );
   }
 
@@ -231,6 +321,25 @@ class PrescribedMedication {
     if (drugId != null) 'drugId': drugId,
     'settled': settled,
     if (medicationOrderId != null) 'medicationOrderId': medicationOrderId,
+    if (medicationRequestId != null) 'medicationRequestId': medicationRequestId,
+    if (prescribingDoctor != null)
+      'prescribingDoctor': {
+        'id': prescribingDoctor!.id,
+        'displayName': prescribingDoctor!.displayName,
+      },
+    if (requestedByNurse != null)
+      'requestedByNurse': {
+        'id': requestedByNurse!.id,
+        'displayName': requestedByNurse!.displayName,
+      },
+    if (prescribedDrugName != null) 'prescribedDrugName': prescribedDrugName,
+    if (prescribedDrugId != null) 'prescribedDrugId': prescribedDrugId,
+    if (substitutedByPharmacist != null)
+      'substitutedByPharmacist': {
+        'id': substitutedByPharmacist!.id,
+        'displayName': substitutedByPharmacist!.displayName,
+      },
+    if (substitutedAt != null) 'substitutedAt': substitutedAt!.toIso8601String(),
     if (dispensedAt != null) 'dispensedAt': dispensedAt!.toIso8601String(),
     if (dispensedBy != null) 'dispensedBy': {'id': dispensedBy!.id, 'name': dispensedBy!.name},
     if (dispensaryLocation != null)
@@ -243,6 +352,26 @@ class PrescribedMedication {
     'createdByDisplayName': createdByDisplayName,
     'unitPrice': unitPrice,
   };
+}
+
+class _InvoiceItemAttribution {
+  const _InvoiceItemAttribution({
+    this.medicationRequestId,
+    this.prescribingDoctor,
+    this.requestedByNurse,
+    this.prescribedDrugName,
+    this.prescribedDrugId,
+    this.substitutedByPharmacist,
+    this.substitutedAt,
+  });
+
+  final String? medicationRequestId;
+  final MedicationRequestStaffRef? prescribingDoctor;
+  final MedicationRequestStaffRef? requestedByNurse;
+  final String? prescribedDrugName;
+  final String? prescribedDrugId;
+  final MedicationRequestStaffRef? substitutedByPharmacist;
+  final DateTime? substitutedAt;
 }
 
 class Allergy {

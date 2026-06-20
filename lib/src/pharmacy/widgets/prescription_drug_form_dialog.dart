@@ -197,6 +197,7 @@ class PrescriptionDrugFormResult {
     required this.administrationStatus,
     this.startDateTime,
     this.endDateTime,
+    this.requestedQuantity,
   });
 
   final Drug drug;
@@ -210,6 +211,8 @@ class PrescriptionDrugFormResult {
   final MedicationAdministrationStatus administrationStatus;
   final DateTime? startDateTime;
   final DateTime? endDateTime;
+  /// Billing / dispense units for outpatient prescribe (when required).
+  final int? requestedQuantity;
 }
 
 enum PrescriptionDrugFormMode { add, substitute }
@@ -221,660 +224,714 @@ Future<PrescriptionDrugFormResult?> showPrescriptionDrugFormDialog(
   PrescriptionDrugFormMode mode = PrescriptionDrugFormMode.add,
   PrescriptionDrugFormInitialValues? initial,
   String? replacingLineName,
-}) async {
-  const searchLimit = 30;
-  final init = initial ?? PrescriptionDrugFormInitialValues();
-  final isSubstitute = mode == PrescriptionDrugFormMode.substitute;
-
-  final searchCtrl = TextEditingController();
-  List<Drug> results = [];
-  Drug? selected;
-  int? remainingStock;
-  bool stockLoading = false;
-  String? stockError;
-  bool searchLoading = false;
-  Timer? searchDebounce;
-  final doseCtrl = TextEditingController(text: init.dose);
-  final durationValueCtrl = TextEditingController(
-    text: '${init.durationValue}',
-  );
-  final routeCtrl = TextEditingController(text: init.route);
-  final instructionsCtrl = TextEditingController(
-    text: init.specialInstructions,
-  );
-  final notesCtrl = TextEditingController(text: init.notes);
-  DateTime? startDateTime;
-  DateTime? endDateTime;
-  var adminStatus = init.administrationStatus;
-  var selectedFreq = init.frequency;
-  var durationUnit = init.durationUnit;
-
-  final result = await showDialog<PrescriptionDrugFormResult?>(
+  bool showRequestedQuantity = false,
+}) {
+  return showDialog<PrescriptionDrugFormResult?>(
     context: context,
-    builder: (ctx) {
-      return StatefulBuilder(
-        builder: (ctx, setState) {
-          int? parsedDuration() {
-            final n = int.tryParse(durationValueCtrl.text.trim());
-            if (n == null || n <= 0) return null;
-            return n;
-          }
+    builder: (ctx) => _PrescriptionDrugFormDialog(
+      pharmacyApi: pharmacyApi,
+      mode: mode,
+      initial: initial ?? PrescriptionDrugFormInitialValues(),
+      replacingLineName: replacingLineName,
+      showRequestedQuantity: showRequestedQuantity,
+    ),
+  );
+}
 
-          int? computedQty() {
-            final n = parsedDuration();
-            if (n == null) return null;
-            return computedPrescriptionQuantity(
-              frequency: selectedFreq,
-              durationValue: n,
-              durationUnit: durationUnit,
-            );
-          }
+class _PrescriptionDrugFormDialog extends StatefulWidget {
+  const _PrescriptionDrugFormDialog({
+    required this.pharmacyApi,
+    required this.mode,
+    required this.initial,
+    this.replacingLineName,
+    this.showRequestedQuantity = false,
+  });
 
-          final qtyForDisplay = computedQty();
-          final durForDisplay = parsedDuration();
-          final invalidDateRange =
-              startDateTime != null &&
-              endDateTime != null &&
-              endDateTime!.isBefore(startDateTime!);
-          final qDisp = qtyForDisplay;
-          final rStock = remainingStock;
-          final lowStock = qDisp != null && rStock != null && qDisp > rStock;
-          final theme = Theme.of(ctx);
-          final colorScheme = theme.colorScheme;
+  final PharmacyApiService pharmacyApi;
+  final PrescriptionDrugFormMode mode;
+  final PrescriptionDrugFormInitialValues initial;
+  final String? replacingLineName;
+  final bool showRequestedQuantity;
 
-          return AlertDialog(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
+  @override
+  State<_PrescriptionDrugFormDialog> createState() =>
+      _PrescriptionDrugFormDialogState();
+}
+
+class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog> {
+  static const _searchLimit = 30;
+
+  late final TextEditingController _searchCtrl;
+  late final TextEditingController _doseCtrl;
+  late final TextEditingController _durationValueCtrl;
+  late final TextEditingController _routeCtrl;
+  late final TextEditingController _instructionsCtrl;
+  late final TextEditingController _notesCtrl;
+  late final TextEditingController _requestedQtyCtrl;
+
+  List<Drug> _results = [];
+  Drug? _selected;
+  int? _remainingStock;
+  bool _stockLoading = false;
+  String? _stockError;
+  bool _searchLoading = false;
+  Timer? _searchDebounce;
+  DateTime? _startDateTime;
+  DateTime? _endDateTime;
+  late MedicationAdministrationStatus _adminStatus;
+  late RxFrequency _selectedFreq;
+  late RxDurationUnit _durationUnit;
+
+  bool get _isSubstitute => widget.mode == PrescriptionDrugFormMode.substitute;
+
+  @override
+  void initState() {
+    super.initState();
+    final init = widget.initial;
+    _searchCtrl = TextEditingController();
+    _doseCtrl = TextEditingController(text: init.dose);
+    _durationValueCtrl = TextEditingController(text: '${init.durationValue}');
+    _routeCtrl = TextEditingController(text: init.route);
+    _instructionsCtrl = TextEditingController(text: init.specialInstructions);
+    _notesCtrl = TextEditingController(text: init.notes);
+    _requestedQtyCtrl = TextEditingController();
+    _adminStatus = init.administrationStatus;
+    _selectedFreq = init.frequency;
+    _durationUnit = init.durationUnit;
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
+    _doseCtrl.dispose();
+    _durationValueCtrl.dispose();
+    _routeCtrl.dispose();
+    _instructionsCtrl.dispose();
+    _notesCtrl.dispose();
+    _requestedQtyCtrl.dispose();
+    super.dispose();
+  }
+
+  int? _parsedDuration() {
+    final n = int.tryParse(_durationValueCtrl.text.trim());
+    if (n == null || n <= 0) return null;
+    return n;
+  }
+
+  int? _computedQty() {
+    final n = _parsedDuration();
+    if (n == null) return null;
+    return computedPrescriptionQuantity(
+      frequency: _selectedFreq,
+      durationValue: n,
+      durationUnit: _durationUnit,
+    );
+  }
+
+  int? _parsedRequestedQuantity() {
+    if (!widget.showRequestedQuantity || _isSubstitute) return null;
+    final v = int.tryParse(_requestedQtyCtrl.text.trim());
+    if (v == null || v <= 0) return null;
+    return v;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final qtyForDisplay = _computedQty();
+    final durForDisplay = _parsedDuration();
+    final invalidDateRange =
+        _startDateTime != null &&
+        _endDateTime != null &&
+        _endDateTime!.isBefore(_startDateTime!);
+    final qDisp = qtyForDisplay;
+    final rStock = _remainingStock;
+    final lowStock = qDisp != null && rStock != null && qDisp > rStock;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final replacingLineName = widget.replacingLineName;
+
+    return AlertDialog(
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  _isSubstitute ? 'Substitute medication' : 'Add prescription',
+                  style: theme.textTheme.titleLarge,
+                ),
+              ),
+              if (_selected != null) ...[
+                const SizedBox(width: 8),
+                if (_stockLoading)
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Material(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      child: Text(
+                        _remainingStock != null
+                            ? 'Qty remaining: $_remainingStock'
+                            : 'Stock: —',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+          if (_isSubstitute &&
+              replacingLineName != null &&
+              replacingLineName.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Replacing: $replacingLineName',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+          if (_selected != null &&
+              _stockError != null &&
+              _stockError!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              _stockError!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.error,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _searchCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Search drug',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                ),
+                onChanged: (v) {
+                  _searchDebounce?.cancel();
+                  final query = v.trim();
+                  if (query.isEmpty) {
+                    setState(() {
+                      _results = [];
+                      _searchLoading = false;
+                    });
+                    return;
+                  }
+                  setState(() {
+                    _searchLoading = true;
+                    _results = [];
+                  });
+                  _searchDebounce = Timer(
+                    const Duration(milliseconds: 300),
+                    () async {
+                      try {
+                        final response = await widget.pharmacyApi.searchDrugs(
+                          SearchDrugParams(
+                            search: query,
+                            limit: _searchLimit,
+                            page: 1,
+                            pageSize: _searchLimit,
+                          ),
+                        );
+                        if (!mounted) return;
+                        setState(() {
+                          _results = response.items;
+                          _searchLoading = false;
+                        });
+                      } catch (_) {
+                        if (!mounted) return;
+                        setState(() {
+                          _results = [];
+                          _searchLoading = false;
+                        });
+                      }
+                    },
+                  );
+                },
+              ),
+              if (_results.isNotEmpty && _selected == null) ...[
+                const SizedBox(height: 8),
+                ..._results.map(
+                  (e) => ListTile(
+                    dense: true,
+                    title: Text(
+                      '${e.brandName} ${e.strength ?? ""} ${e.dosageForm ?? ""}',
+                    ),
+                    subtitle: e.genericName != e.brandName
+                        ? Text(e.genericName)
+                        : null,
+                    onTap: () async {
+                      setState(() {
+                        _selected = e;
+                        _remainingStock = null;
+                        _stockError = null;
+                        _stockLoading = true;
+                      });
+                      final id = e.id;
+                      if (id == null || id.isEmpty) {
+                        if (mounted) {
+                          setState(() => _stockLoading = false);
+                        }
+                        return;
+                      }
+                      try {
+                        final drug = await widget.pharmacyApi.getDrugById(
+                          id,
+                          'id,quantity',
+                        );
+                        if (!mounted) return;
+                        setState(() {
+                          _stockLoading = false;
+                          _remainingStock = drug.stock ?? drug.displayStock;
+                          _stockError = null;
+                        });
+                      } catch (err) {
+                        if (!mounted) return;
+                        setState(() {
+                          _stockLoading = false;
+                          _remainingStock = null;
+                          _stockError = err.toString();
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
+              if (_selected != null) ...[
+                const SizedBox(height: 12),
+                ListTile(
+                  tileColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                  title: Text(
+                    _selected!.brandName,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${_selected!.strength ?? ""} ${_selected!.dosageForm ?? ""}',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () => setState(() {
+                      _selected = null;
+                      _remainingStock = null;
+                      _stockLoading = false;
+                      _stockError = null;
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _isSubstitute
+                      ? 'Check patient allergies before confirming.'
+                      : 'Check patient allergies before prescribing.',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _doseCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Dose',
+                    border: OutlineInputBorder(),
+                    hintText: 'e.g. 1 tablet, 500mg',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<RxFrequency>(
+                  key: ValueKey(_selectedFreq),
+                  initialValue: _selectedFreq,
+                  decoration: const InputDecoration(
+                    labelText: 'Frequency',
+                    border: OutlineInputBorder(),
+                  ),
+                  isExpanded: true,
+                  items: kRxFrequencies
+                      .map(
+                        (f) => DropdownMenuItem<RxFrequency>(
+                          value: f,
+                          child: Text(
+                            f.label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _selectedFreq = v);
+                  },
+                ),
+                const SizedBox(height: 8),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        isSubstitute
-                            ? 'Substitute medication'
-                            : 'Add prescription',
-                        style: theme.textTheme.titleLarge,
-                      ),
-                    ),
-                    if (selected != null) ...[
-                      const SizedBox(width: 8),
-                      if (stockLoading)
-                        const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else
-                        Material(
-                          color: colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            child: Text(
-                              remainingStock != null
-                                  ? 'Qty remaining: ${remainingStock!}'
-                                  : 'Stock: —',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: colorScheme.onPrimaryContainer,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-                if (isSubstitute &&
-                    replacingLineName != null &&
-                    replacingLineName.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Replacing: $replacingLineName',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
-                if (selected != null &&
-                    stockError != null &&
-                    stockError!.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    stockError!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.error,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-            content: SizedBox(
-              width: 420,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: searchCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Search drug',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: searchLoading
-                            ? const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      ),
-                      onChanged: (v) {
-                        searchDebounce?.cancel();
-                        final query = v.trim();
-                        if (query.isEmpty) {
-                          setState(() {
-                            results = [];
-                            searchLoading = false;
-                          });
-                          return;
-                        }
-                        setState(() {
-                          searchLoading = true;
-                          results = [];
-                        });
-                        searchDebounce = Timer(
-                          const Duration(milliseconds: 300),
-                          () async {
-                            try {
-                              final response = await pharmacyApi.searchDrugs(
-                                SearchDrugParams(
-                                  search: query,
-                                  limit: searchLimit,
-                                  page: 1,
-                                  pageSize: searchLimit,
-                                ),
-                              );
-                              if (ctx.mounted) {
-                                setState(() {
-                                  results = response.items;
-                                  searchLoading = false;
-                                });
-                              }
-                            } catch (_) {
-                              if (ctx.mounted) {
-                                setState(() {
-                                  results = [];
-                                  searchLoading = false;
-                                });
-                              }
-                            }
-                          },
-                        );
-                      },
-                    ),
-                    if (results.isNotEmpty && selected == null) ...[
-                      const SizedBox(height: 8),
-                      ...results.map(
-                        (e) => ListTile(
-                          dense: true,
-                          title: Text(
-                            '${e.brandName} ${e.strength ?? ""} ${e.dosageForm ?? ""}',
-                          ),
-                          subtitle: e.genericName != e.brandName
-                              ? Text(e.genericName)
-                              : null,
-                          onTap: () async {
-                            setState(() {
-                              selected = e;
-                              remainingStock = null;
-                              stockError = null;
-                              stockLoading = true;
-                            });
-                            final id = e.id;
-                            if (id == null || id.isEmpty) {
-                              if (ctx.mounted) {
-                                setState(() => stockLoading = false);
-                              }
-                              return;
-                            }
-                            try {
-                              final drug = await pharmacyApi.getDrugById(
-                                id,
-                                'id,quantity',
-                              );
-                              if (!ctx.mounted) return;
-                              setState(() {
-                                stockLoading = false;
-                                remainingStock =
-                                    drug.stock ?? drug.displayStock;
-                                stockError = null;
-                              });
-                            } catch (err) {
-                              if (!ctx.mounted) return;
-                              setState(() {
-                                stockLoading = false;
-                                remainingStock = null;
-                                stockError = err.toString();
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                    if (selected != null) ...[
-                      const SizedBox(height: 12),
-                      ListTile(
-                        tileColor: Theme.of(
-                          ctx,
-                        ).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                        title: Text(
-                          selected!.brandName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          '${selected!.strength ?? ""} ${selected!.dosageForm ?? ""}',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () => setState(() {
-                            selected = null;
-                            remainingStock = null;
-                            stockLoading = false;
-                            stockError = null;
-                          }),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isSubstitute
-                            ? 'Check patient allergies before confirming.'
-                            : 'Check patient allergies before prescribing.',
-                        style: Theme.of(ctx).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: doseCtrl,
+                      child: TextField(
+                        controller: _durationValueCtrl,
+                        keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: 'Dose',
-                          border: OutlineInputBorder(),
-                          hintText: 'e.g. 1 tablet, 500mg',
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<RxFrequency>(
-                        key: ValueKey(selectedFreq),
-                        initialValue: selectedFreq,
-                        decoration: const InputDecoration(
-                          labelText: 'Frequency',
+                          labelText: 'Duration (number)',
                           border: OutlineInputBorder(),
                         ),
-                        isExpanded: true,
-                        items: kRxFrequencies
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<RxDurationUnit>(
+                        key: ValueKey(_durationUnit),
+                        initialValue: _durationUnit,
+                        decoration: const InputDecoration(
+                          labelText: 'Unit',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: RxDurationUnit.values
                             .map(
-                              (f) => DropdownMenuItem<RxFrequency>(
-                                value: f,
-                                child: Text(
-                                  f.label,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                              (u) => DropdownMenuItem<RxDurationUnit>(
+                                value: u,
+                                child: Text(u.label),
                               ),
                             )
                             .toList(),
                         onChanged: (v) {
                           if (v == null) return;
-                          setState(() => selectedFreq = v);
+                          setState(() => _durationUnit = v);
                         },
                       ),
-                      const SizedBox(height: 8),
-                      Row(
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.6,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calculate_outlined,
+                          size: 20,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            durForDisplay == null
+                                ? 'Enter a positive whole number for duration.'
+                                : qtyForDisplay == null
+                                ? 'Unable to compute quantity.'
+                                : widget.showRequestedQuantity
+                                ? 'Estimated course total: $qtyForDisplay units\n'
+                                      '(clinical reference — enter billing quantity below)'
+                                : 'Estimated course total: $qtyForDisplay units\n'
+                                      '(dose/day × duration — clinical reference only; billing qty requested by nurse)',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (lowStock) ...[
+                  const SizedBox(height: 8),
+                  Material(
+                    color: colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: colorScheme.onErrorContainer,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: TextField(
-                              controller: durationValueCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Duration (number)',
-                                border: OutlineInputBorder(),
-                              ),
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonFormField<RxDurationUnit>(
-                              key: ValueKey(durationUnit),
-                              initialValue: durationUnit,
-                              decoration: const InputDecoration(
-                                labelText: 'Unit',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: RxDurationUnit.values
-                                  .map(
-                                    (u) => DropdownMenuItem<RxDurationUnit>(
-                                      value: u,
-                                      child: Text(u.label),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v == null) return;
-                                setState(() => durationUnit = v);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Theme.of(ctx)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.calculate_outlined,
-                                size: 20,
-                                color: Theme.of(ctx).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  durForDisplay == null
-                                      ? 'Enter a positive whole number for duration.'
-                                      : qtyForDisplay == null
-                                      ? 'Unable to compute quantity.'
-                                      : 'Quantity to dispense (sent to pharmacy): $qtyForDisplay\n'
-                                            '(doses/day × duration in days, rounded up)',
-                                  style: Theme.of(ctx).textTheme.bodySmall,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (lowStock) ...[
-                        const SizedBox(height: 8),
-                        Material(
-                          color: colorScheme.errorContainer,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.warning_amber_rounded,
-                                  color: colorScheme.onErrorContainer,
-                                  size: 28,
+                                Text(
+                                  'Prescribed quantity exceeds available stock',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    color: colorScheme.onErrorContainer,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Prescribed quantity exceeds available stock',
-                                        style: theme.textTheme.titleSmall
-                                            ?.copyWith(
-                                              color:
-                                                  colorScheme.onErrorContainer,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Prescribed: $qtyForDisplay units · Available: $remainingStock\n'
-                                        'Pharmacy may delay dispensing or need a substitute.',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                              color:
-                                                  colorScheme.onErrorContainer,
-                                              height: 1.35,
-                                            ),
-                                      ),
-                                    ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Estimated course ($qtyForDisplay units) exceeds available stock\n'
+                                  'Pharmacy may adjust when nurse requests billing quantity.',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onErrorContainer,
+                                    height: 1.35,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: routeCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Route',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: instructionsCtrl,
-                        maxLines: 2,
-                        decoration: const InputDecoration(
-                          labelText: 'Special instructions',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      if (!isSubstitute) ...[
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<MedicationAdministrationStatus>(
-                          key: ValueKey(adminStatus),
-                          initialValue: adminStatus,
-                          decoration: const InputDecoration(
-                            labelText: 'Administration status',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: MedicationAdministrationStatus.values
-                              .map(
-                                (s) => DropdownMenuItem(
-                                  value: s,
-                                  child: Text(s.label),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) {
-                            if (v == null) return;
-                            setState(() => adminStatus = v);
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: notesCtrl,
-                          maxLines: 2,
-                          decoration: const InputDecoration(
-                            labelText: 'Clinical notes',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () async {
-                                  final picked = await _showDateTimePicker(
-                                    context: ctx,
-                                    initialDate:
-                                        startDateTime ?? DateTime.now(),
-                                    firstDate: DateTime.now().subtract(
-                                      const Duration(days: 3650),
-                                    ),
-                                    lastDate: DateTime.now().add(
-                                      const Duration(days: 3650),
-                                    ),
-                                  );
-                                  if (picked == null) return;
-                                  setState(() => startDateTime = picked);
-                                },
-                                icon: const Icon(Icons.play_arrow_outlined),
-                                label: Text(
-                                  startDateTime == null
-                                      ? 'Start'
-                                      : DateFormatter.dateTime(startDateTime!),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () async {
-                                  final picked = await _showDateTimePicker(
-                                    context: ctx,
-                                    initialDate:
-                                        endDateTime ??
-                                        (startDateTime ?? DateTime.now()),
-                                    firstDate: DateTime.now().subtract(
-                                      const Duration(days: 3650),
-                                    ),
-                                    lastDate: DateTime.now().add(
-                                      const Duration(days: 3650),
-                                    ),
-                                  );
-                                  if (picked == null) return;
-                                  setState(() => endDateTime = picked);
-                                },
-                                icon: const Icon(Icons.stop_outlined),
-                                label: Text(
-                                  endDateTime == null
-                                      ? 'End'
-                                      : DateFormatter.dateTime(endDateTime!),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (invalidDateRange) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            'End date/time cannot be before start date/time.',
-                            style: TextStyle(
-                              color: Theme.of(ctx).colorScheme.error,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
                         ],
-                      ],
-                    ],
-                  ],
+                      ),
+                    ),
+                  ),
+                ],
+                if (widget.showRequestedQuantity && !_isSubstitute) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _requestedQtyCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Billing / dispense quantity *',
+                      hintText: 'Units to bill and dispense',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _routeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Route',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed:
-                    selected == null ||
-                        selected!.id == null ||
-                        qtyForDisplay == null ||
-                        (!isSubstitute && invalidDateRange)
-                    ? null
-                    : () async {
-                        final n = int.tryParse(durationValueCtrl.text.trim());
-                        if (n == null || n <= 0) return;
-                        final qty = computedPrescriptionQuantity(
-                          frequency: selectedFreq,
-                          durationValue: n,
-                          durationUnit: durationUnit,
-                        );
-                        if (remainingStock != null && qty > remainingStock!) {
-                          final proceed =
-                              await showDialog<bool>(
-                                context: ctx,
-                                builder: (c) => AlertDialog(
-                                  title: const Text('Insufficient stock'),
-                                  content: Text(
-                                    'Prescribed quantity ($qty) is greater than '
-                                    'available stock ($remainingStock). The pharmacy '
-                                    'may need to substitute or order stock.\n\n'
-                                    'Continue anyway?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(c).pop(false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    FilledButton(
-                                      onPressed: () =>
-                                          Navigator.of(c).pop(true),
-                                      child: const Text('Continue anyway'),
-                                    ),
-                                  ],
-                                ),
-                              ) ??
-                              false;
-                          if (!proceed || !ctx.mounted) return;
-                        }
-                        if (!ctx.mounted) return;
-                        final doseText = doseCtrl.text.trim();
-                        final routeText = routeCtrl.text.trim();
-                        final instructionsText = instructionsCtrl.text.trim();
-                        final notesText = notesCtrl.text.trim();
-                        Navigator.of(ctx).pop(
-                          PrescriptionDrugFormResult(
-                            drug: selected!,
-                            dose: doseText.isEmpty ? null : doseText,
-                            frequency: selectedFreq.label,
-                            duration: formatRxDurationPhrase(n, durationUnit),
-                            quantity: qty,
-                            route: routeText.isEmpty ? null : routeText,
-                            specialInstructions: instructionsText.isEmpty
-                                ? null
-                                : instructionsText,
-                            notes: notesText.isEmpty ? null : notesText,
-                            administrationStatus: adminStatus,
-                            startDateTime: startDateTime,
-                            endDateTime: endDateTime,
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _instructionsCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Special instructions',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (!_isSubstitute) ...[
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<MedicationAdministrationStatus>(
+                    key: ValueKey(_adminStatus),
+                    initialValue: _adminStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Administration status',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: MedicationAdministrationStatus.values
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(s.label),
                           ),
-                        );
-                      },
-                child: Text(isSubstitute ? 'Replace line' : 'Add'),
-              ),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _adminStatus = v);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _notesCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Clinical notes',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final picked = await _showDateTimePicker(
+                              context: context,
+                              initialDate: _startDateTime ?? DateTime.now(),
+                              firstDate: DateTime.now().subtract(
+                                const Duration(days: 3650),
+                              ),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 3650),
+                              ),
+                            );
+                            if (picked == null) return;
+                            setState(() => _startDateTime = picked);
+                          },
+                          icon: const Icon(Icons.play_arrow_outlined),
+                          label: Text(
+                            _startDateTime == null
+                                ? 'Start'
+                                : DateFormatter.dateTime(_startDateTime!),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final picked = await _showDateTimePicker(
+                              context: context,
+                              initialDate:
+                                  _endDateTime ??
+                                  (_startDateTime ?? DateTime.now()),
+                              firstDate: DateTime.now().subtract(
+                                const Duration(days: 3650),
+                              ),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 3650),
+                              ),
+                            );
+                            if (picked == null) return;
+                            setState(() => _endDateTime = picked);
+                          },
+                          icon: const Icon(Icons.stop_outlined),
+                          label: Text(
+                            _endDateTime == null
+                                ? 'End'
+                                : DateFormatter.dateTime(_endDateTime!),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (invalidDateRange) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'End date/time cannot be before start date/time.',
+                      style: TextStyle(
+                        color: colorScheme.error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
             ],
-          );
-        },
-      );
-    },
-  );
-
-  searchDebounce?.cancel();
-  searchCtrl.dispose();
-  doseCtrl.dispose();
-  durationValueCtrl.dispose();
-  routeCtrl.dispose();
-  instructionsCtrl.dispose();
-  notesCtrl.dispose();
-
-  return result;
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed:
+              _selected == null ||
+                  _selected!.id == null ||
+                  qtyForDisplay == null ||
+                  (!_isSubstitute && invalidDateRange) ||
+                  (widget.showRequestedQuantity &&
+                      !_isSubstitute &&
+                      _parsedRequestedQuantity() == null)
+              ? null
+              : () async {
+                  final n = int.tryParse(_durationValueCtrl.text.trim());
+                  if (n == null || n <= 0) return;
+                  final qty = computedPrescriptionQuantity(
+                    frequency: _selectedFreq,
+                    durationValue: n,
+                    durationUnit: _durationUnit,
+                  );
+                  if (_remainingStock != null && qty > _remainingStock!) {
+                    final proceed =
+                        await showDialog<bool>(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            title: const Text('Insufficient stock'),
+                            content: Text(
+                              'Prescribed quantity ($qty) is greater than '
+                              'available stock ($_remainingStock). The pharmacy '
+                              'may need to substitute or order stock.\n\n'
+                              'Continue anyway?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(c).pop(false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.of(c).pop(true),
+                                child: const Text('Continue anyway'),
+                              ),
+                            ],
+                          ),
+                        ) ??
+                        false;
+                    if (!proceed || !mounted) return;
+                  }
+                  if (!mounted) return;
+                  final doseText = _doseCtrl.text.trim();
+                  final routeText = _routeCtrl.text.trim();
+                  final instructionsText = _instructionsCtrl.text.trim();
+                  final notesText = _notesCtrl.text.trim();
+                  Navigator.of(context).pop(
+                    PrescriptionDrugFormResult(
+                      drug: _selected!,
+                      dose: doseText.isEmpty ? null : doseText,
+                      frequency: _selectedFreq.label,
+                      duration: formatRxDurationPhrase(n, _durationUnit),
+                      quantity: qty,
+                      route: routeText.isEmpty ? null : routeText,
+                      specialInstructions: instructionsText.isEmpty
+                          ? null
+                          : instructionsText,
+                      notes: notesText.isEmpty ? null : notesText,
+                      administrationStatus: _adminStatus,
+                      startDateTime: _startDateTime,
+                      endDateTime: _endDateTime,
+                      requestedQuantity: _parsedRequestedQuantity(),
+                    ),
+                  );
+                },
+          child: Text(_isSubstitute ? 'Replace line' : 'Add'),
+        ),
+      ],
+    );
+  }
 }
 
 Future<DateTime?> _showDateTimePicker({

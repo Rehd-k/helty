@@ -22,6 +22,7 @@ class InpatientViewScope extends InheritedWidget {
     this.isDoctor = false,
     this.isNurse = false,
     this.admissionStatus,
+    this.isOutpatient = false,
     required super.child,
   });
 
@@ -30,6 +31,9 @@ class InpatientViewScope extends InheritedWidget {
 
   /// Admission lifecycle status from GET `/admissions/:id` (e.g. ACTIVE, DISCHARGED).
   final String? admissionStatus;
+
+  /// OPD ward with no ACTIVE admission — hide nurse medication request UI.
+  final bool isOutpatient;
 
   /// Display name from patient record (title, first, surname), when loaded.
   final String? patientDisplayName;
@@ -73,5 +77,6 @@ class InpatientViewScope extends InheritedWidget {
       accountType != old.accountType ||
       isDoctor != old.isDoctor ||
       isNurse != old.isNurse ||
-      admissionStatus != old.admissionStatus;
+      admissionStatus != old.admissionStatus ||
+      isOutpatient != old.isOutpatient;
 }

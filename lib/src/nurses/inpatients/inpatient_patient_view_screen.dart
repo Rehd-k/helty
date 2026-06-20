@@ -14,6 +14,7 @@ import '../../helper/date.formatter.dart';
 import '../../../app_router.gr.dart';
 import '../../models/admission_model.dart';
 import '../../models/medication_order_model.dart';
+import 'package:helty/src/pharmacy/utils/medication_workflow_patient_type.dart';
 import '../../services/admission_service.dart';
 import 'tabs/inpatient_consumables_tab.dart';
 
@@ -156,6 +157,9 @@ class _InpatientPatientViewScreenState
       isDoctor: isDoctor,
       isNurse: isNurse,
       admissionStatus: _admission?.status,
+      isOutpatient:
+          isOpdWardName(_patient?.ward ?? widget.ward) &&
+          !isActiveAdmissionStatus(_admission?.status),
       child: AutoTabsRouter(
         routes: [
           InpatientOverviewRoute(),

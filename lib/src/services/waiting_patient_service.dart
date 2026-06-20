@@ -273,26 +273,18 @@ class WaitingPatientService {
     return WaitingPatientModel.fromJson(resp.data as Map<String, dynamic>);
   }
 
-  /// PATCH first; on 404 create queue row via send-to-room.
-  Future<WaitingPatientModel> reEnlistToRoom({
+  /// Frontdesk check-in: reset invoice queue fields so patient appears
+  /// unassigned in triage (fresh vitals required before room assignment).
+  Future<WaitingPatientModel> reEnlistToQueue({
     required String invoiceId,
-    required String consultingRoomId,
     String? staffId,
   }) async {
-    try {
-      return await updateWaitingPatientAssignment(
-        invoiceId: invoiceId,
-        consultingRoomId: consultingRoomId,
-        staffId: staffId,
-      );
-    } on DioException catch (e) {
-      if (e.response?.statusCode != 404) rethrow;
-      return sendInvoiceToRoom(
-        invoiceId: invoiceId,
-        consultingRoomId: consultingRoomId,
-        staffId: staffId,
-      );
-    }
+    await _dio.patch('/invoices/$invoiceId', data: {
+      'consultingRoomId': null,
+      'vitalsId': null,
+      if (staffId != null && staffId.isNotEmpty) 'staffId': staffId,
+    });
+    return getWaitingPatientByInvoiceId(invoiceId);
   }
 
   /// Backward-compatible wrapper for older callers.

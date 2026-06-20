@@ -770,10 +770,16 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
                 rows: [
                   palette.kv(
                     'Full name',
-                    order.patient?.displayName.toUpperCase() ?? 'N/A',
+                    order.patient?.capitalizedDisplayName.isNotEmpty == true
+                        ? order.patient!.capitalizedDisplayName
+                        : 'N/A',
                     emphasize: true,
                   ),
-                  palette.kv('Patient ID', order.patient?.id ?? 'N/A'),
+                  if (order.patient?.patientId?.trim().isNotEmpty == true)
+                    palette.kv(
+                      'Patient ID',
+                      order.patient!.patientId!.trim(),
+                    ),
                   palette.kv('Order date', orderDateStr),
                   palette.kv('Report date', generatedStr),
                 ],
@@ -805,7 +811,12 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
                     emphasize: true,
                   ),
                   if (order.doctor != null)
-                    palette.kv('Physician', order.doctor!.displayName),
+                    palette.kv(
+                      'Physician',
+                      order.doctor!.capitalizedDisplayName.isNotEmpty
+                          ? order.doctor!.capitalizedDisplayName
+                          : order.doctor!.displayName,
+                    ),
                   palette.kv(
                     'Items',
                     '${order.items.length} test${order.items.length == 1 ? '' : 's'}',
@@ -868,7 +879,7 @@ Future<List<int>> buildLabPatientItemsPdf({
       header: (context) {
         if (context.pageNumber == 1) return pw.SizedBox();
         return palette.continuationHeader(
-          'Laboratory report · ${patient.displayName}',
+          'Laboratory report · ${patient.capitalizedDisplayName.isNotEmpty ? patient.capitalizedDisplayName : patient.displayName}',
         );
       },
       footer: (context) => palette.pageFooter(generatedStr, context),
@@ -886,10 +897,13 @@ Future<List<int>> buildLabPatientItemsPdf({
                 rows: [
                   palette.kv(
                     'Full name',
-                    patient.displayName.toUpperCase(),
+                    patient.capitalizedDisplayName.isNotEmpty
+                        ? patient.capitalizedDisplayName
+                        : 'N/A',
                     emphasize: true,
                   ),
-                  palette.kv('Patient ID', patient.id),
+                  if (patient.patientId?.trim().isNotEmpty == true)
+                    palette.kv('Patient ID', patient.patientId!.trim()),
                   palette.kv('Report date', generatedStr),
                 ],
               ),

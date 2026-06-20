@@ -1,3 +1,5 @@
+import 'medication_request_model.dart';
+
 class MedicationOrderModel {
   const MedicationOrderModel({
     required this.id,
@@ -18,6 +20,16 @@ class MedicationOrderModel {
     this.administrationStatus = MedicationAdministrationStatus.active,
     this.createdAt,
     this.updatedAt,
+    this.invoiceItemId,
+    this.invoiceItem,
+    this.doctor,
+    this.medicationRequests = const [],
+    this.prescribedDrugName,
+    this.prescribedDrugId,
+    this.prescribedDrug,
+    this.drug,
+    this.substitutedByPharmacist,
+    this.substitutedAt,
   });
 
   final String id;
@@ -27,7 +39,7 @@ class MedicationOrderModel {
   final String? dose;
   final String? frequency;
   final String? duration;
-  /// Total units to dispense (tablets/capsules/ml per course), when provided by API.
+  /// Total units per administration course (clinical), when provided by API.
   final int? quantity;
   final String? route;
   final String? specialInstructions;
@@ -39,9 +51,48 @@ class MedicationOrderModel {
   final MedicationAdministrationStatus administrationStatus;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? invoiceItemId;
+  final MedicationOrderInvoiceItemRef? invoiceItem;
+  final MedicationRequestStaffRef? doctor;
+  final List<MedicationRequestModel> medicationRequests;
+  final String? prescribedDrugName;
+  final String? prescribedDrugId;
+  final MedicationRequestDrugRef? prescribedDrug;
+  final MedicationRequestDrugRef? drug;
+  final MedicationRequestStaffRef? substitutedByPharmacist;
+  final DateTime? substitutedAt;
 
   /// Best timestamp for sorting and display when [startDateTime] is absent.
   DateTime? get displayDateTime => startDateTime ?? createdAt;
+
+  bool get wasSubstituted =>
+      substitutedByPharmacist != null ||
+      (prescribedDrugId != null &&
+          prescribedDrugId!.isNotEmpty &&
+          prescribedDrugId != drugId);
+
+  String get prescribedDrugLabel =>
+      prescribedDrugName?.trim().isNotEmpty == true
+      ? prescribedDrugName!.trim()
+      : (prescribedDrug?.displayName.trim().isNotEmpty == true
+            ? prescribedDrug!.displayName
+            : drugName);
+
+  String get currentDrugLabel =>
+      drug?.displayName.trim().isNotEmpty == true
+      ? drug!.displayName
+      : drugName;
+
+  bool get isLegacyBilledAtPrescribe =>
+      (invoiceItemId != null && invoiceItemId!.isNotEmpty) ||
+      (invoiceItem?.isPresent ?? false);
+
+  bool get canRequestMedication {
+    if (drugId.trim().isEmpty) return false;
+    if (isLegacyBilledAtPrescribe) return false;
+    final s = status.trim();
+    return s == 'Prescribed' || s == 'Pending Dispense';
+  }
 
   factory MedicationOrderModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
@@ -49,6 +100,27 @@ class MedicationOrderModel {
     final quantity = q == null
         ? null
         : (q is num ? q.toInt() : int.tryParse(q.toString()));
+
+    Map<String, dynamic>? map(dynamic v) =>
+        v is Map ? Map<String, dynamic>.from(v) : null;
+
+    final invoiceRaw = map(json['invoiceItem']);
+    final doctorRaw = map(json['doctor']);
+    final drugRaw = map(json['drug']);
+    final prescribedDrugRaw = map(json['prescribedDrug']);
+    final substitutedRaw = map(json['substitutedByPharmacist']);
+    final requestsRaw = json['medicationRequests'];
+    final requests = requestsRaw is List
+        ? requestsRaw
+            .whereType<Map>()
+            .map(
+              (e) => MedicationRequestModel.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList()
+        : <MedicationRequestModel>[];
+
     return MedicationOrderModel(
       id: str(json['id']),
       encounterId: str(json['encounterId']),
@@ -64,12 +136,33 @@ class MedicationOrderModel {
       startDateTime: DateTime.tryParse(json['startDateTime']?.toString() ?? ''),
       endDateTime: DateTime.tryParse(json['endDateTime']?.toString() ?? ''),
       notes: json['notes']?.toString(),
-      status: (json['status']?.toString()) ?? 'Pending Dispense',
+      status: (json['status']?.toString()) ?? 'Prescribed',
       administrationStatus: MedicationAdministrationStatusX.fromApi(
         json['administrationStatus']?.toString(),
       ),
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+      invoiceItemId: json['invoiceItemId']?.toString(),
+      invoiceItem: invoiceRaw != null
+          ? MedicationOrderInvoiceItemRef.fromJson(invoiceRaw)
+          : null,
+      doctor: doctorRaw != null
+          ? MedicationRequestStaffRef.fromJson(doctorRaw)
+          : null,
+      medicationRequests: requests,
+      prescribedDrugName: json['prescribedDrugName']?.toString(),
+      prescribedDrugId: json['prescribedDrugId']?.toString() ??
+          prescribedDrugRaw?['id']?.toString(),
+      prescribedDrug: prescribedDrugRaw != null
+          ? MedicationRequestDrugRef.fromJson(prescribedDrugRaw)
+          : null,
+      drug: drugRaw != null ? MedicationRequestDrugRef.fromJson(drugRaw) : null,
+      substitutedByPharmacist: substitutedRaw != null
+          ? MedicationRequestStaffRef.fromJson(substitutedRaw)
+          : null,
+      substitutedAt: DateTime.tryParse(
+        json['substitutedAt']?.toString() ?? '',
+      ),
     );
   }
 }

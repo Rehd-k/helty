@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/admissions/widgets/admission_ward_location_section.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/admission_alert_model.dart';
 import 'package:helty/src/models/admission_model.dart';
@@ -187,12 +188,29 @@ class _InpatientOverviewScreenState extends State<InpatientOverviewScreen> {
     final latest = _latestVitals();
     final intakeToday = _ioTodaySum('INTAKE');
     final outputToday = _ioTodaySum('OUTPUT');
+    final showWardUpdate =
+        scope?.isNurse == true &&
+        scope?.isAdmissionActive == true &&
+        adm != null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (showWardUpdate) ...[
+            SectionCard(
+              title: 'Ward location',
+              subtitle:
+                  'Transfer the patient to another ward or bed (e.g. ICU, surgical).',
+              child: AdmissionWardLocationSection(
+                admission: adm,
+                compact: true,
+                onLocationUpdated: () => _load(admissionId),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           InpatientResponsiveRowOrColumn(
             first: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -269,7 +287,9 @@ class _InpatientOverviewScreenState extends State<InpatientOverviewScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Overview is read-only. Use the corresponding tabs to record or update data.',
+            showWardUpdate
+                ? 'Other overview cards are read-only. Use the corresponding tabs to record or update data.'
+                : 'Overview is read-only. Use the corresponding tabs to record or update data.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.7),
                 ),

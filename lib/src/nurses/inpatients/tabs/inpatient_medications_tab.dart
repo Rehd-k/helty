@@ -5,12 +5,17 @@ import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/medication_administration_model.dart';
 import 'package:helty/src/models/medication_order_model.dart';
+import 'package:helty/src/models/medication_request_model.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_responsive_row_or_column.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/medication_administration_service.dart';
 import 'package:helty/src/services/medication_order_service.dart';
+import 'package:helty/src/models/staff_attribution.dart';
+import 'package:helty/src/pharmacy/widgets/medication_attribution_widgets.dart';
+import 'package:helty/src/pharmacy/widgets/medication_workflow_badges.dart';
+import 'package:helty/src/services/medication_request_service.dart';
 
 @RoutePage()
 class InpatientMedicationsScreen extends StatefulWidget {
@@ -25,6 +30,7 @@ class _InpatientMedicationsScreenState
     extends State<InpatientMedicationsScreen> {
   final _medicationOrderService = MedicationOrderService();
   final _medicationAdministrationService = MedicationAdministrationService();
+  final _medicationRequestService = MedicationRequestService();
 
   List<MedicationOrderModel> _orders = [];
   List<MedicationAdministrationModel> _administrations = [];
@@ -32,6 +38,9 @@ class _InpatientMedicationsScreenState
 
   /// Drug group keys the user has collapsed in MAR history (default: expanded).
   final Set<String> _collapsedHistoryDrugKeys = {};
+
+  /// Orders with expanded medication-request history panels.
+  final Set<String> _expandedRequestHistoryOrderIds = {};
 
   /// Tracks scope changes so we refetch when [encounterId] appears after load.
   String? _loadKey;
@@ -314,67 +323,109 @@ class _InpatientMedicationsScreenState
       );
     }
 
-    final columns = [
-      'Drug',
-      'Dose',
-      'Route',
-      'Frequency',
-      'Duration',
-      'Dispense',
-      'Clinical',
-      'Administer',
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: columns
-            .map(
-              (c) => DataColumn(
-                label: Text(
-                  c,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-            )
-            .toList(),
-        rows: _orders.map((o) {
-          final canAdminister =
-              o.administrationStatus == MedicationAdministrationStatus.active;
-          return DataRow(
-            color: WidgetStateProperty.resolveWith((states) {
-              if (!canAdminister) {
-                return Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35);
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _orders.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final order = _orders[index];
+        return _ActiveOrderCard(
+          order: order,
+          scope: scope,
+          currentNurseId: requireNurseIdFromScope(context) ?? '',
+          expanded: _expandedRequestHistoryOrderIds.contains(order.id),
+          onToggleHistory: () {
+            setState(() {
+              if (_expandedRequestHistoryOrderIds.contains(order.id)) {
+                _expandedRequestHistoryOrderIds.remove(order.id);
+              } else {
+                _expandedRequestHistoryOrderIds.add(order.id);
               }
-              return null;
-            }),
-            cells: [
-              DataCell(Text(o.drugName)),
-              DataCell(Text(o.dose ?? '')),
-              DataCell(Text(o.route ?? '')),
-              DataCell(Text(o.frequency ?? '')),
-              DataCell(Text(o.duration ?? '')),
-              DataCell(Text(o.status)),
-              DataCell(Text(o.administrationStatus.label)),
-              DataCell(
-                scope.isNurse
-                    ? TextButton(
-                        onPressed: canAdminister
-                            ? () => _openAdministerDialog(context, scope, o)
-                            : null,
-                        child: const Text('Administer'),
-                      )
-                    : const Text('-'),
-              ),
-            ],
-          );
-        }).toList(),
+            });
+          },
+          onRequest: () => _openRequestDialog(context, scope, order),
+          onAdminister: () => _openAdministerDialog(context, scope, order),
+          onCancelRequest: (requestId) => _cancelMedicationRequest(
+            context,
+            requestId,
+            requireNurseIdFromScope(context) ?? '',
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openRequestDialog(
+    BuildContext context,
+    InpatientViewScope scope,
+    MedicationOrderModel order,
+  ) async {
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
+
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _RequestMedicationDialog(
+        order: order,
+        requestService: _medicationRequestService,
+        nurseId: nurseId,
       ),
     );
+
+    if (saved == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Medication request submitted to pharmacy')),
+      );
+      setState(() => _expandedRequestHistoryOrderIds.add(order.id));
+      await _loadMarData();
+    }
+  }
+
+  Future<void> _cancelMedicationRequest(
+    BuildContext context,
+    String requestId,
+    String nurseId,
+  ) async {
+    if (nurseId.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel request?'),
+        content: const Text(
+          'This will remove the pending pharmacy request before billing.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancel request'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await _medicationRequestService.cancel(
+        id: requestId,
+        cancelledByStaffId: nurseId,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Medication request cancelled')),
+      );
+      await _loadMarData();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
   }
 
   Widget _buildHistoryTable(BuildContext context) {
@@ -981,6 +1032,314 @@ class _HistoryDrugGroupSection extends StatelessWidget {
             ),
           ),
         const Divider(height: 1),
+      ],
+    );
+  }
+}
+
+class _ActiveOrderCard extends StatelessWidget {
+  const _ActiveOrderCard({
+    required this.order,
+    required this.scope,
+    required this.currentNurseId,
+    required this.expanded,
+    required this.onToggleHistory,
+    required this.onRequest,
+    required this.onAdminister,
+    required this.onCancelRequest,
+  });
+
+  final MedicationOrderModel order;
+  final InpatientViewScope scope;
+  final String currentNurseId;
+  final bool expanded;
+  final VoidCallback onToggleHistory;
+  final VoidCallback onRequest;
+  final VoidCallback onAdminister;
+  final ValueChanged<String> onCancelRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final canAdminister =
+        order.administrationStatus == MedicationAdministrationStatus.active;
+    final canRequest =
+        !scope.isOutpatient &&
+        scope.isNurse &&
+        scope.isAdmissionActive &&
+        order.canRequestMedication;
+    final requestCount = order.medicationRequests.length;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  order.wasSubstituted
+                      ? order.currentDrugLabel
+                      : order.drugName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                MedicationOrderStatusBadge(status: order.status),
+                Chip(
+                  label: Text(order.administrationStatus.label),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            if (order.wasSubstituted) ...[
+              const SizedBox(height: 6),
+              MedicationSubstitutionSummary(
+                prescribedDrug: order.prescribedDrugLabel,
+                currentDrug: order.currentDrugLabel,
+                compact: true,
+              ),
+            ],
+            if (order.doctor != null &&
+                order.doctor!.displayName.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Prescribing doctor: ${order.doctor!.displayName}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: 6),
+            Text(
+              [
+                if (order.dose != null && order.dose!.isNotEmpty) order.dose,
+                if (order.route != null && order.route!.isNotEmpty) order.route,
+                if (order.frequency != null && order.frequency!.isNotEmpty)
+                  order.frequency,
+                if (order.duration != null && order.duration!.isNotEmpty)
+                  order.duration,
+              ].join(' · '),
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (scope.isNurse && !scope.isOutpatient) ...[
+                  if (order.isLegacyBilledAtPrescribe)
+                    Tooltip(
+                      message: 'Legacy order — already billed at prescribe',
+                      child: OutlinedButton(
+                        onPressed: null,
+                        child: const Text('Request'),
+                      ),
+                    )
+                  else
+                    FilledButton.tonal(
+                      onPressed: canRequest ? onRequest : null,
+                      child: const Text('Request'),
+                    ),
+                  if (canAdminister)
+                    OutlinedButton(
+                      onPressed: onAdminister,
+                      child: const Text('Administer'),
+                    ),
+                ],
+                if (requestCount > 0 || expanded)
+                  TextButton.icon(
+                    onPressed: onToggleHistory,
+                    icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+                    label: Text(
+                      requestCount > 0
+                          ? 'Requests ($requestCount)'
+                          : 'Request history',
+                    ),
+                  ),
+              ],
+            ),
+            if (expanded) ...[
+              const Divider(height: 20),
+              if (order.medicationRequests.isEmpty)
+                Text(
+                  'No pharmacy requests yet.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                )
+              else
+                ...order.medicationRequests.map((req) {
+                  final when = req.createdAt;
+                  final canCancel = req.canCancelAsNurse(currentNurseId);
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(
+                      'Qty ${req.requestedQuantity} · ${req.status.label}',
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        MedicationRequestAttribution(
+                          request: req,
+                          compact: true,
+                        ),
+                        if (when != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(DateFormatter.dateTime(when)),
+                          ),
+                      ],
+                    ),
+                    isThreeLine: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MedicationRequestStatusBadge(status: req.status),
+                        if (canCancel &&
+                            scope.isNurse &&
+                            !scope.isOutpatient) ...[
+                          const SizedBox(width: 4),
+                          IconButton(
+                            tooltip: 'Cancel request',
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () => onCancelRequest(req.id),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RequestMedicationDialog extends StatefulWidget {
+  const _RequestMedicationDialog({
+    required this.order,
+    required this.requestService,
+    required this.nurseId,
+  });
+
+  final MedicationOrderModel order;
+  final MedicationRequestService requestService;
+  final String nurseId;
+
+  @override
+  State<_RequestMedicationDialog> createState() =>
+      _RequestMedicationDialogState();
+}
+
+class _RequestMedicationDialogState extends State<_RequestMedicationDialog> {
+  final _qtyCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _qtyCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final qty = int.tryParse(_qtyCtrl.text.trim());
+    if (qty == null || qty <= 0) {
+      setState(() => _error = 'Enter a positive whole number for quantity.');
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      await widget.requestService.create(
+        medicationOrderId: widget.order.id,
+        requestedQuantity: qty,
+        requestedByNurseId: widget.nurseId,
+        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Request medication'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.order.drugName,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _qtyCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Requested quantity *',
+                hintText: 'Billing / dispense units',
+                border: OutlineInputBorder(),
+              ),
+              enabled: !_saving,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _notesCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+              enabled: !_saving,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _submit,
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Submit request'),
+        ),
       ],
     );
   }

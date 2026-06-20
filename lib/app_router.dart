@@ -173,6 +173,10 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: PharmacyLocationRoute.page),
         AutoRoute(page: PharmacyPOSRoute.page),
         AutoRoute(page: DispenseRoute.page),
+        AutoRoute(
+          path: 'pharmacy/medication-requests',
+          page: MedicationRequestsRoute.page,
+        ),
         AutoRoute(page: WaitingPatientRoute.page),
         AutoRoute(page: PurchaseItemSalesRoute.page),
         AutoRoute(page: PurchasesInventoryRoute.page),
@@ -194,6 +198,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: ObstetricsPatientSelectRoute.page),
         AutoRoute(page: ObstetricsPregnanciesListRoute.page),
         AutoRoute(page: InpatientBillsListRoute.page),
+        AutoRoute(page: BillingWardInpatientsRoute.page),
         AutoRoute(page: PatientBillingRoute.page),
         AutoRoute(page: WardManagementRoute.page),
         AutoRoute(

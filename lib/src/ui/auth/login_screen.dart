@@ -121,31 +121,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     EdgeInsetsGeometry padding = EdgeInsets.zero,
     BorderRadius borderRadius = const BorderRadius.all(Radius.circular(20)),
   }) {
-    return Tooltip(
-      message: 'Long-press for staff registration',
-      child: Semantics(
-        label: 'Helty logo',
-        onLongPressHint: 'Opens staff registration',
-        child: Material(
-          color: Colors.transparent,
-          clipBehavior: Clip.antiAlias,
+    return Semantics(
+      label: 'Helty logo',
+      onLongPressHint: 'Opens staff registration',
+      child: Material(
+        color: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        borderRadius: borderRadius,
+        child: InkWell(
+          onLongPress: _openStaffRegister,
           borderRadius: borderRadius,
-          child: InkWell(
-            onLongPress: _openStaffRegister,
-            borderRadius: borderRadius,
-            child: Padding(
-              padding: padding,
-              child: Image.asset(
-                _kLogoAsset,
-                fit: BoxFit.contain,
-                width: maxWidth,
-                height: maxHeight,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (context, _, __) => Icon(
-                  Icons.local_hospital_rounded,
-                  size: math.min(maxWidth, maxHeight) * 0.42,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+          child: Padding(
+            padding: padding,
+            child: Image.asset(
+              _kLogoAsset,
+              fit: BoxFit.contain,
+              width: maxWidth,
+              height: maxHeight,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, _, __) => Icon(
+                Icons.local_hospital_rounded,
+                size: math.min(maxWidth, maxHeight) * 0.42,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -168,8 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final staff = auth.staff;
       if (staff != null) {
         final emailOrPhone = _emailOrPhoneCtrl.text.trim();
-        final roleLabel =
-            staff.departmentName ?? staff.accountType?.name;
+        final roleLabel = staff.departmentName ?? staff.accountType?.name;
         await _saveCurrentLogin(
           emailOrPhone: emailOrPhone,
           displayName: staff.fullName,
@@ -270,17 +266,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               builder: (context, constraints) {
                 final w = constraints.maxWidth;
                 final split = w >= _kLoginSplitBreakpoint;
-                final padH = w < 400 ? 20.0 : w < 600 ? 24.0 : 32.0;
+                final padH = w < 400
+                    ? 20.0
+                    : w < 600
+                    ? 24.0
+                    : 32.0;
                 final padV = w < 600 ? 20.0 : 28.0;
 
                 if (split) {
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        flex: 46,
-                        child: _brandingHero(theme, colors),
-                      ),
+                      Expanded(flex: 46, child: _brandingHero(theme, colors)),
                       Expanded(
                         flex: 54,
                         child: ColoredBox(
@@ -446,147 +443,144 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
         child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: showHeroLogo ? 24 : 32,
-              vertical: showHeroLogo ? 26 : 36,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (showHeroLogo) ...[
-                    Center(
-                      child: _brandLogo(
-                        maxWidth: 240,
-                        maxHeight: 100,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 10,
-                        ),
+          padding: EdgeInsets.symmetric(
+            horizontal: showHeroLogo ? 24 : 32,
+            vertical: showHeroLogo ? 26 : 36,
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showHeroLogo) ...[
+                  Center(
+                    child: _brandLogo(
+                      maxWidth: 240,
+                      maxHeight: 100,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 10,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                  ],
-                  Text(
-                    'Welcome back',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sign in to your staff account',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: colors.onSurfaceVariant,
-                      height: 1.35,
-                    ),
-                  ),
-                  if (_savedLogins.isNotEmpty) ...[
-                    SizedBox(height: showHeroLogo ? 22 : 24),
-                    _recentStaffSection(theme, colors),
-                  ],
-                  SizedBox(height: showHeroLogo ? 28 : 32),
-
-                  TextFormField(
-                    controller: _emailOrPhoneCtrl,
-                    onChanged: (_) {
-                      if (_selectedLoginKey != null) {
-                        setState(() => _selectedLoginKey = null);
-                      }
-                    },
-                    keyboardType: TextInputType.text,
-                    autocorrect: false,
-                    textInputAction: TextInputAction.next,
-                    decoration: _fieldDecoration(
-                      colors,
-                      label: 'Email or phone',
-                      hint: 'you@imsh.org or 080…',
-                      prefixIcon: const Icon(Icons.person_outline),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Email or phone is required';
-                      }
-                      if (!_isValidEmailOrPhone(v)) {
-                        return 'Enter a valid email or phone number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    focusNode: _passwordFocusNode,
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _submit(),
-                    decoration: _fieldDecoration(
-                      colors,
-                      label: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        tooltip: _obscurePassword ? 'Show password' : 'Hide',
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                      ),
-                    ),
-                    validator: (v) => (v == null || v.isEmpty)
-                        ? 'Password is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 10),
-
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => context.router.push(
-                        const ForgotPasswordRoute(),
-                      ),
-                      child: const Text('Forgot password?'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  FilledButton(
-                    onPressed: auth.isLoading ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: auth.isLoading
-                        ? SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: colors.onPrimary,
-                            ),
-                          )
-                        : const Text(
-                            'Sign in',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
+                  const SizedBox(height: 24),
                 ],
-              ),
+                Text(
+                  'Welcome back',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sign in to your staff account',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+                if (_savedLogins.isNotEmpty) ...[
+                  SizedBox(height: showHeroLogo ? 22 : 24),
+                  _recentStaffSection(theme, colors),
+                ],
+                SizedBox(height: showHeroLogo ? 28 : 32),
+
+                TextFormField(
+                  controller: _emailOrPhoneCtrl,
+                  onChanged: (_) {
+                    if (_selectedLoginKey != null) {
+                      setState(() => _selectedLoginKey = null);
+                    }
+                  },
+                  keyboardType: TextInputType.text,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
+                  decoration: _fieldDecoration(
+                    colors,
+                    label: 'Email or phone',
+                    hint: 'you@imsh.org or 080…',
+                    prefixIcon: const Icon(Icons.person_outline),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Email or phone is required';
+                    }
+                    if (!_isValidEmailOrPhone(v)) {
+                      return 'Enter a valid email or phone number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _passwordCtrl,
+                  focusNode: _passwordFocusNode,
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _submit(),
+                  decoration: _fieldDecoration(
+                    colors,
+                    label: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      tooltip: _obscurePassword ? 'Show password' : 'Hide',
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Password is required' : null,
+                ),
+                const SizedBox(height: 10),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () =>
+                        context.router.push(const ForgotPasswordRoute()),
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                FilledButton(
+                  onPressed: auth.isLoading ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: auth.isLoading
+                      ? SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: colors.onPrimary,
+                          ),
+                        )
+                      : const Text(
+                          'Sign in',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ],
             ),
           ),
         ),
+      ),
     );
   }
 
@@ -721,10 +715,7 @@ class _SavedLoginChip extends StatelessWidget {
                       minHeight: 32,
                     ),
                     onPressed: onRemove,
-                    icon: Icon(
-                      Icons.close,
-                      color: colors.onSurfaceVariant,
-                    ),
+                    icon: Icon(Icons.close, color: colors.onSurfaceVariant),
                   ),
                 ),
               ],

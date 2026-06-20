@@ -1,12 +1,39 @@
+import 'dart:math' as math;
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/helper/quill_content_helper.dart';
 import 'package:helty/src/models/ward_round_note_model.dart';
-import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_round_note_service.dart';
+import 'package:helty/src/widgets/expandable_rich_content.dart';
+
+enum _WardRoundSortField { date, author }
+
+DateTime _noteSortInstant(WardRoundNoteModel note) =>
+    note.createdAt ?? note.roundDate;
+
+String _authorSortKey(WardRoundNoteModel note) =>
+    (note.doctorDisplayName ?? note.doctorId).toLowerCase();
+
+String _sortSubtitle(_WardRoundSortField field, bool ascending) {
+  if (field == _WardRoundSortField.date) {
+    return ascending ? 'sorted by date, oldest first' : 'sorted by date, newest first';
+  }
+  return ascending ? 'sorted by author, A→Z' : 'sorted by author, Z→A';
+}
+
+String _directionTooltip(_WardRoundSortField field, bool ascending) {
+  if (field == _WardRoundSortField.date) {
+    return ascending ? 'Oldest first' : 'Newest first';
+  }
+  return ascending ? 'A→Z' : 'Z→A';
+}
 
 @RoutePage()
 class InpatientWardRoundTab extends ConsumerStatefulWidget {
@@ -23,6 +50,25 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
   bool _loading = true;
   String? _error;
   String? _lastLoadedAdmissionId;
+  _WardRoundSortField _sortField = _WardRoundSortField.date;
+  bool _sortAscending = false;
+
+  List<WardRoundNoteModel> get _sortedNotes {
+    final list = List<WardRoundNoteModel>.from(_notes);
+    list.sort((a, b) {
+      int cmp;
+      if (_sortField == _WardRoundSortField.author) {
+        cmp = _authorSortKey(a).compareTo(_authorSortKey(b));
+        if (cmp == 0) {
+          cmp = _noteSortInstant(b).compareTo(_noteSortInstant(a));
+        }
+      } else {
+        cmp = _noteSortInstant(a).compareTo(_noteSortInstant(b));
+      }
+      return _sortAscending ? cmp : -cmp;
+    });
+    return list;
+  }
 
   @override
   void didChangeDependencies() {
@@ -49,7 +95,6 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
     try {
       final list = await _wardRoundNoteService.listByAdmission(admissionId);
       if (!mounted) return;
-      list.sort((a, b) => b.roundDate.compareTo(a.roundDate));
       setState(() {
         _notes = list;
         _loading = false;
@@ -70,13 +115,20 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
     if (admissionId == null || admissionId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Admission context missing. Open this patient from Ward Rounds or Inpatients list.')),
+          content: Text(
+            'Admission context missing. Open this patient from Ward Rounds or Inpatients list.',
+          ),
+        ),
       );
       return;
     }
     if (doctorId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in as a doctor to add a ward round note.')),
+        const SnackBar(
+          content: Text(
+            'You must be logged in as a doctor to add a ward round note.',
+          ),
+        ),
       );
       return;
     }
@@ -109,7 +161,8 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
           if (admissionId == null || admissionId.isEmpty)
             SectionCard(
               title: 'Ward round notes',
-              subtitle: 'Open this patient from Ward Rounds or Inpatients list with an admission to see and add notes.',
+              subtitle:
+                  'Open this patient from Ward Rounds or Inpatients list with an admission to see and add notes.',
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
@@ -123,7 +176,9 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
           else ...[
             SectionCard(
               title: 'Ward round (progress) notes',
-              subtitle: 'SOAP notes for this admission. Doctors can add new notes.',
+              subtitle: _notes.isEmpty
+                  ? 'SOAP notes for this admission. Doctors can add new notes.'
+                  : 'SOAP notes · ${_sortSubtitle(_sortField, _sortAscending)}',
               actions: [
                 FilledButton.icon(
                   onPressed: _loading ? null : _showAddNoteDialog,
@@ -210,9 +265,164 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
         ),
       );
     }
+
+    final sorted = _sortedNotes;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: _notes.map((n) => _NoteTile(note: n)).toList(),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _WardRoundSortBar(
+          noteCount: _notes.length,
+          sortField: _sortField,
+          sortAscending: _sortAscending,
+          onSortFieldChanged: (field) => setState(() => _sortField = field),
+          onDirectionToggle: () =>
+              setState(() => _sortAscending = !_sortAscending),
+        ),
+        const SizedBox(height: 16),
+        ...sorted.map((n) => _NoteTile(note: n)),
+      ],
+    );
+  }
+}
+
+class _WardRoundSortBar extends StatelessWidget {
+  const _WardRoundSortBar({
+    required this.noteCount,
+    required this.sortField,
+    required this.sortAscending,
+    required this.onSortFieldChanged,
+    required this.onDirectionToggle,
+  });
+
+  final int noteCount;
+  final _WardRoundSortField sortField;
+  final bool sortAscending;
+  final ValueChanged<_WardRoundSortField> onSortFieldChanged;
+  final VoidCallback onDirectionToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+
+    final countChip = Chip(
+      visualDensity: VisualDensity.compact,
+      label: Text(
+        noteCount == 1 ? '1 note' : '$noteCount notes',
+        style: theme.textTheme.labelSmall,
+      ),
+      backgroundColor: scheme.primaryContainer.withValues(alpha: 0.5),
+      side: BorderSide.none,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+    );
+
+    final directionButton = Tooltip(
+      message: _directionTooltip(sortField, sortAscending),
+      child: FilledButton.tonalIcon(
+        onPressed: onDirectionToggle,
+        icon: Icon(
+          sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 18,
+        ),
+        label: Text(
+          sortField == _WardRoundSortField.date
+              ? (sortAscending ? 'Oldest' : 'Newest')
+              : (sortAscending ? 'A→Z' : 'Z→A'),
+        ),
+        style: FilledButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.15)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final narrow = c.maxWidth < 520;
+          final segmented = SegmentedButton<_WardRoundSortField>(
+            segments: narrow
+                ? const [
+                    ButtonSegment(
+                      value: _WardRoundSortField.date,
+                      label: Text('Date'),
+                      icon: Icon(Icons.schedule, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: _WardRoundSortField.author,
+                      label: Text('Author'),
+                      icon: Icon(Icons.person_outline, size: 16),
+                    ),
+                  ]
+                : const [
+                    ButtonSegment(
+                      value: _WardRoundSortField.date,
+                      label: Text('Date'),
+                      icon: Icon(Icons.schedule, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: _WardRoundSortField.author,
+                      label: Text('Author'),
+                      icon: Icon(Icons.person_outline, size: 16),
+                    ),
+                  ],
+            selected: {sortField},
+            onSelectionChanged: (s) {
+              if (s.isNotEmpty) onSortFieldChanged(s.first);
+            },
+            showSelectedIcon: false,
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Sort by',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const Spacer(),
+                    countChip,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                segmented,
+                const SizedBox(height: 10),
+                Align(alignment: Alignment.centerRight, child: directionButton),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Text(
+                'Sort by',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: segmented),
+              const SizedBox(width: 12),
+              directionButton,
+              const SizedBox(width: 8),
+              countChip,
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -222,55 +432,488 @@ class _NoteTile extends StatelessWidget {
 
   final WardRoundNoteModel note;
 
+  static const _soapSections = [
+    _SoapSectionDef(
+      key: 'subjective',
+      label: 'Subjective',
+      shortLabel: 'S',
+      color: Color(0xFF5C6BC0),
+    ),
+    _SoapSectionDef(
+      key: 'objective',
+      label: 'Objective',
+      shortLabel: 'O',
+      color: Color(0xFF26A69A),
+    ),
+    _SoapSectionDef(
+      key: 'assessment',
+      label: 'Assessment',
+      shortLabel: 'A',
+      color: Color(0xFFFFA726),
+    ),
+    _SoapSectionDef(
+      key: 'plan',
+      label: 'Plan',
+      shortLabel: 'P',
+      color: Color(0xFFEF5350),
+    ),
+  ];
+
+  String? _fieldContent(String key) {
+    switch (key) {
+      case 'subjective':
+        return note.subjective;
+      case 'objective':
+        return note.objective;
+      case 'assessment':
+        return note.assessment;
+      case 'plan':
+        return note.plan;
+      default:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final dateStr = '${note.roundDate.year}-${note.roundDate.month.toString().padLeft(2, '0')}-${note.roundDate.day.toString().padLeft(2, '0')}';
+    final dateTimeStr =
+        DateFormatter.dateTime(_noteSortInstant(note));
+    final authorName = note.doctorDisplayName?.trim();
+    final hasAuthor = authorName != null && authorName.isNotEmpty;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-      ),
-      child: Column(
+    final sections = _soapSections
+        .where((s) {
+          final content = _fieldContent(s.key);
+          return content != null && content.isNotEmpty;
+        })
+        .toList();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            [
-              dateStr,
-              if (note.doctorDisplayName != null &&
-                  note.doctorDisplayName!.isNotEmpty)
-                'Dr ${note.doctorDisplayName}',
-            ].join(' · '),
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w600,
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
             ),
           ),
-          if (note.subjective != null && note.subjective!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text('Subjective', style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6))),
-            Text(note.subjective!, style: theme.textTheme.bodyMedium),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (hasAuthor)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer
+                              .withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.medical_services_outlined,
+                              size: 14,
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Dr $authorName',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 14,
+                          color: colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          dateTimeStr,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ...sections.map(
+                  (section) => _SoapSectionTile(
+                    section: section,
+                    content: _fieldContent(section.key)!,
+                    useShortLabel: MediaQuery.sizeOf(context).width < 480,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SoapSectionDef {
+  const _SoapSectionDef({
+    required this.key,
+    required this.label,
+    required this.shortLabel,
+    required this.color,
+  });
+
+  final String key;
+  final String label;
+  final String shortLabel;
+  final Color color;
+}
+
+class _SoapSectionTile extends StatelessWidget {
+  const _SoapSectionTile({
+    required this.section,
+    required this.content,
+    required this.useShortLabel,
+  });
+
+  final _SoapSectionDef section;
+  final String content;
+  final bool useShortLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.12)),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: section.color,
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(10),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: section.color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        useShortLabel ? section.shortLabel : section.label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: section.color,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ExpandableRichContent(
+                      content: content,
+                      modalTitle: section.label,
+                      previewMaxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
-          if (note.objective != null && note.objective!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text('Objective', style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6))),
-            Text(note.objective!, style: theme.textTheme.bodyMedium),
-          ],
-          if (note.assessment != null && note.assessment!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text('Assessment', style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6))),
-            Text(note.assessment!, style: theme.textTheme.bodyMedium),
-          ],
-          if (note.plan != null && note.plan!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text('Plan', style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6))),
-            Text(note.plan!, style: theme.textTheme.bodyMedium),
-          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SoapEditorSlot {
+  const _SoapEditorSlot({
+    required this.label,
+    required this.shortLabel,
+    required this.color,
+    required this.controller,
+    required this.focusNode,
+    required this.scrollController,
+  });
+
+  final String label;
+  final String shortLabel;
+  final Color color;
+  final QuillController controller;
+  final FocusNode focusNode;
+  final ScrollController scrollController;
+}
+
+double _wardRoundDialogWidth(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  final pad = MediaQuery.paddingOf(context).horizontal;
+  return math.max(360.0, math.min(980.0, size.width - pad - 24));
+}
+
+double _wardRoundDialogHeight(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  final pad = MediaQuery.paddingOf(context).vertical;
+  return math.max(520.0, math.min(size.height - pad - 32, size.height * 0.88));
+}
+
+class _SoapCollapsedHeader extends StatelessWidget {
+  const _SoapCollapsedHeader({
+    required this.slot,
+    required this.onTap,
+    required this.hasContent,
+    this.preview,
+  });
+
+  final _SoapEditorSlot slot;
+  final VoidCallback onTap;
+  final bool hasContent;
+  final String? preview;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Material(
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: slot.color, width: 4),
+              bottom: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: slot.color.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  slot.shortLabel,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: slot.color,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      slot.label,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (preview != null && preview!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        preview!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ] else if (!hasContent)
+                      Text(
+                        'Tap to write…',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.4),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (hasContent)
+                Icon(
+                  Icons.check_circle_outline,
+                  size: 18,
+                  color: scheme.primary.withValues(alpha: 0.7),
+                ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: scheme.onSurface.withValues(alpha: 0.45),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SoapExpandedPanel extends StatelessWidget {
+  const _SoapExpandedPanel({
+    super.key,
+    required this.slot,
+    required this.onCollapseTap,
+  });
+
+  final _SoapEditorSlot slot;
+  final VoidCallback onCollapseTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(
+          left: BorderSide(color: slot.color, width: 4),
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: slot.color.withValues(alpha: 0.08),
+            child: InkWell(
+              onTap: onCollapseTap,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: slot.color.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        slot.shortLabel,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: slot.color,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        slot.label,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: slot.color,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_up_rounded,
+                      color: slot.color,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          QuillSimpleToolbar(
+            controller: slot.controller,
+            config: const QuillSimpleToolbarConfig(
+              multiRowsDisplay: true,
+              showFontFamily: false,
+              showFontSize: false,
+              showSearchButton: false,
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: QuillEditor.basic(
+                    controller: slot.controller,
+                    focusNode: slot.focusNode,
+                    scrollController: slot.scrollController,
+                    config: const QuillEditorConfig(
+                      padding: EdgeInsets.all(12),
+                      scrollable: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -289,31 +932,134 @@ class _AddWardRoundNoteDialog extends StatefulWidget {
   final WardRoundNoteService wardRoundNoteService;
 
   @override
-  State<_AddWardRoundNoteDialog> createState() => _AddWardRoundNoteDialogState();
+  State<_AddWardRoundNoteDialog> createState() =>
+      _AddWardRoundNoteDialogState();
 }
 
 class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
-  final _subjectiveCtrl = TextEditingController();
-  final _objectiveCtrl = TextEditingController();
-  final _assessmentCtrl = TextEditingController();
-  final _planCtrl = TextEditingController();
+  late final QuillController _subjectiveCtrl;
+  late final QuillController _objectiveCtrl;
+  late final QuillController _assessmentCtrl;
+  late final QuillController _planCtrl;
+
+  final _subjectiveFocus = FocusNode();
+  final _objectiveFocus = FocusNode();
+  final _assessmentFocus = FocusNode();
+  final _planFocus = FocusNode();
+
+  final _subjectiveScroll = ScrollController();
+  final _objectiveScroll = ScrollController();
+  final _assessmentScroll = ScrollController();
+  final _planScroll = ScrollController();
+
+  late final List<_SoapEditorSlot> _slots;
+
+  int _expandedIndex = 0;
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    final config = QuillControllerConfig();
+    _subjectiveCtrl = QuillController.basic(config: config);
+    _objectiveCtrl = QuillController.basic(config: config);
+    _assessmentCtrl = QuillController.basic(config: config);
+    _planCtrl = QuillController.basic(config: config);
+
+    _slots = [
+      _SoapEditorSlot(
+        label: 'Subjective',
+        shortLabel: 'S',
+        color: const Color(0xFF5C6BC0),
+        controller: _subjectiveCtrl,
+        focusNode: _subjectiveFocus,
+        scrollController: _subjectiveScroll,
+      ),
+      _SoapEditorSlot(
+        label: 'Objective',
+        shortLabel: 'O',
+        color: const Color(0xFF26A69A),
+        controller: _objectiveCtrl,
+        focusNode: _objectiveFocus,
+        scrollController: _objectiveScroll,
+      ),
+      _SoapEditorSlot(
+        label: 'Assessment',
+        shortLabel: 'A',
+        color: const Color(0xFFFFA726),
+        controller: _assessmentCtrl,
+        focusNode: _assessmentFocus,
+        scrollController: _assessmentScroll,
+      ),
+      _SoapEditorSlot(
+        label: 'Plan',
+        shortLabel: 'P',
+        color: const Color(0xFFEF5350),
+        controller: _planCtrl,
+        focusNode: _planFocus,
+        scrollController: _planScroll,
+      ),
+    ];
+
+    for (final slot in _slots) {
+      slot.controller.addListener(_onEditorChanged);
+    }
+  }
+
+  void _onEditorChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _expandSection(int index) {
+    if (_expandedIndex == index) return;
+    setState(() => _expandedIndex = index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _slots[index].focusNode.requestFocus();
+    });
+  }
+
+  String? _previewFor(_SoapEditorSlot slot) {
+    final plain =
+        plainTextFromStoredContent(encodeQuillContent(slot.controller));
+    if (plain.isEmpty) return null;
+    return plain.replaceAll('\n', ' ');
+  }
+
+  bool _hasContent(_SoapEditorSlot slot) =>
+      (_previewFor(slot)?.isNotEmpty ?? false);
+
+  @override
   void dispose() {
+    for (final slot in _slots) {
+      slot.controller.removeListener(_onEditorChanged);
+    }
     _subjectiveCtrl.dispose();
     _objectiveCtrl.dispose();
     _assessmentCtrl.dispose();
     _planCtrl.dispose();
+    _subjectiveFocus.dispose();
+    _objectiveFocus.dispose();
+    _assessmentFocus.dispose();
+    _planFocus.dispose();
+    _subjectiveScroll.dispose();
+    _objectiveScroll.dispose();
+    _assessmentScroll.dispose();
+    _planScroll.dispose();
     super.dispose();
   }
 
+  String? _encodedField(QuillController controller) {
+    final encoded = encodeQuillContent(controller);
+    final plain = plainTextFromStoredContent(encoded);
+    return plain.isEmpty ? null : encoded;
+  }
+
   Future<void> _save() async {
-    final s = _subjectiveCtrl.text.trim();
-    final o = _objectiveCtrl.text.trim();
-    final a = _assessmentCtrl.text.trim();
-    final p = _planCtrl.text.trim();
-    if (s.isEmpty && o.isEmpty && a.isEmpty && p.isEmpty) {
+    final s = _encodedField(_subjectiveCtrl);
+    final o = _encodedField(_objectiveCtrl);
+    final a = _encodedField(_assessmentCtrl);
+    final p = _encodedField(_planCtrl);
+    if (s == null && o == null && a == null && p == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter at least one field.')),
       );
@@ -325,10 +1071,10 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
         admissionId: widget.admissionId,
         doctorId: widget.doctorId,
         roundDate: DateTime.now(),
-        subjective: s.isEmpty ? null : s,
-        objective: o.isEmpty ? null : o,
-        assessment: a.isEmpty ? null : a,
-        plan: p.isEmpty ? null : p,
+        subjective: s,
+        objective: o,
+        assessment: a,
+        plan: p,
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -344,70 +1090,127 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Add ward round note'),
-      content: SingleChildScrollView(
-        child: SizedBox(
-          width: inpatientDialogBodyWidth(context, preferred: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _subjectiveCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Subjective',
-                  border: OutlineInputBorder(),
-                ),
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dialogWidth = _wardRoundDialogWidth(context);
+    final dialogHeight = _wardRoundDialogHeight(context);
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: dialogWidth,
+        height: dialogHeight,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Add ward round note',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Expand one SOAP section at a time — tap a header to switch.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed:
+                        _saving ? null : () => Navigator.of(context).pop(false),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _objectiveCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Objective',
-                  border: OutlineInputBorder(),
-                ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < _slots.length; i++) ...[
+                    if (_expandedIndex == i)
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: _SoapExpandedPanel(
+                            key: ValueKey(_slots[i].label),
+                            slot: _slots[i],
+                            onCollapseTap: () {},
+                          ),
+                        ),
+                      )
+                    else
+                      _SoapCollapsedHeader(
+                        slot: _slots[i],
+                        hasContent: _hasContent(_slots[i]),
+                        preview: _previewFor(_slots[i]),
+                        onTap: _saving ? () {} : () => _expandSection(i),
+                      ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _assessmentCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Assessment',
-                  border: OutlineInputBorder(),
-                ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      for (final slot in _slots)
+                        FilterChip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(slot.shortLabel),
+                          selected: _slots[_expandedIndex] == slot,
+                          onSelected: _saving
+                              ? null
+                              : (_) => _expandSection(_slots.indexOf(slot)),
+                          selectedColor:
+                              slot.color.withValues(alpha: 0.22),
+                          checkmarkColor: slot.color,
+                        ),
+                    ],
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed:
+                        _saving ? null : () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Save note'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _planCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Plan',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _saving ? null : _save,
-          child: _saving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Save'),
-        ),
-      ],
     );
   }
 }

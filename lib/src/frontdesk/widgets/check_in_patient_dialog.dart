@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/consultation_credit_model.dart';
-import 'package:helty/src/models/consulting_room_model.dart';
 import 'package:helty/src/models/paid_without_encounter_invoice.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -14,7 +13,7 @@ enum _CheckInMode { patient, transaction }
 
 enum _CheckInStep { chooseMode, search, pickInvoice, confirm }
 
-/// Multi-step dialog: lookup paid invoice without encounter, assign consulting room.
+/// Multi-step dialog: lookup paid invoice without encounter, check in to triage queue.
 class CheckInPatientDialog extends ConsumerStatefulWidget {
   const CheckInPatientDialog({super.key, this.onReEnlisted});
 
@@ -40,8 +39,6 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
   List<PaidWithoutEncounterInvoice> _invoiceOptions = [];
   PaidWithoutEncounterInvoice? _selectedInvoice;
   List<ConsultationCredit> _patientCredits = [];
-  List<ConsultingRoomModel> _rooms = [];
-  ConsultingRoomModel? _selectedRoom;
 
   @override
   void dispose() {
@@ -70,31 +67,6 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
           }
           _selectedInvoice = null;
       }
-    });
-  }
-
-  ConsultingRoomModel? _roomFromList(ConsultingRoomModel? room) {
-    if (room == null || room.id.isEmpty) return null;
-    for (final r in _rooms) {
-      if (r.id == room.id) return r;
-    }
-    return null;
-  }
-
-  Future<void> _loadRooms() async {
-    if (_rooms.isNotEmpty) return;
-    final rooms = await _waitingService.fetchConsultingRooms();
-    if (!mounted) return;
-    final unique = <String, ConsultingRoomModel>{};
-    for (final r in rooms) {
-      if (r.id.isNotEmpty) unique[r.id] = r;
-    }
-    final list = unique.values.toList();
-    if (!mounted) return;
-    setState(() {
-      _rooms = list;
-      _selectedRoom = _roomFromList(_selectedRoom) ??
-          (list.isNotEmpty ? list.first : null);
     });
   }
 
@@ -220,10 +192,7 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
       });
       return;
     }
-    await Future.wait([
-      _loadRooms(),
-      _loadCredits(invoice.patientId),
-    ]);
+    await _loadCredits(invoice.patientId);
     if (!mounted) return;
     setState(() {
       _loading = false;
@@ -233,11 +202,10 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
     });
   }
 
-  Future<void> _reEnlist() async {
+  Future<void> _checkIn() async {
     final invoice = _selectedInvoice;
-    final room = _selectedRoom;
-    if (invoice == null || room == null) {
-      setState(() => _error = 'Select a consulting room to continue.');
+    if (invoice == null) {
+      setState(() => _error = 'Select an invoice to continue.');
       return;
     }
 
@@ -250,9 +218,8 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
     });
 
     try {
-      await _waitingService.reEnlistToRoom(
+      await _waitingService.reEnlistToQueue(
         invoiceId: invoice.id,
-        consultingRoomId: room.id,
         staffId: staffId.isEmpty ? null : staffId,
       );
       if (!mounted) return;
@@ -261,7 +228,7 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${invoice.patientName} re-enlisted to ${room.name}.',
+            '${invoice.patientName} checked in — awaiting vitals in triage.',
           ),
         ),
       );
@@ -292,7 +259,7 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
           ? 'Search by Patient ID'
           : 'Search by Transaction ID',
       _CheckInStep.pickInvoice => 'Select invoice',
-      _CheckInStep.confirm => 'Re-Enlist',
+      _CheckInStep.confirm => 'Confirm check-in',
     };
 
     return Dialog(
@@ -501,7 +468,7 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '${_invoiceOptions.length} invoices found. Select one to re-enlist.',
+          '${_invoiceOptions.length} invoices found. Select one to check in.',
           style: TextStyle(
             fontSize: 13,
             color: colorScheme.onSurface.withValues(alpha: 0.7),
@@ -567,7 +534,7 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
-                        'Credit on file; confirm room assignment to re-queue.',
+                        'Consultation credit on file; check in to queue for vitals.',
                         style: TextStyle(
                           fontSize: 11,
                           color: colorScheme.onSurface.withValues(alpha: 0.6),
@@ -581,47 +548,16 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
         ),
         const SizedBox(height: 20),
         Text(
-          'Consulting room',
+          'The patient will appear in Triage & Vitals as unassigned. '
+          'Nursing staff will record vitals and assign a consulting room.',
           style: TextStyle(
             fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface.withValues(alpha: 0.8),
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
-        const SizedBox(height: 8),
-        if (_rooms.isEmpty)
-          Text(
-            'No consulting rooms configured.',
-            style: TextStyle(fontSize: 12, color: colorScheme.error),
-          )
-        else
-          DropdownButtonFormField<ConsultingRoomModel>(
-            key: ValueKey('checkin-room-${_selectedRoom?.id ?? 'none'}'),
-            initialValue: _roomFromList(_selectedRoom),
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
-            items: _rooms
-                .map(
-                  (r) => DropdownMenuItem(
-                    value: r,
-                    child: Text(r.name, style: const TextStyle(fontSize: 13)),
-                  ),
-                )
-                .toList(),
-            onChanged: _submitting
-                ? null
-                : (v) => setState(() => _selectedRoom = _roomFromList(v)),
-          ),
         const SizedBox(height: 20),
         FilledButton.icon(
-          onPressed: _submitting || _rooms.isEmpty ? null : _reEnlist,
+          onPressed: _submitting ? null : _checkIn,
           icon: _submitting
               ? SizedBox(
                   width: 18,
@@ -632,7 +568,7 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
                   ),
                 )
               : const Icon(Icons.login_rounded, size: 18),
-          label: Text(_submitting ? 'Re-enlisting…' : 'Re-Enlist'),
+          label: Text(_submitting ? 'Checking in…' : 'Check In'),
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(

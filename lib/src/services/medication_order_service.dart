@@ -25,9 +25,37 @@ class MedicationOrderService {
   }
 
   /// GET /medication-orders/encounter/:encounterId — list orders for an encounter.
-  Future<List<MedicationOrderModel>> getByEncounter(String encounterId) async {
+  Future<List<MedicationOrderModel>> getByEncounter(
+    String encounterId, {
+    String? status,
+  }) async {
     final response = await _dio.get<dynamic>(
       '/medication-orders/encounter/$encounterId',
+      queryParameters: {
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    );
+    return _parseList(response.data);
+  }
+
+  /// GET /medication-orders — list with optional filters.
+  Future<List<MedicationOrderModel>> list({
+    String? encounterId,
+    String? patientId,
+    String? status,
+    int skip = 0,
+    int take = 50,
+  }) async {
+    final response = await _dio.get<dynamic>(
+      '/medication-orders',
+      queryParameters: {
+        if (encounterId != null && encounterId.isNotEmpty)
+          'encounterId': encounterId,
+        if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
+        if (status != null && status.isNotEmpty) 'status': status,
+        'skip': skip,
+        'take': take,
+      },
     );
     return _parseList(response.data);
   }
@@ -61,6 +89,7 @@ class MedicationOrderService {
     String? frequency,
     String? duration,
     int? quantity,
+    int? requestedQuantity,
     String? route,
     String? specialInstructions,
     String? admissionId,
@@ -85,6 +114,8 @@ class MedicationOrderService {
       if (frequency != null && frequency.isNotEmpty) 'frequency': frequency,
       if (duration != null && duration.isNotEmpty) 'duration': duration,
       if (quantity != null && quantity > 0) 'quantity': quantity,
+      if (requestedQuantity != null && requestedQuantity > 0)
+        'requestedQuantity': requestedQuantity,
       if (route != null && route.isNotEmpty) 'route': route,
       if (specialInstructions != null && specialInstructions.isNotEmpty)
         'specialInstructions': specialInstructions,

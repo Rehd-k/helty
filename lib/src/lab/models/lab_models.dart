@@ -2,6 +2,8 @@
 
 import 'dart:convert';
 
+import 'package:helty/src/core/extensions/capitalizer.extention.dart';
+
 /// Lab category (e.g. Hematology, Biochemistry).
 class LabCategory {
   const LabCategory({
@@ -336,22 +338,44 @@ class LabOrder {
 }
 
 class LabOrderPatient {
-  const LabOrderPatient({required this.id, this.firstName, this.lastName});
+  const LabOrderPatient({
+    required this.id,
+    this.firstName,
+    this.surname,
+    this.patientId,
+  });
+
   final String id;
   final String? firstName;
-  final String? lastName;
+  final String? surname;
+  final String? patientId;
 
   String get displayName =>
-      [firstName, lastName].where((e) => e != null && e.isNotEmpty).join(' ');
+      [firstName, surname].where((e) => e != null && e.isNotEmpty).join(' ');
+
+  String get capitalizedDisplayName {
+    final parts = <String>[];
+    for (final name in [firstName, surname]) {
+      final trimmed = name?.trim() ?? '';
+      if (trimmed.isNotEmpty) parts.add(trimmed.capitalize());
+    }
+    return parts.join(' ');
+  }
 
   factory LabOrderPatient.fromJson(Map<String, dynamic> json) =>
       LabOrderPatient(
         id: (json['id'] as String?) ?? '',
         firstName: json['firstName'] as String?,
-        lastName: json['lastName'] as String?,
+        surname: (json['surname'] ?? json['lastName']) as String?,
+        patientId: json['patientId'] as String?,
       );
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'firstName': firstName, 'lastName': lastName};
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        if (firstName != null) 'firstName': firstName,
+        if (surname != null) 'surname': surname,
+        if (patientId != null) 'patientId': patientId,
+      };
 }
 
 class LabOrderStaff {
@@ -362,6 +386,15 @@ class LabOrderStaff {
 
   String get displayName =>
       [firstName, lastName].where((e) => e != null && e.isNotEmpty).join(' ');
+
+  String get capitalizedDisplayName {
+    final parts = <String>[];
+    for (final name in [firstName, lastName]) {
+      final trimmed = name?.trim() ?? '';
+      if (trimmed.isNotEmpty) parts.add(trimmed.capitalize());
+    }
+    return parts.join(' ');
+  }
 
   factory LabOrderStaff.fromJson(Map<String, dynamic> json) => LabOrderStaff(
         id: (json['id'] as String?) ?? '',

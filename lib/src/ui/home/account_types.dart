@@ -110,6 +110,11 @@ final bills = <MenuItem>[
     route: EnlistPaitientRoute(serviceName: 'inpatient'),
   ),
   MenuItem(
+    label: 'Admitted Patients',
+    icon: Icons.bed_outlined,
+    route: BillingWardInpatientsRoute(),
+  ),
+  MenuItem(
     label: 'Add Service',
     icon: Icons.add_box_outlined,
     route: SystemSetupRoute(),
@@ -421,6 +426,11 @@ final pharmacy = <MenuItem>[
   ),
 
   MenuItem(
+    label: 'Medication Requests',
+    icon: Icons.medication_outlined,
+    route: MedicationRequestsRoute(),
+  ),
+  MenuItem(
     label: 'Pharmacy Waiting Patient',
     icon: Icons.add_alarm_outlined,
     route: WaitingPatientRoute(),
@@ -480,6 +490,11 @@ final phamDispense = <MenuItem>[
     route: EnlistPaitientRoute(serviceName: 'Pharmacy'),
   ),
 
+  MenuItem(
+    label: 'Medication Requests',
+    icon: Icons.medication_outlined,
+    route: MedicationRequestsRoute(),
+  ),
   MenuItem(
     label: 'Pharmacy Waiting Patient',
     icon: Icons.add_alarm_outlined,

@@ -13,6 +13,7 @@ import 'package:helty/src/widgets/date.filter.dart';
 
 import '../models/pharmacy_queue_models.dart';
 import '../services/pharmacy_queue_service.dart';
+import '../widgets/medication_attribution_widgets.dart';
 import '../widgets/prescription_drug_form_dialog.dart';
 
 // -----------------------------------------------------------------------------
@@ -21,10 +22,17 @@ import '../widgets/prescription_drug_form_dialog.dart';
 
 @RoutePage()
 class WaitingPatientScreen extends StatefulWidget {
-  const WaitingPatientScreen({super.key, this.queueService});
+  const WaitingPatientScreen({
+    super.key,
+    this.queueService,
+    @QueryParam('invoiceId') this.invoiceId,
+  });
 
   /// Inject your API implementation when testing; defaults to [PharmacyQueueApiService].
   final IPharmacyQueueService? queueService;
+
+  /// When set, opens this invoice in the dispense queue after load.
+  final String? invoiceId;
 
   @override
   State<WaitingPatientScreen> createState() => _WaitingPatientScreenState();
@@ -59,12 +67,49 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   String? _selectedDispensaryId;
   bool _loadingDispensaryLocations = false;
   String? _dispensaryLoadError;
+  bool _deepLinkHandled = false;
 
   @override
   void initState() {
     super.initState();
     _queueService = widget.queueService ?? PharmacyQueueApiService();
     _loadDispensaryLocations();
+    final invoiceId = widget.invoiceId?.trim();
+    if (invoiceId != null && invoiceId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadDeepLinkedInvoice(invoiceId);
+      });
+    }
+  }
+
+  Future<void> _loadDeepLinkedInvoice(String invoiceId) async {
+    if (_deepLinkHandled) return;
+    _deepLinkHandled = true;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final order = await _queueService.getInvoiceDrug(invoiceId);
+      if (!mounted) return;
+      setState(() {
+        final existingIdx = _orders.indexWhere((o) => o.id == order.id);
+        if (existingIdx >= 0) {
+          _orders[existingIdx] = order;
+        } else {
+          _orders = [order, ..._orders];
+        }
+        _selectedOrder = order;
+        _loading = false;
+      });
+      await _enrichSelectedOrder(order);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Could not open invoice $invoiceId: $e';
+      });
+    }
   }
 
   bool _isOrderCleared(QueueOrder order) {
@@ -119,6 +164,41 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       !med.isDispensed &&
       !med.settled &&
       (med.drugId != null && med.drugId!.isNotEmpty);
+
+  bool _canDeleteMedication(QueueOrder order, PrescribedMedication med) {
+    if (invoiceStatusIsPaid(order.invoiceStatus)) return false;
+    if (med.isDispensed || med.settled) return false;
+    return order.id.isNotEmpty && med.id.isNotEmpty;
+  }
+
+  Future<bool> _confirmDeletePrescription(PrescribedMedication med) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete prescription?'),
+            content: Text(
+              'Remove "${med.name}" from this order? This will delete the '
+              'billing line and linked clinical prescription. This cannot be '
+              'undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                  foregroundColor: Theme.of(ctx).colorScheme.onError,
+                ),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
 
   Future<void> _loadDispensaryLocations() async {
     if (mounted) {
@@ -311,7 +391,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     final t = to ?? _toDate;
     if (f == null || t == null) return;
 
-    final prevId = _selectedOrder?.id;
+    final prevId = _selectedOrder?.id ?? widget.invoiceId?.trim();
     if (reset) {
       setState(() {
         _loading = true;
@@ -568,9 +648,103 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     }
   }
 
+  Future<void> _deleteMedication(
+    QueueOrder order,
+    PrescribedMedication med,
+  ) async {
+    if (!_canDeleteMedication(order, med)) return;
+
+    final confirmed = await _confirmDeletePrescription(med);
+    if (!confirmed || !mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text('Deleting prescription…')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final updated = await _queueService.deleteInvoiceDrugItem(
+        order.id,
+        med.id,
+      );
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      final orderRemoved = updated.medications.isEmpty;
+      QueueOrder? nextSelected;
+      setState(() {
+        if (orderRemoved) {
+          _orders.removeWhere((o) => o.id == order.id);
+          final visible = _visibleOrders;
+          nextSelected = visible.isNotEmpty ? visible.first : null;
+          _selectedOrder = nextSelected;
+        } else {
+          final idx = _orders.indexWhere((o) => o.id == order.id);
+          if (idx >= 0) _orders[idx] = updated;
+          if (_selectedOrder?.id == order.id) {
+            _selectedOrder = updated;
+            nextSelected = updated;
+          }
+        }
+      });
+
+      if (nextSelected != null) {
+        await _enrichSelectedOrder(nextSelected!);
+      } else if (mounted) {
+        setState(() {
+          _detailPatient = null;
+          _invoiceHistoryMeds = [];
+          _patientError = null;
+          _patientLoading = false;
+        });
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Deleted ${med.name}')));
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete prescription: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildDeleteMedicationButton(
+    QueueOrder order,
+    PrescribedMedication med,
+    ColorScheme colorScheme,
+  ) {
+    if (!_canDeleteMedication(order, med)) {
+      return const SizedBox.shrink();
+    }
+    return IconButton(
+      onPressed: () => _deleteMedication(order, med),
+      icon: const Icon(Icons.delete_outline, size: 20),
+      tooltip: 'Delete prescription',
+      style: IconButton.styleFrom(
+        foregroundColor: colorScheme.error,
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+
   Widget _buildMedicationTrailingActions(
     QueueOrder order,
     PrescribedMedication med,
+    ColorScheme colorScheme,
   ) {
     if (med.isDispensed || med.settled) {
       return IconButton(
@@ -587,22 +761,35 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     final hasDrug = med.drugId != null && med.drugId!.isNotEmpty;
     final hasLocation = _selectedDispensaryId != null;
     final oos = !_medHasStock(med);
+    final deleteButton = _buildDeleteMedicationButton(order, med, colorScheme);
 
     if (!hasDrug) {
-      return IconButton(
-        onPressed: null,
-        icon: const Icon(Icons.link_off, size: 20),
-        tooltip: 'No drug id for this line',
-        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: null,
+            icon: const Icon(Icons.link_off, size: 20),
+            tooltip: 'No drug id for this line',
+            style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+          ),
+          deleteButton,
+        ],
       );
     }
 
     if (!hasLocation) {
-      return IconButton(
-        onPressed: null,
-        icon: const Icon(Icons.location_off, size: 20),
-        tooltip: 'Select dispensary location before dispense',
-        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: null,
+            icon: const Icon(Icons.location_off, size: 20),
+            tooltip: 'Select dispensary location before dispense',
+            style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+          ),
+          deleteButton,
+        ],
       );
     }
 
@@ -640,28 +827,41 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
               tooltip: 'No drug id for this line',
               style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
             ),
+          deleteButton,
         ],
       );
     }
 
     if (requiresPaymentBeforeDispense) {
-      return IconButton(
-        onPressed: null,
-        icon: const Icon(Icons.lock_outline, size: 20),
-        tooltip: 'Invoice must be paid before dispense',
-        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: null,
+            icon: const Icon(Icons.lock_outline, size: 20),
+            tooltip: 'Invoice must be paid before dispense',
+            style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+          ),
+          deleteButton,
+        ],
       );
     }
 
-    return IconButton.filled(
-      onPressed: () => _dispenseMedication(order, med),
-      icon: const Icon(Icons.vaccines, size: 20),
-      tooltip: 'Dispense',
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.greenAccent.shade400,
-        foregroundColor: Colors.black87,
-        visualDensity: VisualDensity.compact,
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton.filled(
+          onPressed: () => _dispenseMedication(order, med),
+          icon: const Icon(Icons.vaccines, size: 20),
+          tooltip: 'Dispense',
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.greenAccent.shade400,
+            foregroundColor: Colors.black87,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        deleteButton,
+      ],
     );
   }
 
@@ -1319,7 +1519,9 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  med.name,
+                                  med.wasSubstituted
+                                      ? med.currentDrugLabel
+                                      : med.name,
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -1332,7 +1534,29 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                               _buildQtyRemainingBadge(med, colorScheme),
                             ],
                           ),
-                          if (med.createdByDisplayName.isNotEmpty) ...[
+                          if (med.wasSubstituted) ...[
+                            const SizedBox(height: 4),
+                            MedicationSubstitutionSummary(
+                              prescribedDrug: med.prescribedDrugLabel,
+                              currentDrug: med.currentDrugLabel,
+                              compact: true,
+                            ),
+                          ],
+                          if (med.prescribingDoctorLabel.isNotEmpty ||
+                              med.requestedByNurse != null ||
+                              med.substitutedByPharmacist != null) ...[
+                            const SizedBox(height: 4),
+                            MedicationStaffAttributionColumn(
+                              prescribingDoctor: med.prescribingDoctorLabel,
+                              requestedBy:
+                                  med.requestedByNurse?.displayName,
+                              substitutedBy:
+                                  med.substitutedByPharmacist?.displayName,
+                              substitutedAt: med.substitutedAt,
+                              isOpd: !_selectedPatientIsInpatient,
+                              compact: true,
+                            ),
+                          ] else if (med.createdByDisplayName.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
                               'Prescribed by: ${med.createdByDisplayName}',
@@ -1421,7 +1645,11 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              _buildMedicationTrailingActions(order, med),
+                              _buildMedicationTrailingActions(
+                                order,
+                                med,
+                                colorScheme,
+                              ),
                             ],
                           ),
                         ],
