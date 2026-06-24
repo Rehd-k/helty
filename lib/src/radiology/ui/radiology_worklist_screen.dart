@@ -35,6 +35,9 @@ class _RadiologyWorklistScreenState
   @override
   void initState() {
     super.initState();
+    final today = DateUtils.dateOnly(DateTime.now());
+    _fromDate = today;
+    _toDate = today;
     _load();
   }
 
