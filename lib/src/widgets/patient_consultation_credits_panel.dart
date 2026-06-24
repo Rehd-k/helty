@@ -4,16 +4,24 @@ import '../models/consultation_credit_model.dart';
 import '../paitients/patient_service.dart';
 import 'consultation_credit_chip.dart';
 
-/// Loads and lists active OPD consultation credits for a patient.
+/// Loads and lists OPD consultation credits for a patient.
 class PatientConsultationCreditsPanel extends StatefulWidget {
   const PatientConsultationCreditsPanel({
     super.key,
     required this.patientId,
     this.title = 'Consultation credits',
+    this.showEmptyState = false,
+    this.includeExpired = false,
   });
 
   final String patientId;
   final String title;
+
+  /// When true, show a message if no credits exist (patient chart billing tab).
+  final bool showEmptyState;
+
+  /// When true, list expired and exhausted credits (full history from API).
+  final bool includeExpired;
 
   @override
   State<PatientConsultationCreditsPanel> createState() =>
@@ -30,6 +38,15 @@ class _PatientConsultationCreditsPanelState
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant PatientConsultationCreditsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patientId != widget.patientId) {
+      setState(() => _loading = true);
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -54,6 +71,12 @@ class _PatientConsultationCreditsPanelState
     }
   }
 
+  List<ConsultationCredit> get _visibleCredits {
+    final all = _credits ?? [];
+    if (widget.includeExpired) return all;
+    return all.where((c) => c.consumable && !c.isExpired).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -72,8 +95,10 @@ class _PatientConsultationCreditsPanelState
       );
     }
 
-    final credits = _credits ?? [];
-    if (credits.isEmpty) return const SizedBox.shrink();
+    final credits = _visibleCredits;
+    if (credits.isEmpty && !widget.showEmptyState) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       width: double.infinity,
@@ -95,12 +120,20 @@ class _PatientConsultationCreditsPanelState
             ),
           ),
           const SizedBox(height: 8),
-          ...credits.map(
-            (c) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: ConsultationCreditChip.fromCredit(credit: c),
+          if (credits.isEmpty)
+            Text(
+              'No consultation payments on file.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            )
+          else
+            ...credits.map(
+              (c) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: ConsultationCreditChip.fromCredit(credit: c),
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 
 import '../../core/errors/app_exception.dart';
+import '../../investigations/models/investigation_models.dart';
+import '../../investigations/models/investigation_query_params.dart';
 import '../../services/api_service.dart';
 import '../models/radiology_models.dart';
 
@@ -489,6 +491,40 @@ class RadiologyService {
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
       return RadiologyMachine.fromJson(data);
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
+  // ─── Investigations (receptionist reporting) ─────────────────────────────
+
+  Future<InvestigationSummary> getInvestigationsSummary(
+    InvestigationsQueryParams params,
+  ) async {
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/investigations/summary',
+        queryParameters: params.toQueryParameters(includePagination: false),
+      );
+      final data = resp.data;
+      if (data == null) throw const UnknownException('Empty response');
+      return InvestigationSummary.fromJson(data);
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
+  Future<InvestigationListResponse> getInvestigations(
+    InvestigationsQueryParams params,
+  ) async {
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/investigations',
+        queryParameters: params.toQueryParameters(),
+      );
+      final data = resp.data;
+      if (data == null) throw const UnknownException('Empty response');
+      return InvestigationListResponse.fromJson(data);
     } on DioException catch (e) {
       _handleError(e);
     }

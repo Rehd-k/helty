@@ -17,6 +17,7 @@ class EncounterQuestionnaireSection extends StatefulWidget {
     this.directEditController,
     this.onDirectEditChanged,
     this.initiallyExpanded = false,
+    this.readOnly = false,
   });
 
   final EncounterSectionDef section;
@@ -31,6 +32,7 @@ class EncounterQuestionnaireSection extends StatefulWidget {
 
   final VoidCallback? onDirectEditChanged;
   final bool initiallyExpanded;
+  final bool readOnly;
 
   @override
   State<EncounterQuestionnaireSection> createState() =>
@@ -173,63 +175,69 @@ class _EncounterQuestionnaireSectionState
             ),
             if (_expanded) ...[
               const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (widget.savedNote?.trim().isNotEmpty == true) ...[
-                      _SavedNoteBanner(text: widget.savedNote!.trim()),
-                      const Gap(16),
-                    ],
-                    ...widget.section.questions
-                        .where((q) => !q.isOther && _isVisible(q))
-                        .map((q) => Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: _QuestionField(
-                                key: ValueKey(q.id),
-                                question: q,
-                                value: _answers[q.id],
-                                onChanged: (v) => _setAnswer(q.id, v),
-                              ),
-                            )),
-                    if (widget.section.otherQuestion != null &&
-                        _isVisible(widget.section.otherQuestion!)) ...[
-                      _QuestionField(
-                        key: ValueKey(widget.section.otherQuestion!.id),
-                        question: widget.section.otherQuestion!,
-                        value: _answers[widget.section.otherQuestion!.id],
-                        onChanged: (v) => _setAnswer(
-                          widget.section.otherQuestion!.id,
-                          v,
+              AbsorbPointer(
+                absorbing: widget.readOnly,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (widget.savedNote?.trim().isNotEmpty == true) ...[
+                        _SavedNoteBanner(text: widget.savedNote!.trim()),
+                        const Gap(16),
+                      ],
+                      ...widget.section.questions
+                          .where((q) => !q.isOther && _isVisible(q))
+                          .map((q) => Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: _QuestionField(
+                                  key: ValueKey(q.id),
+                                  question: q,
+                                  value: _answers[q.id],
+                                  onChanged: (v) => _setAnswer(q.id, v),
+                                ),
+                              )),
+                      if (widget.section.otherQuestion != null &&
+                          _isVisible(widget.section.otherQuestion!)) ...[
+                        _QuestionField(
+                          key: ValueKey(widget.section.otherQuestion!.id),
+                          question: widget.section.otherQuestion!,
+                          value: _answers[widget.section.otherQuestion!.id],
+                          onChanged: (v) => _setAnswer(
+                            widget.section.otherQuestion!.id,
+                            v,
+                          ),
                         ),
-                      ),
-                      const Gap(8),
-                    ],
-                    _GeneratedPreview(text: generated),
-                    const Gap(12),
-                    TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _showDirectEdit = !_showDirectEdit;
-                          if (_showDirectEdit &&
-                              widget.directEditController != null &&
-                              widget.directEditController!.text.isEmpty &&
-                              generated.isNotEmpty) {
-                            widget.directEditController!.text = generated;
-                          }
-                        });
-                      },
-                      icon: Icon(
-                        _showDirectEdit ? Icons.edit_off_outlined : Icons.edit_outlined,
-                        size: 18,
-                      ),
-                      label: Text(
-                        _showDirectEdit
-                            ? 'Hide direct edit'
-                            : 'Edit note directly',
-                      ),
-                    ),
+                        const Gap(8),
+                      ],
+                      _GeneratedPreview(text: generated),
+                      if (!widget.readOnly) ...[
+                        const Gap(12),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showDirectEdit = !_showDirectEdit;
+                              if (_showDirectEdit &&
+                                  widget.directEditController != null &&
+                                  widget.directEditController!.text.isEmpty &&
+                                  generated.isNotEmpty) {
+                                widget.directEditController!.text = generated;
+                              }
+                            });
+                          },
+                          icon: Icon(
+                            _showDirectEdit
+                                ? Icons.edit_off_outlined
+                                : Icons.edit_outlined,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _showDirectEdit
+                                ? 'Hide direct edit'
+                                : 'Edit note directly',
+                          ),
+                        ),
+                      ],
                     if (_showDirectEdit && widget.directEditController != null) ...[
                       const Gap(8),
                       TextFormField(
@@ -252,6 +260,7 @@ class _EncounterQuestionnaireSectionState
                   ],
                 ),
               ),
+            ),
             ],
           ],
         ),

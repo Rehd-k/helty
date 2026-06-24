@@ -520,11 +520,14 @@ Future<List<RadiologyImage>> fetchRadiologyOrderImages(
   return all;
 }
 
-Map<String, String> radiologyOrderItemLabels(RadiologyOrder order) {
+Map<String, String> radiologyOrderItemLabels(
+  RadiologyOrder order, {
+  Map<String, String>? studyNamesByServiceId,
+}) {
   return {
     for (final item in order.items)
       item.id: [
-        item.scanType.displayLabel,
+        item.studyLabel(namesByServiceId: studyNamesByServiceId),
         if (item.bodyPart != null && item.bodyPart!.trim().isNotEmpty)
           item.bodyPart!.trim(),
       ].join(' · '),

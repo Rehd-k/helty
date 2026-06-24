@@ -2,7 +2,18 @@ import 'package:dio/dio.dart';
 
 import '../helper/app_timezone.dart';
 import '../models/medication_administration_model.dart';
+import '../models/medication_dose_schedule_model.dart';
 import 'api_service.dart';
+
+class MedicationAdministrationCreateResult {
+  const MedicationAdministrationCreateResult({
+    required this.administration,
+    this.doseSchedule,
+  });
+
+  final MedicationAdministrationModel administration;
+  final MedicationDoseScheduleModel? doseSchedule;
+}
 
 class MedicationAdministrationService {
   MedicationAdministrationService() : _dio = ApiService().dio;
@@ -35,10 +46,28 @@ class MedicationAdministrationService {
         .toList();
   }
 
+  static MedicationDoseScheduleModel? _parseDoseScheduleFromResponse(
+    Map<String, dynamic> data,
+  ) {
+    final order = data['medicationOrder'] ?? data['medication_order'];
+    if (order is Map<String, dynamic>) {
+      final schedule = order['doseSchedule'] ?? order['dose_schedule'];
+      if (schedule is Map<String, dynamic>) {
+        return MedicationDoseScheduleModel.fromJson(schedule);
+      }
+    }
+    final top = data['doseSchedule'] ?? data['dose_schedule'];
+    if (top is Map<String, dynamic>) {
+      return MedicationDoseScheduleModel.fromJson(top);
+    }
+    return null;
+  }
+
   /// POST `/admissions/:admissionId/medication-administrations`
   ///
   /// [status] must match API enum, e.g. `GIVEN`, `MISSED`, `REFUSED`, `DELAYED`.
-  Future<MedicationAdministrationModel> create({
+  /// Throws [MedicationCourseDurationExpiredException] on 409.
+  Future<MedicationAdministrationCreateResult> create({
     required String admissionId,
     required String medicationOrderId,
     required DateTime scheduledTime,
@@ -47,6 +76,8 @@ class MedicationAdministrationService {
     double? quantity,
     String? reasonIfNotGiven,
     String? remarks,
+    String? pharmacyLocationId,
+    bool acknowledgeBeyondDuration = false,
   }) async {
     final body = <String, dynamic>{
       'medicationOrderId': medicationOrderId,
@@ -57,15 +88,35 @@ class MedicationAdministrationService {
       if (reasonIfNotGiven != null && reasonIfNotGiven.isNotEmpty)
         'reasonIfNotGiven': reasonIfNotGiven,
       if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+      if (pharmacyLocationId != null && pharmacyLocationId.isNotEmpty)
+        'pharmacyLocationId': pharmacyLocationId,
+      if (acknowledgeBeyondDuration) 'acknowledgeBeyondDuration': true,
     };
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/admissions/$admissionId/medication-administrations',
-      data: body,
-    );
-    final data = response.data;
-    if (data == null) {
-      throw StateError('Create medication administration returned no data');
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/admissions/$admissionId/medication-administrations',
+        data: body,
+      );
+      final data = response.data;
+      if (data == null) {
+        throw StateError('Create medication administration returned no data');
+      }
+      return MedicationAdministrationCreateResult(
+        administration: MedicationAdministrationModel.fromJson(data),
+        doseSchedule: _parseDoseScheduleFromResponse(data),
+      );
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      final responseData = e.response?.data;
+      if (statusCode == 409 && responseData is Map<String, dynamic>) {
+        final code = responseData['code']?.toString();
+        if (code == 'COURSE_DURATION_EXPIRED') {
+          throw MedicationCourseDurationExpiredException.fromResponse(
+            responseData,
+          );
+        }
+      }
+      rethrow;
     }
-    return MedicationAdministrationModel.fromJson(data);
   }
 }

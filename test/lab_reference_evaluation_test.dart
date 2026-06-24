@@ -58,5 +58,86 @@ void main() {
       );
       expect(labPdfResultValueText(result), '130 ↑ HIGH');
     });
+
+    test('computeLabReferenceEvaluation parses min-max range', () {
+      final high = computeLabReferenceEvaluation(
+        value: '130',
+        referenceRange: '4.0 - 11.0',
+      );
+      expect(high?.isAbnormal, isTrue);
+      expect(high?.flag, ReferenceFlag.high);
+
+      final inRange = computeLabReferenceEvaluation(
+        value: '7.5',
+        referenceRange: '4.0 - 11.0',
+      );
+      expect(inRange?.isAbnormal, isFalse);
+
+      final low = computeLabReferenceEvaluation(
+        value: '2.0',
+        referenceRange: '4.0 - 11.0',
+      );
+      expect(low?.isAbnormal, isTrue);
+      expect(low?.flag, ReferenceFlag.low);
+    });
+
+    test('computeLabReferenceEvaluation parses upper and lower bounds', () {
+      expect(
+        computeLabReferenceEvaluation(value: '6', referenceRange: '< 5')
+            ?.flag,
+        ReferenceFlag.high,
+      );
+      expect(
+        computeLabReferenceEvaluation(value: '3', referenceRange: '< 5')
+            ?.inRange,
+        isTrue,
+      );
+      expect(
+        computeLabReferenceEvaluation(value: '8', referenceRange: '> 10')
+            ?.flag,
+        ReferenceFlag.low,
+      );
+      expect(
+        computeLabReferenceEvaluation(value: '12', referenceRange: '> 10')
+            ?.inRange,
+        isTrue,
+      );
+    });
+
+    test('computeLabReferenceEvaluation returns null for text values', () {
+      expect(
+        computeLabReferenceEvaluation(
+          value: 'Clear',
+          referenceRange: '4.0 - 11.0',
+        ),
+        isNull,
+      );
+      expect(
+        computeLabReferenceEvaluation(value: '7.5', referenceRange: null),
+        isNull,
+      );
+    });
+
+    test('resolveLabReferenceEvaluation prefers server evaluation', () {
+      const server = ReferenceEvaluation(inRange: true);
+      expect(
+        resolveLabReferenceEvaluation(
+          value: '130',
+          referenceRange: '4.0 - 11.0',
+          serverEvaluation: server,
+        ),
+        server,
+      );
+    });
+
+    test('resolveLabReferenceEvaluation falls back to client compute', () {
+      final eval = resolveLabReferenceEvaluation(
+        value: '130',
+        referenceRange: '4.0 - 11.0',
+        serverEvaluation: null,
+      );
+      expect(eval?.isAbnormal, isTrue);
+      expect(eval?.flag, ReferenceFlag.high);
+    });
   });
 }

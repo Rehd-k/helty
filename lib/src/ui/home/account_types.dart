@@ -6,6 +6,13 @@ import '../../models/staff_model.dart';
 import '../../nursing/models/nursing_models.dart';
 import 'home_screen.dart';
 
+/// Clinical unified patient lookup — all clinical departments except medical records billing chart.
+final patientHubMenuItem = MenuItem(
+  label: 'Patient Hub',
+  icon: Icons.hub_outlined,
+  route: PatientHubSearchRoute(),
+);
+
 final frontDesk = <MenuItem>[
   MenuItem(
     label: 'Dashboard',
@@ -115,6 +122,11 @@ final bills = <MenuItem>[
     route: BillingWardInpatientsRoute(),
   ),
   MenuItem(
+    label: 'Awaiting Billing Clearance',
+    icon: Icons.fact_check_outlined,
+    route: AwaitingBillingClearanceRoute(),
+  ),
+  MenuItem(
     label: 'Add Service',
     icon: Icons.add_box_outlined,
     route: SystemSetupRoute(),
@@ -203,11 +215,7 @@ final nurses = <MenuItem>[
     icon: Icons.emergency_outlined,
     route: EdBoardRoute(),
   ),
-  MenuItem(
-    label: 'Patient chart',
-    icon: Icons.folder_shared_outlined,
-    route: PatientChartSelectRoute(),
-  ),
+  patientHubMenuItem,
   MenuItem(
     label: 'Waiting Patients',
     icon: Icons.add_alarm_outlined,
@@ -313,6 +321,7 @@ final doctors = <MenuItem>[
     icon: Icons.pending_actions_outlined,
     route: DoctorOngoingEncountersRoute(),
   ),
+  patientHubMenuItem,
   MenuItem(
     label: 'Walk-in Queue',
     icon: Icons.people_outline,
@@ -373,6 +382,7 @@ final doctors = <MenuItem>[
 ];
 
 final pharmacy = <MenuItem>[
+  patientHubMenuItem,
   MenuItem(
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
@@ -438,6 +448,7 @@ final pharmacy = <MenuItem>[
 ];
 
 final phamDispense = <MenuItem>[
+  patientHubMenuItem,
   MenuItem(
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
@@ -558,10 +569,16 @@ final purchasesMenu = <MenuItem>[
 final obstetrics = <MenuItem>[];
 
 final labMenu = <MenuItem>[
+  patientHubMenuItem,
   MenuItem(
     label: 'Laboratory',
     icon: Icons.biotech_rounded,
     route: LabDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Investigations report',
+    icon: Icons.assessment_outlined,
+    route: LabInvestigationsRoute(),
   ),
 
   MenuItem(
@@ -579,7 +596,22 @@ final labMenu = <MenuItem>[
   ),
 ];
 
+final theatreMenu = <MenuItem>[
+  patientHubMenuItem,
+  MenuItem(
+    label: 'Theatre',
+    icon: Icons.medical_services_outlined,
+    route: TheatreDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Theatre rooms',
+    icon: Icons.meeting_room_outlined,
+    route: TheatreRoomsRoute(),
+  ),
+];
+
 final dialysisMenu = <MenuItem>[
+  patientHubMenuItem,
   MenuItem(
     label: 'Dialysis',
     icon: Icons.bloodtype_rounded,
@@ -589,6 +621,16 @@ final dialysisMenu = <MenuItem>[
     label: 'New patient',
     icon: Icons.add_circle_outline_rounded,
     route: EnlistPaitientRoute(serviceName: 'dialysis'),
+  ),
+  MenuItem(
+    label: 'Select patient',
+    icon: Icons.person_search_outlined,
+    route: DialysisSelectPatientRoute(),
+  ),
+  MenuItem(
+    label: 'Consumables',
+    icon: Icons.inventory_2_outlined,
+    route: EnlistPaitientRoute(serviceName: 'Consumables'),
   ),
   MenuItem(
     label: 'Waiting Patients',
@@ -601,10 +643,16 @@ final dialysisMenu = <MenuItem>[
 ];
 
 final radiologyMenu = <MenuItem>[
+  patientHubMenuItem,
   MenuItem(
     label: 'Radiology',
     icon: Icons.radar_rounded,
     route: RadiologyDashboardRoute(),
+  ),
+  MenuItem(
+    label: 'Investigations report',
+    icon: Icons.assessment_outlined,
+    route: RadiologyInvestigationsRoute(),
   ),
   MenuItem(
     label: 'Worklist',

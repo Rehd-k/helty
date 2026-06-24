@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
@@ -16,6 +15,7 @@ import 'package:helty/src/purchases/services/purchases_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/service_service.dart';
+import 'package:helty/src/services/widgets/searchable_service_selector.dart';
 import 'package:helty/src/store/utils/consumable_invoice_helper.dart';
 
 @RoutePage()
@@ -294,9 +294,7 @@ class _DoctorEncounterProceduresTabState
       if (!mounted) return;
       _procedures.removeLast();
       setState(() => _saving = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      showEncounterEditErrorSnackBar(context, e);
     }
   }
 
@@ -315,12 +313,17 @@ class _DoctorEncounterProceduresTabState
       return const Center(child: CircularProgressIndicator());
     }
 
+    final readOnly = !scope.canEdit;
+
     final canSave =
+        !readOnly &&
         (_resolvedProcedureType != null &&
             _resolvedProcedureType!.isNotEmpty) &&
         _consentConfirmed;
 
-    return SingleChildScrollView(
+    return AbsorbPointer(
+      absorbing: readOnly,
+      child: SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -330,11 +333,12 @@ class _DoctorEncounterProceduresTabState
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          _ProcedureTypeSelector(
+          SearchableServiceSelector(
             serviceService: _serviceService,
             selectedService: _selectedService,
             isOther: _isOtherProcedure,
             otherTextController: _otherProcedureCtrl,
+            showOther: true,
             onServiceSelected: (s) => setState(() {
               _selectedService = s;
               _isOtherProcedure = false;
@@ -388,11 +392,12 @@ class _DoctorEncounterProceduresTabState
             }),
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _saving ? null : (canSave ? _addProcedure : null),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Save procedure'),
-          ),
+          if (!readOnly)
+            FilledButton.icon(
+              onPressed: _saving ? null : (canSave ? _addProcedure : null),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Save procedure'),
+            ),
           const SizedBox(height: 24),
           if (_procedures.isNotEmpty) ...[
             Text('Recorded procedures', style: theme.textTheme.titleSmall),
@@ -401,189 +406,7 @@ class _DoctorEncounterProceduresTabState
           ],
         ],
       ),
-    );
-  }
-}
-
-/// Procedure type: searchable services list + "Other" option. When a service or
-/// Other is selected, search is hidden and the selection is shown.
-class _ProcedureTypeSelector extends StatefulWidget {
-  const _ProcedureTypeSelector({
-    required this.serviceService,
-    required this.selectedService,
-    required this.isOther,
-    required this.otherTextController,
-    required this.onServiceSelected,
-    required this.onOtherSelected,
-    required this.onClear,
-  });
-
-  final ServiceService serviceService;
-  final ServiceModel? selectedService;
-  final bool isOther;
-  final TextEditingController otherTextController;
-  final void Function(ServiceModel) onServiceSelected;
-  final VoidCallback onOtherSelected;
-  final VoidCallback onClear;
-
-  @override
-  State<_ProcedureTypeSelector> createState() => _ProcedureTypeSelectorState();
-}
-
-class _ProcedureTypeSelectorState extends State<_ProcedureTypeSelector> {
-  static const int _pageSize = 10;
-
-  final _searchCtrl = TextEditingController();
-  List<ServiceModel> _suggestions = [];
-  bool _loading = false;
-  int _page = 0;
-  Timer? _debounce;
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _runSearch({int skip = 0, bool append = false}) async {
-    setState(() => _loading = true);
-    final list = await widget.serviceService.fetchServices(
-      query: _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim(),
-      skip: skip,
-      take: _pageSize,
-    );
-    if (!mounted) return;
-    setState(() {
-      if (append) {
-        _suggestions = [..._suggestions, ...list];
-      } else {
-        _suggestions = list;
-      }
-      _loading = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (widget.selectedService != null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.5,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.selectedService!.name,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            TextButton(onPressed: widget.onClear, child: const Text('Change')),
-          ],
-        ),
-      );
-    }
-    if (widget.isOther) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: widget.otherTextController,
-            decoration: const InputDecoration(
-              labelText: 'Other procedure type',
-              hintText: 'e.g. Suturing, I&D, Injection',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 6),
-          TextButton(onPressed: widget.onClear, child: const Text('Change')),
-        ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: _searchCtrl,
-          decoration: InputDecoration(
-            hintText: 'Search procedure type (10 at a time)...',
-            border: const OutlineInputBorder(),
-            suffixIcon: _loading
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
-          ),
-          onChanged: (v) {
-            _debounce?.cancel();
-            _debounce = Timer(
-              const Duration(milliseconds: 300),
-              () => _runSearch(skip: 0),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 220),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              ..._suggestions.map(
-                (s) => ListTile(
-                  dense: true,
-                  title: Text(s.name),
-                  subtitle: s.departmentName != null
-                      ? Text(
-                          s.departmentName!,
-                          style: theme.textTheme.bodySmall,
-                        )
-                      : null,
-                  onTap: () => widget.onServiceSelected(s),
-                ),
-              ),
-              if (_suggestions.length >= _pageSize)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: TextButton.icon(
-                    onPressed: _loading
-                        ? null
-                        : () {
-                            _page += 1;
-                            _runSearch(skip: _page * _pageSize, append: true);
-                          },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Load more'),
-                  ),
-                ),
-              const Divider(height: 1),
-              ListTile(
-                dense: true,
-                title: const Text('Other'),
-                subtitle: const Text('Enter procedure type manually'),
-                trailing: const Icon(Icons.edit),
-                onTap: widget.onOtherSelected,
-              ),
-            ],
-          ),
-        ),
-      ],
+    ),
     );
   }
 }

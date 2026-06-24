@@ -124,9 +124,7 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
       setState(() => _saving = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      showEncounterEditErrorSnackBar(context, e);
       setState(() => _saving = false);
     }
   }
@@ -164,9 +162,7 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to lock: $e')),
-      );
+      showEncounterEditErrorSnackBar(context, e);
       setState(() => _saving = false);
     }
   }
@@ -187,6 +183,8 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
     }
 
     final locked = _isLocked;
+    final readOnly = !scope.canEdit;
+    final fieldsReadOnly = locked || readOnly;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -214,11 +212,11 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
                 ],
               ),
             ),
-          _soapSection('S — Subjective', _subjectiveCtrl, locked),
-          _soapSection('O — Objective', _objectiveCtrl, locked),
-          _soapSection('A — Assessment', _assessmentCtrl, locked),
-          _soapSection('P — Plan', _planCtrl, locked),
-          if (locked) ...[
+          _soapSection('S — Subjective', _subjectiveCtrl, fieldsReadOnly),
+          _soapSection('O — Objective', _objectiveCtrl, fieldsReadOnly),
+          _soapSection('A — Assessment', _assessmentCtrl, fieldsReadOnly),
+          _soapSection('P — Plan', _planCtrl, fieldsReadOnly),
+          if (locked && !readOnly) ...[
             const SizedBox(height: 16),
             Text(
               'Addendum',
@@ -244,7 +242,7 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              if (!locked) ...[
+              if (!locked && !readOnly) ...[
                 FilledButton.icon(
                   onPressed: _saving ? null : _saveDraft,
                   icon: _saving

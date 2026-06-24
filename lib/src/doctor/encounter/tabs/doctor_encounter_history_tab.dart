@@ -130,9 +130,7 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
       setState(() => _loading = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      showEncounterEditErrorSnackBar(context, e);
       setState(() => _loading = false);
     }
   }
@@ -147,6 +145,8 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
       );
     }
 
+    final readOnly = !scope.canEdit;
+
     if (_loading && !_loaded) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -158,28 +158,30 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
         children: [
           Row(
             children: [
-              OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Voice typing not yet integrated')),
-                  );
-                },
-                icon: const Icon(Icons.mic_none, size: 18),
-                label: const Text('Voice typing'),
-              ),
+              if (!readOnly)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Voice typing not yet integrated')),
+                    );
+                  },
+                  icon: const Icon(Icons.mic_none, size: 18),
+                  label: const Text('Voice typing'),
+                ),
               const Spacer(),
-              FilledButton.icon(
-                onPressed: _loading ? null : _saveDraft,
-                icon: _loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_outlined, size: 18),
-                label: const Text('Save draft'),
-              ),
+              if (!readOnly)
+                FilledButton.icon(
+                  onPressed: _loading ? null : _saveDraft,
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined, size: 18),
+                  label: const Text('Save draft'),
+                ),
             ],
           ),
           const SizedBox(height: 24),
@@ -190,6 +192,7 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
               answers: _answers[section.id] ?? {},
               savedNote: _savedNotes[section.id],
               directEditController: _directEditControllers[section.id],
+              readOnly: readOnly,
               onAnswersChanged: (next) {
                 _answers[section.id] = next;
                 _useDirectEditOnSave[section.id] = false;

@@ -26,11 +26,18 @@ class _DialysisSessionDetailScreenState
   bool _loading = true;
   String? _error;
   bool _updating = false;
+  final _notesCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _notesCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -47,6 +54,7 @@ class _DialysisSessionDetailScreenState
         _session = session;
         _loading = false;
       });
+      _notesCtrl.text = session.notes ?? '';
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -72,6 +80,38 @@ class _DialysisSessionDetailScreenState
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Session marked ${status.displayLabel.toLowerCase()}')),
+      );
+    } on AppException catch (e) {
+      if (!mounted) return;
+      setState(() => _updating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _updating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
+  Future<void> _saveNotes() async {
+    setState(() => _updating = true);
+    try {
+      final notes = _notesCtrl.text.trim();
+      final updated = await ref.read(dialysisApiServiceProvider).updateSession(
+            widget.sessionId,
+            notes: notes,
+          );
+      if (!mounted) return;
+      setState(() {
+        _session = updated;
+        _updating = false;
+      });
+      _notesCtrl.text = updated.notes ?? notes;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notes saved')),
       );
     } on AppException catch (e) {
       if (!mounted) return;
@@ -189,10 +229,42 @@ class _DialysisSessionDetailScreenState
                       ),
                     if (session.doctor != null)
                       Text('Doctor: ${session.doctor!.displayName}'),
-                    if (session.notes != null && session.notes!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(session.notes!),
-                    ],
+                    const SizedBox(height: 12),
+                    Text(
+                      'Notes',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (canClinical &&
+                        session.status != DialysisSessionStatus.cancelled) ...[
+                      TextField(
+                        controller: _notesCtrl,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          hintText: 'Session notes…',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.tonal(
+                          onPressed: _updating ? null : _saveNotes,
+                          child: const Text('Save notes'),
+                        ),
+                      ),
+                    ] else if (session.notes != null &&
+                        session.notes!.isNotEmpty)
+                      Text(session.notes!)
+                    else
+                      Text(
+                        'No notes.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                   ],
                 ),
               ),

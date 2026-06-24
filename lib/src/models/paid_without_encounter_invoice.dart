@@ -1,8 +1,10 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
 
+import 'consultation_credit_model.dart';
+import 'consultation_credit_utils.dart';
 import 'invoice.dart';
 
-/// Lightweight row for paid invoices eligible for frontdesk re-enlist.
+/// Lightweight row for paid invoices eligible for frontdesk re-enlist / OPD credit.
 class PaidWithoutEncounterInvoice {
   const PaidWithoutEncounterInvoice({
     required this.id,
@@ -15,6 +17,7 @@ class PaidWithoutEncounterInvoice {
     required this.amountPaid,
     this.encounterId,
     this.createdAt,
+    this.consultationServices = const [],
   });
 
   final String id;
@@ -27,6 +30,15 @@ class PaidWithoutEncounterInvoice {
   final double amountPaid;
   final String? encounterId;
   final DateTime? createdAt;
+  final List<ConsultationServiceLine> consultationServices;
+
+  ConsultationServiceLine? get primaryConsultationCredit {
+    for (final line in consultationServices) {
+      if (line.consumable) return line;
+    }
+    if (consultationServices.isEmpty) return null;
+    return consultationServices.first;
+  }
 
   bool get hasEncounter =>
       encounterId != null && encounterId!.trim().isNotEmpty;
@@ -115,6 +127,9 @@ class PaidWithoutEncounterInvoice {
       createdAt = DateTime.tryParse(createdRaw);
     }
 
+    final invoiceMap = Map<String, dynamic>.from(json);
+    final consultationServices = consultationLinesFromInvoice(invoiceMap);
+
     return PaidWithoutEncounterInvoice(
       id: str(json['id']),
       patientId: patientId,
@@ -128,6 +143,7 @@ class PaidWithoutEncounterInvoice {
           ? null
           : str(json['encounterId']),
       createdAt: createdAt,
+      consultationServices: consultationServices,
     );
   }
 
@@ -140,6 +156,14 @@ class PaidWithoutEncounterInvoice {
         .toList();
     final display = strFromInvoiceDisplay(invoice);
 
+    final invoiceJson = <String, dynamic>{
+      'status': invoice.status,
+      'encounterId': invoice.encounterId,
+      'invoiceItems': invoice.invoiceItems
+          .map((i) => {'name': i.name, 'serviceName': i.name})
+          .toList(),
+    };
+
     return PaidWithoutEncounterInvoice(
       id: invoice.id,
       patientId: invoice.patientId,
@@ -151,11 +175,28 @@ class PaidWithoutEncounterInvoice {
       amountPaid: invoice.amountPaid,
       encounterId: invoice.encounterId,
       createdAt: invoice.createdAt,
+      consultationServices: consultationLinesFromInvoice(invoiceJson),
     );
   }
 
   static String strFromInvoiceDisplay(Invoice invoice) {
-    // Invoice model may not expose human bill code; id is fallback.
     return invoice.id;
   }
+}
+
+/// Paginated response from GET /invoices/paid-without-encounter (queue mode).
+class PaginatedPaidWithoutEncounterInvoices {
+  const PaginatedPaidWithoutEncounterInvoices({
+    required this.invoices,
+    required this.total,
+    this.skip = 0,
+    this.take = 20,
+  });
+
+  final List<PaidWithoutEncounterInvoice> invoices;
+  final int total;
+  final int skip;
+  final int take;
+
+  bool get hasMore => skip + invoices.length < total;
 }

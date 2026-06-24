@@ -1,3 +1,4 @@
+import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 
 enum MedicationRequestStatus {
@@ -182,10 +183,12 @@ class MedicationRequestEncounterRef {
   const MedicationRequestEncounterRef({
     required this.id,
     this.encounterType,
+    this.status,
   });
 
   final String id;
   final String? encounterType;
+  final String? status;
 
   factory MedicationRequestEncounterRef.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
@@ -194,12 +197,36 @@ class MedicationRequestEncounterRef {
     return MedicationRequestEncounterRef(
       id: json['id']?.toString() ?? '',
       encounterType: json['encounterType']?.toString(),
+      status: json['status']?.toString(),
     );
   }
 
   bool get isOpd {
     final t = encounterType?.trim().toUpperCase() ?? '';
     return t == 'OPD' || t.contains('OUTPATIENT');
+  }
+
+  String get typeLabel {
+    final t = encounterType?.trim().toUpperCase() ?? '';
+    switch (t) {
+      case 'OUTPATIENT':
+      case 'OPD':
+        return 'Outpatient';
+      case 'INPATIENT':
+        return 'Inpatient';
+      case 'EMERGENCY':
+        return 'Emergency';
+      default:
+        if (t.isEmpty) return 'Encounter';
+        return t
+            .replaceAll('_', ' ')
+            .toLowerCase()
+            .split(' ')
+            .map(
+              (w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}',
+            )
+            .join(' ');
+    }
   }
 }
 
@@ -211,8 +238,12 @@ class MedicationRequestOrderSummary {
     this.drugId,
     this.dose,
     this.frequency,
+    this.duration,
+    this.quantity,
     this.route,
     this.genericName,
+    this.orderStatus,
+    this.specialInstructions,
     this.doctor,
     this.encounterId,
     this.prescribedDrugName,
@@ -228,8 +259,12 @@ class MedicationRequestOrderSummary {
   final String? drugId;
   final String? dose;
   final String? frequency;
+  final String? duration;
+  final int? quantity;
   final String? route;
   final String? genericName;
+  final String? orderStatus;
+  final String? specialInstructions;
   final MedicationRequestStaffRef? doctor;
   final String? encounterId;
   final String? prescribedDrugName;
@@ -265,6 +300,24 @@ class MedicationRequestOrderSummary {
     return drugName;
   }
 
+  /// Human-readable prescription line, e.g. "Twice daily · 7 days · Oral · Qty 14".
+  String get prescriptionDetailLine {
+    final parts = <String>[
+      if (dose != null && dose!.trim().isNotEmpty) dose!.trim(),
+      if (frequency != null && frequency!.trim().isNotEmpty) frequency!.trim(),
+      if (duration != null && duration!.trim().isNotEmpty) duration!.trim(),
+      if (route != null && route!.trim().isNotEmpty) route!.trim(),
+      if (quantity != null && quantity! > 0) 'Course qty $quantity',
+    ];
+    return parts.join(' · ');
+  }
+
+  static int? _parseQuantity(dynamic raw) {
+    final parsed = tryParseApiDecimal(raw);
+    if (parsed == null) return null;
+    return parsed.round();
+  }
+
   factory MedicationRequestOrderSummary.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return const MedicationRequestOrderSummary(id: '', drugName: '');
@@ -285,8 +338,12 @@ class MedicationRequestOrderSummary {
       drugId: json['drugId']?.toString() ?? drugMap?['id']?.toString(),
       dose: json['dose']?.toString(),
       frequency: json['frequency']?.toString(),
+      duration: json['duration']?.toString(),
+      quantity: _parseQuantity(json['quantity']),
       route: json['route']?.toString(),
       genericName: drugMap?['genericName']?.toString(),
+      orderStatus: json['status']?.toString(),
+      specialInstructions: json['specialInstructions']?.toString(),
       doctor: doctorRaw is Map<String, dynamic>
           ? MedicationRequestStaffRef.fromJson(doctorRaw)
           : null,
@@ -374,7 +431,9 @@ class MedicationRequestModel {
       requestedQuantity: qty,
       status: MedicationRequestStatusX.fromApi(json['status']?.toString()),
       notes: json['notes']?.toString(),
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      createdAt:
+          DateTime.tryParse(json['createdAtLocal']?.toString() ?? '') ??
+          DateTime.tryParse(json['createdAt']?.toString() ?? ''),
       requestedByNurse: nurseRaw != null
           ? MedicationRequestStaffRef.fromJson(nurseRaw)
           : null,

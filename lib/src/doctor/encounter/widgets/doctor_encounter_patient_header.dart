@@ -11,6 +11,8 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
   final int pastAdmissionsCount;
   final String? insurance;
   final String? doctorName;
+  final String doctorLabel;
+  final String? lastUpdatedByName;
 
   const DoctorEncounterPatientHeader({
     super.key,
@@ -22,6 +24,8 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
     this.pastAdmissionsCount = 0,
     this.insurance,
     this.doctorName,
+    this.doctorLabel = 'Doctor',
+    this.lastUpdatedByName,
   });
 
   static String _initials(String name) {
@@ -98,7 +102,17 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
                         _metaChip(
                           context,
                           icon: Icons.medical_services_outlined,
-                          label: doctorName!.trim(),
+                          label: '$doctorLabel: ${doctorName!.trim()}',
+                        ),
+                      ],
+                      if (lastUpdatedByName != null &&
+                          lastUpdatedByName!.trim().isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        _metaChip(
+                          context,
+                          icon: Icons.edit_outlined,
+                          label:
+                              'Last updated by: ${lastUpdatedByName!.trim()}',
                         ),
                       ],
                     ],

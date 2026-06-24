@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/appointment_service.dart';
@@ -124,9 +125,7 @@ class _DoctorEncounterFollowUpTabState
       setState(() => _loading = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      showEncounterEditErrorSnackBar(context, e);
       setState(() => _loading = false);
     }
   }
@@ -146,7 +145,11 @@ class _DoctorEncounterFollowUpTabState
       return const Center(child: CircularProgressIndicator());
     }
 
-    return SingleChildScrollView(
+    final readOnly = !scope.canEdit;
+
+    return AbsorbPointer(
+      absorbing: readOnly,
+      child: SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -199,19 +202,21 @@ class _DoctorEncounterFollowUpTabState
             ),
           ),
           const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: _loading ? null : _save,
-            icon: _loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save_outlined, size: 18),
-            label: const Text('Save follow-up'),
-          ),
+          if (!readOnly)
+            FilledButton.icon(
+              onPressed: _loading ? null : _save,
+              icon: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined, size: 18),
+              label: const Text('Save follow-up'),
+            ),
         ],
       ),
+    ),
     );
   }
 }

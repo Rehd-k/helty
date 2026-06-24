@@ -50,6 +50,20 @@ void main() {
 
       expect(patient.capitalizedDisplayName, 'Kelvin Ikenna');
     });
+
+    test('parses gender and dob from API shape', () {
+      final patient = LabOrderPatient.fromJson({
+        'id': '4ca42274-b366-4d82-bbac-3072535cdc2a',
+        'patientId': 'KF0VFMFY',
+        'firstName': 'Denis',
+        'surname': 'Kalu',
+        'gender': 'Male',
+        'dob': '2026-03-24T05:49:40.569Z',
+      });
+
+      expect(patient.gender, 'Male');
+      expect(patient.dob, DateTime.parse('2026-03-24T05:49:40.569Z'));
+    });
   });
 
   group('LabOrderStaff', () {
@@ -62,6 +76,40 @@ void main() {
 
       expect(doctor.displayName, 'doctor test');
       expect(doctor.capitalizedDisplayName, 'Doctor Test');
+    });
+
+    test('isPhysician is true when accountType is PHYSICIAN', () {
+      final doctor = LabOrderStaff.fromJson({
+        'id': '49e6edef-2349-482f-8bdc-f05bd114abb1',
+        'firstName': 'doctor',
+        'lastName': 'test',
+        'staffId': '123456',
+        'accountType': 'PHYSICIAN',
+      });
+
+      expect(doctor.isPhysician, isTrue);
+    });
+
+    test('isPhysician is false when accountType is not PHYSICIAN', () {
+      final doctor = LabOrderStaff.fromJson({
+        'id': '49e6edef-2349-482f-8bdc-f05bd114abb1',
+        'firstName': 'lab',
+        'lastName': 'tech',
+        'accountType': 'LABORATORY',
+      });
+
+      expect(doctor.isPhysician, isFalse);
+    });
+
+    test('isPhysician is false when accountType is absent', () {
+      final doctor = LabOrderStaff.fromJson({
+        'id': '49e6edef-2349-482f-8bdc-f05bd114abb1',
+        'firstName': 'doctor',
+        'lastName': 'test',
+      });
+
+      expect(doctor.accountType, isNull);
+      expect(doctor.isPhysician, isFalse);
     });
   });
 }

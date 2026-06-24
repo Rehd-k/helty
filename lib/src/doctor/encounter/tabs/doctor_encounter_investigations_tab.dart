@@ -4,9 +4,11 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/models/lab_order_model.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/services/service_category_service.dart';
+import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/services/lab_order_service.dart';
 import 'package:helty/src/services/service_service.dart';
 
@@ -65,6 +67,7 @@ class _DoctorEncounterInvestigationsTabState
   }
 
   bool _canDeleteLabOrder(LabOrderModel order, EncounterScope scope) {
+    if (!scope.canEdit) return false;
     if (order.id.isEmpty) return false;
     return order.encounterId.isNotEmpty &&
         order.encounterId == scope.encounterId;
@@ -129,137 +132,11 @@ class _DoctorEncounterInvestigationsTabState
     ThemeData theme,
     EncounterScope scope,
   ) {
-    final lines = order.resultLines;
-    final hasLegacyMap =
-        order.resultValues != null && order.resultValues!.isNotEmpty;
     final canDelete = _canDeleteLabOrder(order, scope);
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(order.testType),
-        content: SizedBox(
-          width: 400,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _ResultRow(
-                  label: 'Ordered',
-                  value: DateFormatter.formatFromBackend(
-                    order.createdAt,
-                    DateFormatter.dateTime,
-                  ),
-                ),
-                _ResultRow(label: 'Status', value: order.status),
-                _ResultRow(label: 'Priority', value: order.priority ?? 'Routine'),
-                if (order.clinicalNotes != null && order.clinicalNotes!.isNotEmpty)
-                  _ResultRow(label: 'Notes', value: order.clinicalNotes!),
-                if (order.encounterId.isNotEmpty)
-                  _ResultRow(label: 'Encounter', value: order.encounterId),
-                const SizedBox(height: 16),
-                Text(
-                  'Results',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (lines != null && lines.isNotEmpty)
-                  ...lines.map(
-                    (line) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              line.label,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              line.valueWithUnit,
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              line.referenceRange != null &&
-                                      line.referenceRange!.isNotEmpty
-                                  ? 'Ref: ${line.referenceRange}'
-                                  : '',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else if (hasLegacyMap)
-                  ...order.resultValues!.entries.map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 140,
-                            child: Text(
-                              e.key,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              e.value,
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Text(
-                    'No results yet.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          if (canDelete)
-            TextButton(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                await _deleteLabOrder(order);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.error,
-              ),
-              child: const Text('Delete'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+    showLabOrderResultsDialog(
+      context,
+      order: order,
+      onDelete: canDelete ? () => _deleteLabOrder(order) : null,
     );
   }
 
@@ -284,7 +161,9 @@ class _DoctorEncounterInvestigationsTabState
         testType: service.name,
         staffId: staffId!,
         // Use canonical service template id to preserve invoice linkage behavior.
-        serviceId: service.serviceId.isNotEmpty ? service.serviceId : service.id,
+        serviceId: service.serviceId.isNotEmpty
+            ? service.serviceId
+            : service.id,
         priority: result.priority,
         notes: notes.isEmpty ? null : notes,
       );
@@ -311,6 +190,8 @@ class _DoctorEncounterInvestigationsTabState
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    final readOnly = !scope.canEdit;
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -343,51 +224,36 @@ class _DoctorEncounterInvestigationsTabState
                 ),
               ),
               const SizedBox(width: 12),
-              FilledButton.icon(
-                onPressed: _openOrderModal,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Order Lab Test'),
-              ),
+              if (!readOnly)
+                FilledButton.icon(
+                  onPressed: _openOrderModal,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Order Lab Test'),
+                ),
             ],
           ),
           const SizedBox(height: 16),
           Expanded(
             child: _orders.isEmpty
-                ? Center(
-                    child: Text(
-                      _encounterOnly
-                          ? 'No lab orders for this encounter. Tap "Order Lab Test" to add.'
-                          : 'No lab orders on file for this patient. Tap "Order Lab Test" to add.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.6,
-                        ),
-                      ),
-                    ),
+                ? _InvestigationsEmptyState(
+                    encounterOnly: _encounterOnly,
+                    theme: theme,
                   )
-                : ListView.builder(
+                : ListView.separated(
                     itemCount: _orders.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (_, i) {
                       final o = _orders[i];
-                      final otherVisit = !_encounterOnly &&
+                      final otherVisit =
+                          !_encounterOnly &&
                           o.encounterId.isNotEmpty &&
                           o.encounterId != scope.encounterId;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          title: Text(o.testType),
-                          subtitle: Text(
-                            '${otherVisit ? 'Other visit • ' : ''}'
-                            '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.priority ?? "Routine"} • ${o.status}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                          trailing: Chip(
-                            label: Text(o.status),
-                            backgroundColor: theme.colorScheme.primaryContainer,
-                          ),
-                          onTap: () =>
-                              _showLabOrderResults(context, o, theme, scope),
-                        ),
+                      return _InvestigationOrderCard(
+                        order: o,
+                        otherVisit: otherVisit,
+                        theme: theme,
+                        onTap: () =>
+                            _showLabOrderResults(context, o, theme, scope),
                       );
                     },
                   ),
@@ -398,31 +264,392 @@ class _DoctorEncounterInvestigationsTabState
   }
 }
 
-class _ResultRow extends StatelessWidget {
-  const _ResultRow({required this.label, required this.value});
+class _InvestigationsEmptyState extends StatelessWidget {
+  const _InvestigationsEmptyState({
+    required this.encounterOnly,
+    required this.theme,
+  });
 
-  final String label;
-  final String value;
+  final bool encounterOnly;
+  final ThemeData theme;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+    final cs = theme.colorScheme;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.45),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.biotech_outlined,
+                size: 32,
+                color: cs.onPrimaryContainer,
               ),
             ),
+            const SizedBox(height: 16),
+            Text(
+              encounterOnly ? 'No lab orders yet' : 'No lab history',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              encounterOnly
+                  ? 'Order investigations for this encounter using the button above.'
+                  : 'This patient has no lab orders on file. Use "Order Lab Test" to request one.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InvestigationOrderCard extends StatelessWidget {
+  const _InvestigationOrderCard({
+    required this.order,
+    required this.otherVisit,
+    required this.theme,
+    required this.onTap,
+  });
+
+  final LabOrderModel order;
+  final bool otherVisit;
+  final ThemeData theme;
+  final VoidCallback onTap;
+
+  bool get _hasResults {
+    final lines = order.resultLines;
+    return (lines != null && lines.isNotEmpty) ||
+        (order.resultValues != null && order.resultValues!.isNotEmpty);
+  }
+
+  int get _abnormalCount {
+    final lines = order.resultLines;
+    if (lines == null) return 0;
+    return lines.where((line) {
+      final eval = resolveLabReferenceEvaluation(
+        value: line.value,
+        referenceRange: line.referenceRange,
+        serverEvaluation: line.referenceEvaluation,
+      );
+      return labResultIsAbnormal(eval);
+    }).length;
+  }
+
+  (Color, Color) _statusColors() {
+    final cs = theme.colorScheme;
+    final s = order.status.toLowerCase();
+    if (_hasResults ||
+        s.contains('complete') ||
+        s.contains('verified') ||
+        s.contains('reported')) {
+      return (cs.primaryContainer, cs.onPrimaryContainer);
+    }
+    if (s.contains('process') ||
+        s.contains('sample') ||
+        s.contains('progress') ||
+        s.contains('collect')) {
+      return (cs.tertiaryContainer, cs.onTertiaryContainer);
+    }
+    if (s.contains('cancel') || s.contains('reject')) {
+      return (cs.errorContainer, cs.onErrorContainer);
+    }
+    return (cs.secondaryContainer, cs.onSecondaryContainer);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    final (statusBg, statusFg) = _statusColors();
+    final lines = order.resultLines;
+    final legacy = order.resultValues;
+    final previewLines = lines != null && lines.isNotEmpty
+        ? lines.take(3).toList()
+        : null;
+    final previewLegacy =
+        previewLines == null && legacy != null && legacy.isNotEmpty
+        ? legacy.entries.take(3).toList()
+        : null;
+
+    return Material(
+      color: cs.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: cs.primaryContainer.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.science_outlined,
+                      size: 20,
+                      color: cs.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.testType,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusBg,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                order.status,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: statusFg,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            _MetaPill(
+                              icon: Icons.flag_outlined,
+                              label: order.priority ?? 'Routine',
+                              theme: theme,
+                            ),
+                            if (otherVisit)
+                              _MetaPill(
+                                icon: Icons.history_outlined,
+                                label: 'Other visit',
+                                theme: theme,
+                                tone: _MetaPillTone.warning,
+                              ),
+                            if (_abnormalCount > 0)
+                              _MetaPill(
+                                icon: Icons.warning_amber_rounded,
+                                label: '$_abnormalCount abnormal',
+                                theme: theme,
+                                tone: _MetaPillTone.alert,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule_outlined,
+                    size: 14,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    DateFormatter.formatFromBackend(
+                      order.createdAt,
+                      DateFormatter.medicalDate,
+                    ),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  if (_hasResults) ...[
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 14,
+                      color: cs.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tap to view results',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (previewLines != null || previewLegacy != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (previewLines != null)
+                        ...previewLines.map((line) {
+                          final eval = resolveLabReferenceEvaluation(
+                            value: line.value,
+                            referenceRange: line.referenceRange,
+                            serverEvaluation: line.referenceEvaluation,
+                          );
+                          final abnormal = labResultIsAbnormal(eval);
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    line.label,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  line.valueWithUnit,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: abnormal ? cs.error : cs.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        })
+                      else if (previewLegacy != null)
+                        ...previewLegacy.map(
+                          (e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    e.key,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  e.value,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if ((lines?.length ?? legacy?.length ?? 0) > 3)
+                        Text(
+                          '+ ${(lines?.length ?? legacy!.length) - 3} more',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: cs.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
-          Expanded(
-            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+        ),
+      ),
+    );
+  }
+}
+
+enum _MetaPillTone { neutral, warning, alert }
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({
+    required this.icon,
+    required this.label,
+    required this.theme,
+    this.tone = _MetaPillTone.neutral,
+  });
+
+  final IconData icon;
+  final String label;
+  final ThemeData theme;
+  final _MetaPillTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    final (bg, fg) = switch (tone) {
+      _MetaPillTone.warning => (
+        cs.tertiaryContainer.withValues(alpha: 0.7),
+        cs.onTertiaryContainer,
+      ),
+      _MetaPillTone.alert => (cs.errorContainer, cs.onErrorContainer),
+      _MetaPillTone.neutral => (
+        cs.surfaceContainerHighest.withValues(alpha: 0.8),
+        cs.onSurfaceVariant,
+      ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: fg,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

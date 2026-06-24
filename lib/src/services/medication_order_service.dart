@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import 'api_service.dart';
 import '../helper/app_timezone.dart';
+import '../medications/rx_schedule_utils.dart';
 import '../models/medication_order_model.dart';
 
 class MedicationOrderService {
@@ -185,6 +186,35 @@ class MedicationOrderService {
     final raw = response.data;
     if (raw == null) {
       throw StateError('Update medication order returned no data');
+    }
+    final Map<String, dynamic> data = raw['data'] is Map<String, dynamic>
+        ? raw['data'] as Map<String, dynamic>
+        : raw;
+    return MedicationOrderModel.fromJson(data);
+  }
+
+  /// POST `/medication-orders/:id/beyond-duration-consent`
+  Future<MedicationOrderModel> recordBeyondDurationConsent({
+    required String id,
+    String? consentNote,
+    int? extendDurationValue,
+    RxDurationUnit? extendDurationUnit,
+  }) async {
+    final body = <String, dynamic>{
+      if (consentNote != null && consentNote.isNotEmpty)
+        'consentNote': consentNote,
+      if (extendDurationValue != null && extendDurationValue > 0)
+        'extendDurationValue': extendDurationValue,
+      if (extendDurationUnit != null)
+        'extendDurationUnit': extendDurationUnit.apiValue,
+    };
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/medication-orders/$id/beyond-duration-consent',
+      data: body,
+    );
+    final raw = response.data;
+    if (raw == null) {
+      throw StateError('Beyond-duration consent returned no data');
     }
     final Map<String, dynamic> data = raw['data'] is Map<String, dynamic>
         ? raw['data'] as Map<String, dynamic>

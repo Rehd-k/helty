@@ -314,13 +314,15 @@ class _DoctorCompletedEncounterViewScreenState
               DoctorEncounterViewRoute(
                 encounterId: widget.encounterId,
                 patientId: widget.patientId,
-                amendMode: true,
+                amendMode: !meta.isSharedInpatientEncounter,
               ),
             );
             if (mounted) await _load();
           },
           icon: const Icon(Icons.edit, size: 18),
-          label: const Text('Amend'),
+          label: Text(
+            meta.isSharedInpatientEncounter ? 'Edit chart' : 'Amend',
+          ),
         ),
     ];
   }
@@ -340,6 +342,26 @@ class _DoctorCompletedEncounterViewScreenState
   Widget _buildEditMetaBanner(BuildContext context, EncounterEditMeta meta) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+
+    String message;
+    if (meta.canEditAsCoveringPhysician) {
+      message =
+          'You may edit this inpatient chart as covering physician while '
+          'the admission is active.';
+    } else if (meta.isSharedInpatientEncounter && meta.canEdit) {
+      message = meta.hasEdits
+          ? 'This inpatient chart has post-admission edits. '
+              'Use Edit history to review prior versions.'
+          : 'This is the shared inpatient chart for an active admission.';
+    } else if (meta.hasEdits) {
+      message =
+          'This encounter has been amended after completion. '
+          'Use Edit history to review prior versions.';
+    } else {
+      message =
+          'You can amend this completed encounter if corrections are needed.';
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -353,10 +375,7 @@ class _DoctorCompletedEncounterViewScreenState
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              meta.hasEdits
-                  ? 'This encounter has been amended after completion. '
-                      'Use Edit history to review prior versions.'
-                  : 'You can amend this completed encounter if corrections are needed.',
+              message,
               style: theme.textTheme.bodySmall,
             ),
           ),

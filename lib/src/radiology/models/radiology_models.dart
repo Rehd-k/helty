@@ -56,6 +56,46 @@ enum RadiologyModality {
     }
     return null;
   }
+
+  /// Best-effort modality from a catalog study name (API [scanType] must be enum).
+  static RadiologyModality inferFromStudyName(String studyName) {
+    final n = studyName.trim().toLowerCase();
+    if (n.isEmpty) return RadiologyModality.OTHER;
+
+    bool has(String token) => n.contains(token);
+    bool word(String token) =>
+        RegExp('\\b${RegExp.escape(token)}\\b').hasMatch(n);
+
+    if (has('mammogram') || has('mammography') || word('mammo')) {
+      return RadiologyModality.MAMMOGRAPHY;
+    }
+    if (has('fluoroscop') || word('fluoro')) {
+      return RadiologyModality.FLUOROSCOPY;
+    }
+    if (has('ultrasound') ||
+        has('sonograph') ||
+        has('sonogram') ||
+        has('doppler') ||
+        word('echo')) {
+      return RadiologyModality.ULTRASOUND;
+    }
+    if (has('magnetic resonance') || word('mri')) {
+      return RadiologyModality.MRI;
+    }
+    if (has('computed tomography') ||
+        has('cat scan') ||
+        word('ct')) {
+      return RadiologyModality.CT;
+    }
+    if (has('x-ray') ||
+        has('xray') ||
+        has('x ray') ||
+        has('radiograph') ||
+        has('plain film')) {
+      return RadiologyModality.X_RAY;
+    }
+    return RadiologyModality.OTHER;
+  }
 }
 
 enum RadiologyOrderStatus {
@@ -117,23 +157,28 @@ class RadiologyPatientRef {
   const RadiologyPatientRef({
     required this.id,
     this.firstName,
+    this.otherName,
     this.surname,
     this.patientId,
   });
 
   final String id;
   final String? firstName;
+  final String? otherName;
   final String? surname;
   final String? patientId;
 
   String get displayName =>
-      [firstName, surname].where((e) => e != null && e.isNotEmpty).join(' ');
+      [firstName, otherName, surname]
+          .where((e) => e != null && e.isNotEmpty)
+          .join(' ');
 
   factory RadiologyPatientRef.fromJson(Map<String, dynamic> json) {
     return RadiologyPatientRef(
       id: json['id'] as String? ?? '',
       firstName: json['firstName'] as String?,
-      surname: json['surname'] as String?,
+      otherName: json['otherName'] as String?,
+      surname: (json['surname'] ?? json['lastName']) as String?,
       patientId: json['patientId'] as String?,
     );
   }
@@ -243,6 +288,8 @@ class RadiologyOrderItem {
     required this.scanType,
     required this.priority,
     required this.status,
+    this.rawScanType,
+    this.serviceName,
     this.bodyPart,
     this.contrast,
     this.clinicalNotes,
@@ -261,6 +308,8 @@ class RadiologyOrderItem {
   final String id;
   final String orderId;
   final RadiologyModality scanType;
+  final String? rawScanType;
+  final String? serviceName;
   final RadiologyPriority priority;
   final RadiologyOrderItemStatus status;
   final String? bodyPart;
@@ -277,12 +326,37 @@ class RadiologyOrderItem {
   final List<RadiologyImage>? images;
   final RadiologyStudyReport? report;
 
+  /// User-facing label: study name when known, otherwise modality.
+  String get scanTypeLabel {
+    final study = serviceName?.trim();
+    if (study != null && study.isNotEmpty) return study;
+    return scanType.displayLabel;
+  }
+
+  /// Study name from API or [namesByServiceId], else [scanTypeLabel].
+  String studyLabel({Map<String, String>? namesByServiceId}) {
+    final fromApi = serviceName?.trim();
+    if (fromApi != null && fromApi.isNotEmpty) return fromApi;
+    final sid = serviceId?.trim();
+    if (sid != null && sid.isNotEmpty && namesByServiceId != null) {
+      final cached = namesByServiceId[sid]?.trim();
+      if (cached != null && cached.isNotEmpty) return cached;
+    }
+    return scanTypeLabel;
+  }
+
   factory RadiologyOrderItem.fromJson(Map<String, dynamic> json) {
+    final rawScanType = json['scanType'] as String?;
+    final service = json['service'];
+    final serviceName = service is Map<String, dynamic>
+        ? service['name'] as String?
+        : null;
     return RadiologyOrderItem(
       id: json['id'] as String? ?? '',
       orderId: (json['orderId'] ?? json['radiologyOrderId']) as String? ?? '',
-      scanType: RadiologyModality.fromString(json['scanType'] as String?) ??
+      scanType: RadiologyModality.fromString(rawScanType) ??
           RadiologyModality.OTHER,
+      rawScanType: rawScanType,
       priority: RadiologyPriority.fromString(json['priority'] as String?) ??
           RadiologyPriority.ROUTINE,
       status:
@@ -295,6 +369,7 @@ class RadiologyOrderItem {
       invoiceId: json['invoiceId'] as String?,
       invoiceItemId: json['invoiceItemId'] as String?,
       serviceId: json['serviceId'] as String?,
+      serviceName: serviceName,
       createdAt: json['createdAt'] as String?,
       updatedAt: json['updatedAt'] as String?,
       schedule: json['schedule'] != null

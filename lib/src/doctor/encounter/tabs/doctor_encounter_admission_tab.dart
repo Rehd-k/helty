@@ -4,6 +4,8 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/emergency/models/emergency_visit_model.dart';
 import 'package:helty/src/emergency/services/emergency_service.dart';
+import 'package:helty/src/admissions/admission_discharge_helpers.dart';
+import 'package:helty/src/admissions/discharge_admission_dialog.dart';
 import 'package:helty/src/models/admission_model.dart';
 import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/paitients/patient_model.dart';
@@ -91,18 +93,43 @@ class _DoctorEncounterAdmissionTabState
   }
 
   static AdmissionModel? _pickActiveAdmission(List<AdmissionModel> list) {
-    AdmissionModel? fallback;
     for (final a in list) {
       if (a.dischargeDate != null || a.dischargeDateTime != null) continue;
-      final st = a.status.toUpperCase();
-      if (st == 'DISCHARGED' || st == 'CANCELLED') continue;
-      return a;
+      if (a.isActiveAdmission) return a;
     }
-    for (final a in list) {
-      if (a.dischargeDate != null || a.dischargeDateTime != null) continue;
-      fallback ??= a;
+    return null;
+  }
+
+  bool get _canDischarge =>
+      !_submitting &&
+      _activeAdmission != null &&
+      _activeAdmission!.isActiveAdmission;
+
+  Future<void> _attemptDischarge() async {
+    final admission = _activeAdmission;
+    if (admission == null) return;
+    final payload = await showDischargeAdmissionDialog(context);
+    if (payload == null || !mounted) return;
+    setState(() => _submitting = true);
+    try {
+      final updated = await performClinicalDischarge(
+        service: _admissionService,
+        admissionId: admission.id,
+        payload: payload,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(dischargeSuccessMessage(updated))),
+      );
+      await _loadPatient();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Discharge failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
-    return fallback;
   }
 
   Future<void> _loadPatient() async {
@@ -512,8 +539,14 @@ class _DoctorEncounterAdmissionTabState
     return const SizedBox.shrink();
   }
 
-  Widget _buildTransferForm(ThemeData theme, ColorScheme cs) {
-    return SingleChildScrollView(
+  Widget _buildTransferForm(
+    ThemeData theme,
+    ColorScheme cs, {
+    bool readOnly = false,
+  }) {
+    return AbsorbPointer(
+      absorbing: readOnly,
+      child: SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -611,23 +644,34 @@ class _DoctorEncounterAdmissionTabState
             const SizedBox(height: 4),
             _buildWardBedAvailabilityHint(cs),
             const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: _canSubmitTransfer ? _updateAdmissionLocation : null,
-                icon: _submitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.swap_horiz, size: 18),
-                label: const Text('Update location'),
+            if (!readOnly)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (_canDischarge)
+                    OutlinedButton.icon(
+                      onPressed: _submitting ? null : _attemptDischarge,
+                      icon: const Icon(Icons.logout, size: 18),
+                      label: const Text('Discharge'),
+                    ),
+                  if (_canDischarge) const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: _canSubmitTransfer ? _updateAdmissionLocation : null,
+                    icon: _submitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.swap_horiz, size: 18),
+                    label: const Text('Update location'),
+                  ),
+                ],
               ),
-            ),
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -643,6 +687,8 @@ class _DoctorEncounterAdmissionTabState
     }
 
     final cs = theme.colorScheme;
+    final admissionReadOnly =
+        !scope.canEdit || scope.isSharedInpatientEncounter;
 
     if (_loadingPatient) {
       return const Padding(
@@ -652,10 +698,12 @@ class _DoctorEncounterAdmissionTabState
     }
 
     if (_isAdmittedPatientStatus(_patient?.status)) {
-      return _buildTransferForm(theme, cs);
+      return _buildTransferForm(theme, cs, readOnly: admissionReadOnly);
     }
 
-    return SingleChildScrollView(
+    return AbsorbPointer(
+      absorbing: admissionReadOnly,
+      child: SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -756,23 +804,25 @@ class _DoctorEncounterAdmissionTabState
               ),
             ),
             const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: _canSubmit ? _admitPatient : null,
-                icon: _submitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add_circle_outline, size: 18),
-                label: const Text('Admit patient'),
+            if (!admissionReadOnly)
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: _canSubmit ? _admitPatient : null,
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_circle_outline, size: 18),
+                  label: const Text('Admit patient'),
+                ),
               ),
-            ),
           ],
         ),
       ),
+    ),
     );
   }
 }

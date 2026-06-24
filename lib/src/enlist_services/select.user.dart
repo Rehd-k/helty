@@ -43,7 +43,8 @@ class _SelectUserState extends State<SelectUser> {
   bool get _allowQuickNewPatient =>
       widget.serviceName == 'OPD' ||
       widget.serviceName == 'Radiology' ||
-      widget.serviceName == 'lab';
+      widget.serviceName == 'lab' ||
+      widget.serviceName == 'ED';
 
   void createNewPatient() async {
     if (wardId.text.trim().isEmpty) {

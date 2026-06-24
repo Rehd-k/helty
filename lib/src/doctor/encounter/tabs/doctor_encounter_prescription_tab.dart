@@ -62,8 +62,8 @@ class _DoctorEncounterPrescriptionTabState
   Future<void> _toggleAdministrationStatus(MedicationOrderModel order) async {
     if (order.id.isEmpty || _updatingOrderIds.contains(order.id)) return;
 
-    final next = order.administrationStatus ==
-            MedicationAdministrationStatus.active
+    final next =
+        order.administrationStatus == MedicationAdministrationStatus.active
         ? MedicationAdministrationStatus.stopped
         : MedicationAdministrationStatus.active;
 
@@ -96,6 +96,117 @@ class _DoctorEncounterPrescriptionTabState
     }
   }
 
+  Future<void> _authorizeBeyondDuration(MedicationOrderModel order) async {
+    if (order.id.isEmpty || _updatingOrderIds.contains(order.id)) return;
+
+    final noteCtrl = TextEditingController();
+    final extendCtrl = TextEditingController(text: '2');
+    var extendUnit = RxDurationUnit.days;
+    var extendDuration = true;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text('Authorize ${order.drugName}'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'The prescribed course has ended. Extend duration and/or '
+                  'record consent so nurses may continue administration.',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Consent note',
+                    hintText: 'Clinical reason for continuing',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Extend duration'),
+                  value: extendDuration,
+                  onChanged: (v) => setLocal(() => extendDuration = v),
+                ),
+                if (extendDuration) ...[
+                  TextField(
+                    controller: extendCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Additional duration',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<RxDurationUnit>(
+                    initialValue: extendUnit,
+                    decoration: const InputDecoration(labelText: 'Unit'),
+                    items: RxDurationUnit.values
+                        .map(
+                          (u) => DropdownMenuItem(
+                            value: u,
+                            child: Text(u.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setLocal(() => extendUnit = v);
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Authorize'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _updatingOrderIds.add(order.id));
+    try {
+      final extendValue = int.tryParse(extendCtrl.text.trim());
+      await _medicationOrderService.recordBeyondDurationConsent(
+        id: order.id,
+        consentNote: noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
+        extendDurationValue:
+            extendDuration && extendValue != null && extendValue > 0
+            ? extendValue
+            : null,
+        extendDurationUnit: extendDuration ? extendUnit : null,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Authorization recorded for ${order.drugName}')),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to authorize: $e')),
+      );
+    } finally {
+      noteCtrl.dispose();
+      extendCtrl.dispose();
+      if (mounted) setState(() => _updatingOrderIds.remove(order.id));
+    }
+  }
+
   Future<void> _openAddModal() async {
     final scope = EncounterScope.of(context);
     if (scope == null) return;
@@ -104,7 +215,6 @@ class _DoctorEncounterPrescriptionTabState
       context,
       pharmacyApi: _pharmacyService,
       mode: PrescriptionDrugFormMode.add,
-      showRequestedQuantity: scope.isOutpatient,
     );
     if (form == null || !mounted) return;
 
@@ -125,8 +235,6 @@ class _DoctorEncounterPrescriptionTabState
         requestedQuantity: scope.isOutpatient ? form.requestedQuantity : null,
         route: form.route,
         specialInstructions: form.specialInstructions,
-        startDateTime: form.startDateTime,
-        endDateTime: form.endDateTime,
         notes: form.notes,
         administrationStatus: form.administrationStatus,
         admissionId: scope.isOutpatient ? null : scope.activeAdmissionId,
@@ -163,9 +271,9 @@ class _DoctorEncounterPrescriptionTabState
       modifiedByStaffId: doctorId,
     );
     if (result == null || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Medication request updated')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Medication request updated')));
     await _load();
   }
 
@@ -267,6 +375,9 @@ class _DoctorEncounterPrescriptionTabState
         .where((o) => o.status.trim() == 'Pending Dispense')
         .length;
 
+    final canEdit = scope.canEdit;
+    final onAdd = canEdit ? _openAddModal : null;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       child: Column(
@@ -276,16 +387,13 @@ class _DoctorEncounterPrescriptionTabState
             totalCount: _orders.length,
             activeCount: activeCount,
             pendingCount: pendingCount,
-            onAdd: _openAddModal,
+            onAdd: onAdd,
           ),
-          if (scope.isOutpatient) ...[
-            const SizedBox(height: 12),
-            _OpdInfoBanner(scheme: scheme, theme: theme),
-          ],
+
           const SizedBox(height: 16),
           Expanded(
             child: _orders.isEmpty
-                ? _PrescriptionEmptyState(onAdd: _openAddModal)
+                ? _PrescriptionEmptyState(onAdd: onAdd)
                 : ListView.separated(
                     itemCount: _orders.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -293,10 +401,12 @@ class _DoctorEncounterPrescriptionTabState
                       final order = _orders[i];
                       return _EncounterPrescriptionCard(
                         order: order,
-                        expanded: _expandedRequestHistoryOrderIds
-                            .contains(order.id),
+                        expanded: _expandedRequestHistoryOrderIds.contains(
+                          order.id,
+                        ),
                         isUpdating: _updatingOrderIds.contains(order.id),
                         doctorId: scope.doctorId ?? '',
+                        canEdit: canEdit,
                         onToggleAdministration: () =>
                             _toggleAdministrationStatus(order),
                         onToggleRequestHistory: () =>
@@ -305,6 +415,8 @@ class _DoctorEncounterPrescriptionTabState
                             _editMedicationRequest(req, scope.doctorId ?? ''),
                         onCancelRequest: (req) =>
                             _cancelMedicationRequest(req, scope.doctorId ?? ''),
+                        onAuthorizeBeyondDuration: () =>
+                            _authorizeBeyondDuration(order),
                       );
                     },
                   ),
@@ -326,7 +438,7 @@ class _PrescriptionTabHeader extends StatelessWidget {
   final int totalCount;
   final int activeCount;
   final int pendingCount;
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -385,14 +497,15 @@ class _PrescriptionTabHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        FilledButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add_rounded, size: 20),
-          label: const Text('Add prescription'),
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        if (onAdd != null)
+          FilledButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_rounded, size: 20),
+            label: const Text('Add prescription'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -437,44 +550,10 @@ class _SummaryChip extends StatelessWidget {
   }
 }
 
-class _OpdInfoBanner extends StatelessWidget {
-  const _OpdInfoBanner({required this.scheme, required this.theme});
-
-  final ColorScheme scheme;
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded, size: 18, color: scheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Outpatient (OPD): billing quantity is sent to pharmacy when you prescribe.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurface.withValues(alpha: 0.85),
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _PrescriptionEmptyState extends StatelessWidget {
-  const _PrescriptionEmptyState({required this.onAdd});
+  const _PrescriptionEmptyState({this.onAdd});
 
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -517,11 +596,12 @@ class _PrescriptionEmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            FilledButton.tonalIcon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add first prescription'),
-            ),
+            if (onAdd != null)
+              FilledButton.tonalIcon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add first prescription'),
+              ),
           ],
         ),
       ),
@@ -539,16 +619,30 @@ class _EncounterPrescriptionCard extends StatelessWidget {
     required this.onToggleRequestHistory,
     required this.onEditRequest,
     required this.onCancelRequest,
+    required this.onAuthorizeBeyondDuration,
+    this.canEdit = true,
   });
 
   final MedicationOrderModel order;
   final bool expanded;
   final bool isUpdating;
   final String doctorId;
+  final bool canEdit;
   final VoidCallback onToggleAdministration;
   final VoidCallback onToggleRequestHistory;
   final ValueChanged<MedicationRequestModel> onEditRequest;
   final ValueChanged<MedicationRequestModel> onCancelRequest;
+  final VoidCallback onAuthorizeBeyondDuration;
+
+  MedicationScheduleStatus get _scheduleStatus {
+    final schedule = order.doseSchedule;
+    if (schedule != null) return schedule.scheduleStatus;
+    return MedicationScheduleStatus.notStarted;
+  }
+
+  bool get _needsAuthorization =>
+      _scheduleStatus == MedicationScheduleStatus.expired &&
+      order.doseSchedule?.hasBeyondDurationConsent != true;
 
   @override
   Widget build(BuildContext context) {
@@ -558,7 +652,8 @@ class _EncounterPrescriptionCard extends StatelessWidget {
         order.administrationStatus == MedicationAdministrationStatus.active;
     final accentColor = isActive ? scheme.primary : scheme.outline;
     final requestCount = order.medicationRequests.length;
-    final hasInstructions = order.specialInstructions != null &&
+    final hasInstructions =
+        order.specialInstructions != null &&
         order.specialInstructions!.trim().isNotEmpty;
     final hasNotes = order.notes != null && order.notes!.trim().isNotEmpty;
 
@@ -639,10 +734,55 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                             _AdministrationBadge(
                               status: order.administrationStatus,
                             ),
+                            if (_scheduleStatus !=
+                                MedicationScheduleStatus.notStarted) ...[
+                              const SizedBox(height: 6),
+                              Chip(
+                                label: Text(_scheduleStatus.label),
+                                visualDensity: VisualDensity.compact,
+                                backgroundColor:
+                                    _scheduleStatus ==
+                                        MedicationScheduleStatus.expired
+                                    ? scheme.errorContainer
+                                    : scheme.tertiaryContainer,
+                              ),
+                            ],
                           ],
                         ),
                       ],
                     ),
+                    if (_needsAuthorization) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: scheme.error.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: scheme.error),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Course expired — nurses need your authorization '
+                              'before further doses.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: scheme.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            FilledButton.tonal(
+                              onPressed: !canEdit || isUpdating
+                                  ? null
+                                  : onAuthorizeBeyondDuration,
+                              child: const Text('Authorize / extend duration'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     _SigChipRow(order: order),
                     if (hasInstructions || hasNotes) ...[
@@ -662,7 +802,8 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                         ),
                       ],
                     ],
-                    if (order.startDateTime != null || order.endDateTime != null)
+                    if (order.startDateTime != null ||
+                        order.endDateTime != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Row(
@@ -723,9 +864,7 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                                   ? Icons.keyboard_arrow_up_rounded
                                   : Icons.keyboard_arrow_down_rounded,
                             ),
-                            label: Text(
-                              'Pharmacy requests ($requestCount)',
-                            ),
+                            label: Text('Pharmacy requests ($requestCount)'),
                             style: TextButton.styleFrom(
                               visualDensity: VisualDensity.compact,
                             ),
@@ -745,10 +884,11 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                             height: 22,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        else
+                        else if (canEdit)
                           FilledButton.tonalIcon(
-                            onPressed:
-                                order.id.isEmpty ? null : onToggleAdministration,
+                            onPressed: order.id.isEmpty
+                                ? null
+                                : onToggleAdministration,
                             icon: Icon(
                               isActive
                                   ? Icons.pause_circle_outline
@@ -782,6 +922,7 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                         (req) => _PharmacyRequestTile(
                           request: req,
                           doctorId: doctorId,
+                          canEdit: canEdit,
                           onEdit: () => onEditRequest(req),
                           onCancel: () => onCancelRequest(req),
                         ),
@@ -987,9 +1128,7 @@ class _InstructionCallout extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.tertiaryContainer.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: scheme.tertiary.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: scheme.tertiary.withValues(alpha: 0.15)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1027,10 +1166,12 @@ class _PharmacyRequestTile extends StatelessWidget {
     required this.doctorId,
     required this.onEdit,
     required this.onCancel,
+    this.canEdit = true,
   });
 
   final MedicationRequestModel request;
   final String doctorId;
+  final bool canEdit;
   final VoidCallback onEdit;
   final VoidCallback onCancel;
 
@@ -1038,10 +1179,11 @@ class _PharmacyRequestTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final canModify = canModifyMedicationRequest(
-      request,
-      currentStaffId: doctorId,
-    );
+    final canModify = canEdit &&
+        canModifyMedicationRequest(
+          request,
+          currentStaffId: doctorId,
+        );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1088,10 +1230,7 @@ class _PharmacyRequestTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 6),
-                MedicationRequestAttribution(
-                  request: request,
-                  compact: true,
-                ),
+                MedicationRequestAttribution(request: request, compact: true),
                 if (request.createdAt != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),

@@ -1,4 +1,5 @@
 import '../paitients/patient_model.dart';
+import 'admission_billing_clearance_models.dart';
 import 'medication_order_model.dart';
 import 'patient_vitals_model.dart';
 
@@ -74,6 +75,10 @@ class AdmissionModel {
     this.bed,
     this.encounter,
     this.attendingDoctor,
+    this.clinicallyDischargedBy,
+    this.billingClearedAt,
+    this.billingClearedBy,
+    this.billing,
     this.encounterMedicationOrders = const [],
   });
 
@@ -136,8 +141,23 @@ class AdmissionModel {
   /// When API includes `attendingDoctor` (name/staff id).
   final AttendingDoctorSummary? attendingDoctor;
 
+  /// Set on clinical discharge.
+  final AttendingDoctorSummary? clinicallyDischargedBy;
+
+  /// Set when billing clears (or auto-finalizes when already paid).
+  final DateTime? billingClearedAt;
+
+  final AttendingDoctorSummary? billingClearedBy;
+
+  /// Billing snapshot when included on admission responses.
+  final AdmissionBillingSummary? billing;
+
   /// Orders nested under `encounter` when the admission payload includes them.
   final List<MedicationOrderModel> encounterMedicationOrders;
+
+  bool get isActiveAdmission => status.isActiveAdmission;
+
+  bool get isPendingBillingClearance => status.isPendingBillingClearance;
 
   /// Best display date for “admitted on” UIs.
   DateTime? get displayAdmissionInstant =>
@@ -177,11 +197,25 @@ class AdmissionModel {
         ? Map<String, dynamic>.from(encounterRaw)
         : null;
 
-    AttendingDoctorSummary? attendingDoctor;
-    final atDoc = json['attendingDoctor'];
-    if (atDoc is Map) {
-      attendingDoctor = AttendingDoctorSummary.fromJson(
-        Map<String, dynamic>.from(atDoc),
+    AttendingDoctorSummary? parseDoctorSummary(dynamic raw) {
+      if (raw is Map) {
+        return AttendingDoctorSummary.fromJson(
+          Map<String, dynamic>.from(raw),
+        );
+      }
+      return null;
+    }
+
+    final attendingDoctor = parseDoctorSummary(json['attendingDoctor']);
+    final clinicallyDischargedBy =
+        parseDoctorSummary(json['clinicallyDischargedBy']);
+    final billingClearedBy = parseDoctorSummary(json['billingClearedBy']);
+
+    AdmissionBillingSummary? billing;
+    final billingRaw = json['billing'];
+    if (billingRaw is Map) {
+      billing = AdmissionBillingSummary.fromJson(
+        Map<String, dynamic>.from(billingRaw),
       );
     }
 
@@ -267,6 +301,10 @@ class AdmissionModel {
       bed: bedMap,
       encounter: encounterMap,
       attendingDoctor: attendingDoctor,
+      clinicallyDischargedBy: clinicallyDischargedBy,
+      billingClearedAt: parseDt(json['billingClearedAt']),
+      billingClearedBy: billingClearedBy,
+      billing: billing,
       encounterMedicationOrders: encounterMedicationOrders,
     );
   }

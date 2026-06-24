@@ -714,6 +714,26 @@ class BillingWallet {
   }
 }
 
+class BillingWalletInvoiceRef {
+  BillingWalletInvoiceRef({
+    required this.id,
+    this.invoiceID,
+    this.status,
+  });
+
+  final String id;
+  final String? invoiceID;
+  final String? status;
+
+  factory BillingWalletInvoiceRef.fromJson(Map<String, dynamic> json) {
+    return BillingWalletInvoiceRef(
+      id: _asString(json['id']),
+      invoiceID: _nullableString(json['invoiceID']),
+      status: _nullableString(json['status']),
+    );
+  }
+}
+
 class BillingWalletTransaction {
   BillingWalletTransaction({
     required this.id,
@@ -722,7 +742,9 @@ class BillingWalletTransaction {
     required this.amount,
     this.reference,
     this.invoiceId,
+    this.createdById,
     this.createdAt,
+    this.invoice,
   });
 
   final String id;
@@ -731,9 +753,16 @@ class BillingWalletTransaction {
   final double amount;
   final String? reference;
   final String? invoiceId;
+  final String? createdById;
   final DateTime? createdAt;
+  final BillingWalletInvoiceRef? invoice;
+
+  bool get isCredit => type.toUpperCase() == 'CREDIT';
+
+  bool get isDebit => type.toUpperCase() == 'DEBIT';
 
   factory BillingWalletTransaction.fromJson(Map<String, dynamic> json) {
+    final invoiceRaw = json['invoice'];
     return BillingWalletTransaction(
       id: _asString(json['id']),
       walletId: _asString(json['walletId']),
@@ -741,7 +770,226 @@ class BillingWalletTransaction {
       amount: _asDouble(json['amount']),
       reference: _nullableString(json['reference']),
       invoiceId: _nullableString(json['invoiceId']),
+      createdById: _nullableString(json['createdById']),
       createdAt: _asDate(json['createdAt']),
+      invoice: invoiceRaw is Map
+          ? BillingWalletInvoiceRef.fromJson(
+              Map<String, dynamic>.from(invoiceRaw),
+            )
+          : null,
+    );
+  }
+}
+
+class WalletDepositResponse {
+  WalletDepositResponse({required this.wallet, required this.transaction});
+
+  final BillingWallet wallet;
+  final BillingWalletTransaction transaction;
+
+  factory WalletDepositResponse.fromJson(Map<String, dynamic> json) {
+    final walletRaw = json['wallet'];
+    final txnRaw = json['transaction'];
+    return WalletDepositResponse(
+      wallet: BillingWallet.fromJson(
+        walletRaw is Map
+            ? Map<String, dynamic>.from(walletRaw)
+            : Map<String, dynamic>.from(json),
+      ),
+      transaction: BillingWalletTransaction.fromJson(
+        txnRaw is Map
+            ? Map<String, dynamic>.from(txnRaw)
+            : const <String, dynamic>{},
+      ),
+    );
+  }
+}
+
+class WalletChartPage {
+  WalletChartPage({
+    required this.wallet,
+    required this.transactions,
+    this.walletBalance,
+    this.patientChartNumber,
+    this.patientName,
+  });
+
+  final BillingWallet? wallet;
+  final List<BillingWalletTransaction> transactions;
+  final double? walletBalance;
+  final String? patientChartNumber;
+  final String? patientName;
+
+  factory WalletChartPage.fromChartSection(
+    Map<String, dynamic>? section, {
+    double? summaryBalance,
+    String? patientChartNumber,
+    String? patientName,
+  }) {
+    if (section == null) {
+      return WalletChartPage(
+        wallet: null,
+        transactions: const [],
+        walletBalance: summaryBalance ?? 0,
+        patientChartNumber: patientChartNumber,
+        patientName: patientName,
+      );
+    }
+    final walletRaw = section['wallet'];
+    final txsRaw = section['transactions'];
+    final wallet = walletRaw is Map
+        ? BillingWallet.fromJson(Map<String, dynamic>.from(walletRaw))
+        : null;
+    final transactions = txsRaw is List
+        ? txsRaw
+            .whereType<Map>()
+            .map(
+              (e) => BillingWalletTransaction.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList()
+        : <BillingWalletTransaction>[];
+    return WalletChartPage(
+      wallet: wallet,
+      transactions: transactions,
+      walletBalance: summaryBalance ?? wallet?.balance ?? 0,
+      patientChartNumber: patientChartNumber,
+      patientName: patientName,
+    );
+  }
+}
+
+class BillingPaymentItemAllocation {
+  BillingPaymentItemAllocation({
+    required this.amount,
+    this.description,
+  });
+
+  final double amount;
+  final String? description;
+
+  factory BillingPaymentItemAllocation.fromJson(Map<String, dynamic> json) {
+    final itemRaw = json['invoiceItem'];
+    final item = itemRaw is Map
+        ? Map<String, dynamic>.from(itemRaw)
+        : null;
+    final serviceRaw = item?['service'];
+    final drugRaw = item?['drug'];
+    final service = serviceRaw is Map
+        ? Map<String, dynamic>.from(serviceRaw)
+        : null;
+    final drug = drugRaw is Map ? Map<String, dynamic>.from(drugRaw) : null;
+    final customDesc = _nullableString(item?['customDescription']);
+    final serviceName = _nullableString(service?['name']);
+    final drugName =
+        _nullableString(drug?['genericName']) ??
+        _nullableString(drug?['brandName']);
+    return BillingPaymentItemAllocation(
+      amount: _asDouble(json['amount']),
+      description: customDesc ?? serviceName ?? drugName ?? 'Invoice item',
+    );
+  }
+}
+
+class BillingPaymentDetail {
+  BillingPaymentDetail({
+    required this.id,
+    required this.amount,
+    this.source,
+    this.method,
+    this.reference,
+    this.notes,
+    this.paidAt,
+    this.receivedByName,
+    this.createdByName,
+    this.invoiceId,
+    this.invoiceNumber,
+    this.invoiceStatus,
+    this.patientName,
+    this.patientChartNumber,
+    this.walletTransactionId,
+    this.itemAllocations = const [],
+  });
+
+  final String id;
+  final double amount;
+  final String? source;
+  final String? method;
+  final String? reference;
+  final String? notes;
+  final DateTime? paidAt;
+  final String? receivedByName;
+  final String? createdByName;
+  final String? invoiceId;
+  final String? invoiceNumber;
+  final String? invoiceStatus;
+  final String? patientName;
+  final String? patientChartNumber;
+  final String? walletTransactionId;
+  final List<BillingPaymentItemAllocation> itemAllocations;
+
+  factory BillingPaymentDetail.fromJson(Map<String, dynamic> json) {
+    final invoiceRaw = json['invoice'];
+    final invoice = invoiceRaw is Map
+        ? Map<String, dynamic>.from(invoiceRaw)
+        : null;
+    final patientRaw = invoice?['patient'];
+    final patient = patientRaw is Map
+        ? Map<String, dynamic>.from(patientRaw)
+        : null;
+    final receivedByRaw = json['receivedBy'];
+    final createdByRaw = json['createdBy'];
+    final receivedBy = receivedByRaw is Map
+        ? Map<String, dynamic>.from(receivedByRaw)
+        : null;
+    final createdBy = createdByRaw is Map
+        ? Map<String, dynamic>.from(createdByRaw)
+        : null;
+    final walletTxnRaw = json['walletTransaction'];
+    final walletTxn = walletTxnRaw is Map
+        ? Map<String, dynamic>.from(walletTxnRaw)
+        : null;
+    final allocationsRaw = json['itemAllocations'];
+    final allocations = allocationsRaw is List
+        ? allocationsRaw
+            .whereType<Map>()
+            .map(
+              (e) => BillingPaymentItemAllocation.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList()
+        : <BillingPaymentItemAllocation>[];
+    final patientFirst = _nullableString(patient?['firstName']) ?? '';
+    final patientLast =
+        _nullableString(patient?['surname'] ?? patient?['lastName']) ?? '';
+    final patientName = '$patientFirst $patientLast'.trim();
+    return BillingPaymentDetail(
+      id: _asString(json['id']),
+      amount: _asDouble(json['amount']),
+      source: _nullableString(json['source']),
+      method: _nullableString(json['method']),
+      reference: _nullableString(json['reference']),
+      notes: _nullableString(json['notes']),
+      paidAt: _asDate(json['paidAt']),
+      receivedByName: _staffNameFromMap(receivedBy).isEmpty
+          ? null
+          : _staffNameFromMap(receivedBy),
+      createdByName: _staffNameFromMap(createdBy).isEmpty
+          ? null
+          : _staffNameFromMap(createdBy),
+      invoiceId: _nullableString(invoice?['id'] ?? json['invoiceId']),
+      invoiceNumber: _nullableString(invoice?['invoiceID']),
+      invoiceStatus: _nullableString(invoice?['status']),
+      patientName: patientName.isEmpty ? null : patientName,
+      patientChartNumber: _nullableString(
+        patient?['patientId'] ?? invoice?['patientId'],
+      ),
+      walletTransactionId: _nullableString(
+        walletTxn?['id'] ?? json['walletTransactionId'],
+      ),
+      itemAllocations: allocations,
     );
   }
 }

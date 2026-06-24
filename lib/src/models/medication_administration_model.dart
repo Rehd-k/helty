@@ -13,6 +13,9 @@ class MedicationAdministrationModel {
     this.dose,
     this.route,
     this.nurseDisplayName,
+    this.pharmacyLocationId,
+    this.pharmacyLocationName,
+    this.stockDeductedQuantity,
   });
 
   final String id;
@@ -27,6 +30,13 @@ class MedicationAdministrationModel {
   final String? dose;
   final String? route;
   final String? nurseDisplayName;
+
+  /// Dispensary selected when recording administration (optional).
+  final String? pharmacyLocationId;
+  final String? pharmacyLocationName;
+
+  /// Whole units deducted from [pharmacyLocationId] (`ceil(quantity)`).
+  final int? stockDeductedQuantity;
 
   static DateTime? _parseDt(dynamic v) {
     if (v == null) return null;
@@ -79,6 +89,23 @@ class MedicationAdministrationModel {
       nurseName = _str(json['nurseName'] ?? json['recordedByName']);
     }
 
+    final locationMap = asMap(json['pharmacyLocation']) ??
+        asMap(json['pharmacy_location']);
+    var pharmacyLocationId = _str(
+      json['pharmacyLocationId'] ?? json['pharmacy_location_id'],
+    );
+    if (pharmacyLocationId.isEmpty && locationMap != null) {
+      pharmacyLocationId = _str(locationMap['id']);
+    }
+    var pharmacyLocationName = locationMap != null
+        ? _str(locationMap['name'])
+        : _str(json['pharmacyLocationName'] ?? json['pharmacy_location_name']);
+    final stockRaw =
+        json['stockDeductedQuantity'] ?? json['stock_deducted_quantity'];
+    final stockDeductedQuantity = stockRaw is int
+        ? stockRaw
+        : int.tryParse(stockRaw?.toString() ?? '');
+
     return MedicationAdministrationModel(
       id: _str(json['id']),
       scheduledTime: _parseDt(json['scheduledTime'] ?? json['scheduled_time']),
@@ -91,6 +118,11 @@ class MedicationAdministrationModel {
       dose: dose.isEmpty ? null : dose,
       route: route.isEmpty ? null : route,
       nurseDisplayName: nurseName.isEmpty ? null : nurseName,
+      pharmacyLocationId:
+          pharmacyLocationId.isEmpty ? null : pharmacyLocationId,
+      pharmacyLocationName:
+          pharmacyLocationName.isEmpty ? null : pharmacyLocationName,
+      stockDeductedQuantity: stockDeductedQuantity,
     );
   }
 

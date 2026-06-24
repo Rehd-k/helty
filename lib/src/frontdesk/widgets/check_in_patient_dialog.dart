@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/helper/date.formatter.dart';
-import 'package:helty/src/models/consultation_credit_model.dart';
 import 'package:helty/src/models/paid_without_encounter_invoice.dart';
-import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
@@ -27,7 +25,6 @@ class CheckInPatientDialog extends ConsumerStatefulWidget {
 class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
   final _invoiceService = InvoiceService();
   final _waitingService = WaitingPatientService();
-  final _patientService = PatientService();
   final _searchCtrl = TextEditingController();
 
   _CheckInStep _step = _CheckInStep.chooseMode;
@@ -38,7 +35,6 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
 
   List<PaidWithoutEncounterInvoice> _invoiceOptions = [];
   PaidWithoutEncounterInvoice? _selectedInvoice;
-  List<ConsultationCredit> _patientCredits = [];
 
   @override
   void dispose() {
@@ -70,14 +66,8 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
     });
   }
 
-  ConsultationCredit? _creditForInvoice(String invoiceId) {
-    for (final c in _patientCredits) {
-      if (c.invoiceId == invoiceId) return c;
-    }
-    return null;
-  }
-
-  String? _creditSubtitle(ConsultationCredit? credit) {
+  String? _creditSubtitle(PaidWithoutEncounterInvoice inv) {
+    final credit = inv.primaryConsultationCredit;
     if (credit == null) return null;
     if (credit.consumable) {
       return 'OPD visit available (${credit.visitsRemaining} left)';
@@ -87,26 +77,10 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
     return '${credit.visitsRemaining} visit(s) remaining';
   }
 
-  Future<void> _loadCredits(String patientId) async {
-    if (patientId.trim().isEmpty) {
-      setState(() => _patientCredits = []);
-      return;
-    }
-    try {
-      final credits =
-          await _patientService.fetchConsultationCredits(patientId);
-      if (!mounted) return;
-      setState(() => _patientCredits = credits);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _patientCredits = []);
-    }
-  }
-
   void _sortInvoicesByCredit(List<PaidWithoutEncounterInvoice> list) {
     list.sort((a, b) {
-      final ca = _creditForInvoice(a.id);
-      final cb = _creditForInvoice(b.id);
+      final ca = a.primaryConsultationCredit;
+      final cb = b.primaryConsultationCredit;
       final aScore = ca?.consumable == true ? 0 : (ca != null ? 1 : 2);
       final bScore = cb?.consumable == true ? 0 : (cb != null ? 1 : 2);
       return aScore.compareTo(bScore);
@@ -137,12 +111,10 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
           setState(() {
             _loading = false;
             _error =
-                'No paid invoices without an encounter were found for this patient.';
+                'No consumable consultation credit was found for this patient.';
           });
           return;
         }
-        await _loadCredits(list.first.patientId);
-        if (!mounted) return;
         if (list.length == 1) {
           await _selectInvoice(list.first);
         } else {
@@ -192,8 +164,6 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
       });
       return;
     }
-    await _loadCredits(invoice.patientId);
-    if (!mounted) return;
     setState(() {
       _loading = false;
       _selectedInvoice = invoice;
@@ -525,12 +495,12 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
                   DateFormatter.dateTime(inv.createdAt!.toLocal()),
                 ),
               ...() {
-                final credit = _creditForInvoice(inv.id);
+                final credit = inv.primaryConsultationCredit;
                 if (credit == null) return <Widget>[];
                 return [
                   const SizedBox(height: 12),
-                  ConsultationCreditChip.fromCredit(credit: credit),
-                  if (!credit.consumable && credit.visitsRemaining > 0)
+                  ConsultationCreditChip.fromLine(line: credit),
+                  if (credit.consumable)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
@@ -625,10 +595,9 @@ class _CheckInPatientDialogState extends ConsumerState<CheckInPatientDialog> {
                     ),
                     Builder(
                       builder: (context) {
-                        final sub =
-                            _creditSubtitle(_creditForInvoice(inv.id));
+                        final sub = _creditSubtitle(inv);
                         if (sub == null) return const SizedBox.shrink();
-                        final credit = _creditForInvoice(inv.id);
+                        final credit = inv.primaryConsultationCredit;
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Row(

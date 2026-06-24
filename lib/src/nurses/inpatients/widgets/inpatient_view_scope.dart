@@ -23,6 +23,7 @@ class InpatientViewScope extends InheritedWidget {
     this.isNurse = false,
     this.admissionStatus,
     this.isOutpatient = false,
+    this.readOnly = false,
     required super.child,
   });
 
@@ -34,6 +35,9 @@ class InpatientViewScope extends InheritedWidget {
 
   /// OPD ward with no ACTIVE admission — hide nurse medication request UI.
   final bool isOutpatient;
+
+  /// Read-only hub / archive viewing — suppresses write actions.
+  final bool readOnly;
 
   /// Display name from patient record (title, first, surname), when loaded.
   final String? patientDisplayName;
@@ -58,6 +62,7 @@ class InpatientViewScope extends InheritedWidget {
 
   /// Whether nursing/clinical actions are allowed on this admission.
   bool get isAdmissionActive {
+    if (readOnly) return false;
     final st = (admissionStatus ?? '').toUpperCase();
     return st == 'ACTIVE' || st == 'ADMITTED';
   }
@@ -78,5 +83,6 @@ class InpatientViewScope extends InheritedWidget {
       isDoctor != old.isDoctor ||
       isNurse != old.isNurse ||
       admissionStatus != old.admissionStatus ||
-      isOutpatient != old.isOutpatient;
+      isOutpatient != old.isOutpatient ||
+      readOnly != old.readOnly;
 }

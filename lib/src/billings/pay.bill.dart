@@ -17,6 +17,8 @@ import '../services/transaction_service.dart';
 import '../widgets/patient_consultation_credits_panel.dart';
 import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
 import 'package:helty/src/printing/escpos/receipt_printer_picker_sheet.dart';
+import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
+import 'package:helty/src/wallet/wallet_providers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // These payment methods require a bank to be selected before paying.
@@ -1091,6 +1093,11 @@ class PayBillState extends ConsumerState<PayBill> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
+        final msg = e.toString();
+        if (msg.toLowerCase().contains('insufficient wallet balance')) {
+          await _showInsufficientWalletDialog(msg);
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             behavior: SnackBarBehavior.floating,
@@ -1101,6 +1108,48 @@ class PayBillState extends ConsumerState<PayBill> {
         );
       }
     }
+  }
+
+  Future<void> _showInsufficientWalletDialog(String message) async {
+    final patient = ref.read(patientProvider).selectedPatient;
+    final chartNumber = patient?.patientId ?? widget.patientId;
+    final patientName =
+        '${widget.firstName} ${widget.lastName}'.trim().isNotEmpty
+        ? '${widget.firstName} ${widget.lastName}'.trim()
+        : (patient != null
+              ? '${patient.firstName} ${patient.surname}'.trim()
+              : 'Patient');
+    final patientUuid = patient?.id ?? widget.patientId;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Insufficient wallet balance'),
+        content: Text(message.replaceFirst('Exception: ', '')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              if (patientUuid.trim().isEmpty) return;
+              await WalletDepositDialog.show(
+                context,
+                ref: ref,
+                patientUuid: patientUuid,
+                patientName: patientName,
+                chartNumber: chartNumber,
+                onSuccess: () =>
+                    invalidatePatientWalletHistory(ref, patientUuid),
+              );
+            },
+            child: const Text('Fund wallet'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleCloseModal() async {

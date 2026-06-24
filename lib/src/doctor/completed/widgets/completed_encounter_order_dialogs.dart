@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/models/lab_order_model.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 
@@ -8,126 +9,10 @@ void showCompletedEncounterLabDialog(
   BuildContext context,
   LabOrderModel order,
 ) {
-  final theme = Theme.of(context);
-  final lines = order.resultLines;
-  final hasLegacyMap =
-      order.resultValues != null && order.resultValues!.isNotEmpty;
-
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(order.testType),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _kv(
-                theme,
-                'Ordered',
-                DateFormatter.formatFromBackend(
-                  order.createdAt,
-                  DateFormatter.dateTime,
-                ),
-              ),
-              _kv(theme, 'Status', order.status),
-              _kv(theme, 'Priority', order.priority ?? 'Routine'),
-              if (order.clinicalNotes != null && order.clinicalNotes!.isNotEmpty)
-                _kv(theme, 'Notes', order.clinicalNotes!),
-              const SizedBox(height: 16),
-              Text(
-                'Results',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (lines != null && lines.isNotEmpty)
-                ...lines.map(
-                  (line) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            line.label,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            line.valueWithUnit,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            line.referenceRange != null &&
-                                    line.referenceRange!.isNotEmpty
-                                ? 'Ref: ${line.referenceRange}'
-                                : '',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else if (hasLegacyMap)
-                ...order.resultValues!.entries.map(
-                  (e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 140,
-                          child: Text(
-                            e.key,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            e.value,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                Text(
-                  'No results yet.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Close'),
-        ),
-      ],
-    ),
+  showLabOrderResultsDialog(
+    context,
+    order: order,
+    showEncounterId: false,
   );
 }
 

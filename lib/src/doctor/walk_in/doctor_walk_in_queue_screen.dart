@@ -10,7 +10,10 @@ import 'package:helty/src/doctor/widgets/start_encounter_dialog.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/models/waiting_patient_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/models/consultation_credit_model.dart';
+import 'package:helty/src/models/consultation_credit_utils.dart';
 import 'package:helty/src/services/encounter_service.dart';
+import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
 import 'package:helty/src/widgets/consultation_credit_chip.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,6 +35,7 @@ class _DoctorWalkInQueueScreenState
     extends ConsumerState<DoctorWalkInQueueScreen> {
   final _waitingService = WaitingPatientService();
   final _encounterService = EncounterService();
+  final _invoiceService = InvoiceService();
 
   List<WaitingPatientModel> _patients = [];
   List<ConsultingRoomModel> _consultingRooms = [];
@@ -160,17 +164,31 @@ class _DoctorWalkInQueueScreenState
         : 'Unknown';
     final patientId = waiting.patientId;
 
+    ConsultationServiceLine? fifoCredit;
+    try {
+      final invoices = await _invoiceService.fetchPaidWithoutEncounter(
+        patientId: patientId,
+      );
+      if (invoices.isNotEmpty) {
+        fifoCredit = invoices.first.primaryConsultationCredit;
+      }
+    } catch (_) {
+      fifoCredit = waiting.primaryConsultationCredit;
+    }
+
+    if (!mounted) return;
+
     final result = await showDialog<_StartEncounterResult>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StartEncounterDialog(
         patientName: displayName,
+        consultationCredit: fifoCredit ?? waiting.primaryConsultationCredit,
         onOpen: () async {
           try {
             final encounter = await _encounterService.startOutpatient(
               patientId: patientId,
               doctorId: doctorId,
-              invoiceId: waiting.invoiceId,
               visitType: 'Walk-in',
             );
             if (!ctx.mounted) return;
@@ -184,7 +202,9 @@ class _DoctorWalkInQueueScreenState
           } on OutpatientStartException catch (e) {
             if (!ctx.mounted) return;
             ScaffoldMessenger.of(ctx).showSnackBar(
-              SnackBar(content: Text(e.message)),
+              SnackBar(
+                content: Text(mapOutpatientStartError(e.message)),
+              ),
             );
           } catch (e) {
             if (!ctx.mounted) return;

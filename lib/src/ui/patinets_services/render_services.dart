@@ -26,8 +26,7 @@ import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
 import '../../services/service_service.dart';
 import '../../services/ward_service.dart';
-import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
-import 'package:helty/src/printing/escpos/receipt_printer_picker_sheet.dart';
+import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 
 @RoutePage()
 class RenderServiceScreen extends ConsumerStatefulWidget {
@@ -143,7 +142,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
   bool _payAtPosBusy = false;
-  bool _depositBusy = false;
 
   String? get _selectedPatientHmoId {
     final hid = ref.read(patientProvider).selectedPatient?.hmoId?.trim();
@@ -514,13 +512,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           if (selectedPatient != null) ...[
             IconButton(
               tooltip: 'Take deposit',
-              onPressed: _depositBusy
-                  ? null
-                  : () => _openDepositDialog(
-                      selectedPatient: selectedPatient,
-                      auth: auth,
-                      printReceiptForBilling: isBillingUser,
-                    ),
+              onPressed: () => _openDepositDialog(
+                selectedPatient: selectedPatient,
+                auth: auth,
+                printReceiptForBilling: isBillingUser,
+              ),
               icon: const Icon(Icons.account_balance_wallet_outlined),
             ),
             IconButton(
@@ -1447,106 +1443,22 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     required AuthState auth,
     required bool printReceiptForBilling,
   }) async {
-    final amountController = TextEditingController();
-    try {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) {
-          return AlertDialog(
-            title: const Text('Take Deposit'),
-            content: TextField(
-              controller: amountController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Deposit amount',
-                hintText: 'Enter amount',
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: _depositBusy
-                    ? null
-                    : () async {
-                        final amount = double.tryParse(
-                          amountController.text.trim(),
-                        );
-                        if (amount == null || amount <= 0) {
-                          _snack('Enter a valid deposit amount.');
-                          return;
-                        }
-                        final patientUuid = _resolvePatientUuidForInvoice(
-                          selectedPatient: selectedPatient,
-                        );
-                        if (patientUuid == null) {
-                          _snack(
-                            'Cannot deposit: patient needs a server id (UUID).',
-                          );
-                          return;
-                        }
-                        setState(() => _depositBusy = true);
-                        try {
-                          await InvoiceService().depositToWallet(
-                            patientId: patientUuid,
-                            payload: WalletDepositPayload(
-                              amount: amount,
-                              reference: 'deposit',
-                              staffId: auth.staff?.id,
-                            ),
-                          );
-                          if (!mounted) return;
-                          Navigator.of(ctx).pop();
-                          _snack('Deposit recorded successfully.');
-                          if (printReceiptForBilling && mounted) {
-                            final data = ReceiptEscposService.fromPayBillSnapshot(
-                              patientName:
-                                  '${selectedPatient.firstName} ${selectedPatient.surname}'
-                                      .trim(),
-                              patientId: selectedPatient.patientId,
-                              cashierFirst: auth.staff?.firstName ?? '',
-                              cashierLast: auth.staff?.lastName ?? '',
-                              itemSnapshots: [
-                                {
-                                  'description': 'Wallet deposit',
-                                  'quantity': 1,
-                                  'total': amount.toStringAsFixed(2),
-                                },
-                              ],
-                              totalAmount: amount,
-                              discountAmount: 0,
-                              amountPaid: amount,
-                            );
-                            await showReceiptPrinterPickerSheet(
-                              context,
-                              data: data,
-                            );
-                          }
-                        } catch (e) {
-                          _snack('Failed to record deposit: $e');
-                        } finally {
-                          if (mounted) setState(() => _depositBusy = false);
-                        }
-                      },
-                child: _depositBusy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save Deposit'),
-              ),
-            ],
-          );
-        },
-      );
-    } finally {
-      amountController.dispose();
+    final patientUuid = _resolvePatientUuidForInvoice(
+      selectedPatient: selectedPatient,
+    );
+    if (patientUuid == null) {
+      _snack('Cannot deposit: patient needs a server id (UUID).');
+      return;
     }
+    await WalletDepositDialog.show(
+      context,
+      ref: ref,
+      patientUuid: patientUuid,
+      patientName:
+          '${selectedPatient.firstName} ${selectedPatient.surname}'.trim(),
+      chartNumber: selectedPatient.patientId,
+      offerReceipt: printReceiptForBilling,
+    );
   }
 
   Future<void> _openStatusDialog(

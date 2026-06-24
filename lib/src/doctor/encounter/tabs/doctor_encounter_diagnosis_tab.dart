@@ -206,9 +206,7 @@ class _DoctorEncounterDiagnosisTabState
       setState(() => _saving = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: ${_errorMessage(e)}')),
-      );
+      showEncounterEditErrorSnackBar(context, e);
       setState(() => _saving = false);
     }
   }
@@ -250,9 +248,13 @@ class _DoctorEncounterDiagnosisTabState
         !_searching &&
         _searchResults.isEmpty;
 
+    final readOnly = !scope.canEdit;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: Column(
+      child: AbsorbPointer(
+        absorbing: readOnly,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
@@ -378,18 +380,20 @@ class _DoctorEncounterDiagnosisTabState
             label: const Text('Other — custom secondary'),
           ),
           const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save_outlined, size: 18),
-            label: const Text('Save diagnosis'),
-          ),
+          if (!readOnly)
+            FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined, size: 18),
+              label: const Text('Save diagnosis'),
+            ),
         ],
+        ),
       ),
     );
   }

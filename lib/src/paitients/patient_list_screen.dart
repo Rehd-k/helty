@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app_router.gr.dart';
 import '../helper/date.formatter.dart';
+import '../models/super_admin_department_preview.dart';
 import '../providers/auth_provider.dart';
 import 'patient_model.dart';
 import 'patient_providers.dart';
@@ -112,15 +113,88 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
       await _refreshPatients();
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Delete is not available from this view yet.'),
+    if (action == 'delete') {
+      await _confirmAndDeletePatient(patient);
+    }
+  }
+
+  String _patientDisplayName(Patient patient) {
+    return [
+      patient.firstName,
+      patient.otherName,
+      patient.surname,
+    ].where((e) => e != null && e.trim().isNotEmpty).join(' ');
+  }
+
+  Future<void> _confirmAndDeletePatient(Patient patient) async {
+    if (!staffIsSuperAdmin(ref.read(currentStaffProvider))) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only super admins can delete patients.')),
+      );
+      return;
+    }
+
+    final id = patient.id;
+    if (id == null || id.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient id is missing.')),
+      );
+      return;
+    }
+
+    final name = _patientDisplayName(patient);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded),
+        title: const Text('Delete patient permanently?'),
+        content: Text(
+          'This will permanently delete $name (${patient.patientId}). '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _patientService.deletePatient(id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Patient $name deleted.')),
+      );
+      await _refreshPatients();
+    } on PatientDeleteException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete patient: $e')),
+      );
+    }
   }
 
   void _showPatientDetailsDialog(Patient patient) {
     final staff = ref.read(authProvider).staff;
+    final isSuperAdmin = staffIsSuperAdmin(staff);
     final at = staff?.accountType?.name.toLowerCase() ?? '';
     final r = staff?.staffRole.toLowerCase() ?? '';
     final showChartLink =
@@ -245,6 +319,19 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
               icon: const Icon(Icons.edit_outlined),
               label: const Text('Edit Patient'),
             ),
+            if (isSuperAdmin)
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                  foregroundColor: Theme.of(ctx).colorScheme.onError,
+                ),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  await _handleAction('delete', patient);
+                },
+                icon: const Icon(Icons.delete_forever_outlined),
+                label: const Text('Delete'),
+              ),
           ],
         );
       },
@@ -273,6 +360,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
 
   Widget _buildPatientCard(Patient patient, ColorScheme colorScheme) {
     final admitted = patientStatusIsAdmitted(patient.status);
+    final isSuperAdmin = staffIsSuperAdmin(ref.watch(currentStaffProvider));
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       elevation: 0,
@@ -329,6 +417,15 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                       onPressed: () => _handleAction('edit', patient),
                       icon: const Icon(Icons.edit_outlined),
                     ),
+                    if (isSuperAdmin)
+                      IconButton.filledTonal(
+                        tooltip: 'Delete patient',
+                        onPressed: () => _handleAction('delete', patient),
+                        icon: Icon(
+                          Icons.delete_forever_outlined,
+                          color: colorScheme.error,
+                        ),
+                      ),
                   ],
                 ),
               ],

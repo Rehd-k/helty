@@ -185,18 +185,18 @@ class InvoiceNotifier extends StateNotifier<AsyncValue<Invoice?>> {
     return updated;
   }
 
-  Future<BillingWallet> depositWallet({
+  Future<WalletDepositResponse> depositWallet({
     required String patientId,
     required WalletDepositPayload payload,
   }) async {
     final service = ref.read(invoiceServiceProvider);
-    final wallet = await service.depositToWallet(
+    final response = await service.depositToWallet(
       patientId: patientId,
       payload: payload,
     );
     ref.invalidate(patientWalletProvider(patientId));
     ref.invalidate(walletTransactionsProvider(patientId));
-    return wallet;
+    return response;
   }
 
   void _invalidateInvoiceState(

@@ -64,6 +64,29 @@ void main() {
       expect(order.items[1].status, RadiologyOrderItemStatus.IN_PROGRESS);
     });
 
+    test('infers scan modality from study name', () {
+      expect(
+        RadiologyModality.inferFromStudyName('Chest X-Ray PA'),
+        RadiologyModality.X_RAY,
+      );
+      expect(
+        RadiologyModality.inferFromStudyName('CT Scan of Abdomen'),
+        RadiologyModality.CT,
+      );
+      expect(
+        RadiologyModality.inferFromStudyName('MRI Brain with contrast'),
+        RadiologyModality.MRI,
+      );
+      expect(
+        RadiologyModality.inferFromStudyName('Obstetric Ultrasound'),
+        RadiologyModality.ULTRASOUND,
+      );
+      expect(
+        RadiologyModality.inferFromStudyName('Bone Density Scan'),
+        RadiologyModality.OTHER,
+      );
+    });
+
     test('parses item-level invoice linkage validation errors', () {
       final service = RadiologyService();
       final message = service.parseBackendError(

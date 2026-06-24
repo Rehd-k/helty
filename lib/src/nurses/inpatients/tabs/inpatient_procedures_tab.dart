@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +14,7 @@ import 'package:helty/src/providers/invoices_providers.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/services/procedure_record_service.dart';
 import 'package:helty/src/services/service_service.dart';
+import 'package:helty/src/services/widgets/searchable_service_selector.dart';
 
 @RoutePage()
 class InpatientProceduresScreen extends ConsumerStatefulWidget {
@@ -63,8 +62,14 @@ class _InpatientProceduresScreenState
     try {
       final list = await _procedureService.list(admissionId);
       list.sort((a, b) {
-        final ta = a.recordedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final tb = b.recordedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final ta =
+            a.recordedAt ??
+            a.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final tb =
+            b.recordedAt ??
+            b.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
         return tb.compareTo(ta);
       });
       if (!mounted) return;
@@ -90,6 +95,53 @@ class _InpatientProceduresScreenState
     return e.message ?? 'Request failed';
   }
 
+  Future<String?> _saveProcedureAndBill({
+    required String admissionId,
+    required String nurseId,
+    required String patientId,
+    required String? staffId,
+    required String? encounterId,
+    required ServiceModel service,
+    required int quantity,
+    required String description,
+    String? outcome,
+    String? complications,
+  }) async {
+    await _procedureService.create(
+      admissionId: admissionId,
+      nurseId: nurseId,
+      procedureType: service.name,
+      description: description,
+      outcome: outcome,
+      complications: complications,
+    );
+
+    final serviceId = service.id.isNotEmpty ? service.id : service.serviceId;
+    if (serviceId.isEmpty) {
+      return 'Procedure recorded; service id missing for billing';
+    }
+
+    try {
+      final notifier = ref.read(invoiceNotifierProvider.notifier);
+      final invoice = await notifier.getOrCreateBillingInvoice(
+        patientId: patientId,
+        staffId: staffId,
+        encounterId: encounterId,
+      );
+      await notifier.addBillingItem(
+        invoiceId: invoice.id,
+        payload: AddInvoiceItemPayload(
+          serviceId: serviceId,
+          unitPrice: service.cost,
+          quantity: quantity,
+        ),
+      );
+      return null;
+    } catch (e) {
+      return 'Procedure recorded; could not add to invoice: $e';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final admissionId = InpatientViewScope.of(context)?.admissionId;
@@ -98,7 +150,9 @@ class _InpatientProceduresScreenState
       return const Padding(
         padding: EdgeInsets.all(24),
         child: Center(
-          child: Text('Open this patient with an admission to view procedures.'),
+          child: Text(
+            'Open this patient with an admission to view procedures.',
+          ),
         ),
       );
     }
@@ -123,25 +177,26 @@ class _InpatientProceduresScreenState
       tableChild = SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          columns: [
-            'Date/Time',
-            'Type',
-            'Description',
-            'Outcome',
-            'Complications',
-            'Recorded by',
-          ]
-              .map(
-                (c) => DataColumn(
-                  label: Text(
-                    c,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          columns:
+              [
+                    'Date/Time',
+                    'Type',
+                    'Description',
+                    'Outcome',
+                    'Complications',
+                    'Recorded by',
+                  ]
+                  .map(
+                    (c) => DataColumn(
+                      label: Text(
+                        c,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
-                  ),
-                ),
-              )
-              .toList(),
+                      ),
+                    ),
+                  )
+                  .toList(),
           rows: _records
               .map(
                 (r) => DataRow(
@@ -177,11 +232,6 @@ class _InpatientProceduresScreenState
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Add Procedure'),
           ),
-          FilledButton.tonalIcon(
-            onPressed: () => _openBillProcedureDialog(context),
-            icon: const Icon(Icons.receipt_long_outlined, size: 18),
-            label: const Text('Bill Procedure'),
-          ),
         ],
         child: tableChild,
       ),
@@ -195,291 +245,146 @@ class _InpatientProceduresScreenState
     final nurseId = requireNurseIdFromScope(context);
     if (nurseId == null) return;
 
-    final typeCtrl = TextEditingController();
-    final descriptionCtrl = TextEditingController();
-    final outcomeCtrl = TextEditingController();
-    final complicationsCtrl = TextEditingController();
-    var saving = false;
-
-    try {
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (dialogContext, setLocal) {
-              return AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: const Text('Add Procedure'),
-                content: SizedBox(
-                  width: inpatientDialogBodyWidth(dialogContext),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextFormField(
-                          controller: typeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Procedure type',
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: descriptionCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Description / site',
-                          ),
-                          maxLines: 2,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: outcomeCtrl,
-                          decoration: const InputDecoration(labelText: 'Outcome'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: complicationsCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Complications',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: saving
-                        ? null
-                        : () => Navigator.of(dialogContext).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            if (typeCtrl.text.trim().isEmpty) {
-                              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Procedure type is required.'),
-                                ),
-                              );
-                              return;
-                            }
-                            setLocal(() => saving = true);
-                            try {
-                              await _procedureService.create(
-                                admissionId: admissionId,
-                                nurseId: nurseId,
-                                procedureType: typeCtrl.text.trim(),
-                                description: descriptionCtrl.text.trim(),
-                                outcome: outcomeCtrl.text.trim().isEmpty
-                                    ? null
-                                    : outcomeCtrl.text.trim(),
-                                complications:
-                                    complicationsCtrl.text.trim().isEmpty
-                                        ? null
-                                        : complicationsCtrl.text.trim(),
-                              );
-                              if (dialogContext.mounted) {
-                                Navigator.of(dialogContext).pop();
-                              }
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Procedure recorded.'),
-                                  ),
-                                );
-                                await _load(admissionId);
-                              }
-                            } on DioException catch (e) {
-                              if (dialogContext.mounted) {
-                                ScaffoldMessenger.of(dialogContext)
-                                    .showSnackBar(
-                                  SnackBar(content: Text(_dioMessage(e))),
-                                );
-                              }
-                            } catch (e) {
-                              if (dialogContext.mounted) {
-                                ScaffoldMessenger.of(dialogContext)
-                                    .showSnackBar(
-                                  SnackBar(content: Text('$e')),
-                                );
-                              }
-                            } finally {
-                              if (dialogContext.mounted) {
-                                setLocal(() => saving = false);
-                              }
-                            }
-                          },
-                    child: saving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Save'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-    } finally {
-      typeCtrl.dispose();
-      descriptionCtrl.dispose();
-      outcomeCtrl.dispose();
-      complicationsCtrl.dispose();
-    }
-  }
-
-  Future<void> _openBillProcedureDialog(BuildContext context) async {
     final scope = InpatientViewScope.of(context);
     final patientId = scope?.patientId ?? '';
     if (patientId.isEmpty) {
-      ScaffoldMessenger.of(this.context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Patient context not available yet.')),
       );
       return;
     }
-    final result = await showDialog<_BillProcedureChoice>(
+
+    // Empty string = full success; non-empty = partial billing failure; null = cancelled.
+    final result = await showDialog<String?>(
       context: context,
-      builder: (ctx) => _AddBillableProcedureDialog(
+      builder: (dialogContext) => _AddInpatientProcedureDialog(
         serviceService: ref.read(serviceServiceProvider),
+        dioMessage: _dioMessage,
+        onSave:
+            ({
+              required service,
+              required quantity,
+              required description,
+              outcome,
+              complications,
+            }) => _saveProcedureAndBill(
+              admissionId: admissionId,
+              nurseId: nurseId,
+              patientId: patientId,
+              staffId: scope?.staffId,
+              encounterId: scope?.encounterId,
+              service: service,
+              quantity: quantity,
+              description: description,
+              outcome: outcome,
+              complications: complications,
+            ),
       ),
     );
-    if (result == null || !mounted) return;
-    final serviceId = result.service.id.isNotEmpty
-        ? result.service.id
-        : result.service.serviceId;
-    final unitPrice = result.service.cost;
-    final quantity = result.quantity;
-    if (serviceId.isEmpty || quantity <= 0) {
-      ScaffoldMessenger.of(this.context).showSnackBar(
+
+    if (!mounted || result == null) return;
+
+    await _load(admissionId);
+    if (!mounted || !context.mounted) return;
+
+    if (result.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Procedure recorded and billed')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result), duration: const Duration(seconds: 8)),
+      );
+    }
+  }
+}
+
+class _AddInpatientProcedureDialog extends StatefulWidget {
+  const _AddInpatientProcedureDialog({
+    required this.serviceService,
+    required this.onSave,
+    required this.dioMessage,
+  });
+
+  final ServiceService serviceService;
+  final Future<String?> Function({
+    required ServiceModel service,
+    required int quantity,
+    required String description,
+    String? outcome,
+    String? complications,
+  })
+  onSave;
+  final String Function(DioException e) dioMessage;
+
+  @override
+  State<_AddInpatientProcedureDialog> createState() =>
+      _AddInpatientProcedureDialogState();
+}
+
+class _AddInpatientProcedureDialogState
+    extends State<_AddInpatientProcedureDialog> {
+  ServiceModel? _selectedService;
+  final _quantityCtrl = TextEditingController(text: '1');
+  final _descriptionCtrl = TextEditingController();
+  final _outcomeCtrl = TextEditingController();
+  final _complicationsCtrl = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _quantityCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _outcomeCtrl.dispose();
+    _complicationsCtrl.dispose();
+    super.dispose();
+  }
+
+  int? get _parsedQuantity {
+    final quantity = int.tryParse(_quantityCtrl.text.trim()) ?? 0;
+    return quantity > 0 ? quantity : null;
+  }
+
+  bool get _canSave => _selectedService != null && _parsedQuantity != null;
+
+  Future<void> _submit() async {
+    final service = _selectedService;
+    final quantity = _parsedQuantity;
+    if (service == null || quantity == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Select a service and enter a valid quantity'),
+          content: Text('Select a service and enter a valid quantity.'),
         ),
       );
       return;
     }
+
+    setState(() => _saving = true);
     try {
-      final notifier = ref.read(invoiceNotifierProvider.notifier);
-      final invoice = await notifier.getOrCreateBillingInvoice(
-        patientId: patientId,
-        staffId: scope?.staffId,
-        encounterId: scope?.encounterId,
-      );
-      await notifier.addBillingItem(
-        invoiceId: invoice.id,
-        payload: AddInvoiceItemPayload(
-          serviceId: serviceId,
-          unitPrice: unitPrice,
-          quantity: quantity,
-          isRecurringDaily: result.isRecurring,
-        ),
+      final partialError = await widget.onSave(
+        service: service,
+        quantity: quantity,
+        description: _descriptionCtrl.text.trim(),
+        outcome: _outcomeCtrl.text.trim().isEmpty
+            ? null
+            : _outcomeCtrl.text.trim(),
+        complications: _complicationsCtrl.text.trim().isEmpty
+            ? null
+            : _complicationsCtrl.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        const SnackBar(content: Text('Procedure charge added to invoice')),
-      );
+      Navigator.of(context).pop(partialError ?? '');
+    } on DioException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(widget.dioMessage(e))));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(content: Text('Could not add procedure charge: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-  }
-}
-
-class _BillProcedureChoice {
-  const _BillProcedureChoice({
-    required this.service,
-    required this.quantity,
-    required this.isRecurring,
-  });
-
-  final ServiceModel service;
-  final int quantity;
-  final bool isRecurring;
-}
-
-class _AddBillableProcedureDialog extends StatefulWidget {
-  const _AddBillableProcedureDialog({required this.serviceService});
-
-  final ServiceService serviceService;
-
-  @override
-  State<_AddBillableProcedureDialog> createState() =>
-      _AddBillableProcedureDialogState();
-}
-
-class _AddBillableProcedureDialogState
-    extends State<_AddBillableProcedureDialog> {
-  static const int _pageSize = 10;
-
-  final _searchCtrl = TextEditingController();
-  final _quantityCtrl = TextEditingController(text: '1');
-  ServiceModel? _selected;
-  List<ServiceModel> _suggestions = [];
-  bool _loading = false;
-  int _page = 0;
-  Timer? _debounce;
-  bool _isRecurring = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _runSearch(skip: 0));
-  }
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    _quantityCtrl.dispose();
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _runSearch({int skip = 0, bool append = false}) async {
-    setState(() => _loading = true);
-    try {
-      final list = await widget.serviceService.fetchServices(
-        query: _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim(),
-        skip: skip,
-        take: _pageSize,
-      );
-      if (!mounted) return;
-      setState(() {
-        if (append) {
-          _suggestions = [..._suggestions, ...list];
-        } else {
-          _suggestions = list;
-        }
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        if (!append) _suggestions = [];
-      });
-    }
-  }
-
-  void _submit() {
-    final selected = _selected;
-    if (selected == null) return;
-    final quantity = int.tryParse(_quantityCtrl.text.trim()) ?? 0;
-    if (quantity <= 0) return;
-    Navigator.of(context).pop(
-      _BillProcedureChoice(
-        service: selected,
-        quantity: quantity,
-        isRecurring: _isRecurring,
-      ),
-    );
   }
 
   @override
@@ -487,7 +392,8 @@ class _AddBillableProcedureDialogState
     final theme = Theme.of(context);
 
     return AlertDialog(
-      title: const Text('Add billable procedure'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Add Procedure'),
       content: SizedBox(
         width: inpatientDialogBodyWidth(context, preferred: 420),
         child: SingleChildScrollView(
@@ -497,103 +403,24 @@ class _AddBillableProcedureDialogState
             children: [
               Text('Service', style: theme.textTheme.labelLarge),
               const SizedBox(height: 8),
-              if (_selected != null) ...[
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: InputChip(
-                    label: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 300),
-                      child: Text(
-                        _selected!.name,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    deleteIcon: const Icon(Icons.close, size: 18),
-                    onDeleted: () => setState(() => _selected = null),
-                  ),
-                ),
-              ] else ...[
-                TextField(
-                  controller: _searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Search services…',
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    suffixIcon: _loading
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : null,
-                  ),
-                  onChanged: (_) {
-                    _debounce?.cancel();
-                    _page = 0;
-                    _debounce = Timer(
-                      const Duration(milliseconds: 280),
-                      () => _runSearch(skip: 0),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 220),
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      ..._suggestions.map(
-                        (s) => ListTile(
-                          dense: true,
-                          title: Text(s.name),
-                          subtitle: Text(
-                            [
-                              if (s.departmentName != null &&
-                                  s.departmentName!.isNotEmpty)
-                                s.departmentName!,
-                              s.cost.toStringAsFixed(2),
-                            ].join(' · '),
-                            style: theme.textTheme.bodySmall,
-                          ),
-                          onTap: () => setState(() {
-                            _selected = s;
-                            _suggestions = [];
-                            _searchCtrl.clear();
-                          }),
-                        ),
-                      ),
-                      if (_suggestions.length >= _pageSize)
-                        TextButton.icon(
-                          onPressed: _loading
-                              ? null
-                              : () {
-                                  _page += 1;
-                                  _runSearch(
-                                    skip: _page * _pageSize,
-                                    append: true,
-                                  );
-                                },
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Load more'),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-              if (_selected != null) ...[
+              SearchableServiceSelector(
+                serviceService: widget.serviceService,
+                selectedService: _selectedService,
+                searchHint: 'Search services…',
+                onServiceSelected: (s) => setState(() => _selectedService = s),
+                onClear: () => setState(() => _selectedService = null),
+              ),
+              if (_selectedService != null) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Unit price: ${_selected!.cost.toStringAsFixed(2)}',
+                  'Unit price: ${_selectedService!.cost.toStringAsFixed(2)}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
               const SizedBox(height: 12),
-              TextField(
+              TextFormField(
                 controller: _quantityCtrl,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
@@ -601,14 +428,25 @@ class _AddBillableProcedureDialogState
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
+                onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 8),
-              SwitchListTile.adaptive(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                value: _isRecurring,
-                title: const Text('Recurring daily billing'),
-                onChanged: (value) => setState(() => _isRecurring = value),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _descriptionCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Description / site',
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _outcomeCtrl,
+                decoration: const InputDecoration(labelText: 'Outcome'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _complicationsCtrl,
+                decoration: const InputDecoration(labelText: 'Complications'),
               ),
             ],
           ),
@@ -616,12 +454,18 @@ class _AddBillableProcedureDialogState
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _selected == null ? null : _submit,
-          child: const Text('Add'),
+          onPressed: _saving || !_canSave ? null : _submit,
+          child: _saving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
         ),
       ],
     );

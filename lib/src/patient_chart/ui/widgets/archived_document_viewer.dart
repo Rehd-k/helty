@@ -1,7 +1,10 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:printing/printing.dart';
+
 import '../../models/archived_encounter_models.dart';
 import '../../services/patient_chart_service.dart';
 
@@ -25,6 +28,12 @@ class _ArchivedDocumentViewerState extends State<ArchivedDocumentViewer> {
   String? _tempPath;
   Uint8List? _bytes;
 
+  bool get _useMobilePdfView {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -33,20 +42,41 @@ class _ArchivedDocumentViewerState extends State<ArchivedDocumentViewer> {
 
   Future<void> _load() async {
     try {
-      final bytes = await widget.service.downloadArchivedDocument(widget.document.id);
+      final bytes = await widget.service.downloadArchivedDocument(
+        widget.document.id,
+      );
       if (!mounted) return;
+      final data = Uint8List.fromList(bytes);
       if (widget.document.isImage) {
         setState(() {
-          _bytes = Uint8List.fromList(bytes);
+          _bytes = data;
           _loading = false;
         });
         return;
       }
-      final ext = widget.document.isPdf ? '.pdf' : '';
+      if (widget.document.isPdf) {
+        if (_useMobilePdfView) {
+          final file = File(
+            '${Directory.systemTemp.path}/archived_${widget.document.id}.pdf',
+          );
+          await file.writeAsBytes(data);
+          if (!mounted) return;
+          setState(() {
+            _tempPath = file.path;
+            _loading = false;
+          });
+          return;
+        }
+        setState(() {
+          _bytes = data;
+          _loading = false;
+        });
+        return;
+      }
       final file = File(
-        '${Directory.systemTemp.path}/archived_${widget.document.id}$ext',
+        '${Directory.systemTemp.path}/archived_${widget.document.id}',
       );
-      await file.writeAsBytes(bytes);
+      await file.writeAsBytes(data);
       if (!mounted) return;
       setState(() {
         _tempPath = file.path;
@@ -69,16 +99,40 @@ class _ArchivedDocumentViewerState extends State<ArchivedDocumentViewer> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : _buildBody(),
+          ? Center(child: Text(_error!))
+          : _buildBody(),
     );
   }
 
   Widget _buildBody() {
-    if (_bytes != null) {
+    if (widget.document.isImage && _bytes != null) {
       return InteractiveViewer(
         child: Center(child: Image.memory(_bytes!, fit: BoxFit.contain)),
       );
+    }
+    if (widget.document.isPdf) {
+      if (_useMobilePdfView && _tempPath != null) {
+        return PDFView(
+          filePath: _tempPath!,
+          enableSwipe: true,
+          swipeHorizontal: false,
+          autoSpacing: true,
+          pageFling: true,
+          onError: (error) {
+            if (mounted) {
+              setState(() => _error = error.toString());
+            }
+          },
+        );
+      }
+      if (_bytes != null) {
+        return PdfPreview(
+          build: (_) async => _bytes!,
+          canChangePageFormat: false,
+          canChangeOrientation: false,
+          pdfFileName: widget.document.fileName,
+        );
+      }
     }
     if (_tempPath != null) {
       return Center(
@@ -87,21 +141,16 @@ class _ArchivedDocumentViewerState extends State<ArchivedDocumentViewer> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.picture_as_pdf_outlined, size: 64),
+              const Icon(Icons.insert_drive_file_outlined, size: 64),
               const SizedBox(height: 16),
-              Text(
-                'PDF saved to temporary storage.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 8),
               Text(
                 widget.document.fileName,
                 textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 16),
               Text(
-                'Open with your system PDF viewer from:\n$_tempPath',
+                'This file type cannot be previewed in the app.',
                 style: Theme.of(context).textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),

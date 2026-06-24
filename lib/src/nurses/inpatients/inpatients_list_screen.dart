@@ -381,7 +381,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                 _HeaderCell('PATIENT', flex: 3),
                 _HeaderCell('WARD', flex: 2),
                 _HeaderCell('BED', flex: 1),
-                _HeaderCell('DIAGNOSIS', flex: 3),
+                _HeaderCell('REASON', flex: 3),
                 _HeaderCell('DAYS ADMITTED', flex: 2),
                 _HeaderCell('ACTIONS', flex: 2, alignRight: true),
               ],

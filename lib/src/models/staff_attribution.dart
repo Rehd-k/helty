@@ -51,6 +51,16 @@ String staffDisplayNameFromJson(Map<String, dynamic> json) {
     if (flat.isNotEmpty) return flat;
   }
 
+  // Root-level person fields when [json] is already a staff/doctor object.
+  final rootFirst = _str(json['firstName'] ?? json['first_name']);
+  final rootLast = _str(
+    json['surname'] ?? json['lastName'] ?? json['last_name'],
+  );
+  final rootCombined = [rootFirst, rootLast].where((s) => s.isNotEmpty).join(' ');
+  if (rootCombined.isNotEmpty) return rootCombined;
+  final rootDisplay = _str(json['displayName'] ?? json['name']);
+  if (rootDisplay.isNotEmpty) return rootDisplay;
+
   return '';
 }
 
@@ -89,14 +99,27 @@ String _titleForAccountType(AccountType accountType, String name) {
   }
 }
 
-/// Returns logged-in staff id from [InpatientViewScope], or null after showing a SnackBar.
-String? requireNurseIdFromScope(BuildContext context) {
+/// Reads logged-in staff id from [InpatientViewScope] without side effects.
+/// Safe to call during [build].
+String? nurseIdFromScope(BuildContext context) {
   final id = InpatientViewScope.of(context)?.staffId?.trim();
   if (id != null && id.isNotEmpty) return id;
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Please log in as staff to record documentation.'),
-    ),
-  );
+  return null;
+}
+
+/// Returns logged-in staff id from [InpatientViewScope], or null after showing a SnackBar.
+///
+/// Use only from user-action callbacks (not during [build]).
+String? requireNurseIdFromScope(BuildContext context) {
+  final id = nurseIdFromScope(context);
+  if (id != null) return id;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please log in as staff to record documentation.'),
+      ),
+    );
+  });
   return null;
 }

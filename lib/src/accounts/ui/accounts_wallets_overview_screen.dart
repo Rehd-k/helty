@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/accounts/accounts_palette.dart';
 import 'package:helty/src/accounts/auth/accounting_permissions.dart';
 import 'package:helty/src/accounts/models/accounts_models.dart';
@@ -54,6 +55,13 @@ class AccountsWalletsOverviewScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 24),
+            Text(
+              'Tap a row to view wallet history',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
             AccountsDataTableBox(
               child: DataTable2(
                 columns: const [
@@ -61,10 +69,19 @@ class AccountsWalletsOverviewScreen extends ConsumerWidget {
                   DataColumn2(label: Text('Balance'), size: ColumnSize.S),
                   DataColumn2(label: Text('Transactions'), size: ColumnSize.S),
                   DataColumn2(label: Text('Last activity'), size: ColumnSize.S),
+                  DataColumn2(label: Text(''), size: ColumnSize.S),
                 ],
                 rows: [
                   for (final r in data.rows)
                     DataRow2(
+                      onTap: r.patientId.trim().isEmpty
+                          ? null
+                          : () => context.router.push(
+                              PatientWalletHistoryRoute(
+                                patientUuid: r.patientId,
+                                patientName: r.patientName,
+                              ),
+                            ),
                       cells: [
                         DataCell(Text(r.patientName)),
                         DataCell(Text(fmt.format(r.balance))),
@@ -76,6 +93,7 @@ class AccountsWalletsOverviewScreen extends ConsumerWidget {
                                 )
                               : '—',
                         )),
+                        const DataCell(Icon(Icons.chevron_right)),
                       ],
                     ),
                 ],

@@ -177,6 +177,9 @@ class _InpatientAlertsScreenState extends State<InpatientAlertsScreen> {
                       onResolve: _alerts[i].isResolved
                           ? null
                           : () => _resolve(context, admissionId, _alerts[i]),
+                      onGoToMar: _alerts[i].isMedicationAlert
+                          ? () => AutoTabsRouter.of(context).setActiveIndex(2)
+                          : null,
                     ),
                   ],
                 ],
@@ -192,12 +195,27 @@ class _AlertTile extends StatelessWidget {
     required this.relativeTime,
     required this.resolving,
     this.onResolve,
+    this.onGoToMar,
   });
 
   final AdmissionAlertModel alert;
   final String relativeTime;
   final bool resolving;
   final VoidCallback? onResolve;
+  final VoidCallback? onGoToMar;
+
+  String? get _dueLabel {
+    final due = alert.dueAt;
+    if (due == null) return null;
+    return 'Due ${DateFormatter.timeOnly(due)} · ${DateFormatter.shortDate(due)}';
+  }
+
+  IconData get _alertIcon {
+    final type = alert.type?.toUpperCase() ?? '';
+    if (type.contains('OVERDUE')) return Icons.warning_amber_rounded;
+    if (type.contains('MEDICATION')) return Icons.medication_outlined;
+    return Icons.notifications_outlined;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -220,14 +238,9 @@ class _AlertTile extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 8,
-          height: 8,
-          margin: const EdgeInsets.only(top: 6),
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(_alertIcon, size: 20, color: color),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -235,17 +248,38 @@ class _AlertTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                alert.title ?? 'Alert',
+                alert.isMedicationAlert
+                    ? alert.medicationDrugName
+                    : (alert.title ?? 'Alert'),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
               ),
+              if (alert.isMedicationAlert && alert.title != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  alert.title!,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.65),
+                      ),
+                ),
+              ],
               if (message.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   message,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurface.withValues(alpha: 0.85),
+                      ),
+                ),
+              ],
+              if (_dueLabel != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _dueLabel!,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w600,
                       ),
                 ),
               ],
@@ -261,6 +295,11 @@ class _AlertTile extends StatelessWidget {
                           color: scheme.onSurface.withValues(alpha: 0.6),
                         ),
                   ),
+                  if (!alert.isResolved && onGoToMar != null)
+                    TextButton(
+                      onPressed: onGoToMar,
+                      child: const Text('Go to MAR'),
+                    ),
                   if (!alert.isResolved && onResolve != null)
                     OutlinedButton(
                       onPressed: resolving ? null : onResolve,

@@ -55,6 +55,8 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
       return const RadiologyDashboardRoute();
     case 'dialysis':
       return const DialysisDashboardRoute();
+    case 'theatre':
+      return const TheatreDashboardRoute();
     case 'store':
       return const StoreDashboardRoute();
     case 'accounting':
@@ -76,6 +78,14 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
           r == 'DIALYSIS_TECHNICIAN' ||
           r == 'DIALYSIS_RECEPTIONIST') {
         return const DialysisDashboardRoute();
+      }
+      if (r == 'THEATRE' ||
+          r == 'THEATRE_HEAD' ||
+          r == 'THEATRE_NURSE' ||
+          r == 'THEATRE_SCRUB' ||
+          r == 'THEATRE_ANAESTHETIST' ||
+          r == 'THEATRE_RECEPTIONIST') {
+        return const TheatreDashboardRoute();
       }
       return const FrontDeskDashboardRoute();
   }

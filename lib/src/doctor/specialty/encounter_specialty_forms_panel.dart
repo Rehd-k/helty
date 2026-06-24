@@ -35,6 +35,7 @@ class EncounterSpecialtyFormsPanel extends ConsumerStatefulWidget {
     required String encounterId,
     required String patientId,
     String? editReason,
+    bool readOnly = false,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -51,6 +52,7 @@ class EncounterSpecialtyFormsPanel extends ConsumerStatefulWidget {
           patientId: patientId,
           showAppBar: true,
           editReason: editReason,
+          readOnly: readOnly,
         ),
       ),
     );

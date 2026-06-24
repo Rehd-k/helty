@@ -32,6 +32,9 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
   /// `true` = only this [EncounterScope.encounterId].
   bool _encounterOnly = false;
 
+  /// Study names keyed by service id (for list labels when API omits service).
+  final Map<String, String> _studyNamesByServiceId = {};
+
   @override
   void initState() {
     super.initState();
@@ -78,20 +81,21 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     if (result == null || result.selected == null || !mounted) return;
 
     final service = result.selected!;
+    final serviceId = service.serviceId.isNotEmpty ? service.serviceId : service.id;
+    _studyNamesByServiceId[serviceId] = service.name;
     await _orderService.createOrder({
       'encounterId': scope.encounterId,
       'patientId': patientId!,
       'requestedById': staffId!,
       'items': [
         {
-          'scanType': result.scanType.apiValue,
+          'scanType':
+              RadiologyModality.inferFromStudyName(service.name).apiValue,
           'priority': _urgencyToPriorityApi(result.urgency),
           'bodyPart': result.area,
           'clinicalNotes': result.notesToRadiologist,
           'contrast': result.contrast,
-          'serviceId': service.serviceId.isNotEmpty
-              ? service.serviceId
-              : service.id,
+          'serviceId': serviceId,
         },
       ],
     });
@@ -104,6 +108,7 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
   }
 
   bool _canDeleteRadiologyOrder(RadiologyOrder order, EncounterScope scope) {
+    if (!scope.canEdit) return false;
     if (order.id.isEmpty) return false;
     final encounterId = order.encounterId?.trim();
     return encounterId != null &&
@@ -140,9 +145,13 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
         false;
   }
 
+  String _itemStudyLabel(RadiologyOrderItem item) {
+    return item.studyLabel(namesByServiceId: _studyNamesByServiceId);
+  }
+
   String _radiologyOrderLabel(RadiologyOrder order) {
     if (order.items.isNotEmpty) {
-      return order.items.first.scanType.displayLabel;
+      return _itemStudyLabel(order.items.first);
     }
     return 'Imaging order';
   }
@@ -184,6 +193,7 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
         orderService: _orderService,
         theme: theme,
         scope: scope,
+        studyNamesByServiceId: _studyNamesByServiceId,
         canDelete: _canDeleteRadiologyOrder(order, scope),
         onDelete: () async {
           Navigator.of(ctx).pop();
@@ -207,6 +217,8 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    final readOnly = !scope.canEdit;
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -239,11 +251,12 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                 ),
               ),
               const SizedBox(width: 12),
-              FilledButton.icon(
-                onPressed: _openOrderModal,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Order Imaging'),
-              ),
+              if (!readOnly)
+                FilledButton.icon(
+                  onPressed: _openOrderModal,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Order Imaging'),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -275,7 +288,7 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
                         child: ListTile(
                           title: Text(
                             o.items.isNotEmpty
-                                ? o.items.first.scanType.displayLabel
+                                ? _itemStudyLabel(o.items.first)
                                 : 'Order with no items',
                           ),
                           subtitle: Text(
@@ -318,14 +331,12 @@ String _urgencyToPriorityApi(String urgency) {
 class _ImagingOrderDialogResult {
   _ImagingOrderDialogResult({
     required this.selected,
-    required this.scanType,
     required this.area,
     required this.contrast,
     required this.urgency,
     required this.notesToRadiologist,
   });
   final ServiceModel? selected;
-  final RadiologyModality scanType;
   final String area;
   final bool contrast;
   final String urgency;
@@ -354,7 +365,6 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
   List<ServiceModel> _suggestions = [];
   bool _searchLoading = false;
   int _page = 0;
-  RadiologyModality? _scanType;
   bool? _contrast;
   String _urgency = 'Routine';
   Timer? _searchDebounce;
@@ -472,7 +482,6 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
     Navigator.of(context).pop(
       _ImagingOrderDialogResult(
         selected: _selected,
-        scanType: _scanType!,
         area: _areaCtrl.text.trim(),
         contrast: _contrast!,
         urgency: _urgency,
@@ -611,25 +620,6 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
                     ),
                 ],
                 const SizedBox(height: 12),
-                DropdownButtonFormField<RadiologyModality>(
-                  initialValue: _scanType,
-                  decoration: const InputDecoration(
-                    labelText: 'Scan type *',
-                    hintText: 'Select modality',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: RadiologyModality.values
-                      .map(
-                        (m) => DropdownMenuItem(
-                          value: m,
-                          child: Text(m.displayLabel),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _scanType = v),
-                  validator: (v) => v == null ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
                 TextFormField(
                   controller: _areaCtrl,
                   decoration: const InputDecoration(
@@ -724,6 +714,7 @@ class _ImagingOrderResultsDialog extends StatefulWidget {
     required this.orderService,
     required this.theme,
     required this.scope,
+    required this.studyNamesByServiceId,
     required this.canDelete,
     required this.onDelete,
   });
@@ -732,6 +723,7 @@ class _ImagingOrderResultsDialog extends StatefulWidget {
   final RadiologyService orderService;
   final ThemeData theme;
   final EncounterScope scope;
+  final Map<String, String> studyNamesByServiceId;
   final bool canDelete;
   final Future<void> Function() onDelete;
 
@@ -761,7 +753,10 @@ class _ImagingOrderResultsDialogState
     try {
       final full = await widget.orderService.getOrder(widget.order.id);
       if (!mounted) return;
-      _itemLabels = radiologyOrderItemLabels(full);
+      _itemLabels = radiologyOrderItemLabels(
+        full,
+        studyNamesByServiceId: widget.studyNamesByServiceId,
+      );
       final images = await fetchRadiologyOrderImages(widget.orderService, full);
       if (!mounted) return;
       setState(() {
@@ -806,8 +801,10 @@ class _ImagingOrderResultsDialogState
               _ResultRow(label: 'Items', value: '${order.items.length}'),
               if (firstItem != null) ...[
                 _ResultRow(
-                  label: 'Modality',
-                  value: firstItem.scanType.displayLabel,
+                  label: 'Study',
+                  value: firstItem.studyLabel(
+                    namesByServiceId: widget.studyNamesByServiceId,
+                  ),
                 ),
                 if (firstItem.bodyPart != null &&
                     firstItem.bodyPart!.trim().isNotEmpty)

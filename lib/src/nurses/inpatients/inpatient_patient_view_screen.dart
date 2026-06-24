@@ -9,6 +9,7 @@ import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/auth/nursing_permissions.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
+import '../../admissions/admission_discharge_helpers.dart';
 import '../../admissions/discharge_admission_dialog.dart';
 import '../../helper/date.formatter.dart';
 import '../../../app_router.gr.dart';
@@ -29,6 +30,7 @@ class InpatientPatientViewScreen extends ConsumerStatefulWidget {
   final List<String>? allergies;
   final String? codeStatus;
   final List<String>? riskFlags;
+  final bool readOnly;
 
   const InpatientPatientViewScreen({
     super.key,
@@ -41,6 +43,7 @@ class InpatientPatientViewScreen extends ConsumerStatefulWidget {
     this.allergies,
     this.codeStatus,
     this.riskFlags,
+    this.readOnly = false,
   });
 
   @override
@@ -160,6 +163,7 @@ class _InpatientPatientViewScreenState
       isOutpatient:
           isOpdWardName(_patient?.ward ?? widget.ward) &&
           !isActiveAdmissionStatus(_admission?.status),
+      readOnly: widget.readOnly,
       child: AutoTabsRouter(
         routes: [
           InpatientOverviewRoute(),
@@ -335,7 +339,9 @@ class _InpatientPatientViewScreenState
     final scheme = theme.colorScheme;
 
     const title = 'Inpatient Patient View';
-    const subtitle = 'Bedside overview';
+    final subtitle = widget.readOnly
+        ? 'Read-only clinical record'
+        : 'Bedside overview';
 
     final titleStyle = theme.textTheme.headlineSmall?.copyWith(
       fontWeight: FontWeight.bold,
@@ -354,17 +360,18 @@ class _InpatientPatientViewScreenState
       runSpacing: 8,
       alignment: compact ? WrapAlignment.start : WrapAlignment.end,
       children: [
-        if (isDoctor && hasEncounter)
+        if (!widget.readOnly && isDoctor && hasEncounter)
           OutlinedButton.icon(
             onPressed: _openEncounter,
             icon: const Icon(Icons.medical_information_outlined, size: 18),
             label: const Text('Encounter'),
           ),
-        FilledButton.tonalIcon(
-          onPressed: _admission == null ? null : _attemptDischarge,
-          icon: const Icon(Icons.logout, size: 18),
-          label: const Text('Discharge'),
-        ),
+        if (!widget.readOnly)
+          FilledButton.tonalIcon(
+            onPressed: _admission == null ? null : _attemptDischarge,
+            icon: const Icon(Icons.logout, size: 18),
+            label: const Text('Discharge'),
+          ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
@@ -375,13 +382,15 @@ class _InpatientPatientViewScreenState
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.monitor_heart_outlined,
+                widget.readOnly
+                    ? Icons.visibility_outlined
+                    : Icons.monitor_heart_outlined,
                 size: 18,
                 color: scheme.primary,
               ),
               const SizedBox(width: 8),
               Text(
-                'Inpatient module',
+                widget.readOnly ? 'Read-only view' : 'Inpatient module',
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: scheme.primary,
                   fontWeight: FontWeight.w600,
@@ -449,22 +458,16 @@ class _InpatientPatientViewScreenState
     final payload = await showDischargeAdmissionDialog(context);
     if (payload == null || !mounted) return;
     try {
-      await _admissionService.dischargeAdmission(
-        admission.id,
-        outcome: payload.outcome,
-        dischargeSummary: payload.dischargeSummary,
-        otherImportantNotes: payload.otherImportantNotes,
+      final updated = await performClinicalDischarge(
+        service: _admissionService,
+        admissionId: admission.id,
+        payload: payload,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Patient discharged successfully')),
+        SnackBar(content: Text(dischargeSuccessMessage(updated))),
       );
       await _loadPatient();
-    } on AdmissionDischargeBlockedException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'api_service.dart';
+import '../models/admission_billing_clearance_models.dart';
 import '../models/admission_model.dart';
 
 class AdmissionDischargeBlockedException implements Exception {
@@ -8,6 +9,16 @@ class AdmissionDischargeBlockedException implements Exception {
 
   final String message;
   final Object? raw;
+
+  @override
+  String toString() => message;
+}
+
+class BillingClearanceBlockedException implements Exception {
+  BillingClearanceBlockedException(this.message, {this.billing});
+
+  final String message;
+  final AdmissionBillingSummary? billing;
 
   @override
   String toString() => message;
@@ -162,26 +173,13 @@ class AdmissionService {
 
   /// PATCH /admissions/:id — partial update admission.
   Future<AdmissionModel> patch(String id, Map<String, dynamic> patch) async {
-    try {
-      final response = await _dio.patch<Map<String, dynamic>>(
-        '/admissions/$id',
-        data: patch,
-      );
-      final data = response.data;
-      if (data == null) throw StateError('Patch admission returned no data');
-      return _parseAdmissionFromResponse(data);
-    } on DioException catch (e) {
-      final payload = e.response?.data;
-      final message = payload is Map && payload['message'] != null
-          ? payload['message'].toString()
-          : (e.message ?? 'Failed to update admission');
-      if (e.response?.statusCode == 400 &&
-          message.toLowerCase().contains('cannot discharge') &&
-          message.toLowerCase().contains('unpaid')) {
-        throw AdmissionDischargeBlockedException(message, raw: payload);
-      }
-      rethrow;
-    }
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/admissions/$id',
+      data: patch,
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Patch admission returned no data');
+    return _parseAdmissionFromResponse(data);
   }
 
   Future<AdmissionModel> dischargeAdmission(
@@ -203,6 +201,75 @@ class AdmissionService {
       body['otherImportantNotes'] = other;
     }
     return patch(id, body);
+  }
+
+  /// GET /admissions/pending-billing-clearance — billing clearance queue.
+  Future<PendingBillingClearancePage> listPendingBillingClearance({
+    int skip = 0,
+    int take = 20,
+  }) async {
+    try {
+      final response = await _dio.get<dynamic>(
+        '/admissions/pending-billing-clearance',
+        queryParameters: {
+          'skip': skip,
+          'take': take > 100 ? 100 : take,
+        },
+      );
+      final data = response.data;
+      if (data is Map) {
+        return PendingBillingClearancePage.fromJson(
+          Map<String, dynamic>.from(data),
+        );
+      }
+      return const PendingBillingClearancePage(
+        admissions: [],
+        total: 0,
+        skip: 0,
+        take: 0,
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load billing clearance queue: ${_dioMessage(e)}',
+      );
+    }
+  }
+
+  /// POST /admissions/:id/billing-clearance — finalize discharge after payment.
+  Future<AdmissionModel> billingClearance(String admissionId) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/admissions/$admissionId/billing-clearance',
+      );
+      final data = response.data;
+      if (data == null) {
+        throw StateError('Billing clearance returned no data');
+      }
+      return _parseAdmissionFromResponse(data);
+    } on DioException catch (e) {
+      final payload = e.response?.data;
+      final message = payload is Map && payload['message'] != null
+          ? payload['message'].toString()
+          : (e.message ?? 'Failed to clear billing');
+      if (e.response?.statusCode == 400) {
+        AdmissionBillingSummary? billing;
+        if (payload is Map && payload['billing'] is Map) {
+          billing = AdmissionBillingSummary.fromJson(
+            Map<String, dynamic>.from(payload['billing'] as Map),
+          );
+        }
+        throw BillingClearanceBlockedException(message, billing: billing);
+      }
+      throw Exception('Failed to clear billing: $message');
+    }
+  }
+
+  String _dioMessage(DioException e) {
+    final payload = e.response?.data;
+    if (payload is Map && payload['message'] != null) {
+      return payload['message'].toString();
+    }
+    return e.message ?? 'Unknown error';
   }
 
   /// DELETE /admissions/:id — delete admission.

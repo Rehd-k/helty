@@ -83,7 +83,8 @@ class InvoiceService {
     }
   }
 
-  /// Paid invoices for a patient that have no encounter yet (check-in / re-enlist).
+  /// Consumable consultation credit only (`GET /invoices/paid-without-encounter?patientId=`).
+  /// Date range query params are ignored when `patientId` is set.
   Future<List<PaidWithoutEncounterInvoice>> fetchPaidWithoutEncounter({
     required String patientId,
   }) async {
@@ -93,25 +94,75 @@ class InvoiceService {
         queryParameters: {'patientId': patientId.trim()},
       );
       final list = _extractList(response.data, key: 'invoices');
-      final results = <PaidWithoutEncounterInvoice>[];
-      for (final entry in list) {
-        if (entry is! Map) continue;
-        try {
-          results.add(
-            PaidWithoutEncounterInvoice.fromJson(
-              Map<String, dynamic>.from(entry),
-            ),
-          );
-        } catch (_) {
-          // Skip malformed rows.
-        }
-      }
-      return results;
+      return _parsePaidWithoutEncounterList(list);
     } on DioException catch (e) {
       throw Exception(
         'Failed to load paid invoices: ${_dioMessage(e, 'Unknown error')}',
       );
     }
+  }
+
+  /// Waiting-room / front-desk queue (`GET /invoices/paid-without-encounter` without patientId).
+  /// Defaults [fromDate]/[toDate] to today when omitted.
+  Future<PaginatedPaidWithoutEncounterInvoices> fetchPaidWithoutEncounterQueue({
+    DateTime? fromDate,
+    DateTime? toDate,
+    bool allowIP = false,
+    int skip = 0,
+    int take = 20,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final from = fromDate ?? DateTime(now.year, now.month, now.day);
+      final to = toDate ??
+          DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+
+      final response = await _dio.get(
+        '/invoices/paid-without-encounter',
+        queryParameters: {
+          'fromDate': from.toUtc().toIso8601String(),
+          'toDate': to.toUtc().toIso8601String(),
+          'allowIP': allowIP,
+          'skip': skip,
+          'take': take,
+        },
+      );
+      final body = response.data;
+      final list = _extractList(body, key: 'invoices');
+      final total = body is Map<String, dynamic>
+          ? (body['total'] as num?)?.toInt() ?? list.length
+          : list.length;
+
+      return PaginatedPaidWithoutEncounterInvoices(
+        invoices: _parsePaidWithoutEncounterList(list),
+        total: total,
+        skip: skip,
+        take: take,
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load waiting-room invoices: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  List<PaidWithoutEncounterInvoice> _parsePaidWithoutEncounterList(
+    List<dynamic> list,
+  ) {
+    final results = <PaidWithoutEncounterInvoice>[];
+    for (final entry in list) {
+      if (entry is! Map) continue;
+      try {
+        results.add(
+          PaidWithoutEncounterInvoice.fromJson(
+            Map<String, dynamic>.from(entry),
+          ),
+        );
+      } catch (_) {
+        // Skip malformed rows.
+      }
+    }
+    return results;
   }
 
   // ── Get single invoice by ID ──
@@ -501,7 +552,7 @@ class InvoiceService {
     }
   }
 
-  Future<BillingWallet> depositToWallet({
+  Future<WalletDepositResponse> depositToWallet({
     required String patientId,
     required WalletDepositPayload payload,
   }) async {
@@ -510,10 +561,30 @@ class InvoiceService {
         '/invoices/wallets/$patientId/deposits',
         data: payload.toJson(),
       );
-      return BillingWallet.fromJson(response.data as Map<String, dynamic>);
+      return WalletDepositResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
     } on DioException catch (e) {
       throw Exception(
         'Failed to deposit to wallet: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  Future<BillingPaymentDetail> getPaymentDetail(String paymentId) async {
+    try {
+      final response = await _dio.get('/invoices/payments/$paymentId');
+      return BillingPaymentDetail.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        throw Exception(
+          'You do not have permission to view this payment receipt.',
+        );
+      }
+      throw Exception(
+        'Failed to load payment detail: ${_dioMessage(e, 'Unknown error')}',
       );
     }
   }

@@ -406,8 +406,13 @@ class ReceiptEscposService {
     );
     bytes += generator.hr();
 
+    final receiptTitle = data['receiptTitle']?.toString();
     bytes += generator.text(
-      isCopy ? '*** RECEIPT COPY ***' : '*** PAYMENT RECEIPT ***',
+      isCopy
+          ? '*** RECEIPT COPY ***'
+          : (receiptTitle != null && receiptTitle.isNotEmpty
+                ? receiptTitle
+                : '*** PAYMENT RECEIPT ***'),
       styles: const PosStyles(align: PosAlign.center, bold: true),
     );
     bytes += generator.hr();

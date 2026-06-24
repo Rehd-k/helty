@@ -6,6 +6,9 @@ class EncounterEditMeta {
     this.lastEditedAt,
     this.canEdit = false,
     this.requiresVersionedEdits = false,
+    this.canEditAsCoveringPhysician = false,
+    this.isSharedInpatientEncounter = false,
+    this.admissionStatus,
   });
 
   final bool hasEdits;
@@ -13,6 +16,9 @@ class EncounterEditMeta {
   final DateTime? lastEditedAt;
   final bool canEdit;
   final bool requiresVersionedEdits;
+  final bool canEditAsCoveringPhysician;
+  final bool isSharedInpatientEncounter;
+  final String? admissionStatus;
 
   factory EncounterEditMeta.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const EncounterEditMeta();
@@ -25,6 +31,9 @@ class EncounterEditMeta {
       lastEditedAt: last == null ? null : DateTime.tryParse(last.toString()),
       canEdit: json['canEdit'] == true,
       requiresVersionedEdits: json['requiresVersionedEdits'] == true,
+      canEditAsCoveringPhysician: json['canEditAsCoveringPhysician'] == true,
+      isSharedInpatientEncounter: json['isSharedInpatientEncounter'] == true,
+      admissionStatus: json['admissionStatus']?.toString(),
     );
   }
 }

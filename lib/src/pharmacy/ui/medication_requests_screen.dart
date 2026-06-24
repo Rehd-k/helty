@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/medication_request_model.dart';
-import 'package:helty/src/pharmacy/utils/medication_request_permissions.dart';
+import 'package:helty/src/pharmacy/widgets/medication_attribution_widgets.dart';
 import 'package:helty/src/pharmacy/widgets/medication_request_edit_dialog.dart';
 import 'package:helty/src/pharmacy/widgets/medication_workflow_badges.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
@@ -105,12 +105,12 @@ class _MedicationRequestsScreenState
     });
   }
 
-  void _toggleRow(MedicationRequestModel request, bool? value) {
+  void _toggleRow(MedicationRequestModel request) {
     setState(() {
-      if (value == true) {
-        _selectedIds.add(request.id);
-      } else {
+      if (_selectedIds.contains(request.id)) {
         _selectedIds.remove(request.id);
+      } else {
+        _selectedIds.add(request.id);
       }
     });
   }
@@ -134,9 +134,9 @@ class _MedicationRequestsScreenState
     );
 
     if (result == null || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Request updated')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Request updated')));
     await _load(reset: true);
   }
 
@@ -173,9 +173,9 @@ class _MedicationRequestsScreenState
       await _service.cancel(id: request.id, cancelledByStaffId: staffId);
       if (!mounted) return;
       setState(() => _selectedIds.remove(request.id));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request deleted')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Request deleted')));
       await _load(reset: true);
     } catch (e) {
       if (!mounted) return;
@@ -194,7 +194,9 @@ class _MedicationRequestsScreenState
       return;
     }
 
-    final selected = _requests.where((r) => _selectedIds.contains(r.id)).toList();
+    final selected = _requests
+        .where((r) => _selectedIds.contains(r.id))
+        .toList();
     if (selected.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Select at least one request to bill')),
@@ -228,8 +230,7 @@ class _MedicationRequestsScreenState
           requestIds: entry.value.map((r) => r.id).toList(),
         );
         lastInvoiceId = result.invoice.id;
-        lastInvoiceLabel =
-            result.invoice.invoiceDisplayId ?? result.invoice.id;
+        lastInvoiceLabel = result.invoice.invoiceDisplayId ?? result.invoice.id;
       }
 
       if (!mounted) return;
@@ -246,9 +247,7 @@ class _MedicationRequestsScreenState
       await _load(reset: true);
 
       if (lastInvoiceId != null && lastInvoiceId.isNotEmpty && mounted) {
-        context.router.push(
-          WaitingPatientRoute(invoiceId: lastInvoiceId),
-        );
+        context.router.push(WaitingPatientRoute(invoiceId: lastInvoiceId));
       }
     } catch (e) {
       if (!mounted) return;
@@ -260,38 +259,36 @@ class _MedicationRequestsScreenState
     }
   }
 
+  String _patientInitials(MedicationRequestModel r) {
+    final p = r.patient;
+    if (p == null) return '?';
+    final first = p.firstName.trim();
+    final last = p.surname.trim();
+    final a = first.isNotEmpty ? first[0].toUpperCase() : '';
+    final b = last.isNotEmpty ? last[0].toUpperCase() : '';
+    final initials = '$a$b';
+    return initials.isEmpty ? '?' : initials;
+  }
+
   String _patientLabel(MedicationRequestModel r) {
     final p = r.patient;
-    if (p == null) return '—';
+    if (p == null) return 'Unknown patient';
     final name = p.displayName.trim();
-    if (p.hospitalNumber != null && p.hospitalNumber!.isNotEmpty) {
-      return name.isEmpty ? p.hospitalNumber! : '$name (${p.hospitalNumber})';
-    }
-    return name.isEmpty ? '—' : name;
+    return name.isEmpty ? 'Unknown patient' : name;
   }
 
-  String _drugLabel(MedicationRequestModel r) {
-    final order = r.medicationOrder;
-    if (order == null) return '—';
-    return order.currentDrugLabel;
-  }
-
-  String _prescribedDrugLabel(MedicationRequestModel r) {
-    final order = r.medicationOrder;
-    if (order == null) return '—';
-    return order.prescribedDrugLabel;
-  }
-
-  String _requestedByLabel(MedicationRequestModel r) =>
-      r.requestedByNurse?.displayName.trim() ?? '—';
-
-  String _substitutedByLabel(MedicationRequestModel r) =>
-      r.medicationOrder?.substitutedByPharmacist?.displayName.trim() ?? '—';
+  String? _patientHospitalNumber(MedicationRequestModel r) =>
+      r.patient?.hospitalNumber?.trim();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final canLoadMore = _requests.length < _total;
+    final allSelected =
+        _requests.isNotEmpty && _selectedIds.length == _requests.length;
+    final someSelected =
+        _selectedIds.isNotEmpty && _selectedIds.length < _requests.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -307,193 +304,821 @@ class _MedicationRequestsScreenState
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+          _buildToolbar(theme, colorScheme, allSelected, someSelected),
+          if (_error != null) _buildErrorBanner(colorScheme),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _requests.isEmpty
+                ? _buildEmptyState(colorScheme)
+                : _buildRequestList(colorScheme, canLoadMore),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolbar(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    bool allSelected,
+    bool someSelected,
+  ) {
+    return Material(
+      elevation: 0,
+      color: colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               children: [
-                SizedBox(
-                  width: 280,
+                Expanded(
                   child: TextField(
                     controller: _patientFilterCtrl,
                     decoration: InputDecoration(
-                      labelText: 'Patient ID filter',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.search),
-                        onPressed: _loading ? null : () => _load(reset: true),
+                      hintText: 'Search by patient hospital number…',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      filled: true,
+                      fillColor: colorScheme.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      isDense: true,
                     ),
                     onSubmitted: (_) => _load(reset: true),
                   ),
                 ),
-                Text(
-                  '${_requests.length} of $_total REQUESTED',
-                  style: theme.textTheme.bodySmall,
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  tooltip: 'Search',
+                  onPressed: _loading ? null : () => _load(reset: true),
+                  icon: const Icon(Icons.arrow_forward, size: 20),
                 ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (_requests.isNotEmpty)
+                  FilterChip(
+                    label: Text(allSelected ? 'Deselect all' : 'Select all'),
+                    avatar: Checkbox(
+                      tristate: true,
+                      value: allSelected
+                          ? true
+                          : someSelected
+                          ? null
+                          : false,
+                      onChanged: _loading || _billing ? null : _toggleSelectAll,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onSelected: _loading || _billing
+                        ? null
+                        : (_) => _toggleSelectAll(allSelected ? false : true),
+                  ),
+                _SummaryChip(
+                  icon: Icons.pending_actions_outlined,
+                  label: '$_total pending',
+                  color: colorScheme.primary,
+                ),
+                if (_selectedIds.isNotEmpty)
+                  _SummaryChip(
+                    icon: Icons.check_circle_outline,
+                    label: '${_selectedIds.length} selected',
+                    color: colorScheme.tertiary,
+                  ),
                 FilledButton.icon(
                   onPressed: _billing || _selectedIds.isEmpty
                       ? null
                       : _billSelected,
                   icon: _billing
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.onPrimary,
+                          ),
                         )
                       : const Icon(Icons.receipt_long_outlined, size: 18),
                   label: Text(
                     _selectedIds.isEmpty
                         ? 'Bill selected'
-                        : 'Bill selected (${_selectedIds.length})',
+                        : 'Bill ${_selectedIds.length} request${_selectedIds.length == 1 ? '' : 's'}',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner(ColorScheme colorScheme) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: colorScheme.error, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _error!,
+              style: TextStyle(
+                color: colorScheme.onErrorContainer,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _load(reset: true),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ColorScheme colorScheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.medication_outlined,
+              size: 56,
+              color: colorScheme.outline.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No pending medication requests',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Nurse-submitted requests awaiting pharmacy billing will appear here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequestList(ColorScheme colorScheme, bool canLoadMore) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      itemCount: _requests.length + (canLoadMore ? 1 : 0),
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        if (index >= _requests.length) {
+          return Center(
+            child: OutlinedButton.icon(
+              onPressed: _loadingMore ? null : () => _load(reset: false),
+              icon: _loadingMore
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.expand_more),
+              label: Text(_loadingMore ? 'Loading…' : 'Load more'),
+            ),
+          );
+        }
+        final request = _requests[index];
+        return _MedicationRequestCard(
+          request: request,
+          selected: _selectedIds.contains(request.id),
+          patientInitials: _patientInitials(request),
+          patientName: _patientLabel(request),
+          hospitalNumber: _patientHospitalNumber(request),
+          onToggleSelect: () => _toggleRow(request),
+          onEdit: () => _editRequest(request),
+          onDelete: () => _deleteRequest(request),
+        );
+      },
+    );
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  const _SummaryChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MedicationRequestCard extends StatelessWidget {
+  const _MedicationRequestCard({
+    required this.request,
+    required this.selected,
+    required this.patientInitials,
+    required this.patientName,
+    required this.hospitalNumber,
+    required this.onToggleSelect,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final MedicationRequestModel request;
+  final bool selected;
+  final String patientInitials;
+  final String patientName;
+  final String? hospitalNumber;
+  final VoidCallback onToggleSelect;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final order = request.medicationOrder;
+    final encounter = request.encounter;
+    final isOpd = request.isOpdEncounter;
+    final showSubstitution = order?.wasSubstituted ?? false;
+    final drugLabel = showSubstitution
+        ? order!.currentDrugLabel
+        : (order?.currentDrugLabel ?? '—');
+    final createdAt = request.createdAt;
+    final relativeTime = createdAt != null
+        ? DateFormatter.relativeTimeAgo(createdAt.toLocal())
+        : null;
+
+    return Material(
+      elevation: selected ? 2 : 0,
+      color: selected
+          ? colorScheme.primaryContainer.withValues(alpha: 0.18)
+          : colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.5)
+              : colorScheme.outlineVariant.withValues(alpha: 0.5),
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onToggleSelect,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 4,
+                color: selected
+                    ? colorScheme.primary
+                    : medicationRequestStatusColor(
+                        context,
+                        request.status,
+                      ).withValues(alpha: 0.6),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 14, 14, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(context, colorScheme, relativeTime),
+                      const SizedBox(height: 8),
+                      PrescribingDoctorLine(
+                        name: order?.doctor?.displayName,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDrugSection(context, colorScheme, drugLabel, order),
+                      if (order != null &&
+                          order.prescriptionDetailLine.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _buildPrescriptionChips(context, colorScheme, order),
+                      ],
+                      const SizedBox(height: 12),
+                      _buildRequestQuantityBanner(context, colorScheme),
+                      if (request.notes != null &&
+                          request.notes!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildNotes(context, colorScheme),
+                      ],
+                      if (order?.specialInstructions != null &&
+                          order!.specialInstructions!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildSpecialInstructions(context, colorScheme, order),
+                      ],
+                      const SizedBox(height: 12),
+                      Divider(
+                        height: 1,
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildFooter(context, colorScheme, isOpd, encounter),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(
+    BuildContext context,
+    ColorScheme colorScheme,
+    String? relativeTime,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Checkbox(
+          value: selected,
+          onChanged: (_) => onToggleSelect(),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+        ),
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: colorScheme.primaryContainer,
+          child: Text(
+            patientInitials,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onPrimaryContainer,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                patientName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+              if (hospitalNumber != null && hospitalNumber!.isNotEmpty)
+                Text(
+                  hospitalNumber!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            MedicationRequestStatusBadge(status: request.status),
+            if (relativeTime != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                relativeTime,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDrugSection(
+    BuildContext context,
+    ColorScheme colorScheme,
+    String drugLabel,
+    MedicationRequestOrderSummary? order,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            Icons.medication_liquid_outlined,
+            size: 22,
+            color: colorScheme.onSecondaryContainer,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                drugLabel,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              if (order != null && order.wasSubstituted) ...[
+                const SizedBox(height: 4),
+                MedicationSubstitutionSummary(
+                  prescribedDrug: order.prescribedDrugLabel,
+                  currentDrug: order.currentDrugLabel,
+                  compact: true,
+                ),
+              ] else if (order?.orderStatus != null &&
+                  order!.orderStatus!.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                MedicationOrderStatusBadge(status: order.orderStatus!),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPrescriptionChips(
+    BuildContext context,
+    ColorScheme colorScheme,
+    MedicationRequestOrderSummary order,
+  ) {
+    final chips = <({String label, String value})>[
+      if (order.dose != null && order.dose!.trim().isNotEmpty)
+        (label: 'Dose', value: order.dose!.trim()),
+      if (order.frequency != null && order.frequency!.trim().isNotEmpty)
+        (label: 'Frequency', value: order.frequency!.trim()),
+      if (order.duration != null && order.duration!.trim().isNotEmpty)
+        (label: 'Duration', value: order.duration!.trim()),
+      if (order.route != null && order.route!.trim().isNotEmpty)
+        (label: 'Route', value: order.route!.trim()),
+      if (order.quantity != null && order.quantity! > 0)
+        (label: 'Course qty', value: '${order.quantity}'),
+    ];
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: chips
+          .map(
+            (c) => _DetailChip(
+              label: c.label,
+              value: c.value,
+              colorScheme: colorScheme,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildRequestQuantityBanner(
+    BuildContext context,
+    ColorScheme colorScheme,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 20,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Quantity to bill',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onPrimaryContainer.withValues(
+                      alpha: 0.8,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${request.requestedQuantity} unit${request.requestedQuantity == 1 ? '' : 's'}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: colorScheme.onPrimaryContainer,
                   ),
                 ),
               ],
             ),
           ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                _error!,
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _requests.isEmpty
-                ? const Center(child: Text('No pending medication requests'))
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      child: DataTable(
-                        showCheckboxColumn: true,
-                        onSelectAll: _toggleSelectAll,
-                        columns: [
-                          const DataColumn(label: Text('Patient')),
-                          const DataColumn(label: Text('Prescribing doctor')),
-                          const DataColumn(label: Text('Prescribed drug')),
-                          const DataColumn(label: Text('Current drug')),
-                          const DataColumn(label: Text('Qty')),
-                          DataColumn(
-                            label: Text(
-                              requestedByColumnLabel(isOpd: false),
-                            ),
-                          ),
-                          const DataColumn(label: Text('Substituted by')),
-                          const DataColumn(label: Text('Encounter')),
-                          const DataColumn(label: Text('Requested')),
-                          const DataColumn(label: Text('Status')),
-                          const DataColumn(label: Text('Actions')),
-                        ],
-                        rows: _requests.map((r) {
-                          final selected = _selectedIds.contains(r.id);
-                          final isOpd = r.isOpdEncounter;
-                          final order = r.medicationOrder;
-                          final showSubstitution = order?.wasSubstituted ?? false;
-                          return DataRow(
-                            selected: selected,
-                            onSelectChanged: (v) => _toggleRow(r, v),
-                            cells: [
-                              DataCell(Text(_patientLabel(r))),
-                              DataCell(
-                                Text(
-                                  order?.doctor?.displayName.trim() ?? '—',
-                                ),
-                              ),
-                              DataCell(
-                                Text(
-                                  showSubstitution
-                                      ? _prescribedDrugLabel(r)
-                                      : _drugLabel(r),
-                                ),
-                              ),
-                              DataCell(
-                                Text(
-                                  showSubstitution ? _drugLabel(r) : '—',
-                                ),
-                              ),
-                              DataCell(Text('${r.requestedQuantity}')),
-                              DataCell(
-                                Tooltip(
-                                  message: isOpd
-                                      ? requestedByColumnLabel(isOpd: true)
-                                      : requestedByColumnLabel(isOpd: false),
-                                  child: Text(_requestedByLabel(r)),
-                                ),
-                              ),
-                              DataCell(
-                                Text(
-                                  order?.substitutedByPharmacist != null
-                                      ? _substitutedByLabel(r)
-                                      : '—',
-                                ),
-                              ),
-                              DataCell(
-                                Text(
-                                  r.encounter?.encounterType ??
-                                      r.encounter?.id ??
-                                      r.encounterId ??
-                                      '—',
-                                ),
-                              ),
-                              DataCell(
-                                Text(
-                                  r.createdAt != null
-                                      ? DateFormatter.dateTime(r.createdAt!)
-                                      : '—',
-                                ),
-                              ),
-                              DataCell(
-                                MedicationRequestStatusBadge(status: r.status),
-                              ),
-                              DataCell(
-                                r.isRequested
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            tooltip: 'Edit',
-                                            icon: const Icon(Icons.edit_outlined),
-                                            onPressed: () => _editRequest(r),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Delete',
-                                            icon: const Icon(Icons.delete_outline),
-                                            onPressed: () => _deleteRequest(r),
-                                          ),
-                                        ],
-                                      )
-                                    : const Text('—'),
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
+          if (request.medicationOrder?.quantity != null &&
+              request.medicationOrder!.quantity! > 0 &&
+              request.medicationOrder!.quantity != request.requestedQuantity)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'Full course',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: colorScheme.onPrimaryContainer.withValues(
+                      alpha: 0.7,
                     ),
                   ),
-          ),
-          if (!_loading && canLoadMore)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Center(
-                child: OutlinedButton.icon(
-                  onPressed: _loadingMore ? null : () => _load(reset: false),
-                  icon: _loadingMore
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.expand_more),
-                  label: Text(_loadingMore ? 'Loading…' : 'Load more'),
                 ),
-              ),
+                Text(
+                  '${request.medicationOrder!.quantity}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNotes(BuildContext context, ColorScheme colorScheme) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.notes_outlined,
+          size: 16,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            request.notes!.trim(),
+            style: TextStyle(
+              fontSize: 12,
+              color: colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSpecialInstructions(
+    BuildContext context,
+    ColorScheme colorScheme,
+    MedicationRequestOrderSummary order,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 16,
+            color: colorScheme.onTertiaryContainer,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              order.specialInstructions!.trim(),
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onTertiaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(
+    BuildContext context,
+    ColorScheme colorScheme,
+    bool isOpd,
+    MedicationRequestEncounterRef? encounter,
+  ) {
+    final order = request.medicationOrder;
+    final createdAt = request.createdAt;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  if (encounter != null)
+                    _EncounterChip(
+                      label: encounter.typeLabel,
+                      status: encounter.status,
+                      colorScheme: colorScheme,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              MedicationStaffAttributionColumn(
+                prescribingDoctor: order?.doctor?.displayName,
+                requestedBy: request.requestedByNurse?.displayName,
+                substitutedBy: order?.substitutedByPharmacist?.displayName,
+                substitutedAt: order?.substitutedAt,
+                isOpd: false,
+                compact: true,
+                excludePrescribingDoctor: true,
+              ),
+              if (createdAt != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Requested ${DateFormatter.dateTime(createdAt.toLocal())}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (request.isRequested)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton.filledTonal(
+                tooltip: 'Edit request',
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: 'Delete request',
+                onPressed: onDelete,
+                icon: Icon(Icons.delete_outline, color: colorScheme.error),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _DetailChip extends StatelessWidget {
+  const _DetailChip({
+    required this.label,
+    required this.value,
+    required this.colorScheme,
+  });
+
+  final String label;
+  final String value;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: TextStyle(fontSize: 11, color: colorScheme.onSurface),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EncounterChip extends StatelessWidget {
+  const _EncounterChip({
+    required this.label,
+    required this.colorScheme,
+    this.status,
+  });
+
+  final String label;
+  final String? status;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusLabel = status?.trim();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        statusLabel != null && statusLabel.isNotEmpty
+            ? '$label · $statusLabel'
+            : label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

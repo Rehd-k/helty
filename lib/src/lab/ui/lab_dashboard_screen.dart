@@ -32,17 +32,31 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
   void initState() {
     super.initState();
     final n = AppTimezone.now();
-    _ordersDateRange = DateTimeRange(
-      start: AppTimezone.startOfDay(n),
-      end: AppTimezone.endOfDay(n),
+    _ordersDateRange = _dateRangeForDay(n);
+  }
+
+  /// Lagos calendar day → local [DateTimeRange] for display and filtering.
+  DateTimeRange _dateRangeForDay(DateTime day) {
+    return DateTimeRange(
+      start: DateTime(day.year, day.month, day.day),
+      end: DateTime(day.year, day.month, day.day, 23, 59, 59, 999),
     );
   }
 
+  /// Lagos wall-clock bounds for the orders API (converted to UTC in [LabApiService]).
   LabOrdersParams _ordersParams() {
     final r = _ordersDateRange;
     return LabOrdersParams(
-      from: DateTime(r.start.year, r.start.month, r.start.day),
-      to: DateTime(r.end.year, r.end.month, r.end.day, 23, 59, 59, 999),
+      from: AppTimezone.dateTime(r.start.year, r.start.month, r.start.day),
+      to: AppTimezone.dateTime(
+        r.end.year,
+        r.end.month,
+        r.end.day,
+        23,
+        59,
+        59,
+        999,
+      ),
       skip: _skip,
       take: _take,
     );
@@ -95,6 +109,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
         ),
       );
     });
+    _retryOrdersLoad();
   }
 
   void _retryOrdersLoad() {
@@ -180,9 +195,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: theme.colorScheme.error.withValues(alpha: 0.4),
-        ),
+        side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.4)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -383,10 +396,10 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
             onOrderTap: (order) => context.router
                 .push(LabOrderDetailRoute(orderId: order.id))
                 .then((_) {
-              if (mounted) {
-                invalidateLabOrderCaches(ref, listParams: _ordersParams());
-              }
-            }),
+                  if (mounted) {
+                    invalidateLabOrderCaches(ref, listParams: _ordersParams());
+                  }
+                }),
           ),
       ],
     );
@@ -560,10 +573,7 @@ List<_PatientOrderGroup> _groupOrdersByPatient(List<LabOrder> orders) {
 }
 
 class _PatientOrdersList extends StatelessWidget {
-  const _PatientOrdersList({
-    required this.orders,
-    required this.onOrderTap,
-  });
+  const _PatientOrdersList({required this.orders, required this.onOrderTap});
 
   final List<LabOrder> orders;
   final void Function(LabOrder order) onOrderTap;
@@ -575,9 +585,7 @@ class _PatientOrdersList extends StatelessWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
+          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
         ),
         child: const Padding(
           padding: EdgeInsets.all(48),
@@ -601,10 +609,7 @@ class _PatientOrdersList extends StatelessWidget {
       itemCount: groups.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        return _PatientOrdersTile(
-          group: groups[index],
-          onOrderTap: onOrderTap,
-        );
+        return _PatientOrdersTile(group: groups[index], onOrderTap: onOrderTap);
       },
     );
   }
@@ -623,9 +628,16 @@ class _PatientOrdersTile extends ConsumerStatefulWidget {
 class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
   final Set<String> _selectedItemIds = {};
   bool _printing = false;
+  bool _expanded = false;
+  bool _loadingResults = false;
+  Object? _loadError;
+  Map<String, LabOrder>? _enrichedOrders;
+
+  List<LabOrder> get _displayOrders =>
+      widget.group.orders.map((o) => _enrichedOrders?[o.id] ?? o).toList();
 
   Iterable<LabOrderItem> get _allItems sync* {
-    for (final order in widget.group.orders) {
+    for (final order in _displayOrders) {
       yield* order.items;
     }
   }
@@ -636,6 +648,64 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
   bool get _hasPrintableSelection => _selectedItemIds.any(
     (id) => _printableItems.any((item) => item.id == id),
   );
+
+  bool _hasSameOrderIds(List<LabOrder> a, List<LabOrder> b) {
+    if (a.length != b.length) return false;
+    final aIds = a.map((o) => o.id).toSet();
+    return b.every((o) => aIds.contains(o.id));
+  }
+
+  @override
+  void didUpdateWidget(covariant _PatientOrdersTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final groupChanged =
+        oldWidget.group.patientKey != widget.group.patientKey ||
+        !_hasSameOrderIds(oldWidget.group.orders, widget.group.orders);
+    if (!groupChanged) return;
+
+    _enrichedOrders = null;
+    _loadError = null;
+    if (_expanded) {
+      _loadOrderResults();
+    }
+  }
+
+  Future<void> _loadOrderResults() async {
+    if (_loadingResults) return;
+
+    final orderIds = widget.group.orders.map((o) => o.id).toList();
+    final allLoaded =
+        _enrichedOrders != null &&
+        orderIds.every((id) => _enrichedOrders!.containsKey(id));
+    if (allLoaded) return;
+
+    setState(() {
+      _loadingResults = true;
+      _loadError = null;
+    });
+
+    try {
+      final loaded = await Future.wait(
+        orderIds.map((id) => ref.read(labOrderByIdProvider(id).future)),
+      );
+      if (!mounted) return;
+      setState(() {
+        _enrichedOrders = {for (final o in loaded) o.id: o};
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadError = e);
+    } finally {
+      if (mounted) setState(() => _loadingResults = false);
+    }
+  }
+
+  void _onExpansionChanged(bool expanded) {
+    setState(() => _expanded = expanded);
+    if (expanded) {
+      _loadOrderResults();
+    }
+  }
 
   void _toggleItem(LabOrderItem item, bool? selected) {
     if (!labOrderItemHasPrintableResults(item)) return;
@@ -665,8 +735,7 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
     setState(() => _printing = true);
 
     try {
-      final api = ref.read(labApiServiceProvider);
-      final orderIds = widget.group.orders
+      final orderIds = _displayOrders
           .where(
             (order) =>
                 order.items.any((item) => _selectedItemIds.contains(item.id)),
@@ -676,7 +745,9 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
 
       final fullOrders = <String, LabOrder>{};
       for (final orderId in orderIds) {
-        fullOrders[orderId] = await api.getOrderById(orderId);
+        fullOrders[orderId] =
+            _enrichedOrders?[orderId] ??
+            await ref.read(labOrderByIdProvider(orderId).future);
       }
 
       final patient = widget.group.patient;
@@ -748,6 +819,7 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
           childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+          onExpansionChanged: _onExpansionChanged,
           leading: CircleAvatar(
             backgroundColor: theme.colorScheme.primaryContainer,
             child: Text(
@@ -795,38 +867,86 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
             ],
           ),
           children: [
-            if (printableCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(left: 8, right: 8, bottom: 4),
-                child: CheckboxListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: allPrintableSelected,
-                  tristate: true,
-                  onChanged: (value) {
-                    if (value == null) {
-                      _toggleSelectAllPrintable(false);
-                    } else {
-                      _toggleSelectAllPrintable(value);
-                    }
-                  },
-                  title: Text(
-                    'Select all printable tests',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+            if (_loadingResults)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(height: 8),
+                      Text('Loading results…'),
+                    ],
                   ),
-                  controlAffinity: ListTileControlAffinity.leading,
                 ),
-              ),
-            ...group.orders.map((order) {
-              return _OrderItemsSection(
-                order: order,
-                selectedItemIds: _selectedItemIds,
-                onItemToggle: _toggleItem,
-                onOrderTap: () => widget.onOrderTap(order),
-              );
-            }),
+              )
+            else if (_loadError != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 8,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 20,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Unable to load results.\n$_loadError',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loadOrderResults,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              if (printableCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, right: 8, bottom: 4),
+                  child: CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: allPrintableSelected,
+                    tristate: true,
+                    onChanged: (value) {
+                      if (value == null) {
+                        _toggleSelectAllPrintable(false);
+                      } else {
+                        _toggleSelectAllPrintable(value);
+                      }
+                    },
+                    title: Text(
+                      'Select all printable tests',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ),
+              ..._displayOrders.map((order) {
+                return _OrderItemsSection(
+                  order: order,
+                  selectedItemIds: _selectedItemIds,
+                  onItemToggle: _toggleItem,
+                  onOrderTap: () => widget.onOrderTap(order),
+                );
+              }),
+            ],
           ],
         ),
       ),

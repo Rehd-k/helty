@@ -26,11 +26,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
   String? _error;
   String? _lastLoadedAdmissionId;
 
-  static const _intakeCategories = [
-    'ORAL',
-    'IV',
-    'OTHER',
-  ];
+  static const _intakeCategories = ['ORAL', 'IV', 'OTHER'];
   static const _outputCategories = [
     'URINE',
     'STOOL',
@@ -104,9 +100,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
 
   List<IntakeOutputRecordModel> _rowsFor(bool intake) {
     final type = intake ? 'INTAKE' : 'OUTPUT';
-    return _records
-        .where((r) => (r.type ?? '').toUpperCase() == type)
-        .toList()
+    return _records.where((r) => (r.type ?? '').toUpperCase() == type).toList()
       ..sort((a, b) {
         final ta = a.recordedAt ?? a.createdAt;
         final tb = b.recordedAt ?? b.createdAt;
@@ -140,160 +134,252 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
     final categories = isIntake ? _intakeCategories : _outputCategories;
     String category = categories.first;
     final amountCtrl = TextEditingController();
+    final otherCtrl = TextEditingController();
     var recorded = DateTime.now();
     var saving = false;
 
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setLocal) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Text(isIntake ? 'Add Intake' : 'Add Output'),
-              content: SizedBox(
-                width: inpatientDialogBodyWidth(ctx, preferred: 420),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        key: ValueKey(category),
-                        initialValue: category,
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
-                        ),
-                        items: categories
-                            .map(
-                              (c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) setLocal(() => category = v);
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: amountCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          labelText: 'Amount (ml)',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Record time'),
-                        subtitle: Text(DateFormatter.dateTime(recorded)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.schedule),
-                          onPressed: () async {
-                            final d = await showDatePicker(
-                              context: ctx,
-                              initialDate: recorded,
-                              firstDate: AppTimezone.startOfDay(
-                                AppTimezone.now().subtract(
-                                  const Duration(days: 30),
-                                ),
-                              ),
-                              lastDate: AppTimezone.endOfDay(
-                                AppTimezone.now().add(const Duration(days: 1)),
-                              ),
-                            );
-                            if (d == null || !ctx.mounted) return;
-                            final time = await showTimePicker(
-                              context: ctx,
-                              initialTime: TimeOfDay.fromDateTime(recorded),
-                            );
-                            if (time == null || !ctx.mounted) return;
-                            setLocal(() {
-                              recorded = AppTimezone.combineDateAndTime(
-                                d,
-                                time,
-                              );
-                            });
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setLocal) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Text(isIntake ? 'Add Intake' : 'Add Output'),
+                content: SizedBox(
+                  width: inpatientDialogBodyWidth(ctx, preferred: 420),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          key: ValueKey(category),
+                          initialValue: category,
+                          decoration: const InputDecoration(
+                            labelText: 'Category',
+                          ),
+                          items: categories
+                              .map(
+                                (c) =>
+                                    DropdownMenuItem(value: c, child: Text(c)),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) {
+                              setLocal(() {
+                                category = v;
+                                if (v != 'OTHER') otherCtrl.clear();
+                              });
+                            }
                           },
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving ? null : () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          final ml = double.tryParse(amountCtrl.text.trim());
-                          if (ml == null || ml < 0) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(
-                                content: Text('Enter a valid amount (ml).'),
-                              ),
-                            );
-                            return;
-                          }
-                          setLocal(() => saving = true);
-                          try {
-                            await _service.create(
-                              admissionId: admissionId,
-                              nurseId: nurseId,
-                              type: isIntake ? 'INTAKE' : 'OUTPUT',
-                              category: category,
-                              amountMl: ml,
-                              recordedAt: recorded,
-                            );
-                            if (ctx.mounted) Navigator.of(ctx).pop();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Record saved.'),
+                        if (category == 'OTHER') ...[
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: otherCtrl,
+                            decoration: InputDecoration(
+                              labelText: isIntake
+                                  ? 'Specify other intake'
+                                  : 'Specify other output',
+                              hintText: 'Enter description',
+                            ),
+                            maxLines: 2,
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: amountCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Amount (ml)',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Record time'),
+                          subtitle: Text(DateFormatter.dateTime(recorded)),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.schedule),
+                            onPressed: () async {
+                              final d = await showDatePicker(
+                                context: ctx,
+                                initialDate: recorded,
+                                firstDate: AppTimezone.startOfDay(
+                                  AppTimezone.now().subtract(
+                                    const Duration(days: 30),
+                                  ),
+                                ),
+                                lastDate: AppTimezone.endOfDay(
+                                  AppTimezone.now().add(
+                                    const Duration(days: 1),
+                                  ),
                                 ),
                               );
-                              await _load(admissionId);
-                            }
-                          } on DioException catch (e) {
-                            if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                SnackBar(content: Text(_dioMessage(e))),
+                              if (d == null || !ctx.mounted) return;
+                              final time = await showTimePicker(
+                                context: ctx,
+                                initialTime: TimeOfDay.fromDateTime(recorded),
                               );
-                            }
-                          } catch (e) {
-                            if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                SnackBar(content: Text('$e')),
-                              );
-                            }
-                          } finally {
-                            if (ctx.mounted) {
-                              setLocal(() => saving = false);
-                            }
-                          }
-                        },
-                  child: saving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save'),
+                              if (time == null || !ctx.mounted) return;
+                              setLocal(() {
+                                recorded = AppTimezone.combineDateAndTime(
+                                  d,
+                                  time,
+                                );
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            );
-          },
-        );
-      },
+                actions: [
+                  TextButton(
+                    onPressed: saving ? null : () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            final ml = double.tryParse(amountCtrl.text.trim());
+                            if (ml == null || ml < 0) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Enter a valid amount (ml).'),
+                                ),
+                              );
+                              return;
+                            }
+                            if (category == 'OTHER' &&
+                                otherCtrl.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please describe the other category.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            setLocal(() => saving = true);
+                            try {
+                              final otherNotes = otherCtrl.text.trim();
+                              await _service.create(
+                                admissionId: admissionId,
+                                nurseId: nurseId,
+                                type: isIntake ? 'INTAKE' : 'OUTPUT',
+                                category: category,
+                                amountMl: ml,
+                                recordedAt: recorded,
+                                notes: category == 'OTHER' ? otherNotes : null,
+                              );
+                              if (ctx.mounted) Navigator.of(ctx).pop();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Record saved.'),
+                                  ),
+                                );
+                                await _load(admissionId);
+                              }
+                            } on DioException catch (e) {
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(content: Text(_dioMessage(e))),
+                                );
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(
+                                  ctx,
+                                ).showSnackBar(SnackBar(content: Text('$e')));
+                              }
+                            } finally {
+                              if (ctx.mounted) {
+                                setLocal(() => saving = false);
+                              }
+                            }
+                          },
+                    child: saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Save'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      amountCtrl.dispose();
+      otherCtrl.dispose();
+    }
+  }
+
+  String _categoryLabel(IntakeOutputRecordModel record) {
+    final category = (record.category ?? '').toUpperCase();
+    if (category == 'OTHER') {
+      final notes = record.notes?.trim();
+      if (notes != null && notes.isNotEmpty) return notes;
+    }
+    return record.category ?? '—';
+  }
+
+  Widget _buildBalanceSummary(
+    BuildContext context, {
+    required double intakeTotal,
+    required double outputTotal,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final balance = intakeTotal - outputTotal;
+    final balanceColor = balance >= 0 ? scheme.primary : scheme.error;
+
+    return SectionCard(
+      title: "Today's fluid balance",
+      subtitle: 'Intake minus output (local date)',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Wrap(
+          spacing: 24,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Intake: ${intakeTotal.toStringAsFixed(0)} ml',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: scheme.primary,
+              ),
+            ),
+            Text(
+              'Output: ${outputTotal.toStringAsFixed(0)} ml',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: scheme.error,
+              ),
+            ),
+            Text(
+              'Balance: ${balance.toStringAsFixed(0)} ml',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: balanceColor,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -336,57 +422,68 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: InpatientResponsiveRowOrColumn(
-        first: SectionCard(
-          title: 'Intake',
-          subtitle: 'Fluids and intake for this admission',
-          actions: [
-            FilledButton.icon(
-              onPressed: () => _openAddRecordDialog(context, true),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Record'),
-            ),
-          ],
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTable(context, rows: _rowsFor(true)),
-              const SizedBox(height: 12),
-              Text(
-                'Daily total (today): ${intakeTotal.toStringAsFixed(0)} ml',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildBalanceSummary(
+            context,
+            intakeTotal: intakeTotal,
+            outputTotal: outputTotal,
+          ),
+          const SizedBox(height: 16),
+          InpatientResponsiveRowOrColumn(
+            first: SectionCard(
+              title: 'Intake',
+              subtitle: 'Fluids and intake for this admission',
+              actions: [
+                FilledButton.icon(
+                  onPressed: () => _openAddRecordDialog(context, true),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Record'),
+                ),
+              ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTable(context, rows: _rowsFor(true)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Daily total (today): ${intakeTotal.toStringAsFixed(0)} ml',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: scheme.primary,
                     ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        second: SectionCard(
-          title: 'Output',
-          subtitle: 'Urine, drains and other output',
-          actions: [
-            FilledButton.icon(
-              onPressed: () => _openAddRecordDialog(context, false),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Record'),
             ),
-          ],
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTable(context, rows: _rowsFor(false)),
-              const SizedBox(height: 12),
-              Text(
-                'Daily total (today): ${outputTotal.toStringAsFixed(0)} ml',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            second: SectionCard(
+              title: 'Output',
+              subtitle: 'Urine, drains and other output',
+              actions: [
+                FilledButton.icon(
+                  onPressed: () => _openAddRecordDialog(context, false),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Record'),
+                ),
+              ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTable(context, rows: _rowsFor(false)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Daily total (today): ${outputTotal.toStringAsFixed(0)} ml',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: scheme.error,
                     ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -395,13 +492,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
     BuildContext context, {
     required List<IntakeOutputRecordModel> rows,
   }) {
-    const columns = [
-      'Time',
-      'Type',
-      'Category',
-      'Amount (ml)',
-      'Recorded by',
-    ];
+    const columns = ['Time', 'Type', 'Category', 'Amount (ml)', 'Recorded by'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -411,9 +502,9 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
               (c) => DataColumn(
                 label: Text(
                   c,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             )
@@ -430,7 +521,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
                     ),
                   ),
                   DataCell(Text(r.type ?? '—')),
-                  DataCell(Text(r.category ?? '—')),
+                  DataCell(Text(_categoryLabel(r))),
                   DataCell(Text(r.amountMl?.toStringAsFixed(0) ?? '—')),
                   DataCell(Text(r.nurseDisplayName ?? '—')),
                 ],

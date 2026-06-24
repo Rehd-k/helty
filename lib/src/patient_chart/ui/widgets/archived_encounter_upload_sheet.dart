@@ -24,16 +24,21 @@ class ArchivedEncounterUploadSheet extends StatefulWidget {
 class _ArchivedEncounterUploadSheetState
     extends State<ArchivedEncounterUploadSheet> {
   final _titleCtrl = TextEditingController();
-  final _notesCtrl = TextEditingController();
+  final _descriptionCtrl = TextEditingController();
   DateTime _occurredAt = DateTime.now();
   final List<String> _filePaths = [];
   bool _uploading = false;
   String? _error;
 
+  bool get _canSubmit =>
+      !_uploading &&
+      _filePaths.isNotEmpty &&
+      _descriptionCtrl.text.trim().isNotEmpty;
+
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _notesCtrl.dispose();
+    _descriptionCtrl.dispose();
     super.dispose();
   }
 
@@ -78,8 +83,13 @@ class _ArchivedEncounterUploadSheetState
   }
 
   Future<void> _submit() async {
+    final description = _descriptionCtrl.text.trim();
     if (_filePaths.isEmpty) {
       setState(() => _error = 'Select at least one file.');
+      return;
+    }
+    if (description.isEmpty) {
+      setState(() => _error = 'Description is required.');
       return;
     }
     setState(() {
@@ -92,7 +102,7 @@ class _ArchivedEncounterUploadSheetState
         encounterOccurredAt: _occurredAt,
         filePaths: _filePaths,
         title: _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
-        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        notes: description,
       );
       if (!mounted) return;
       widget.onUploaded();
@@ -141,10 +151,14 @@ class _ArchivedEncounterUploadSheetState
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _notesCtrl,
-              decoration: const InputDecoration(labelText: 'Notes (optional)'),
-              maxLines: 2,
+              controller: _descriptionCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Description *',
+                hintText: 'What is this document and why is it being uploaded?',
+              ),
+              maxLines: 3,
               enabled: !_uploading,
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
@@ -177,11 +191,14 @@ class _ArchivedEncounterUploadSheetState
             ],
             if (_error != null) ...[
               const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: _uploading ? null : _submit,
+              onPressed: _canSubmit ? _submit : null,
               child: _uploading
                   ? const SizedBox(
                       height: 22,

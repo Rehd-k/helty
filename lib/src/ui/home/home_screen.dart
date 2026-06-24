@@ -11,6 +11,7 @@ import 'package:helty/app_router.gr.dart';
 import '../../accounts/auth/accounting_permissions.dart';
 import '../../auth/billing_permissions.dart';
 import '../../auth/dialysis_permissions.dart';
+import '../../auth/theatre_permissions.dart';
 import '../../auth/nursing_permissions.dart';
 import '../../nursing/providers/nursing_providers.dart';
 import '../../helper/theme.dart';
@@ -449,6 +450,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (canAccessDialysisModule(staff)) {
       common.addAll(dialysisMenu);
+    }
+
+    if (canAccessTheatreModule(staff)) {
+      common.addAll(theatreMenu);
     }
 
     if (at == 'ict' || r == 'ict_staff') {

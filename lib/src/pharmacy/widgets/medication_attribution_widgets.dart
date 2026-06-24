@@ -45,6 +45,46 @@ class MedicationSubstitutionSummary extends StatelessWidget {
   }
 }
 
+/// Prominent prescribing doctor line for top of medication cards.
+class PrescribingDoctorLine extends StatelessWidget {
+  const PrescribingDoctorLine({
+    super.key,
+    required this.name,
+    this.compact = true,
+  });
+
+  final String? name;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = name?.trim();
+    if (value == null || value.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w600,
+    );
+    final valueStyle = compact
+        ? theme.textTheme.bodySmall
+        : theme.textTheme.bodyMedium;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: RichText(
+        text: TextSpan(
+          style: valueStyle,
+          children: [
+            TextSpan(text: 'Prescribing doctor: ', style: labelStyle),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Staff attribution lines for medication requests / dispense lines.
 class MedicationStaffAttributionColumn extends StatelessWidget {
   const MedicationStaffAttributionColumn({
@@ -55,6 +95,7 @@ class MedicationStaffAttributionColumn extends StatelessWidget {
     this.substitutedAt,
     this.isOpd = false,
     this.compact = true,
+    this.excludePrescribingDoctor = false,
   });
 
   final String? prescribingDoctor;
@@ -63,6 +104,7 @@ class MedicationStaffAttributionColumn extends StatelessWidget {
   final DateTime? substitutedAt;
   final bool isOpd;
   final bool compact;
+  final bool excludePrescribingDoctor;
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +137,9 @@ class MedicationStaffAttributionColumn extends StatelessWidget {
       );
     }
 
-    addLine('Prescribing doctor', prescribingDoctor);
+    if (!excludePrescribingDoctor) {
+      addLine('Prescribing doctor', prescribingDoctor);
+    }
     addLine(requestedByColumnLabel(isOpd: isOpd), requestedBy);
     if (substitutedBy != null && substitutedBy!.trim().isNotEmpty) {
       var subLine = substitutedBy!.trim();

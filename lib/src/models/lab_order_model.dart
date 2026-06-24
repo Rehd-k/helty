@@ -1,3 +1,6 @@
+import 'package:helty/src/lab/models/lab_models.dart';
+import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
+
 /// One analyte line from [LabOrderModel.resultLines] (API: items[].results[].field).
 class LabOrderResultLine {
   const LabOrderResultLine({
@@ -5,6 +8,7 @@ class LabOrderResultLine {
     required this.value,
     this.unit,
     this.referenceRange,
+    this.referenceEvaluation,
     this.position = 0,
   });
 
@@ -12,6 +16,7 @@ class LabOrderResultLine {
   final String value;
   final String? unit;
   final String? referenceRange;
+  final ReferenceEvaluation? referenceEvaluation;
   final int position;
 
   String get valueWithUnit {
@@ -90,12 +95,22 @@ class LabOrderModel {
             position = int.tryParse(pos.toString()) ?? 0;
           }
         }
+        final evalRaw = r['referenceEvaluation'];
+        final serverEvaluation = evalRaw is Map<String, dynamic>
+            ? ReferenceEvaluation.fromJson(evalRaw)
+            : null;
+        final referenceEvaluation = resolveLabReferenceEvaluation(
+          value: value,
+          referenceRange: referenceRange,
+          serverEvaluation: serverEvaluation,
+        );
         lines.add(
           LabOrderResultLine(
             label: label,
             value: value,
             unit: unit,
             referenceRange: referenceRange,
+            referenceEvaluation: referenceEvaluation,
             position: position,
           ),
         );

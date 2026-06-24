@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../helper/app_timezone.dart';
+import '../../investigations/models/investigation_models.dart';
+import '../../investigations/models/investigation_query_params.dart';
 import '../../services/api_service.dart';
 import '../models/lab_models.dart';
 
@@ -106,8 +109,8 @@ class LabApiService {
         if (isActive != null) 'isActive': isActive,
         if (skip != null) 'skip': skip,
         if (take != null) 'take': take,
-        if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
-        if (toDate != null) 'toDate': toDate.toIso8601String(),
+        if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
+        if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
       },
     );
     final data = response.data;
@@ -296,8 +299,8 @@ class LabApiService {
       queryParameters: {
         if (patientId != null) 'patientId': patientId,
         if (status != null) 'status': status.apiValue,
-        if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
-        if (toDate != null) 'toDate': toDate.toIso8601String(),
+        if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
+        if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
         if (skip != null) 'skip': skip,
         if (take != null) 'take': take,
       },
@@ -628,6 +631,36 @@ class LabApiService {
     throw StateError(
       'Expected AST result options response, got ${data.runtimeType}',
     );
+  }
+
+  // ── Investigations (receptionist reporting) ─────────────────────────────
+
+  Future<InvestigationSummary> getInvestigationsSummary(
+    InvestigationsQueryParams params,
+  ) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '$_prefix/investigations/summary',
+      queryParameters: params.toQueryParameters(includePagination: false),
+    );
+    final data = response.data;
+    if (data == null) {
+      throw StateError('Get investigations summary returned no data');
+    }
+    return InvestigationSummary.fromJson(data);
+  }
+
+  Future<InvestigationListResponse> getInvestigations(
+    InvestigationsQueryParams params,
+  ) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '$_prefix/investigations',
+      queryParameters: params.toQueryParameters(),
+    );
+    final data = response.data;
+    if (data == null) {
+      throw StateError('Get investigations returned no data');
+    }
+    return InvestigationListResponse.fromJson(data);
   }
 }
 

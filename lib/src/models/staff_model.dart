@@ -15,6 +15,7 @@ enum AccountType {
   laboratory,
   radiology,
   dialysis,
+  theatre,
   store,
   purchases,
   medical_records,
@@ -45,6 +46,7 @@ enum AccountType {
     hmo,
     purchases,
     dialysis,
+    theatre,
     super_admin,
   ];
 
@@ -69,6 +71,7 @@ enum AccountType {
     hmo => 'HMO',
     purchases => 'Purchases',
     dialysis => 'Dialysis',
+    theatre => 'Theatre',
     super_admin => 'Super Admin',
     staff => 'Staff (legacy)',
   };
@@ -119,6 +122,8 @@ enum AccountType {
         return AccountType.laboratory;
       case 'dialysis':
         return AccountType.dialysis;
+      case 'theatre':
+        return AccountType.theatre;
       case 'purchases_store':
       case 'purchases_head':
       case 'purchases':

@@ -13,6 +13,7 @@ class PatientHeaderCard extends StatelessWidget {
   final String attendingDoctor;
   final String diagnosis;
   final String admissionDate;
+
   /// Calendar days since admission (e.g. "4 days"), or null to hide the row.
   final String? lengthOfStay;
   final List<String> allergies;
@@ -46,10 +47,7 @@ class PatientHeaderCard extends StatelessWidget {
   /// Width for each info cell on wide layouts; keeps cells readable on tablets.
   static double _expandedInfoItemWidth(double cardWidth) {
     const reserved = 520.0;
-    return math.min(
-      220,
-      math.max(140, (cardWidth - reserved) / 3),
-    );
+    return math.min(220, math.max(140, (cardWidth - reserved) / 3));
   }
 
   @override
@@ -69,18 +67,8 @@ class PatientHeaderCard extends StatelessWidget {
         final double infoItemW = math.max(72.0, rawInfoW);
 
         final infoChildren = <Widget>[
-          _infoRow(
-            context,
-            label: 'Ward',
-            value: ward,
-            width: infoItemW,
-          ),
-          _infoRow(
-            context,
-            label: 'Bed',
-            value: bedNumber,
-            width: infoItemW,
-          ),
+          _infoRow(context, label: 'Ward', value: ward, width: infoItemW),
+          _infoRow(context, label: 'Bed', value: bedNumber, width: infoItemW),
           _infoRow(
             context,
             label: 'Attending Doctor',
@@ -89,7 +77,7 @@ class PatientHeaderCard extends StatelessWidget {
           ),
           _infoRow(
             context,
-            label: 'Diagnosis',
+            label: 'Reason',
             value: diagnosis,
             width: infoItemW,
           ),
@@ -113,8 +101,9 @@ class PatientHeaderCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border:
-                Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.15),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -232,8 +221,10 @@ class PatientHeaderCard extends StatelessWidget {
     List<Widget> infoChildren,
     double cardWidth,
   ) {
-    final double identityMaxWidth =
-        math.min(280.0, math.max(160.0, cardWidth * 0.28));
+    final double identityMaxWidth = math.min(
+      280.0,
+      math.max(160.0, cardWidth * 0.28),
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,11 +284,7 @@ class PatientHeaderCard extends StatelessWidget {
         ),
         const SizedBox(width: 28),
         Expanded(
-          child: Wrap(
-            spacing: 24,
-            runSpacing: 8,
-            children: infoChildren,
-          ),
+          child: Wrap(spacing: 24, runSpacing: 8, children: infoChildren),
         ),
         const SizedBox(width: 24),
         _safetyColumn(
@@ -328,8 +315,9 @@ class PatientHeaderCard extends StatelessWidget {
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize:
-                  fullWidthAllergies ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisSize: fullWidthAllergies
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
               children: [
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
@@ -388,8 +376,9 @@ class PatientHeaderCard extends StatelessWidget {
           );
 
     final column = Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.stretch,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.stretch,
       children: [
         if (fullWidthAllergies)
           allergyWidget

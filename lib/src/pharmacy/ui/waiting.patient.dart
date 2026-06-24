@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/medication_order_model.dart';
@@ -865,6 +866,19 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     );
   }
 
+  void _openPatientHub(PharmacyQueuePatient patient) {
+    final uuid = patient.id.trim();
+    if (uuid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Patient has no system ID; cannot open Patient Hub.'),
+        ),
+      );
+      return;
+    }
+    context.router.push(PatientHubRoute(patientUuid: uuid));
+  }
+
   PharmacyQueuePatient _sidebarPatient(QueueOrder order) {
     final p = _detailPatient;
     if (p == null) {
@@ -1534,6 +1548,9 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                               _buildQtyRemainingBadge(med, colorScheme),
                             ],
                           ),
+                          PrescribingDoctorLine(
+                            name: med.prescribingDoctorLabel,
+                          ),
                           if (med.wasSubstituted) ...[
                             const SizedBox(height: 4),
                             MedicationSubstitutionSummary(
@@ -1542,21 +1559,21 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                               compact: true,
                             ),
                           ],
-                          if (med.prescribingDoctorLabel.isNotEmpty ||
-                              med.requestedByNurse != null ||
+                          if (med.requestedByNurse != null ||
                               med.substitutedByPharmacist != null) ...[
                             const SizedBox(height: 4),
                             MedicationStaffAttributionColumn(
                               prescribingDoctor: med.prescribingDoctorLabel,
-                              requestedBy:
-                                  med.requestedByNurse?.displayName,
+                              requestedBy: med.requestedByNurse?.displayName,
                               substitutedBy:
                                   med.substitutedByPharmacist?.displayName,
                               substitutedAt: med.substitutedAt,
                               isOpd: !_selectedPatientIsInpatient,
                               compact: true,
+                              excludePrescribingDoctor: true,
                             ),
-                          ] else if (med.createdByDisplayName.isNotEmpty) ...[
+                          ] else if (med.prescribingDoctorLabel.isEmpty &&
+                              med.createdByDisplayName.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
                               'Prescribed by: ${med.createdByDisplayName}',
@@ -1825,7 +1842,10 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                 style: TextStyle(fontSize: 10, color: colorScheme.error),
               ),
             ),
-          Row(
+          InkWell(
+            onTap: () => _openPatientHub(patient),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
             children: [
               CircleAvatar(
                 radius: 18,
@@ -1851,7 +1871,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${patient.id} • ${patient.gender.isEmpty ? '—' : patient.gender} • ${patient.age}y',
+                      '${patient.gender.isEmpty ? '—' : patient.gender} • ${patient.age}y',
                       style: TextStyle(
                         fontSize: 10,
                         color: colorScheme.onSurfaceVariant,
@@ -1863,6 +1883,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                 ),
               ),
             ],
+          ),
           ),
           const SizedBox(height: 12),
           Row(

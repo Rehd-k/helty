@@ -3,6 +3,7 @@
 import 'dart:convert';
 
 import 'package:helty/src/core/extensions/capitalizer.extention.dart';
+import 'package:helty/src/models/staff_model.dart';
 
 /// Lab category (e.g. Hematology, Biochemistry).
 class LabCategory {
@@ -335,27 +336,44 @@ class LabOrder {
         'items': items.map((e) => e.toJson()).toList(),
         if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       };
+
+  LabOrder copyWith({List<LabOrderItem>? items}) => LabOrder(
+        id: id,
+        status: status,
+        patient: patient,
+        doctor: doctor,
+        items: items ?? this.items,
+        createdAt: createdAt,
+      );
 }
 
 class LabOrderPatient {
   const LabOrderPatient({
     required this.id,
     this.firstName,
+    this.otherName,
     this.surname,
     this.patientId,
+    this.gender,
+    this.dob,
   });
 
   final String id;
   final String? firstName;
+  final String? otherName;
   final String? surname;
   final String? patientId;
+  final String? gender;
+  final DateTime? dob;
 
   String get displayName =>
-      [firstName, surname].where((e) => e != null && e.isNotEmpty).join(' ');
+      [firstName, otherName, surname]
+          .where((e) => e != null && e.isNotEmpty)
+          .join(' ');
 
   String get capitalizedDisplayName {
     final parts = <String>[];
-    for (final name in [firstName, surname]) {
+    for (final name in [firstName, otherName, surname]) {
       final trimmed = name?.trim() ?? '';
       if (trimmed.isNotEmpty) parts.add(trimmed.capitalize());
     }
@@ -366,23 +384,40 @@ class LabOrderPatient {
       LabOrderPatient(
         id: (json['id'] as String?) ?? '',
         firstName: json['firstName'] as String?,
+        otherName: json['otherName'] as String?,
         surname: (json['surname'] ?? json['lastName']) as String?,
         patientId: json['patientId'] as String?,
+        gender: json['gender'] as String?,
+        dob: json['dob'] != null
+            ? DateTime.tryParse(json['dob'] as String)
+            : null,
       );
 
   Map<String, dynamic> toJson() => {
         'id': id,
         if (firstName != null) 'firstName': firstName,
+        if (otherName != null) 'otherName': otherName,
         if (surname != null) 'surname': surname,
         if (patientId != null) 'patientId': patientId,
+        if (gender != null) 'gender': gender,
+        if (dob != null) 'dob': dob!.toIso8601String(),
       };
 }
 
 class LabOrderStaff {
-  const LabOrderStaff({required this.id, this.firstName, this.lastName});
+  const LabOrderStaff({
+    required this.id,
+    this.firstName,
+    this.lastName,
+    this.accountType,
+  });
+
   final String id;
   final String? firstName;
   final String? lastName;
+  final AccountType? accountType;
+
+  bool get isPhysician => accountType == AccountType.physician;
 
   String get displayName =>
       [firstName, lastName].where((e) => e != null && e.isNotEmpty).join(' ');
@@ -400,9 +435,16 @@ class LabOrderStaff {
         id: (json['id'] as String?) ?? '',
         firstName: json['firstName'] as String?,
         lastName: json['lastName'] as String?,
+        accountType: json['accountType'] != null
+            ? AccountType.fromString(json['accountType'] as String?)
+            : null,
       );
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'firstName': firstName, 'lastName': lastName};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        if (firstName != null) 'firstName': firstName,
+        if (lastName != null) 'lastName': lastName,
+        if (accountType != null) 'accountType': accountType!.apiValue,
+      };
 }
 
 /// Input for a single line when creating a lab order.
@@ -476,6 +518,17 @@ class LabOrderItem {
         'astRequested': astRequested,
         'astResults': astResults.map((e) => e.toJson()).toList(),
       };
+
+  LabOrderItem copyWith({List<LabResult>? results}) => LabOrderItem(
+        id: id,
+        orderId: orderId,
+        testVersion: testVersion,
+        sample: sample,
+        results: results ?? this.results,
+        fields: fields,
+        astRequested: astRequested,
+        astResults: astResults,
+      );
 }
 
 class LabOrderItemTestVersion {
@@ -713,6 +766,18 @@ class LabResult {
         if (referenceEvaluation != null)
           'referenceEvaluation': referenceEvaluation!.toJson(),
       };
+
+  LabResult copyWith({ReferenceEvaluation? referenceEvaluation}) =>
+      LabResult(
+        id: id,
+        orderItemId: orderItemId,
+        fieldId: fieldId,
+        value: value,
+        field: field,
+        enteredBy: enteredBy,
+        hiddenFromReport: hiddenFromReport,
+        referenceEvaluation: referenceEvaluation ?? this.referenceEvaluation,
+      );
 }
 
 // ── MCS / AST (antibiotic susceptibility) ───────────────────────────────────

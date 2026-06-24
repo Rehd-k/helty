@@ -1,3 +1,4 @@
+import 'medication_dose_schedule_model.dart';
 import 'medication_request_model.dart';
 
 class MedicationOrderModel {
@@ -30,6 +31,7 @@ class MedicationOrderModel {
     this.drug,
     this.substitutedByPharmacist,
     this.substitutedAt,
+    this.doseSchedule,
   });
 
   final String id;
@@ -61,6 +63,7 @@ class MedicationOrderModel {
   final MedicationRequestDrugRef? drug;
   final MedicationRequestStaffRef? substitutedByPharmacist;
   final DateTime? substitutedAt;
+  final MedicationDoseScheduleModel? doseSchedule;
 
   /// Best timestamp for sorting and display when [startDateTime] is absent.
   DateTime? get displayDateTime => startDateTime ?? createdAt;
@@ -109,6 +112,7 @@ class MedicationOrderModel {
     final drugRaw = map(json['drug']);
     final prescribedDrugRaw = map(json['prescribedDrug']);
     final substitutedRaw = map(json['substitutedByPharmacist']);
+    final scheduleRaw = map(json['doseSchedule']) ?? map(json['dose_schedule']);
     final requestsRaw = json['medicationRequests'];
     final requests = requestsRaw is List
         ? requestsRaw
@@ -163,6 +167,9 @@ class MedicationOrderModel {
       substitutedAt: DateTime.tryParse(
         json['substitutedAt']?.toString() ?? '',
       ),
+      doseSchedule: scheduleRaw != null
+          ? MedicationDoseScheduleModel.fromJson(scheduleRaw)
+          : null,
     );
   }
 }

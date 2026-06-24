@@ -6,6 +6,7 @@ import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/lab/ui/lab_record_sample_sheet.dart';
+import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -42,12 +43,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
     final orderAsync = ref.watch(labOrderByIdProvider(widget.orderId));
 
     if (_optimisticOrder != null) {
-      return _buildOrderScaffold(
-        context,
-        theme,
-        staff,
-        _optimisticOrder!,
-      );
+      return _buildOrderScaffold(context, theme, staff, _optimisticOrder!);
     }
 
     return orderAsync.when(
@@ -160,6 +156,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
                   orderStatus: order.status,
                   onCollectSample: () => _showRecordSample(context, item),
                   onEnterResults: () => _openResultEntry(context, item),
+                  onReview: () => _showItemReview(context, item),
                   isHeadOfLab: isHeadOfLab,
                 ),
               ),
@@ -230,10 +227,16 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
 
   void _openResultEntry(BuildContext context, LabOrderItem item) {
     context.router
-        .push(LabResultEntryRoute(orderId: widget.orderId, orderItemId: item.id))
+        .push(
+          LabResultEntryRoute(orderId: widget.orderId, orderItemId: item.id),
+        )
         .then((_) {
-      if (mounted) _refreshOrder();
-    });
+          if (mounted) _refreshOrder();
+        });
+  }
+
+  void _showItemReview(BuildContext context, LabOrderItem item) {
+    showLabOrderItemReviewDialog(context, item: item);
   }
 
   Future<void> _verifyOrder(BuildContext context, LabOrder order) async {
@@ -389,6 +392,7 @@ class _OrderItemCard extends StatelessWidget {
     required this.orderStatus,
     required this.onCollectSample,
     required this.onEnterResults,
+    required this.onReview,
     required this.isHeadOfLab,
   });
 
@@ -396,6 +400,7 @@ class _OrderItemCard extends StatelessWidget {
   final LabOrderStatus orderStatus;
   final VoidCallback onCollectSample;
   final VoidCallback onEnterResults;
+  final VoidCallback onReview;
   final bool isHeadOfLab;
 
   @override
@@ -509,7 +514,11 @@ class _OrderItemCard extends StatelessWidget {
                       final label = field?.label ?? r.fieldId;
                       final unit = field?.unit;
                       final ref = field?.referenceRange;
-                      final eval = r.referenceEvaluation;
+                      final eval = resolveLabReferenceEvaluation(
+                        value: r.value,
+                        referenceRange: ref,
+                        serverEvaluation: r.referenceEvaluation,
+                      );
                       final abnormal = labResultIsAbnormal(eval);
                       final flagLabel = labReferenceFlagShortLabel(eval);
                       final valueColor = labReferenceValueColor(theme, eval);
@@ -547,9 +556,9 @@ class _OrderItemCard extends StatelessWidget {
                                       labReferenceFlagLabel(eval)!,
                                       style: theme.textTheme.labelSmall
                                           ?.copyWith(
-                                        color: theme.colorScheme.error,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                            color: theme.colorScheme.error,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                     ),
                                   ],
                                 ],
@@ -638,7 +647,7 @@ class _OrderItemCard extends StatelessWidget {
                 ),
                 if (hasVisibleReportLines && isHeadOfLab)
                   FilledButton.tonalIcon(
-                    onPressed: () {},
+                    onPressed: onReview,
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -720,12 +729,12 @@ class _AstResultsSection extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           ...results.map((r) {
-            final abxName = r.antibiotic.code != null &&
-                    r.antibiotic.code!.isNotEmpty
+            final abxName =
+                r.antibiotic.code != null && r.antibiotic.code!.isNotEmpty
                 ? '${r.antibiotic.name} (${r.antibiotic.code})'
                 : r.antibiotic.name;
-            final resultLabel = r.resultOption.code != null &&
-                    r.resultOption.code!.isNotEmpty
+            final resultLabel =
+                r.resultOption.code != null && r.resultOption.code!.isNotEmpty
                 ? '${r.resultOption.label} (${r.resultOption.code})'
                 : r.resultOption.label;
             return Padding(

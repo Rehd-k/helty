@@ -6,6 +6,16 @@ import 'patient_model.dart';
 import 'registered_today_response.dart';
 import '../services/api_service.dart';
 
+class PatientDeleteException implements Exception {
+  PatientDeleteException(this.message, {this.statusCode});
+
+  final String message;
+  final int? statusCode;
+
+  @override
+  String toString() => message;
+}
+
 class PatientService {
   PatientService() : _dio = ApiService().dio;
   final Dio _dio;
@@ -131,7 +141,34 @@ class PatientService {
   }
 
   Future<void> deletePatient(String id) async {
-    await _dio.delete('/patients/$id');
+    try {
+      await _dio.delete('/patients/$id');
+    } on DioException catch (e) {
+      throw _deletePatientError(e);
+    }
+  }
+
+  PatientDeleteException _deletePatientError(DioException e) {
+    final status = e.response?.statusCode;
+    final data = e.response?.data;
+    var message = 'Failed to delete patient.';
+    if (data is Map && data['message'] != null) {
+      message = data['message'].toString();
+    } else if (data is String && data.trim().isNotEmpty) {
+      message = data.trim();
+    } else if (e.message != null && e.message!.trim().isNotEmpty) {
+      message = e.message!.trim();
+    }
+    if (status == 404) {
+      return PatientDeleteException(
+        'Patient not found.',
+        statusCode: status,
+      );
+    }
+    if (status == 409) {
+      return PatientDeleteException(message, statusCode: status);
+    }
+    return PatientDeleteException(message, statusCode: status);
   }
 
   Future<NoIdPatient> createNoIdPatient(Map<String, dynamic> data) async {

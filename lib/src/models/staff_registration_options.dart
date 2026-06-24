@@ -13,6 +13,7 @@ enum StaffAccountCategory {
   laboratory,
   radiology,
   dialysis,
+  theatre,
   store,
   purchases,
   medicalRecords,
@@ -34,6 +35,7 @@ extension StaffAccountCategoryLabels on StaffAccountCategory {
     StaffAccountCategory.laboratory => 'Laboratory',
     StaffAccountCategory.radiology => 'Radiology',
     StaffAccountCategory.dialysis => 'Dialysis',
+    StaffAccountCategory.theatre => 'Theatre',
     StaffAccountCategory.store => 'Store',
     StaffAccountCategory.purchases => 'Purchases',
     StaffAccountCategory.medicalRecords => 'Medical Records',
@@ -255,6 +257,38 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
       staffRole: 'DIALYSIS_RECEPTIONIST',
     ),
   ],
+  StaffAccountCategory.theatre: [
+    const StaffRoleOption(
+      label: 'Theatre Head',
+      accountType: AccountType.theatre,
+      staffRole: 'THEATRE_HEAD',
+    ),
+    const StaffRoleOption(
+      label: 'Theatre Staff',
+      accountType: AccountType.theatre,
+      staffRole: 'THEATRE',
+    ),
+    const StaffRoleOption(
+      label: 'Theatre Nurse',
+      accountType: AccountType.theatre,
+      staffRole: 'THEATRE_NURSE',
+    ),
+    const StaffRoleOption(
+      label: 'Theatre Scrub',
+      accountType: AccountType.theatre,
+      staffRole: 'THEATRE_SCRUB',
+    ),
+    const StaffRoleOption(
+      label: 'Theatre Anaesthetist',
+      accountType: AccountType.theatre,
+      staffRole: 'THEATRE_ANAESTHETIST',
+    ),
+    const StaffRoleOption(
+      label: 'Theatre Receptionist',
+      accountType: AccountType.theatre,
+      staffRole: 'THEATRE_RECEPTIONIST',
+    ),
+  ],
   StaffAccountCategory.store: [
     const StaffRoleOption(
       label: 'Head of store',
@@ -365,6 +399,7 @@ StaffAccountCategory? accountCategoryForAccountType(AccountType? accountType) {
     AccountType.laboratory => StaffAccountCategory.laboratory,
     AccountType.radiology => StaffAccountCategory.radiology,
     AccountType.dialysis => StaffAccountCategory.dialysis,
+    AccountType.theatre => StaffAccountCategory.theatre,
     AccountType.store => StaffAccountCategory.store,
     AccountType.purchases => StaffAccountCategory.purchases,
     AccountType.medical_records => StaffAccountCategory.medicalRecords,

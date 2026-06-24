@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/helper/quill_content_helper.dart';
 import 'package:helty/src/models/ward_round_note_model.dart';
@@ -480,7 +481,11 @@ class _NoteTile extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final dateTimeStr =
         DateFormatter.dateTime(_noteSortInstant(note));
-    final authorName = note.doctorDisplayName?.trim();
+    final authorName = note.doctorDisplayName
+        ?.trim()
+        .split(RegExp(r'\s+'))
+        .map((part) => part.capitalize())
+        .join(' ');
     final hasAuthor = authorName != null && authorName.isNotEmpty;
 
     final sections = _soapSections
@@ -537,7 +542,7 @@ class _NoteTile extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Dr $authorName',
+                              'Recorded By $authorName',
                               style: theme.textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.onPrimaryContainer,

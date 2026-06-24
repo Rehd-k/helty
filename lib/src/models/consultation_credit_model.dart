@@ -91,6 +91,8 @@ class ConsultationServiceLine {
     this.visitsConsumed = 0,
     this.visitsRemaining = 0,
     this.expiresAt,
+    this.settled = false,
+    this.consumable = false,
   });
 
   final String name;
@@ -98,6 +100,8 @@ class ConsultationServiceLine {
   final int visitsConsumed;
   final int visitsRemaining;
   final DateTime? expiresAt;
+  final bool settled;
+  final bool consumable;
 
   bool get isExpired {
     final exp = expiresAt;
@@ -106,7 +110,10 @@ class ConsultationServiceLine {
   }
 
   bool get hasCreditMetadata =>
-      visitsRemaining > 0 || visitsConsumed > 0 || expiresAt != null;
+      visitsRemaining > 0 ||
+      visitsConsumed > 0 ||
+      expiresAt != null ||
+      settled;
 
   factory ConsultationServiceLine.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v ?? '').toString();
@@ -128,12 +135,33 @@ class ConsultationServiceLine {
 
     final name = str(json['name'] ?? json['serviceName']).trim();
     final itemId = str(json['invoiceItemId']);
+    final consumed = parseInt(
+      json['consultationVisitsConsumed'] ?? json['visitsConsumed'],
+    );
+    final expiresAt = parseDate(
+      json['consultationCreditExpiresAt'] ?? json['expiresAt'],
+    );
+    final settled = json['settled'] == true;
+    final hasRemainingKey =
+        json.containsKey('visitsRemaining') &&
+        json['visitsRemaining'] != null;
+    final visitsRemaining = hasRemainingKey
+        ? parseInt(json['visitsRemaining'])
+        : (2 - consumed).clamp(0, 2);
+    final expiredFlag = json['expired'] == true;
+    final expired = expiredFlag ||
+        (expiresAt != null && !expiresAt.isAfter(DateTime.now()));
+    final consumable = json['consumable'] == true ||
+        (!settled && visitsRemaining > 0 && !expired);
+
     return ConsultationServiceLine(
       name: name.isEmpty ? 'Consultation' : name,
       invoiceItemId: itemId.isEmpty ? null : itemId,
-      visitsConsumed: parseInt(json['visitsConsumed']),
-      visitsRemaining: parseInt(json['visitsRemaining']),
-      expiresAt: parseDate(json['expiresAt']),
+      visitsConsumed: consumed,
+      visitsRemaining: visitsRemaining,
+      expiresAt: expiresAt,
+      settled: settled,
+      consumable: consumable && !settled,
     );
   }
 }

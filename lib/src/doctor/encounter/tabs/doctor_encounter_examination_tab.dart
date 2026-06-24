@@ -178,9 +178,7 @@ class _DoctorEncounterExaminationTabState
       setState(() => _loading = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      showEncounterEditErrorSnackBar(context, e);
       setState(() => _loading = false);
     }
   }
@@ -195,6 +193,8 @@ class _DoctorEncounterExaminationTabState
         child: Center(child: Text('Encounter context not available')),
       );
     }
+
+    final readOnly = !scope.canEdit;
 
     if (_loading && !_loaded) {
       return const Center(child: CircularProgressIndicator());
@@ -236,6 +236,7 @@ class _DoctorEncounterExaminationTabState
               answers: _answers[section.id] ?? {},
               savedNote: _savedNotes[section.id],
               directEditController: _directEditControllers[section.id],
+              readOnly: readOnly,
               onAnswersChanged: (next) {
                 _answers[section.id] = next;
                 _useDirectEditOnSave[section.id] = false;
@@ -260,6 +261,7 @@ class _DoctorEncounterExaminationTabState
                 TextFormField(
                   controller: _additionalNotesCtrl,
                   maxLines: 4,
+                  readOnly: readOnly,
                   decoration: InputDecoration(
                     hintText: 'Extra examination findings not covered above',
                     border: OutlineInputBorder(
@@ -271,20 +273,21 @@ class _DoctorEncounterExaminationTabState
               ],
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              onPressed: _loading ? null : _saveDraft,
-              icon: _loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined, size: 18),
-              label: const Text('Save draft'),
+          if (!readOnly)
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _loading ? null : _saveDraft,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined, size: 18),
+                label: const Text('Save draft'),
+              ),
             ),
-          ),
         ],
       ),
     );

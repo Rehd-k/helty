@@ -3,7 +3,9 @@ import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/doctor/completed/edit_history/encounter_edit_history_sheet.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_forms_panel.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_gate.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
@@ -19,12 +21,21 @@ import 'package:helty/src/emergency/widgets/esi_badge.dart';
 import 'package:helty/src/doctor/templates/widgets/encounter_template_picker_sheet.dart';
 import 'package:helty/src/doctor/templates/widgets/save_encounter_template_dialog.dart';
 import 'package:helty/src/pharmacy/utils/medication_workflow_patient_type.dart';
+import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/staff_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
 
 const double _contentMaxWidth = 1440;
+
+/// Resolves write access from encounter [editMeta] (defaults for ongoing charts).
+bool encounterCanEdit(EncounterModel? enc) {
+  if (enc == null) return false;
+  final meta = enc.editMeta;
+  if (meta != null) return meta.canEdit;
+  return !enc.isCompleted;
+}
 
 /// Provides encounterId, patientId, optional doctorId, and optional pre-loaded vitals to tab content.
 class EncounterScope extends InheritedWidget {
@@ -33,9 +44,15 @@ class EncounterScope extends InheritedWidget {
     required this.encounterId,
     required this.patientId,
     this.doctorId,
+    this.treatingDoctorId,
+    this.actingStaffId,
     this.patientVitals,
     this.amendMode = false,
     this.editReason,
+    this.canEdit = true,
+    this.requiresVersionedEdits = false,
+    this.isSharedInpatientEncounter = false,
+    this.canEditAsCoveringPhysician = false,
     this.isEmergency = false,
     this.emergencyVisitId,
     this.edEsiLevel,
@@ -49,7 +66,15 @@ class EncounterScope extends InheritedWidget {
 
   final String encounterId;
   final String patientId;
+
+  /// Acting physician id for orders and clinical writes (when [canEdit]).
   final String? doctorId;
+
+  /// Original admitting / treating doctor on the encounter.
+  final String? treatingDoctorId;
+
+  /// Logged-in staff performing edits (same as [doctorId] when editing).
+  final String? actingStaffId;
   final PatientVitalsModel? patientVitals;
   final String? encounterType;
 
@@ -71,6 +96,21 @@ class EncounterScope extends InheritedWidget {
   /// Stored on each history row when amending a completed encounter.
   final String? editReason;
 
+  /// Current user may perform clinical writes on this chart.
+  final bool canEdit;
+
+  /// Encounter is COMPLETED — saves should include optional editReason.
+  final bool requiresVersionedEdits;
+
+  /// Linked to an ACTIVE admission (shared inpatient chart).
+  final bool isSharedInpatientEncounter;
+
+  /// User is editing as covering physician (not the admitting doctor).
+  final bool canEditAsCoveringPhysician;
+
+  /// True when [amendMode] or [requiresVersionedEdits] (versioned PATCH/diagnosis).
+  bool get versionedEdits => amendMode || requiresVersionedEdits;
+
   /// True when encounterType is EMERGENCY.
   final bool isEmergency;
 
@@ -88,9 +128,15 @@ class EncounterScope extends InheritedWidget {
       encounterId != old.encounterId ||
       patientId != old.patientId ||
       doctorId != old.doctorId ||
+      treatingDoctorId != old.treatingDoctorId ||
+      actingStaffId != old.actingStaffId ||
       patientVitals != old.patientVitals ||
       amendMode != old.amendMode ||
       editReason != old.editReason ||
+      canEdit != old.canEdit ||
+      requiresVersionedEdits != old.requiresVersionedEdits ||
+      isSharedInpatientEncounter != old.isSharedInpatientEncounter ||
+      canEditAsCoveringPhysician != old.canEditAsCoveringPhysician ||
       isEmergency != old.isEmergency ||
       emergencyVisitId != old.emergencyVisitId ||
       edEsiLevel != old.edEsiLevel ||
@@ -102,7 +148,7 @@ class EncounterScope extends InheritedWidget {
 }
 
 @RoutePage()
-class DoctorEncounterViewScreen extends StatefulWidget {
+class DoctorEncounterViewScreen extends ConsumerStatefulWidget {
   final String encounterId;
   final String patientId;
   final String? patientVitalsJson;
@@ -123,11 +169,12 @@ class DoctorEncounterViewScreen extends StatefulWidget {
   });
 
   @override
-  State<DoctorEncounterViewScreen> createState() =>
+  ConsumerState<DoctorEncounterViewScreen> createState() =>
       _DoctorEncounterViewScreenState();
 }
 
-class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
+class _DoctorEncounterViewScreenState
+    extends ConsumerState<DoctorEncounterViewScreen> {
   final _patientService = PatientService();
   final _encounterService = EncounterService();
   final _admissionService = AdmissionService();
@@ -138,6 +185,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   Patient? _patient;
   EncounterModel? _encounter;
   String? _resolvedDoctorName;
+  String? _resolvedUpdatedByName;
   bool _loadingPatient = false;
   String? _patientError;
   PatientVitalsModel? _patientVitals;
@@ -191,7 +239,10 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
       unawaited(_loadVitalsByEncounter());
     }
     _loadPatient();
-    _loadEncounter().then((_) => _maybeSetupEmergency());
+    _loadEncounter().then((_) {
+      _maybeSetupEmergency();
+      _maybePromptVersionedEditReason();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (widget.amendMode && !_amendReasonPrompted) {
@@ -200,6 +251,11 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         return;
       }
       if (_isEmergency || _specialtyGateDismissed || _specialtyGateOverlayScheduled) {
+        return;
+      }
+      final enc = _encounter;
+      if (enc != null && enc.isSharedInpatient) {
+        setState(() => _specialtyGateDismissed = true);
         return;
       }
       _specialtyGateOverlayScheduled = true;
@@ -212,6 +268,17 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         },
       );
     });
+  }
+
+  void _maybePromptVersionedEditReason() {
+    if (!mounted || _amendReasonPrompted || widget.amendMode) return;
+    final enc = _encounter;
+    if (enc == null) return;
+    final meta = enc.editMeta;
+    if (meta == null) return;
+    if (!meta.requiresVersionedEdits || !meta.canEdit) return;
+    _amendReasonPrompted = true;
+    unawaited(_promptAmendReason());
   }
 
   Future<void> _maybeSetupEmergency() async {
@@ -265,9 +332,13 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         _emergencyVisitId = visitId ?? widget.encounterId;
         _edEsiLevel = esi;
         if (isEm) _specialtyGateDismissed = true;
+        if (enc?.isSharedInpatient == true || widget.amendMode) {
+          _specialtyGateDismissed = true;
+        }
       });
       if (enc != null) {
         unawaited(_resolveDoctorName(enc));
+        unawaited(_resolveUpdatedByName(enc));
         if (_patient != null) {
           unawaited(_resolveMedicationPatientContext());
         }
@@ -275,6 +346,23 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
     } catch (_) {
       if (mounted) setState(() => _encounter = null);
     }
+  }
+
+  Future<void> _resolveUpdatedByName(EncounterModel enc) async {
+    final updatedBy = enc.updatedBy;
+    if (updatedBy == null) {
+      if (!mounted) return;
+      setState(() => _resolvedUpdatedByName = null);
+      return;
+    }
+    final display = updatedBy.displayName.trim();
+    if (display.isNotEmpty && display != updatedBy.id) {
+      if (!mounted) return;
+      setState(() => _resolvedUpdatedByName = 'Dr $display');
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _resolvedUpdatedByName = null);
   }
 
   Future<void> _resolveDoctorName(EncounterModel enc) async {
@@ -368,6 +456,17 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final enc = _encounter;
+    final meta = enc?.editMeta;
+    final canEdit = encounterCanEdit(enc);
+    final requiresVersionedEdits = meta?.requiresVersionedEdits == true;
+    final isSharedInpatient = enc?.isSharedInpatient == true;
+    final canEditAsCovering = meta?.canEditAsCoveringPhysician == true;
+    final staff = ref.watch(authProvider).staff;
+    final actingStaffId = canEdit ? staff?.id.trim() : null;
+    final scopeDoctorId = (actingStaffId != null && actingStaffId.isNotEmpty)
+        ? actingStaffId
+        : enc?.doctorId;
 
     return AutoTabsRouter(
       routes: const [
@@ -376,6 +475,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         DoctorEncounterDiagnosisTab(),
         DoctorEncounterInvestigationsTab(),
         DoctorEncounterImagingTab(),
+        DoctorEncounterSurgeryTab(),
         DoctorEncounterPrescriptionTab(),
         DoctorEncounterProceduresTab(),
         DoctorEncounterNotesTab(),
@@ -388,14 +488,20 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
         return EncounterScope(
           encounterId: widget.encounterId,
           patientId: widget.patientId,
-          doctorId: _encounter?.doctorId,
+          doctorId: scopeDoctorId,
+          treatingDoctorId: enc?.doctorId,
+          actingStaffId: actingStaffId,
           patientVitals: _patientVitals,
           amendMode: widget.amendMode,
           editReason: _editReason,
+          canEdit: canEdit,
+          requiresVersionedEdits: requiresVersionedEdits,
+          isSharedInpatientEncounter: isSharedInpatient,
+          canEditAsCoveringPhysician: canEditAsCovering,
           isEmergency: _isEmergency,
           emergencyVisitId: _emergencyVisitId,
           edEsiLevel: _edEsiLevel,
-          encounterType: _encounter?.encounterType,
+          encounterType: enc?.encounterType,
           reloadGeneration: _reloadGeneration,
           isOutpatient: _isOutpatient,
           activeAdmissionId: _activeAdmissionId,
@@ -425,6 +531,10 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _buildHeaderRow(context),
+                            if (_buildEditMetaBanner(context) != null) ...[
+                              const SizedBox(height: 12),
+                              _buildEditMetaBanner(context)!,
+                            ],
                             const SizedBox(height: 16),
                             _buildPatientHeader(context),
                             const SizedBox(height: 20),
@@ -487,7 +597,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
 
     if (result.navigateToAdmissionTab) {
       final tabsRouter = AutoTabsRouter.of(context);
-      tabsRouter.setActiveIndex(8);
+      tabsRouter.setActiveIndex(9);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Complete admission details on the Admission tab.'),
@@ -527,12 +637,61 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
     }
   }
 
+  Widget? _buildEditMetaBanner(BuildContext context) {
+    final enc = _encounter;
+    if (enc == null) return null;
+    final meta = enc.editMeta;
+    final canEdit = encounterCanEdit(enc);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    String? message;
+    Color? bgColor;
+    IconData icon = Icons.info_outline;
+
+    if (meta?.canEditAsCoveringPhysician == true) {
+      message = 'You are editing as covering physician.';
+      bgColor = scheme.primaryContainer.withValues(alpha: 0.5);
+      icon = Icons.medical_information_outlined;
+    } else if (!canEdit) {
+      message = 'Read-only chart — you cannot edit this encounter.';
+      bgColor = scheme.surfaceContainerHighest.withValues(alpha: 0.6);
+      icon = Icons.lock_outline;
+    }
+
+    if (message == null) return null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: scheme.onSurface),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(message, style: theme.textTheme.bodySmall),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeaderRow(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final isCompleted = _encounter?.isCompleted == true;
+    final enc = _encounter;
+    final isCompleted = enc?.isCompleted == true;
     final isAmend = widget.amendMode;
     final isEm = _isEmergency;
+    final isSharedInpatient = enc?.isSharedInpatient == true;
+    final canEdit = encounterCanEdit(enc);
+    final meta = enc?.editMeta;
+    final versionedEdits =
+        isAmend || meta?.requiresVersionedEdits == true;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -543,6 +702,8 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
             Text(
               isAmend
                   ? 'Amend encounter'
+                  : isSharedInpatient
+                  ? 'Inpatient chart'
                   : isEm
                   ? 'Emergency encounter'
                   : 'Encounter',
@@ -557,6 +718,8 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                 Text(
                   isAmend
                       ? 'Changes are saved to edit history'
+                      : isSharedInpatient
+                      ? 'Shared inpatient clinical chart'
                       : isEm
                       ? 'Emergency department clinical workspace'
                       : 'OPD encounter view',
@@ -589,7 +752,21 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                 label: const Text('Previous encounters'),
               ),
             ),
-            if (!isCompleted)
+            if (enc != null &&
+                (meta?.hasEdits == true || versionedEdits))
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: OutlinedButton.icon(
+                  onPressed: () => EncounterEditHistorySheet.show(
+                    context,
+                    encounterId: widget.encounterId,
+                    encounter: enc,
+                  ),
+                  icon: const Icon(Icons.fact_check_outlined, size: 18),
+                  label: const Text('Edit history'),
+                ),
+              ),
+            if (!isCompleted && canEdit)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: OutlinedButton.icon(
@@ -598,7 +775,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                   label: const Text('Load template'),
                 ),
               ),
-            if (!isCompleted)
+            if (!isCompleted && canEdit)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: OutlinedButton.icon(
@@ -607,7 +784,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                   label: const Text('Save as template'),
                 ),
               ),
-            if (isAmend)
+            if (versionedEdits && canEdit)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: OutlinedButton.icon(
@@ -620,7 +797,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                   ),
                 ),
               ),
-            if (_specialtyGateDismissed && !isCompleted && !isAmend)
+            if (_specialtyGateDismissed && !isCompleted && canEdit && !isAmend)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: FilledButton.tonalIcon(
@@ -630,13 +807,15 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                       encounterId: widget.encounterId,
                       patientId: widget.patientId,
                       editReason: _editReason,
+                      readOnly: !canEdit,
                     );
                   },
                   icon: const Icon(Icons.grid_view_rounded, size: 20),
                   label: const Text('Specialty forms'),
                 ),
               ),
-            if (isAmend)
+            if ((isAmend || (isSharedInpatient && canEdit)) &&
+                _specialtyGateDismissed)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: FilledButton.tonalIcon(
@@ -646,13 +825,14 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                       encounterId: widget.encounterId,
                       patientId: widget.patientId,
                       editReason: _editReason,
+                      readOnly: !canEdit,
                     );
                   },
                   icon: const Icon(Icons.grid_view_rounded, size: 20),
                   label: const Text('Specialty forms'),
                 ),
               ),
-            if (isCompleted || isAmend)
+            if (isCompleted || isAmend || (isSharedInpatient && isCompleted))
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -681,7 +861,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                   ],
                 ),
               )
-            else if (_specialtyGateDismissed && !isAmend)
+            else if (_specialtyGateDismissed && !isAmend && canEdit)
               FilledButton.icon(
                 onPressed: _completing
                     ? null
@@ -726,7 +906,11 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isEm ? 'Doctor module • ED' : 'Doctor module • OPD',
+                    isEm
+                        ? 'Doctor module • ED'
+                        : isSharedInpatient
+                        ? 'Doctor module • Inpatient'
+                        : 'Doctor module • OPD',
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: scheme.primary,
                       fontWeight: FontWeight.w600,
@@ -815,6 +999,8 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
     const pastAdmissionsCount = 0;
     final insurance = patient?.hmo;
 
+    final isSharedInpatient = _encounter?.isSharedInpatient == true;
+
     return DoctorEncounterPatientHeader(
       patientName: name.trim(),
       ageGender: ageGender,
@@ -824,6 +1010,8 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
       pastAdmissionsCount: pastAdmissionsCount,
       insurance: insurance,
       doctorName: _resolvedDoctorName,
+      doctorLabel: isSharedInpatient ? 'Admitting doctor' : 'Doctor',
+      lastUpdatedByName: _resolvedUpdatedByName,
     );
   }
 
@@ -837,6 +1025,7 @@ class _DoctorEncounterViewScreenState extends State<DoctorEncounterViewScreen> {
       'Diagnosis',
       'Investigations',
       'Imaging',
+      'Surgery',
       'Prescription',
       'Procedures',
       'Notes',

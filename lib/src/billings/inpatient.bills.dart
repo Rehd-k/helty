@@ -17,9 +17,12 @@ import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
+import 'package:helty/src/admissions/admission_discharge_helpers.dart';
 import 'package:helty/src/admissions/discharge_admission_dialog.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
+import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
+import 'package:helty/src/wallet/wallet_providers.dart';
 import 'package:printing/printing.dart';
 
 /// Backend expects catalog UUID on `serviceId` (not human-readable codes).
@@ -626,7 +629,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         invoiceMaxPayable: (detail.effectivePayable - detail.amountPaid) > 0
             ? (detail.effectivePayable - detail.amountPaid)
             : 0,
-        onPaymentComplete: _loadBillingData,
+        onPaymentComplete: () {
+          invalidatePatientWalletHistory(ref, detail.patientId);
+          _loadBillingData();
+        },
         preserveInvoiceOnDismiss: true,
       ),
     );
@@ -1502,7 +1508,27 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               FilledButton.tonalIcon(
                 onPressed: patientUuid.isEmpty
                     ? null
-                    : () => _showWalletDepositDialog(context, patientUuid),
+                    : () => context.router.push(
+                        PatientWalletHistoryRoute(
+                          patientUuid: patientUuid,
+                          patientName: effectivePatientName,
+                          chartNumber: patientDisplayId,
+                        ),
+                      ),
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('View history'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: patientUuid.isEmpty
+                    ? null
+                    : () => WalletDepositDialog.show(
+                        context,
+                        ref: ref,
+                        patientUuid: patientUuid,
+                        patientName: effectivePatientName,
+                        chartNumber: patientDisplayId,
+                        onSuccess: _loadBillingData,
+                      ),
                 icon: const Icon(
                   Icons.account_balance_wallet_outlined,
                   size: 18,
@@ -2386,58 +2412,6 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     );
   }
 
-  Future<void> _showWalletDepositDialog(
-    BuildContext context,
-    String patientId,
-  ) async {
-    final amountCtrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Deposit wallet'),
-        content: TextField(
-          controller: amountCtrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Amount'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Deposit'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    final amount = double.tryParse(amountCtrl.text) ?? 0;
-    if (amount <= 0) return;
-    try {
-      await _invoiceService.depositToWallet(
-        patientId: patientId,
-        payload: WalletDepositPayload(
-          amount: amount,
-          reference: 'deposit',
-          staffId: ref.read(authProvider).staff?.id,
-        ),
-      );
-      if (!mounted) return;
-      await _loadBillingData();
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        this.context,
-      ).showSnackBar(const SnackBar(content: Text('Wallet funded')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        this.context,
-      ).showSnackBar(SnackBar(content: Text('Deposit failed: $e')));
-    }
-  }
-
   Future<void> _showRecurringControlDialog(
     BuildContext context,
     BillingInvoiceDetail invoice,
@@ -2546,39 +2520,30 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   ) async {
     final payload = await showDischargeAdmissionDialog(context);
     if (payload == null || !mounted) return;
-    final admissionId = _billingDetail?.encounterId;
-    if (admissionId == null || admissionId.isEmpty) {
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Admission ID unavailable here. Open from inpatient view.',
-          ),
-        ),
-      );
-      return;
-    }
     try {
-      await _admissionService.dischargeAdmission(
-        admissionId,
-        outcome: payload.outcome,
-        dischargeSummary: payload.dischargeSummary,
-        otherImportantNotes: payload.otherImportantNotes,
+      final admissionId = await resolveActiveAdmissionId(
+        _admissionService,
+        patientId,
+      );
+      if (admissionId == null || admissionId.isEmpty) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No active admission found for this patient.',
+            ),
+          ),
+        );
+        return;
+      }
+      final updated = await performClinicalDischarge(
+        service: _admissionService,
+        admissionId: admissionId,
+        payload: payload,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(this.context).showSnackBar(
-        const SnackBar(content: Text('Patient discharged successfully')),
+        SnackBar(content: Text(dischargeSuccessMessage(updated))),
       );
-    } on AdmissionDischargeBlockedException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        this.context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
-      final invId = _billingDetail?.id ?? widget.invoiceId;
-      if (invId.isNotEmpty) {
-        this.context.router.push(
-          PatientBillingRoute(invoiceId: invId, patientName: patientName),
-        );
-      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

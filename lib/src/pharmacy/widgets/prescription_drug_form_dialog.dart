@@ -1,151 +1,13 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/medications/rx_schedule_utils.dart';
 import 'package:helty/src/models/medication_order_model.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_queue_models.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 
-// --- Prescribing helpers: frequency → doses/day, duration → days, quantity = ceil(doses × days) ---
-
-class RxFrequency {
-  const RxFrequency(this.label, this.dosesPerDay);
-  final String label;
-  final double dosesPerDay;
-}
-
-const List<RxFrequency> kRxFrequencies = <RxFrequency>[
-  RxFrequency('Once daily (OD)', 1),
-  RxFrequency('Twice daily (BD / BID)', 2),
-  RxFrequency('Three times daily (TDS / TID)', 3),
-  RxFrequency('Four times daily (QID)', 4),
-  RxFrequency('Five times daily', 5),
-  RxFrequency('Every 12 hours (Q12H)', 2),
-  RxFrequency('Every 8 hours (Q8H)', 3),
-  RxFrequency('Every 6 hours (Q6H)', 4),
-  RxFrequency('Every 4 hours (Q4H)', 6),
-  RxFrequency('At bedtime (HS)', 1),
-  RxFrequency('Morning only (OM)', 1),
-  RxFrequency('Once weekly', 1 / 7),
-  RxFrequency('Twice weekly', 2 / 7),
-  RxFrequency('Three times weekly', 3 / 7),
-  RxFrequency('As needed (PRN) — estimate 1/day', 1),
-];
-
-enum RxDurationUnit {
-  days('Days'),
-  weeks('Weeks'),
-  months('Months'),
-  years('Years'),
-  hours('Hours');
-
-  const RxDurationUnit(this.label);
-  final String label;
-}
-
-double rxDurationToDays(int value, RxDurationUnit unit) {
-  switch (unit) {
-    case RxDurationUnit.days:
-      return value.toDouble();
-    case RxDurationUnit.weeks:
-      return value * 7.0;
-    case RxDurationUnit.months:
-      return value * 30.0;
-    case RxDurationUnit.years:
-      return value * 365.0;
-    case RxDurationUnit.hours:
-      return value / 24.0;
-  }
-}
-
-String formatRxDurationPhrase(int value, RxDurationUnit unit) {
-  if (value <= 0) return '';
-  String noun(RxDurationUnit u) {
-    switch (u) {
-      case RxDurationUnit.days:
-        return value == 1 ? 'day' : 'days';
-      case RxDurationUnit.weeks:
-        return value == 1 ? 'week' : 'weeks';
-      case RxDurationUnit.months:
-        return value == 1 ? 'month' : 'months';
-      case RxDurationUnit.years:
-        return value == 1 ? 'year' : 'years';
-      case RxDurationUnit.hours:
-        return value == 1 ? 'hour' : 'hours';
-    }
-  }
-
-  return '$value ${noun(unit)}';
-}
-
-/// Total units (e.g. tablets) for the course: doses per day × duration in days, rounded up.
-int computedPrescriptionQuantity({
-  required RxFrequency frequency,
-  required int durationValue,
-  required RxDurationUnit durationUnit,
-}) {
-  if (durationValue <= 0) return 0;
-  final days = rxDurationToDays(durationValue, durationUnit);
-  if (days <= 0) return 0;
-  final raw = frequency.dosesPerDay * days;
-  if (raw <= 0) return 1;
-  return math.max(1, raw.ceil());
-}
-
-({int value, RxDurationUnit unit})? parseRxDurationPhrase(String raw) {
-  final s = raw.trim();
-  if (s.isEmpty || s == '—') return null;
-  final m = RegExp(
-    r'^(\d+)\s*(day|days|week|weeks|month|months|year|years|hour|hours)$',
-    caseSensitive: false,
-  ).firstMatch(s);
-  if (m == null) return null;
-  final value = int.tryParse(m.group(1)!);
-  if (value == null || value <= 0) return null;
-  final unitWord = m.group(2)!.toLowerCase();
-  final unit = switch (unitWord) {
-    'day' || 'days' => RxDurationUnit.days,
-    'week' || 'weeks' => RxDurationUnit.weeks,
-    'month' || 'months' => RxDurationUnit.months,
-    'year' || 'years' => RxDurationUnit.years,
-    'hour' || 'hours' => RxDurationUnit.hours,
-    _ => null,
-  };
-  if (unit == null) return null;
-  return (value: value, unit: unit);
-}
-
-RxFrequency matchRxFrequency(String raw) {
-  final t = raw.trim();
-  if (t.isEmpty || t == '—') return kRxFrequencies[1];
-  for (final f in kRxFrequencies) {
-    if (f.label == t) return f;
-  }
-  final lower = t.toLowerCase();
-  for (final f in kRxFrequencies) {
-    if (f.label.toLowerCase() == lower) return f;
-  }
-  if (lower.contains('qid') || lower.contains('four times')) {
-    return kRxFrequencies[3];
-  }
-  if (lower.contains('tds') ||
-      lower.contains('tid') ||
-      lower.contains('three times')) {
-    return kRxFrequencies[2];
-  }
-  if (lower.contains('bd') ||
-      lower.contains('bid') ||
-      lower.contains('twice')) {
-    return kRxFrequencies[1];
-  }
-  if (lower.contains('od') || lower.contains('once daily')) {
-    return kRxFrequencies[0];
-  }
-  if (lower.contains('prn')) return kRxFrequencies.last;
-  return kRxFrequencies[1];
-}
+export 'package:helty/src/medications/rx_schedule_utils.dart';
 
 class PrescriptionDrugFormInitialValues {
   PrescriptionDrugFormInitialValues({
@@ -224,7 +86,6 @@ Future<PrescriptionDrugFormResult?> showPrescriptionDrugFormDialog(
   PrescriptionDrugFormMode mode = PrescriptionDrugFormMode.add,
   PrescriptionDrugFormInitialValues? initial,
   String? replacingLineName,
-  bool showRequestedQuantity = false,
 }) {
   return showDialog<PrescriptionDrugFormResult?>(
     context: context,
@@ -233,7 +94,6 @@ Future<PrescriptionDrugFormResult?> showPrescriptionDrugFormDialog(
       mode: mode,
       initial: initial ?? PrescriptionDrugFormInitialValues(),
       replacingLineName: replacingLineName,
-      showRequestedQuantity: showRequestedQuantity,
     ),
   );
 }
@@ -244,14 +104,12 @@ class _PrescriptionDrugFormDialog extends StatefulWidget {
     required this.mode,
     required this.initial,
     this.replacingLineName,
-    this.showRequestedQuantity = false,
   });
 
   final PharmacyApiService pharmacyApi;
   final PrescriptionDrugFormMode mode;
   final PrescriptionDrugFormInitialValues initial;
   final String? replacingLineName;
-  final bool showRequestedQuantity;
 
   @override
   State<_PrescriptionDrugFormDialog> createState() =>
@@ -267,7 +125,6 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
   late final TextEditingController _routeCtrl;
   late final TextEditingController _instructionsCtrl;
   late final TextEditingController _notesCtrl;
-  late final TextEditingController _requestedQtyCtrl;
 
   List<Drug> _results = [];
   Drug? _selected;
@@ -276,8 +133,6 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
   String? _stockError;
   bool _searchLoading = false;
   Timer? _searchDebounce;
-  DateTime? _startDateTime;
-  DateTime? _endDateTime;
   late MedicationAdministrationStatus _adminStatus;
   late RxFrequency _selectedFreq;
   late RxDurationUnit _durationUnit;
@@ -294,7 +149,6 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
     _routeCtrl = TextEditingController(text: init.route);
     _instructionsCtrl = TextEditingController(text: init.specialInstructions);
     _notesCtrl = TextEditingController(text: init.notes);
-    _requestedQtyCtrl = TextEditingController();
     _adminStatus = init.administrationStatus;
     _selectedFreq = init.frequency;
     _durationUnit = init.durationUnit;
@@ -309,7 +163,6 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
     _routeCtrl.dispose();
     _instructionsCtrl.dispose();
     _notesCtrl.dispose();
-    _requestedQtyCtrl.dispose();
     super.dispose();
   }
 
@@ -329,21 +182,10 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
     );
   }
 
-  int? _parsedRequestedQuantity() {
-    if (!widget.showRequestedQuantity || _isSubstitute) return null;
-    final v = int.tryParse(_requestedQtyCtrl.text.trim());
-    if (v == null || v <= 0) return null;
-    return v;
-  }
-
   @override
   Widget build(BuildContext context) {
     final qtyForDisplay = _computedQty();
     final durForDisplay = _parsedDuration();
-    final invalidDateRange =
-        _startDateTime != null &&
-        _endDateTime != null &&
-        _endDateTime!.isBefore(_startDateTime!);
     final qDisp = qtyForDisplay;
     final rStock = _remainingStock;
     final lowStock = qDisp != null && rStock != null && qDisp > rStock;
@@ -664,11 +506,8 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
                                 ? 'Enter a positive whole number for duration.'
                                 : qtyForDisplay == null
                                 ? 'Unable to compute quantity.'
-                                : widget.showRequestedQuantity
-                                ? 'Estimated course total: $qtyForDisplay units\n'
-                                      '(clinical reference — enter billing quantity below)'
-                                : 'Estimated course total: $qtyForDisplay units\n'
-                                      '(dose/day × duration — clinical reference only; billing qty requested by nurse)',
+                                : 'Quantity: $qtyForDisplay units\n'
+                                      '(dose/day × duration)',
                             style: theme.textTheme.bodySmall,
                           ),
                         ),
@@ -705,8 +544,7 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Estimated course ($qtyForDisplay units) exceeds available stock\n'
-                                  'Pharmacy may adjust when nurse requests billing quantity.',
+                                  'Prescribed quantity ($qtyForDisplay units) exceeds available stock.',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onErrorContainer,
                                     height: 1.35,
@@ -717,18 +555,6 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ],
-                if (widget.showRequestedQuantity && !_isSubstitute) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _requestedQtyCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Billing / dispense quantity *',
-                      hintText: 'Units to bill and dispense',
-                      border: OutlineInputBorder(),
                     ),
                   ),
                 ],
@@ -780,73 +606,6 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
                       border: OutlineInputBorder(),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final picked = await _showDateTimePicker(
-                              context: context,
-                              initialDate: _startDateTime ?? DateTime.now(),
-                              firstDate: DateTime.now().subtract(
-                                const Duration(days: 3650),
-                              ),
-                              lastDate: DateTime.now().add(
-                                const Duration(days: 3650),
-                              ),
-                            );
-                            if (picked == null) return;
-                            setState(() => _startDateTime = picked);
-                          },
-                          icon: const Icon(Icons.play_arrow_outlined),
-                          label: Text(
-                            _startDateTime == null
-                                ? 'Start'
-                                : DateFormatter.dateTime(_startDateTime!),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final picked = await _showDateTimePicker(
-                              context: context,
-                              initialDate:
-                                  _endDateTime ??
-                                  (_startDateTime ?? DateTime.now()),
-                              firstDate: DateTime.now().subtract(
-                                const Duration(days: 3650),
-                              ),
-                              lastDate: DateTime.now().add(
-                                const Duration(days: 3650),
-                              ),
-                            );
-                            if (picked == null) return;
-                            setState(() => _endDateTime = picked);
-                          },
-                          icon: const Icon(Icons.stop_outlined),
-                          label: Text(
-                            _endDateTime == null
-                                ? 'End'
-                                : DateFormatter.dateTime(_endDateTime!),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (invalidDateRange) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'End date/time cannot be before start date/time.',
-                      style: TextStyle(
-                        color: colorScheme.error,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
                 ],
               ],
             ],
@@ -859,14 +618,9 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed:
-              _selected == null ||
+          onPressed: _selected == null ||
                   _selected!.id == null ||
-                  qtyForDisplay == null ||
-                  (!_isSubstitute && invalidDateRange) ||
-                  (widget.showRequestedQuantity &&
-                      !_isSubstitute &&
-                      _parsedRequestedQuantity() == null)
+                  qtyForDisplay == null
               ? null
               : () async {
                   final n = int.tryParse(_durationValueCtrl.text.trim());
@@ -921,9 +675,7 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
                           : instructionsText,
                       notes: notesText.isEmpty ? null : notesText,
                       administrationStatus: _adminStatus,
-                      startDateTime: _startDateTime,
-                      endDateTime: _endDateTime,
-                      requestedQuantity: _parsedRequestedQuantity(),
+                      requestedQuantity: qty,
                     ),
                   );
                 },
@@ -932,32 +684,4 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
       ],
     );
   }
-}
-
-Future<DateTime?> _showDateTimePicker({
-  required BuildContext context,
-  required DateTime initialDate,
-  required DateTime firstDate,
-  required DateTime lastDate,
-}) async {
-  final pickedDate = await showDatePicker(
-    context: context,
-    initialDate: initialDate,
-    firstDate: firstDate,
-    lastDate: lastDate,
-  );
-  if (pickedDate == null) return null;
-  if (!context.mounted) return null;
-  final pickedTime = await showTimePicker(
-    context: context,
-    initialTime: TimeOfDay.fromDateTime(initialDate),
-  );
-  if (pickedTime == null) return null;
-  return DateTime(
-    pickedDate.year,
-    pickedDate.month,
-    pickedDate.day,
-    pickedTime.hour,
-    pickedTime.minute,
-  );
 }

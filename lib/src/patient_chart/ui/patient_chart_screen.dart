@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/staff_model.dart';
 import '../../providers/auth_provider.dart';
 import '../models/archived_encounter_models.dart';
+import '../../widgets/patient_consultation_credits_panel.dart';
 import '../models/patient_chart_models.dart';
 import '../permissions/patient_chart_permissions.dart';
 import '../providers/patient_chart_providers.dart';
@@ -270,6 +271,8 @@ class _PatientChartScreenState extends ConsumerState<PatientChartScreen>
 
   Widget _buildTabBody(PatientChartTabDef tab) {
     final includeKey = _tabCacheKey(tab);
+    final isBillingTab =
+        tab.includeKeys.contains(PatientChartSectionKeys.invoices);
 
     if (tab.includeKeys.length == 1 &&
         tab.includeKeys.first == PatientChartSectionKeys.archivedEncounters) {
@@ -290,23 +293,43 @@ class _PatientChartScreenState extends ConsumerState<PatientChartScreen>
     final items = _sectionData[includeKey] ?? [];
     final loading = _sectionLoading[includeKey] == true && items.isEmpty;
 
+    Widget sectionBody;
     if (loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (items.isEmpty) {
-      return ChartSectionList(
+      sectionBody = const Center(child: CircularProgressIndicator());
+    } else if (items.isEmpty) {
+      sectionBody = ChartSectionList(
         sectionKey: tab.includeKeys.first,
         items: const [],
       );
+    } else {
+      sectionBody = ChartSectionList(
+        sectionKey: tab.includeKeys.first,
+        items: items,
+        hasMore: _sectionHasMore[includeKey] ?? false,
+        loadingMore: _sectionLoading[includeKey] == true,
+        onLoadMore: () => _loadSectionBundle(tab, reset: false),
+      );
     }
 
-    return ChartSectionList(
-      sectionKey: tab.includeKeys.first,
-      items: items,
-      hasMore: _sectionHasMore[includeKey] ?? false,
-      loadingMore: _sectionLoading[includeKey] == true,
-      onLoadMore: () => _loadSectionBundle(tab, reset: false),
+    if (!isBillingTab) return sectionBody;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        PatientConsultationCreditsPanel(
+          patientId: widget.patientUuid,
+          includeExpired: true,
+          showEmptyState: true,
+        ),
+        const SizedBox(height: 16),
+        if (loading)
+          const SizedBox(
+            height: 120,
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else
+          sectionBody,
+      ],
     );
   }
 }

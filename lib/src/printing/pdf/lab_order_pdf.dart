@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/services.dart' show rootBundle;
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:pdf/pdf.dart';
@@ -343,9 +344,13 @@ class _LabPdfPalette {
   }
 }
 
+/// Whether a single result line should appear on a printed report.
+bool _labResultIsPrintable(LabResult r) =>
+    !r.hiddenFromReport && r.value.trim().isNotEmpty;
+
 /// Whether an order item has results visible on a patient report.
 bool labOrderItemHasPrintableResults(LabOrderItem item) =>
-    item.results.any((r) => !r.hiddenFromReport);
+    item.results.any(_labResultIsPrintable);
 
 List<LabAstResult> _sortedAstResultsForPdf(LabOrderItem item) {
   final list = List<LabAstResult>.from(item.astResults)
@@ -437,6 +442,31 @@ Future<pw.ImageProvider> _loadLabPdfLogo() async {
   return pw.MemoryImage(logoImageBytes.buffer.asUint8List());
 }
 
+List<pw.Widget> _labPdfPatientRows(
+  _LabPdfPalette palette,
+  LabOrderPatient? patient, {
+  required String reportDate,
+  String? orderDate,
+}) {
+  return [
+    palette.kv(
+      'Full name',
+      patient?.capitalizedDisplayName.isNotEmpty == true
+          ? patient!.capitalizedDisplayName
+          : 'N/A',
+      emphasize: true,
+    ),
+    if (patient?.patientId?.trim().isNotEmpty == true)
+      palette.kv('Patient ID', patient!.patientId!.trim()),
+    if (patient?.gender?.trim().isNotEmpty == true)
+      palette.kv('Gender', patient!.gender!.trim()),
+    if (patient?.dob != null)
+      palette.kv('Age', DateFormatter.patientAgeFromDob(patient!.dob!)),
+    if (orderDate != null) palette.kv('Order date', orderDate),
+    palette.kv('Report date', reportDate),
+  ];
+}
+
 /// Builds PDF sections for one or more order items.
 List<pw.Widget> _buildLabOrderItemPdfSections(
   _LabPdfPalette palette, {
@@ -453,7 +483,7 @@ List<pw.Widget> _buildLabOrderItemPdfSections(
     final fields = item.fields ?? item.testVersion?.fields ?? [];
     final fieldMap = {for (final f in fields) f.id: f};
     final reportResults =
-        item.results.where((r) => !r.hiddenFromReport).toList();
+        item.results.where(_labResultIsPrintable).toList();
 
     return [
       pw.Container(
@@ -633,7 +663,9 @@ List<pw.Widget> _buildLabOrderItemPdfSections(
                             child: pw.Text(
                               item.results.isEmpty
                                   ? 'No results have been entered for this test yet.'
-                                  : 'All result lines are hidden from the patient report.',
+                                  : item.results.every((r) => r.hiddenFromReport)
+                                      ? 'All result lines are hidden from the patient report.'
+                                      : 'No result values are available for this report.',
                               style: pw.TextStyle(
                                 fontSize: 9,
                                 color: palette.textMuted,
@@ -682,8 +714,13 @@ List<pw.Widget> _buildLabOrderItemPdfSections(
                           final rowIndex = e.key;
                           final r = e.value;
                           final field = r.field ?? fieldMap[r.fieldId];
-                          final eval = r.referenceEvaluation;
-                          final resultText = labPdfResultValueText(r);
+                          final eval = resolveLabReferenceEvaluation(
+                            value: r.value,
+                            referenceRange: field?.referenceRange,
+                            serverEvaluation: r.referenceEvaluation,
+                          );
+                          final resultText =
+                              labPdfResultValueTextFor(r.value, eval);
                           final resultColor = labPdfReferenceValueColor(
                                 eval,
                                 abnormalColor: PdfColor.fromHex('#DC2626'),
@@ -767,22 +804,12 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
             children: [
               palette.infoCard(
                 title: 'PATIENT',
-                rows: [
-                  palette.kv(
-                    'Full name',
-                    order.patient?.capitalizedDisplayName.isNotEmpty == true
-                        ? order.patient!.capitalizedDisplayName
-                        : 'N/A',
-                    emphasize: true,
-                  ),
-                  if (order.patient?.patientId?.trim().isNotEmpty == true)
-                    palette.kv(
-                      'Patient ID',
-                      order.patient!.patientId!.trim(),
-                    ),
-                  palette.kv('Order date', orderDateStr),
-                  palette.kv('Report date', generatedStr),
-                ],
+                rows: _labPdfPatientRows(
+                  palette,
+                  order.patient,
+                  reportDate: generatedStr,
+                  orderDate: orderDateStr,
+                ),
               ),
               pw.SizedBox(width: 14),
               palette.infoCard(
@@ -810,7 +837,7 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
                     '#${_labOrderShortId(order.id)}',
                     emphasize: true,
                   ),
-                  if (order.doctor != null)
+                  if (order.doctor?.isPhysician == true)
                     palette.kv(
                       'Physician',
                       order.doctor!.capitalizedDisplayName.isNotEmpty
@@ -894,18 +921,11 @@ Future<List<int>> buildLabPatientItemsPdf({
             children: [
               palette.infoCard(
                 title: 'PATIENT',
-                rows: [
-                  palette.kv(
-                    'Full name',
-                    patient.capitalizedDisplayName.isNotEmpty
-                        ? patient.capitalizedDisplayName
-                        : 'N/A',
-                    emphasize: true,
-                  ),
-                  if (patient.patientId?.trim().isNotEmpty == true)
-                    palette.kv('Patient ID', patient.patientId!.trim()),
-                  palette.kv('Report date', generatedStr),
-                ],
+                rows: _labPdfPatientRows(
+                  palette,
+                  patient,
+                  reportDate: generatedStr,
+                ),
               ),
               pw.SizedBox(width: 14),
               palette.infoCard(

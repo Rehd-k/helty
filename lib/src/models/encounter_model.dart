@@ -3,6 +3,24 @@ import 'package:helty/src/models/clinical_specialty_models.dart';
 import 'package:helty/src/models/encounter_edit_meta.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 
+/// Nested admission summary on GET /encounters/:id.
+class EncounterAdmissionSnapshot {
+  const EncounterAdmissionSnapshot({
+    required this.id,
+    this.status,
+  });
+
+  final String id;
+  final String? status;
+
+  factory EncounterAdmissionSnapshot.fromJson(Map<String, dynamic> json) {
+    return EncounterAdmissionSnapshot(
+      id: json['id']?.toString() ?? '',
+      status: json['status']?.toString(),
+    );
+  }
+}
+
 /// One row from `diagnoses[]` on GET /encounters/:id (when not duplicated on flat fields).
 class EncounterDiagnosisSnapshot {
   const EncounterDiagnosisSnapshot({
@@ -63,6 +81,8 @@ class EncounterModel {
     this.specialtyModules,
     this.clinicalSections,
     this.editMeta,
+    this.updatedBy,
+    this.admission,
   });
 
   final String id;
@@ -122,6 +142,16 @@ class EncounterModel {
 
   /// Post-completion edit metadata from GET /encounters/:id.
   final EncounterEditMeta? editMeta;
+
+  /// Last staff who updated clerking on this encounter.
+  final EncounterEditHistoryStaff? updatedBy;
+
+  /// Linked admission when expanded on GET /encounters/:id.
+  final EncounterAdmissionSnapshot? admission;
+
+  /// True when linked to an ACTIVE admission (shared inpatient chart).
+  bool get isSharedInpatient =>
+      editMeta?.isSharedInpatientEncounter == true;
 
   /// True when status is completed (API `COMPLETED` or legacy `done`).
   bool get isCompleted {
@@ -209,6 +239,16 @@ class EncounterModel {
       editMeta: json['editMeta'] is Map
           ? EncounterEditMeta.fromJson(
               Map<String, dynamic>.from(json['editMeta'] as Map),
+            )
+          : null,
+      updatedBy: json['updatedBy'] is Map
+          ? EncounterEditHistoryStaff.fromJson(
+              Map<String, dynamic>.from(json['updatedBy'] as Map),
+            )
+          : null,
+      admission: json['admission'] is Map
+          ? EncounterAdmissionSnapshot.fromJson(
+              Map<String, dynamic>.from(json['admission'] as Map),
             )
           : null,
     );
@@ -350,6 +390,8 @@ class EncounterModel {
     List<EncounterSpecialtyModuleModel>? specialtyModules,
     List<EncounterClinicalSectionRowModel>? clinicalSections,
     EncounterEditMeta? editMeta,
+    EncounterEditHistoryStaff? updatedBy,
+    EncounterAdmissionSnapshot? admission,
   }) {
     return EncounterModel(
       id: id,
@@ -393,6 +435,8 @@ class EncounterModel {
       specialtyModules: specialtyModules ?? this.specialtyModules,
       clinicalSections: clinicalSections ?? this.clinicalSections,
       editMeta: editMeta ?? this.editMeta,
+      updatedBy: updatedBy ?? this.updatedBy,
+      admission: admission ?? this.admission,
     );
   }
 }

@@ -96,7 +96,7 @@ class _DischargeAdmissionDialogBodyState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Unpaid invoices may block discharge.',
+                  'If bills are unpaid, the patient will be sent to billing clearance. The bed is freed immediately.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
