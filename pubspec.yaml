@@ -90,6 +90,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   json_serializable: ^6.13.0
   freezed: ^3.2.5
+  msix: ^3.17.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -144,3 +145,12 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/logo.png"
     icon_size: 256
+
+msix_config:
+  display_name: Helty
+  publisher_display_name: VesselLabs
+  identity_name: VesselLabs.Helty
+  logo_path: assets/logo.png
+  languages: en-us
+  output_name: helty
+  capabilities: internetClient, privateNetworkClientServer, documentsLibrary, picturesLibrary, removableStorage

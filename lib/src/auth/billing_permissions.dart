@@ -100,6 +100,15 @@ bool canRequestInvoiceItemRefund(Staff? staff) {
       });
 }
 
+/// Delete an entire inpatient invoice and all of its line items.
+bool canDeleteInpatientInvoice(Staff? staff) {
+  if (staff == null) return false;
+  if (staff.accountType == AccountType.super_admin) return true;
+  final r = staff.staffRole.trim().toUpperCase().replaceAll('-', '_');
+  if (r == 'SUPER_ADMIN') return true;
+  return staff.accountType == AccountType.accounting;
+}
+
 /// Cancel a pending refund request (original requester or account head).
 bool canCancelInvoiceItemRefundRequest(
   Staff? staff,

@@ -361,80 +361,328 @@ List<LabAstResult> _sortedAstResultsForPdf(LabOrderItem item) {
   return list;
 }
 
-pw.Widget _labBuildAstPdfSection(
+pw.Widget _labBuildTestHeaderWidget(
+  _LabPdfPalette palette, {
+  required int index,
+  required String testName,
+  required String? orderShortId,
+  required String sampleType,
+  required bool hasSample,
+}) {
+  return pw.Container(
+    margin: const pw.EdgeInsets.only(bottom: 6),
+    decoration: pw.BoxDecoration(
+      color: palette.surface,
+      borderRadius: pw.BorderRadius.circular(12),
+      border: pw.Border.all(color: palette.border, width: 0.65),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Container(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: pw.BoxDecoration(
+            color: palette.surface,
+            borderRadius: const pw.BorderRadius.vertical(
+              top: pw.Radius.circular(11),
+            ),
+          ),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Container(
+                width: 28,
+                height: 28,
+                alignment: pw.Alignment.center,
+                decoration: pw.BoxDecoration(
+                  color: palette.primary,
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Text(
+                  index.toString().padLeft(2, '0'),
+                  style: pw.TextStyle(
+                    color: PdfColors.white,
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      testName,
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                        color: palette.primary,
+                      ),
+                    ),
+                    if (orderShortId != null)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.only(top: 2),
+                        child: pw.Text(
+                          'Order #$orderShortId',
+                          style: pw.TextStyle(
+                            fontSize: 8,
+                            color: palette.textMuted,
+                          ),
+                        ),
+                      ),
+                    if (sampleType.isNotEmpty)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.only(top: 4),
+                        child: pw.Row(
+                          children: [
+                            pw.Container(
+                              padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: pw.BoxDecoration(
+                                color: palette.surfaceCard,
+                                borderRadius: pw.BorderRadius.circular(6),
+                                border: pw.Border.all(
+                                  color: palette.border,
+                                  width: 0.4,
+                                ),
+                              ),
+                              child: pw.Text(
+                                sampleType,
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: palette.textMuted,
+                                ),
+                              ),
+                            ),
+                            if (hasSample) ...[
+                              pw.SizedBox(width: 8),
+                              pw.Container(
+                                padding: const pw.EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: pw.BoxDecoration(
+                                  color: PdfColor.fromHex('#DCFCE7'),
+                                  borderRadius: pw.BorderRadius.circular(6),
+                                  border: pw.Border.all(
+                                    color: PdfColor.fromHex('#86EFAC'),
+                                    width: 0.4,
+                                  ),
+                                ),
+                                child: pw.Text(
+                                  'SAMPLE COLLECTED',
+                                  style: pw.TextStyle(
+                                    fontSize: 7.5,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColor.fromHex('#166534'),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        pw.Container(height: 0.5, color: palette.border),
+      ],
+    ),
+  );
+}
+
+pw.Widget _labBuildEmptyResultsWidget(
+  _LabPdfPalette palette,
+  LabOrderItem item,
+) {
+  return pw.Container(
+    width: double.infinity,
+    margin: const pw.EdgeInsets.only(bottom: 8),
+    padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+    decoration: pw.BoxDecoration(
+      color: palette.surface,
+      borderRadius: pw.BorderRadius.circular(10),
+      border: pw.Border.all(color: palette.border, width: 0.5),
+    ),
+    child: pw.Row(
+      children: [
+        pw.Container(
+          width: 3,
+          height: 36,
+          decoration: pw.BoxDecoration(
+            color: PdfColor.fromInt(0xB3D4AF37),
+            borderRadius: pw.BorderRadius.circular(2),
+          ),
+        ),
+        pw.SizedBox(width: 12),
+        pw.Expanded(
+          child: pw.Text(
+            item.results.isEmpty
+                ? 'No results have been entered for this test yet.'
+                : item.results.every((r) => r.hiddenFromReport)
+                    ? 'All result lines are hidden from the patient report.'
+                    : 'No result values are available for this report.',
+            style: pw.TextStyle(
+              fontSize: 9,
+              color: palette.textMuted,
+              lineSpacing: 1.25,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+pw.Widget _labBuildResultsTableWidget(
+  _LabPdfPalette palette, {
+  required List<LabResult> reportResults,
+  required Map<String, LabTestField> fieldMap,
+}) {
+  return pw.Table(
+    border: pw.TableBorder(
+      horizontalInside: pw.BorderSide(color: palette.border, width: 0.4),
+      verticalInside: pw.BorderSide(color: palette.border, width: 0.35),
+      left: pw.BorderSide(color: palette.border, width: 0.5),
+      right: pw.BorderSide(color: palette.border, width: 0.5),
+      top: pw.BorderSide(color: palette.border, width: 0.5),
+      bottom: pw.BorderSide(color: palette.border, width: 0.5),
+    ),
+    columnWidths: const {
+      0: pw.FlexColumnWidth(3),
+      1: pw.FlexColumnWidth(2.2),
+      2: pw.FlexColumnWidth(1.8),
+      3: pw.FlexColumnWidth(2.2),
+    },
+    children: [
+      pw.TableRow(
+        decoration: pw.BoxDecoration(color: palette.primary),
+        children: [
+          _labBuildTableHeaderCell('Parameter', light: true),
+          _labBuildTableHeaderCell('Result', light: true),
+          _labBuildTableHeaderCell('Unit', light: true),
+          _labBuildTableHeaderCell('Reference', light: true),
+        ],
+      ),
+      ...reportResults.asMap().entries.map((e) {
+        final rowIndex = e.key;
+        final r = e.value;
+        final field = r.field ?? fieldMap[r.fieldId];
+        final eval = resolveLabReferenceEvaluation(
+          value: r.value,
+          referenceRange: field?.referenceRange,
+          serverEvaluation: r.referenceEvaluation,
+        );
+        final resultText = labPdfResultValueTextFor(r.value, eval);
+        final resultColor = labPdfReferenceValueColor(
+              eval,
+              abnormalColor: PdfColor.fromHex('#DC2626'),
+            ) ??
+            palette.primary;
+        final stripe = rowIndex.isEven ? PdfColors.white : palette.surface;
+        return pw.TableRow(
+          decoration: pw.BoxDecoration(color: stripe),
+          children: [
+            _labBuildTableCell(field?.label ?? r.fieldId),
+            _labBuildTableCell(
+              resultText,
+              isBold: true,
+              valueColor: resultColor,
+            ),
+            _labBuildTableCell(field?.unit ?? ''),
+            _labBuildTableCell(field?.referenceRange ?? '', muted: true),
+          ],
+        );
+      }),
+    ],
+  );
+}
+
+List<pw.Widget> _labBuildAstPdfWidgets(
   _LabPdfPalette palette,
   LabOrderItem item,
 ) {
   final results = _sortedAstResultsForPdf(item);
-  return pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-    children: [
-      pw.SizedBox(height: 12),
+  final widgets = <pw.Widget>[
+    pw.SizedBox(height: 12),
+    pw.Text(
+      'Antibiotic Susceptibility',
+      style: pw.TextStyle(
+        fontSize: 10,
+        fontWeight: pw.FontWeight.bold,
+        color: palette.primary,
+      ),
+    ),
+    pw.SizedBox(height: 8),
+  ];
+
+  if (results.isEmpty) {
+    widgets.add(
       pw.Text(
-        'Antibiotic Susceptibility',
+        'AST pending',
         style: pw.TextStyle(
-          fontSize: 10,
-          fontWeight: pw.FontWeight.bold,
-          color: palette.primary,
+          fontSize: 9,
+          color: palette.textMuted,
+          fontStyle: pw.FontStyle.italic,
         ),
       ),
-      pw.SizedBox(height: 8),
-      if (results.isEmpty)
-        pw.Text(
-          'AST pending',
-          style: pw.TextStyle(
-            fontSize: 9,
-            color: palette.textMuted,
-            fontStyle: pw.FontStyle.italic,
-          ),
-        )
-      else
-        pw.Table(
-          border: pw.TableBorder(
-            horizontalInside: pw.BorderSide(color: palette.border, width: 0.4),
-            verticalInside: pw.BorderSide(color: palette.border, width: 0.35),
-            left: pw.BorderSide(color: palette.border, width: 0.5),
-            right: pw.BorderSide(color: palette.border, width: 0.5),
-            top: pw.BorderSide(color: palette.border, width: 0.5),
-            bottom: pw.BorderSide(color: palette.border, width: 0.5),
-          ),
-          columnWidths: const {
-            0: pw.FlexColumnWidth(3),
-            1: pw.FlexColumnWidth(2),
-          },
+    );
+    return widgets;
+  }
+
+  widgets.add(
+    pw.Table(
+      border: pw.TableBorder(
+        horizontalInside: pw.BorderSide(color: palette.border, width: 0.4),
+        verticalInside: pw.BorderSide(color: palette.border, width: 0.35),
+        left: pw.BorderSide(color: palette.border, width: 0.5),
+        right: pw.BorderSide(color: palette.border, width: 0.5),
+        top: pw.BorderSide(color: palette.border, width: 0.5),
+        bottom: pw.BorderSide(color: palette.border, width: 0.5),
+      ),
+      columnWidths: const {
+        0: pw.FlexColumnWidth(3),
+        1: pw.FlexColumnWidth(2),
+      },
+      children: [
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: palette.primary),
           children: [
-            pw.TableRow(
-              decoration: pw.BoxDecoration(color: palette.primary),
-              children: [
-                _labBuildTableHeaderCell('Antibiotic', light: true),
-                _labBuildTableHeaderCell('Result', light: true),
-              ],
-            ),
-            ...results.asMap().entries.map((e) {
-              final rowIndex = e.key;
-              final r = e.value;
-              final abxName = r.antibiotic.code != null &&
-                      r.antibiotic.code!.isNotEmpty
-                  ? '${r.antibiotic.name} (${r.antibiotic.code})'
-                  : r.antibiotic.name;
-              final resultLabel = r.resultOption.code != null &&
-                      r.resultOption.code!.isNotEmpty
-                  ? '${r.resultOption.label} (${r.resultOption.code})'
-                  : r.resultOption.label;
-              final stripe =
-                  rowIndex.isEven ? PdfColors.white : palette.surface;
-              return pw.TableRow(
-                decoration: pw.BoxDecoration(color: stripe),
-                children: [
-                  _labBuildTableCell(abxName),
-                  _labBuildTableCell(resultLabel, isBold: true),
-                ],
-              );
-            }),
+            _labBuildTableHeaderCell('Antibiotic', light: true),
+            _labBuildTableHeaderCell('Result', light: true),
           ],
         ),
-    ],
+        ...results.asMap().entries.map((e) {
+          final rowIndex = e.key;
+          final r = e.value;
+          final abxName = r.antibiotic.code != null &&
+                  r.antibiotic.code!.isNotEmpty
+              ? '${r.antibiotic.name} (${r.antibiotic.code})'
+              : r.antibiotic.name;
+          final resultLabel = r.resultOption.code != null &&
+                  r.resultOption.code!.isNotEmpty
+              ? '${r.resultOption.label} (${r.resultOption.code})'
+              : r.resultOption.label;
+          final stripe = rowIndex.isEven ? PdfColors.white : palette.surface;
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(color: stripe),
+            children: [
+              _labBuildTableCell(abxName),
+              _labBuildTableCell(resultLabel, isBold: true),
+            ],
+          );
+        }),
+      ],
+    ),
   );
+  return widgets;
 }
 
 Future<pw.ImageProvider> _loadLabPdfLogo() async {
@@ -485,278 +733,35 @@ List<pw.Widget> _buildLabOrderItemPdfSections(
     final reportResults =
         item.results.where(_labResultIsPrintable).toList();
 
-    return [
-      pw.Container(
-        margin: const pw.EdgeInsets.only(bottom: 14),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.white,
-          borderRadius: pw.BorderRadius.circular(12),
-          border: pw.Border.all(color: palette.border, width: 0.65),
-          boxShadow: [
-            pw.BoxShadow(
-              color: PdfColor.fromInt(0x0F0F172A),
-              offset: const PdfPoint(0, 3),
-              blurRadius: 8,
-            ),
-          ],
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-          children: [
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-              children: [
-                pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: pw.BoxDecoration(
-                    color: palette.surface,
-                    borderRadius: const pw.BorderRadius.vertical(
-                      top: pw.Radius.circular(11),
-                    ),
-                  ),
-                  child: pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Container(
-                        width: 28,
-                        height: 28,
-                        alignment: pw.Alignment.center,
-                        decoration: pw.BoxDecoration(
-                          color: palette.primary,
-                          borderRadius: pw.BorderRadius.circular(8),
-                        ),
-                        child: pw.Text(
-                          index.toString().padLeft(2, '0'),
-                          style: pw.TextStyle(
-                            color: PdfColors.white,
-                            fontSize: 11,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      pw.SizedBox(width: 12),
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              testName,
-                              style: pw.TextStyle(
-                                fontSize: 12,
-                                fontWeight: pw.FontWeight.bold,
-                                color: palette.primary,
-                              ),
-                            ),
-                            if (orderShortId != null)
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.only(top: 2),
-                                child: pw.Text(
-                                  'Order #$orderShortId',
-                                  style: pw.TextStyle(
-                                    fontSize: 8,
-                                    color: palette.textMuted,
-                                  ),
-                                ),
-                              ),
-                            if (sampleType.isNotEmpty)
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.only(top: 4),
-                                child: pw.Row(
-                                  children: [
-                                    pw.Container(
-                                      padding: const pw.EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: pw.BoxDecoration(
-                                        color: palette.surfaceCard,
-                                        borderRadius:
-                                            pw.BorderRadius.circular(6),
-                                        border: pw.Border.all(
-                                          color: palette.border,
-                                          width: 0.4,
-                                        ),
-                                      ),
-                                      child: pw.Text(
-                                        sampleType,
-                                        style: pw.TextStyle(
-                                          fontSize: 8,
-                                          color: palette.textMuted,
-                                        ),
-                                      ),
-                                    ),
-                                    if (hasSample) ...[
-                                      pw.SizedBox(width: 8),
-                                      pw.Container(
-                                        padding:
-                                            const pw.EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 3,
-                                        ),
-                                        decoration: pw.BoxDecoration(
-                                          color: PdfColor.fromHex('#DCFCE7'),
-                                          borderRadius:
-                                              pw.BorderRadius.circular(6),
-                                          border: pw.Border.all(
-                                            color: PdfColor.fromHex('#86EFAC'),
-                                            width: 0.4,
-                                          ),
-                                        ),
-                                        child: pw.Text(
-                                          'SAMPLE COLLECTED',
-                                          style: pw.TextStyle(
-                                            fontSize: 7.5,
-                                            fontWeight: pw.FontWeight.bold,
-                                            color: PdfColor.fromHex('#166534'),
-                                            letterSpacing: 0.4,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                pw.Container(height: 0.5, color: palette.border),
-              ],
-            ),
-            pw.Padding(
-              padding: const pw.EdgeInsets.fromLTRB(12, 12, 12, 14),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                children: [
-                  if (reportResults.isEmpty)
-                    pw.Container(
-                      width: double.infinity,
-                      padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 16,
-                      ),
-                      decoration: pw.BoxDecoration(
-                        color: palette.surface,
-                        borderRadius: pw.BorderRadius.circular(10),
-                        border: pw.Border.all(
-                          color: palette.border,
-                          width: 0.5,
-                        ),
-                      ),
-                      child: pw.Row(
-                        children: [
-                          pw.Container(
-                            width: 3,
-                            height: 36,
-                            decoration: pw.BoxDecoration(
-                              color: PdfColor.fromInt(0xB3D4AF37),
-                              borderRadius: pw.BorderRadius.circular(2),
-                            ),
-                          ),
-                          pw.SizedBox(width: 12),
-                          pw.Expanded(
-                            child: pw.Text(
-                              item.results.isEmpty
-                                  ? 'No results have been entered for this test yet.'
-                                  : item.results.every((r) => r.hiddenFromReport)
-                                      ? 'All result lines are hidden from the patient report.'
-                                      : 'No result values are available for this report.',
-                              style: pw.TextStyle(
-                                fontSize: 9,
-                                color: palette.textMuted,
-                                lineSpacing: 1.25,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    pw.Table(
-                      border: pw.TableBorder(
-                        horizontalInside: pw.BorderSide(
-                          color: palette.border,
-                          width: 0.4,
-                        ),
-                        verticalInside: pw.BorderSide(
-                          color: palette.border,
-                          width: 0.35,
-                        ),
-                        left: pw.BorderSide(color: palette.border, width: 0.5),
-                        right: pw.BorderSide(color: palette.border, width: 0.5),
-                        top: pw.BorderSide(color: palette.border, width: 0.5),
-                        bottom:
-                            pw.BorderSide(color: palette.border, width: 0.5),
-                      ),
-                      columnWidths: const {
-                        0: pw.FlexColumnWidth(3),
-                        1: pw.FlexColumnWidth(2.2),
-                        2: pw.FlexColumnWidth(1.8),
-                        3: pw.FlexColumnWidth(2.2),
-                      },
-                      children: [
-                        pw.TableRow(
-                          decoration:
-                              pw.BoxDecoration(color: palette.primary),
-                          children: [
-                            _labBuildTableHeaderCell('Parameter', light: true),
-                            _labBuildTableHeaderCell('Result', light: true),
-                            _labBuildTableHeaderCell('Unit', light: true),
-                            _labBuildTableHeaderCell('Reference', light: true),
-                          ],
-                        ),
-                        ...reportResults.asMap().entries.map((e) {
-                          final rowIndex = e.key;
-                          final r = e.value;
-                          final field = r.field ?? fieldMap[r.fieldId];
-                          final eval = resolveLabReferenceEvaluation(
-                            value: r.value,
-                            referenceRange: field?.referenceRange,
-                            serverEvaluation: r.referenceEvaluation,
-                          );
-                          final resultText =
-                              labPdfResultValueTextFor(r.value, eval);
-                          final resultColor = labPdfReferenceValueColor(
-                                eval,
-                                abnormalColor: PdfColor.fromHex('#DC2626'),
-                              ) ??
-                              palette.primary;
-                          final stripe = rowIndex.isEven
-                              ? PdfColors.white
-                              : palette.surface;
-                          return pw.TableRow(
-                            decoration: pw.BoxDecoration(color: stripe),
-                            children: [
-                              _labBuildTableCell(field?.label ?? r.fieldId),
-                              _labBuildTableCell(
-                                resultText,
-                                isBold: true,
-                                valueColor: resultColor,
-                              ),
-                              _labBuildTableCell(field?.unit ?? ''),
-                              _labBuildTableCell(
-                                field?.referenceRange ?? '',
-                                muted: true,
-                              ),
-                            ],
-                          );
-                        }),
-                      ],
-                    ),
-                  if (item.astRequested)
-                    _labBuildAstPdfSection(palette, item),
-                ],
-              ),
-            ),
-          ],
-        ),
+    final widgets = <pw.Widget>[
+      _labBuildTestHeaderWidget(
+        palette,
+        index: index,
+        testName: testName,
+        orderShortId: orderShortId,
+        sampleType: sampleType,
+        hasSample: hasSample,
       ),
     ];
+
+    if (reportResults.isEmpty) {
+      widgets.add(_labBuildEmptyResultsWidget(palette, item));
+    } else {
+      widgets.add(
+        _labBuildResultsTableWidget(
+          palette,
+          reportResults: reportResults,
+          fieldMap: fieldMap,
+        ),
+      );
+    }
+
+    if (item.astRequested) {
+      widgets.addAll(_labBuildAstPdfWidgets(palette, item));
+    }
+
+    widgets.add(pw.SizedBox(height: 14));
+    return widgets;
   }).toList();
 }
 
@@ -785,6 +790,7 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
   doc.addPage(
     pw.MultiPage(
       pageFormat: format,
+      maxPages: 200,
       margin: const pw.EdgeInsets.fromLTRB(38, 34, 38, 40),
       header: (context) {
         if (context.pageNumber == 1) return pw.SizedBox();
@@ -902,6 +908,7 @@ Future<List<int>> buildLabPatientItemsPdf({
   doc.addPage(
     pw.MultiPage(
       pageFormat: format,
+      maxPages: 200,
       margin: const pw.EdgeInsets.fromLTRB(38, 34, 38, 40),
       header: (context) {
         if (context.pageNumber == 1) return pw.SizedBox();

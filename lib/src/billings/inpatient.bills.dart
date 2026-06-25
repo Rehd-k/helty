@@ -23,6 +23,7 @@ import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 import 'package:helty/src/wallet/wallet_providers.dart';
+import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 /// Backend expects catalog UUID on `serviceId` (not human-readable codes).
@@ -96,6 +97,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   List<BillingInvoiceRefundRequest> _refundRequests = const [];
   bool _refundRequestsLoading = false;
   String? _refundRequestsError;
+  bool _deletingInvoice = false;
+  final Set<String> _deletingLineIds = {};
 
   @override
   void initState() {
@@ -203,6 +206,143 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     }
   }
 
+  String _invoiceDeleteErrorMessage(Object error) {
+    final raw = error.toString().trim();
+    if (raw.isEmpty) return 'Unable to delete invoice';
+    if (raw.startsWith('Exception:')) {
+      final cleaned = raw.replaceFirst('Exception:', '').trim();
+      return cleaned.isEmpty ? 'Unable to delete invoice' : cleaned;
+    }
+    return raw;
+  }
+
+  Future<void> _deleteInvoiceAndAllItems({
+    required String invoiceDisplayId,
+    required BillingInvoiceDetail detail,
+  }) async {
+    if (_deletingInvoice) return;
+    final staff = ref.read(authProvider).staff;
+    if (!canDeleteInpatientInvoice(staff)) return;
+
+    final itemCount = detail.invoiceItems.length;
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete invoice'),
+        content: Text(
+          itemCount == 0
+              ? 'Delete invoice $invoiceDisplayId? This action cannot be undone.'
+              : 'Delete all $itemCount item${itemCount == 1 ? '' : 's'} and '
+                    'invoice $invoiceDisplayId? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true || !mounted) return;
+
+    setState(() => _deletingInvoice = true);
+    try {
+      final invoiceId = detail.id.trim().isNotEmpty
+          ? detail.id
+          : widget.invoiceId.trim();
+      for (final item in detail.invoiceItems) {
+        final itemId = item.id.trim();
+        if (itemId.isEmpty) continue;
+        await _invoiceService.deleteItem(invoiceId, itemId);
+      }
+      await _invoiceService.deleteInvoice(invoiceId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invoice deleted successfully')),
+      );
+      context.router.maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_invoiceDeleteErrorMessage(e))));
+    } finally {
+      if (mounted) {
+        setState(() => _deletingInvoice = false);
+      }
+    }
+  }
+
+  Future<void> _deleteInvoiceLine({
+    required BillingInvoiceItem line,
+    required ChargeItem charge,
+  }) async {
+    if (_deletingLineIds.contains(line.id)) return;
+    final staff = ref.read(authProvider).staff;
+    if (!canDeleteInpatientInvoice(staff)) return;
+
+    final invoice = _billingDetail;
+    if (invoice == null) return;
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete item'),
+        content: Text(
+          'Remove "${charge.description}" from this invoice? '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true || !mounted) return;
+
+    setState(() => _deletingLineIds.add(line.id));
+    try {
+      await _invoiceService.deleteItem(invoice.id, line.id);
+      if (!mounted) return;
+      setState(() {
+        _selectedLineIdsForPay.remove(line.id);
+        _selectedLineIdsForPay.remove(charge.invoiceLineItemId);
+      });
+      await _loadBillingData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invoice item deleted')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_invoiceDeleteErrorMessage(e))));
+    } finally {
+      if (mounted) {
+        setState(() => _deletingLineIds.remove(line.id));
+      }
+    }
+  }
+
   Future<void> _handleLineRefundAction(BillingInvoiceItem line) async {
     final staff = ref.read(authProvider).staff;
     if (line.refundPending &&
@@ -303,6 +443,33 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         );
         return Uint8List.fromList(bytes);
       },
+    );
+  }
+
+  Future<void> _shareInvoice({
+    required String patientDisplayId,
+    required String invoiceDisplayId,
+    required String effectivePatientName,
+    required List<ChargeItem> charges,
+    required double totalCharges,
+    required double totalPayments,
+    required double balanceDue,
+    required double walletBalance,
+  }) async {
+    final bytes = await buildInpatientInvoicePdf(
+      format: PdfPageFormat.a4,
+      patientDisplayId: patientDisplayId,
+      invoiceDisplayId: invoiceDisplayId,
+      patientName: effectivePatientName,
+      charges: charges,
+      totalCharges: totalCharges,
+      totalPayments: totalPayments,
+      balanceDue: balanceDue,
+      walletBalance: walletBalance,
+    );
+    await Printing.sharePdf(
+      bytes: Uint8List.fromList(bytes),
+      filename: 'inpatient_invoice_$invoiceDisplayId.pdf',
     );
   }
 
@@ -694,6 +861,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       await _submitRefundRequest(line);
     } else if (choice == 'cancel_refund') {
       await _cancelRefundRequest(line);
+    } else if (choice == 'delete_line') {
+      await _deleteInvoiceLine(line: line, charge: charge);
     }
   }
 
@@ -955,6 +1124,27 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       entries.add(const PopupMenuDivider());
       entries.addAll(refundEntries);
     }
+    if (canDeleteInpatientInvoice(ref.read(authProvider).staff)) {
+      entries.add(const PopupMenuDivider());
+      entries.add(
+        PopupMenuItem<String>(
+          value: 'delete_line',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.delete_outline,
+              size: 22,
+              color: Colors.red.shade700,
+            ),
+            title: Text(
+              'Delete item',
+              style: TextStyle(color: Colors.red.shade700),
+            ),
+          ),
+        ),
+      );
+    }
     return entries;
   }
 
@@ -1057,6 +1247,17 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       ? () => Navigator.pop(ctx, 'request_refund')
                       : null,
                 ),
+            ],
+            if (canDeleteInpatientInvoice(ref.read(authProvider).staff)) ...[
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
+                title: Text(
+                  'Delete item',
+                  style: TextStyle(color: Colors.red.shade700),
+                ),
+                onTap: () => Navigator.pop(ctx, 'delete_line'),
+              ),
             ],
             const SizedBox(height: 8),
           ],
@@ -1376,6 +1577,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     required double walletBalance,
     required BillingInvoiceDetail? invoiceDetail,
   }) {
+    final staff = ref.watch(authProvider).staff;
+    final canDeleteInvoice = canDeleteInpatientInvoice(staff);
+
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
@@ -1408,6 +1612,20 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             icon: const Icon(Icons.print_outlined),
             tooltip: 'Print Invoice',
             onPressed: () => _printInvoice(
+              patientDisplayId: patientDisplayId,
+              invoiceDisplayId: invoiceDisplayId,
+              effectivePatientName: effectivePatientName,
+              charges: charges,
+              totalCharges: totalCharges,
+              totalPayments: totalPayments,
+              balanceDue: balanceDue,
+              walletBalance: walletBalance,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.ios_share_rounded),
+            tooltip: 'Save as PDF',
+            onPressed: () => _shareInvoice(
               patientDisplayId: patientDisplayId,
               invoiceDisplayId: invoiceDisplayId,
               effectivePatientName: effectivePatientName,
@@ -1555,6 +1773,30 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 icon: const Icon(Icons.logout, size: 18),
                 label: const Text('Discharge'),
               ),
+              if (canDeleteInvoice)
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colorScheme.error,
+                    side: BorderSide(color: colorScheme.error),
+                  ),
+                  onPressed: _deletingInvoice || invoiceDetail == null
+                      ? null
+                      : () => _deleteInvoiceAndAllItems(
+                          invoiceDisplayId: invoiceDisplayId,
+                          detail: invoiceDetail,
+                        ),
+                  icon: _deletingInvoice
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.error,
+                          ),
+                        )
+                      : const Icon(Icons.delete_forever_outlined, size: 18),
+                  label: const Text('Delete invoice'),
+                ),
             ],
           ),
         ),
@@ -1599,7 +1841,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     String? patientHmoName,
     double? patientHmoDefaultCoveragePercent,
   }) {
-    final bool isPaidOff = balanceDue <= 0;
+    final displayBalanceDue = (balanceDue - walletBalance) > 0
+        ? (balanceDue - walletBalance)
+        : 0.0;
+    final bool isPaidOff = displayBalanceDue <= 0;
     final hmoName = patientHmoName?.trim() ?? '';
     final hmoLabel = hmoName.isEmpty
         ? null
@@ -1630,7 +1875,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  balanceDue.toFinancial(isMoney: true),
+                  displayBalanceDue.toFinancial(isMoney: true),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: isPaidOff ? Colors.green : colorScheme.error,
@@ -1875,6 +2120,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       );
     }
 
+    final canDeleteLine = canDeleteInpatientInvoice(
+      ref.read(authProvider).staff,
+    );
+
     return Card(
       elevation: 0,
 
@@ -2071,10 +2320,42 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                       final refundBtn = line == null
                                           ? null
                                           : _lineRefundActionButton(line);
+                                      final deletingLine =
+                                          line != null &&
+                                          _deletingLineIds.contains(line.id);
                                       return Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           if (refundBtn != null) refundBtn,
+                                          if (canDeleteLine && line != null)
+                                            IconButton(
+                                              tooltip: 'Delete item',
+                                              icon: deletingLine
+                                                  ? SizedBox(
+                                                      width: 18,
+                                                      height: 18,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: theme
+                                                                .colorScheme
+                                                                .error,
+                                                          ),
+                                                    )
+                                                  : Icon(
+                                                      Icons.delete_outline,
+                                                      size: 22,
+                                                      color: theme
+                                                          .colorScheme
+                                                          .error,
+                                                    ),
+                                              onPressed: deletingLine
+                                                  ? null
+                                                  : () => _deleteInvoiceLine(
+                                                      line: line,
+                                                      charge: item,
+                                                    ),
+                                            ),
                                           IconButton(
                                             tooltip: 'Payment options',
                                             icon: const Icon(
@@ -2528,9 +2809,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       if (admissionId == null || admissionId.isEmpty) {
         ScaffoldMessenger.of(this.context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'No active admission found for this patient.',
-            ),
+            content: Text('No active admission found for this patient.'),
           ),
         );
         return;
@@ -2541,9 +2820,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         payload: payload,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(content: Text(dischargeSuccessMessage(updated))),
-      );
+      ScaffoldMessenger.of(
+        this.context,
+      ).showSnackBar(SnackBar(content: Text(dischargeSuccessMessage(updated))));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
