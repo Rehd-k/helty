@@ -269,12 +269,9 @@ class _InpatientBillsListScreenState
       itemCount: invoices.length,
       itemBuilder: (context, index) {
         final invoice = invoices[index];
+        final displayName = invoice.patient.displayName.trim();
         final patientName =
-            '${invoice.patient.firstName} ${invoice.patient.surname}'
-                .trim()
-                .isEmpty
-            ? '—'
-            : '${invoice.patient.firstName} ${invoice.patient.surname}';
+            displayName.isEmpty || displayName == 'Unknown' ? '—' : displayName;
         return _BillCard(
           invoice: invoice,
           patientName: patientName,

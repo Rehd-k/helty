@@ -212,7 +212,7 @@ class _DoctorCompletedEncountersScreenState
       list = list.where((e) {
         final patient = _patientCache[e.patientId];
         final name = patient != null
-            ? '${patient.firstName} ${patient.surname}'.toLowerCase()
+            ? patient.displayName.toLowerCase()
             : e.patientId.toLowerCase();
         final complaint = (e.chiefComplaint ?? '').toLowerCase();
         final doctor = _doctorLabel(e).toLowerCase();
@@ -329,7 +329,7 @@ class _DoctorCompletedEncountersScreenState
               final e = filtered[index];
               final patient = _patientCache[e.patientId];
               final name = patient != null
-                  ? '${patient.title} ${patient.firstName} ${patient.surname}'
+                  ? patient.displayName
                   : 'Patient ${e.patientId}';
               final closed = e.closedAt ?? e.startedAt;
               return Card(

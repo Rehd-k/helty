@@ -225,7 +225,7 @@ class _ObstetricsAddPregnancyScreenState
       formKey: _formKey,
       contextBanner: ObFormContextBanner(
         title: selectedPatient != null
-            ? '${selectedPatient.firstName} ${selectedPatient.surname}'.trim()
+            ? selectedPatient.displayName.trim()
             : 'Selected patient',
         lines: ['Patient ID: $patientId'],
         icon: Icons.pregnant_woman_rounded,

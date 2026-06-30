@@ -80,7 +80,7 @@ ChargeCategory chargeCategoryForBillingItem(BillingInvoiceItem item) {
   if (item.isRecurringDaily) return ChargeCategory.daily;
   if (item.isDrugLine) return ChargeCategory.pharmacy;
   if (item.isPurchaseItemLine) return ChargeCategory.supplies;
-  if (item.isConsumableLine) return ChargeCategory.pharmacy;
+  if (item.isConsumableLine) return ChargeCategory.supplies;
   final name = (item.serviceCategoryName ?? '').trim().toLowerCase();
   if (name == 'laboratory tests' ||
       name == 'laboratory' ||
@@ -89,6 +89,15 @@ ChargeCategory chargeCategoryForBillingItem(BillingInvoiceItem item) {
   }
   return ChargeCategory.other;
 }
+
+double chargeSectionTotal(List<ChargeItem> items) =>
+    items.fold(0.0, (sum, item) => sum + item.displayLineTotal);
+
+double chargeSectionPaid(List<ChargeItem> items) =>
+    items.fold(0.0, (sum, item) => sum + item.amountPaid);
+
+double chargeSectionDue(List<ChargeItem> items) =>
+    items.fold(0.0, (sum, item) => sum + item.lineAmountDue);
 
 List<ChargeItem> chargesFromBillingDetail(BillingInvoiceDetail? inv) {
   if (inv == null) return [];
@@ -102,7 +111,7 @@ List<ChargeItem> chargesFromBillingDetail(BillingInvoiceDetail? inv) {
         description: item.displayLabel,
         amount: item.unitPrice,
         quantity: item.quantity,
-        date: created,
+        date: item.createdAtLocal ?? item.createdAt ?? created,
         category: chargeCategoryForBillingItem(item),
         lineTotal: item.lineTotal,
         amountPaid: item.lineItemAmountPaid,

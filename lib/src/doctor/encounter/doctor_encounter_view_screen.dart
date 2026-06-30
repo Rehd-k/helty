@@ -981,7 +981,7 @@ class _DoctorEncounterViewScreenState
 
     final patient = _patient;
     final name = patient != null
-        ? '${patient.title} ${patient.firstName} ${patient.surname}'
+        ? patient.displayName
         : 'Unknown Patient';
     final ageYears = patient != null
         ? DateTime.now().year - patient.dob.year

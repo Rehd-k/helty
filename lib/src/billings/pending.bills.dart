@@ -495,7 +495,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                 child: ListTile(
                                   contentPadding: const EdgeInsets.all(16),
                                   title: Text(
-                                    '${invoice.patient.firstName} ${invoice.patient.surname}',
+                                    invoice.patient.displayName,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,

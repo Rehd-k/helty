@@ -196,7 +196,7 @@ class _DoctorOutpatientListScreenState
                 final enc = _encounters[index];
                 final patient = _patients[enc.patientId];
                 final name = patient != null
-                    ? '${patient.firstName} ${patient.surname}'
+                    ? patient.displayName
                     : 'Patient ${enc.patientId}';
                 final age = patient != null
                     ? '${DateTime.now().year - patient.dob.year} yrs'

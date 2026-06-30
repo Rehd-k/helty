@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../helper/app_timezone.dart';
 import '../models/medication_request_model.dart';
 import 'api_service.dart';
 import 'medication_order_service.dart';
@@ -98,6 +99,8 @@ class MedicationRequestService {
     String? status,
     String? encounterId,
     String? patientId,
+    DateTime? fromDate,
+    DateTime? toDate,
     int skip = 0,
     int take = 20,
   }) async {
@@ -109,6 +112,8 @@ class MedicationRequestService {
           if (encounterId != null && encounterId.isNotEmpty)
             'encounterId': encounterId,
           if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
+          if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
+          if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
           'skip': skip,
           'take': take,
         },
@@ -128,6 +133,8 @@ class MedicationRequestService {
   Future<MedicationRequestListPage> listPharmacyQueue({
     String? encounterId,
     String? patientId,
+    DateTime? fromDate,
+    DateTime? toDate,
     int skip = 0,
     int take = 20,
   }) async {
@@ -138,6 +145,8 @@ class MedicationRequestService {
           if (encounterId != null && encounterId.isNotEmpty)
             'encounterId': encounterId,
           if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
+          if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
+          if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
           'skip': skip,
           'take': take,
         },

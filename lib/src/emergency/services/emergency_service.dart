@@ -192,7 +192,7 @@ class EmergencyService {
       String? patientName;
       try {
         final p = await _patientService.getPatientById(enc.patientId);
-        patientName = '${p.firstName} ${p.surname}'.trim();
+        patientName = p.displayName.trim();
       } catch (_) {}
 
       int? esi;

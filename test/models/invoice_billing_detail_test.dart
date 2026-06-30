@@ -120,6 +120,23 @@ void main() {
 
       expect(item.displayLabel, 'Purchase item');
     });
+
+    test('parses createdAtLocal for line display date', () {
+      final item = BillingInvoiceItem.fromJson({
+        'id': '8007b8d8-2532-4be0-b0b1-2d4f9889a2e0',
+        'serviceId': 'cd6d0f54-1f83-4f34-915e-505aaea34507',
+        'quantity': 1,
+        'unitPrice': 12300,
+        'createdAt': '2026-06-30T12:39:11.250Z',
+        'createdAtLocal': '2026-06-30T13:39:11.250+01:00',
+        'usageSegments': [],
+      });
+
+      expect(item.createdAtLocal, isNotNull);
+      expect(item.createdAtLocal!.day, 30);
+      expect(item.createdAtLocal!.month, 6);
+      expect(item.createdAtLocal!.year, 2026);
+    });
   });
 
   group('chargeCategoryForBillingItem', () {
@@ -141,6 +158,108 @@ void main() {
         chargeCategoryLabel(ChargeCategory.supplies),
         'Supplies & Purchases',
       );
+    });
+
+    test('maps consumable lines to supplies', () {
+      final item = BillingInvoiceItem.fromJson({
+        'id': 'line-1',
+        'consumableId': 'abc-123',
+        'storeLocationId': 'loc-1',
+        'quantity': 1,
+        'unitPrice': 50,
+        'usageSegments': [],
+      });
+
+      expect(
+        chargeCategoryForBillingItem(item),
+        ChargeCategory.supplies,
+      );
+    });
+  });
+
+  group('chargesFromBillingDetail', () {
+    test('uses item createdAtLocal instead of invoice createdAt', () {
+      final detail = BillingInvoiceDetail.fromJson({
+        'id': '95d9ef62-1abe-46c4-87c1-261fd2d66509',
+        'invoiceID': '283A77P938',
+        'patientId': 'dc08bc32-24ed-42a0-b4a7-6062ec40e2b3',
+        'status': 'PENDING',
+        'totalAmount': 12405,
+        'amountPaid': 0,
+        'createdAt': '2026-06-21T23:22:53.534Z',
+        'invoiceItems': [
+          {
+            'id': 'traction-line',
+            'serviceId': 'cd6d0f54-1f83-4f34-915e-505aaea34507',
+            'quantity': 1,
+            'unitPrice': 12300,
+            'lineTotal': 12300,
+            'amountPaid': 0,
+            'lineAmountDue': 12300,
+            'createdAt': '2026-06-30T12:39:11.250Z',
+            'createdAtLocal': '2026-06-30T13:39:11.250+01:00',
+            'service': {'name': 'BED SIDE TRACTION'},
+            'usageSegments': [],
+          },
+          {
+            'id': 'drug-line',
+            'drugId': '00885d23-c2f0-487f-819a-b186b77a0c8b',
+            'quantity': 1,
+            'unitPrice': 105,
+            'lineTotal': 105,
+            'amountPaid': 0,
+            'lineAmountDue': 105,
+            'createdAt': '2026-06-21T23:22:53.689Z',
+            'createdAtLocal': '2026-06-22T00:22:53.689+01:00',
+            'drug': {'genericName': 'PYRIDOSTIGMINE 60 MG TABS'},
+            'usageSegments': [],
+          },
+        ],
+        'payments': [],
+        'coverages': [],
+        'refunds': [],
+      });
+
+      final charges = chargesFromBillingDetail(detail);
+
+      expect(charges.length, 2);
+      expect(charges[0].date.day, 30);
+      expect(charges[0].date.month, 6);
+      expect(charges[1].date.day, 22);
+      expect(charges[1].date.month, 6);
+    });
+  });
+
+  group('chargeSectionTotals', () {
+    test('sums displayLineTotal, amountPaid, and lineAmountDue', () {
+      final items = [
+        ChargeItem(
+          id: 'a',
+          invoiceLineItemId: 'line-a',
+          description: 'A',
+          amount: 100,
+          date: DateTime(2026, 6, 1),
+          category: ChargeCategory.other,
+          lineTotal: 1000,
+          amountPaid: 200,
+          lineAmountDue: 800,
+        ),
+        ChargeItem(
+          id: 'b',
+          invoiceLineItemId: 'line-b',
+          description: 'B',
+          amount: 50,
+          date: DateTime(2026, 6, 2),
+          category: ChargeCategory.pharmacy,
+          lineTotal: 500,
+          amountPaid: 100,
+          lineAmountDue: 400,
+        ),
+      ];
+
+      expect(chargeSectionTotal(items), 1500);
+      expect(chargeSectionPaid(items), 300);
+      expect(chargeSectionDue(items), 1200);
     });
   });
 

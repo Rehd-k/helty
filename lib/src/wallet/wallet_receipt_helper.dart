@@ -72,7 +72,7 @@ class WalletReceiptHelper {
               .toList()
         : [
             {
-              'description': 'Wallet payment — ${payment.invoiceNumber ?? ''}',
+              'description': 'Wallet payment - ${payment.invoiceNumber ?? ''}',
               'quantity': 1,
               'total': payment.amount.toStringAsFixed(2),
             },
@@ -134,7 +134,7 @@ class WalletReceiptHelper {
       'itemSnapshots': [
         {
           'description': invoiceNumber != null && invoiceNumber.isNotEmpty
-              ? 'Refund credit — Invoice $invoiceNumber'
+              ? 'Refund credit - Invoice $invoiceNumber'
               : 'Refund credit to wallet',
           'quantity': 1,
           'total': transaction.amount.toStringAsFixed(2),

@@ -23,7 +23,7 @@ class DialysisSelectPatientScreen extends ConsumerWidget {
       );
       return;
     }
-    final name = '${patient.firstName} ${patient.surname}'.trim();
+    final name = patient.displayName.trim();
     context.router.push(
       DialysisPatientEncountersRoute(
         patientId: patientUuid,

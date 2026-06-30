@@ -118,13 +118,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
     }
   }
 
-  String _patientDisplayName(Patient patient) {
-    return [
-      patient.firstName,
-      patient.otherName,
-      patient.surname,
-    ].where((e) => e != null && e.trim().isNotEmpty).join(' ');
-  }
+  String _patientDisplayName(Patient patient) => patient.displayName;
 
   Future<void> _confirmAndDeletePatient(Patient patient) async {
     if (!staffIsSuperAdmin(ref.read(currentStaffProvider))) {

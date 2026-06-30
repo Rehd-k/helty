@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
@@ -46,9 +47,22 @@ class ReceiptEscposService {
   );
 
   static String _sanitizeEscPosText(String input) {
-    // `esc_pos_utils_plus`'s `generator.text()` supports only a limited charset.
-    // Replace known unsupported Unicode characters with safe fallbacks.
-    return input.replaceAll('₦', 'N');
+    // `esc_pos_utils_plus` uses latin1 — only code points U+0000..U+00FF encode.
+    final normalized = input
+        .replaceAll('₦', 'N')
+        .replaceAll('—', '-')
+        .replaceAll('–', '-')
+        .replaceAll('’', "'")
+        .replaceAll('‘', "'")
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('•', '.')
+        .replaceAll('…', '...');
+    final buffer = StringBuffer();
+    for (final rune in normalized.runes) {
+      if (rune <= 0xFF) buffer.writeCharCode(rune);
+    }
+    return buffer.toString();
   }
 
   static String _formatNaira(num value) {
@@ -60,6 +74,10 @@ class ReceiptEscposService {
   static String _capitalize(String s) {
     if (s.isEmpty) return s;
     return s[0].toUpperCase() + s.substring(1).toLowerCase();
+  }
+
+  static String _patientNameFromPersonMap(Map<String, dynamic> m) {
+    return patientDisplayNameFromJson(m, unknownFallback: '');
   }
 
   static String _nameFromPersonMap(Map<String, dynamic> m) {
@@ -82,7 +100,7 @@ class ReceiptEscposService {
     final p = t['patient'];
     if (p is Map) {
       return _sanitizeEscPosText(
-        _nameFromPersonMap(Map<String, dynamic>.from(p)),
+        _patientNameFromPersonMap(Map<String, dynamic>.from(p)),
       );
     }
     return '';
@@ -367,7 +385,7 @@ class ReceiptEscposService {
     }
 
     bytes += generator.text(
-      header.name,
+      _sanitizeEscPosText(header.name),
       styles: const PosStyles(
         bold: true,
         height: PosTextSize.size1,
@@ -377,19 +395,19 @@ class ReceiptEscposService {
     );
     if (header.address.isNotEmpty) {
       bytes += generator.text(
-        header.address,
+        _sanitizeEscPosText(header.address),
         styles: const PosStyles(align: PosAlign.center),
       );
     }
     if (header.phone.isNotEmpty) {
       bytes += generator.text(
-        'Tel: ${header.phone}',
+        _sanitizeEscPosText('Tel: ${header.phone}'),
         styles: const PosStyles(align: PosAlign.center),
       );
     }
     if (header.email.isNotEmpty) {
       bytes += generator.text(
-        header.email,
+        _sanitizeEscPosText(header.email),
         styles: const PosStyles(align: PosAlign.center),
       );
     }
@@ -400,19 +418,23 @@ class ReceiptEscposService {
       font: BarcodeFont.fontA,
       align: PosAlign.center,
     );
-    bytes += generator.text(
+    final txnIdLine = _sanitizeEscPosText(
       txnId.isNotEmpty ? txnId : barcodeDigits,
+    );
+    bytes += generator.text(
+      txnIdLine,
       styles: const PosStyles(align: PosAlign.center, bold: true),
     );
     bytes += generator.hr();
 
     final receiptTitle = data['receiptTitle']?.toString();
+    final titleText = isCopy
+        ? '*** RECEIPT COPY ***'
+        : (receiptTitle != null && receiptTitle.isNotEmpty
+              ? receiptTitle
+              : '*** PAYMENT RECEIPT ***');
     bytes += generator.text(
-      isCopy
-          ? '*** RECEIPT COPY ***'
-          : (receiptTitle != null && receiptTitle.isNotEmpty
-                ? receiptTitle
-                : '*** PAYMENT RECEIPT ***'),
+      _sanitizeEscPosText(titleText),
       styles: const PosStyles(align: PosAlign.center, bold: true),
     );
     bytes += generator.hr();
@@ -423,12 +445,15 @@ class ReceiptEscposService {
     final createdRaw = transaction['createdAt']?.toString() ?? '';
     final createdDt = _parseReceiptCreatedAt(createdRaw);
     final dateLine = createdDt != null
-        ? DateFormatter.dateTime(createdDt)
-        : (createdRaw.isNotEmpty ? _sanitizeEscPosText(createdRaw) : '—');
+        ? _sanitizeEscPosText(DateFormatter.dateTime(createdDt))
+        : (createdRaw.isNotEmpty ? _sanitizeEscPosText(createdRaw) : '-');
 
     bytes += generator.row([
       PosColumn(text: 'Txn:', width: 3, styles: const PosStyles(bold: true)),
-      PosColumn(text: transaction['transactionID']?.toString() ?? '', width: 9),
+      PosColumn(
+        text: _sanitizeEscPosText(transaction['transactionID']?.toString() ?? ''),
+        width: 9,
+      ),
     ]);
     bytes += generator.row([
       PosColumn(text: 'Date:', width: 3, styles: const PosStyles(bold: true)),
@@ -438,9 +463,12 @@ class ReceiptEscposService {
       ),
     ]);
 
-    final pFirst = patient['firstName']?.toString() ?? '';
-    final pLast = patient['surname']?.toString() ?? '';
-    final patientLine = _sanitizeEscPosText('$pFirst $pLast'.trim());
+    final patientLine = _sanitizeEscPosText(
+      patientDisplayNameFromJson(
+        Map<String, dynamic>.from(patient),
+        unknownFallback: '',
+      ),
+    );
     if (patientLine.isEmpty) {
       bytes += generator.row([
         PosColumn(
@@ -448,7 +476,7 @@ class ReceiptEscposService {
           width: 4,
           styles: const PosStyles(bold: true),
         ),
-        PosColumn(text: '—', width: 8),
+        PosColumn(text: '-', width: 8),
       ]);
     } else {
       bytes += generator.row([
@@ -468,7 +496,7 @@ class ReceiptEscposService {
         styles: const PosStyles(bold: true),
       ),
       PosColumn(
-        text: cashierLine.isNotEmpty ? cashierLine : '—',
+        text: cashierLine.isNotEmpty ? cashierLine : '-',
         width: 8,
       ),
     ]);
@@ -482,7 +510,7 @@ class ReceiptEscposService {
     ]);
 
     for (final item in items) {
-      final desc = (item['description'] ?? '').toString();
+      final desc = _sanitizeEscPosText((item['description'] ?? '').toString());
       final qty = (item['quantity'] ?? 0).toString();
       final totalStr = item['total']?.toString() ?? '0';
       final totalVal = num.tryParse(totalStr) ?? 0;

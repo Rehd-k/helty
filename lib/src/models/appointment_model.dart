@@ -1,5 +1,7 @@
 // ignore_for_file: public_member_api_docs
 
+import 'package:helty/src/core/utils/patient_display_name.dart';
+
 /// Mirrors `/appointments` API — aligns with Prisma `Appointment`:
 /// id, patientId, date, status, notes?, referral?, createdAt, staffId?,
 /// createdById, updatedById?, nested patient/staff/createdBy/updatedBy when included.
@@ -10,6 +12,9 @@ class Appointment {
     this.staffId,
     required this.patientFirstName,
     required this.patientLastName,
+    this.patientTitle,
+    this.patientOtherName,
+    this.patientApiDisplayName,
     this.staffFirstName,
     this.staffLastName,
     required this.appointmentDate,
@@ -38,6 +43,9 @@ class Appointment {
   /// Patient name (from nested `patient` or flat legacy fields).
   final String patientFirstName;
   final String patientLastName;
+  final String? patientTitle;
+  final String? patientOtherName;
+  final String? patientApiDisplayName;
 
   /// Optional staff display (nested `staff` or legacy `doctor`).
   final String? staffFirstName;
@@ -64,8 +72,17 @@ class Appointment {
   String get lastName => patientLastName;
 
   String get patientDisplayName {
-    final t = '${patientFirstName.trim()} ${patientLastName.trim()}'.trim();
-    return t.isEmpty ? '—' : t;
+    final preferred = preferPatientFormattedName(
+      displayName: patientApiDisplayName,
+    );
+    if (preferred != null) return preferred;
+    final formatted = formatPatientDisplayNameOrNull(
+      title: patientTitle,
+      firstName: patientFirstName,
+      otherName: patientOtherName,
+      surname: patientLastName,
+    );
+    return formatted ?? '—';
   }
 
   /// Doctor / staff column — prefers `staff`, falls back to `createdBy`.
@@ -84,13 +101,27 @@ class Appointment {
     final patient = json['patient'];
     String pf = '';
     String pl = '';
+    String? pt;
+    String? po;
+    String? apiName;
     if (patient is Map) {
       final m = Map<String, dynamic>.from(patient);
       pf = (m['firstName'] ?? '').toString();
       pl = (m['surname'] ?? m['lastName'] ?? '').toString();
+      pt = m['title']?.toString();
+      po = m['otherName']?.toString();
+      apiName = preferPatientFormattedName(
+        patientName: m['patientName']?.toString(),
+        name: m['name']?.toString(),
+        displayName: m['displayName']?.toString(),
+      );
     }
     if (pf.isEmpty) pf = (json['firstName'] ?? '').toString();
     if (pl.isEmpty) pl = (json['lastName'] ?? json['surname'] ?? '').toString();
+    apiName ??= preferPatientFormattedName(
+      patientName: json['patientName']?.toString(),
+      displayName: json['displayName']?.toString(),
+    );
 
     final staff = json['staff'] ?? json['doctor'];
     String? sf;
@@ -135,6 +166,9 @@ class Appointment {
       staffId: sid,
       patientFirstName: pf,
       patientLastName: pl,
+      patientTitle: pt,
+      patientOtherName: po,
+      patientApiDisplayName: apiName,
       staffFirstName: sf,
       staffLastName: sl,
       appointmentDate: parsed ?? DateTime.fromMillisecondsSinceEpoch(0),

@@ -175,7 +175,7 @@ class _DoctorCompletedEncounterViewScreenState
         builder: (context, child) {
           final tabsRouter = AutoTabsRouter.of(context);
           final name = patient != null
-              ? '${patient.title} ${patient.firstName} ${patient.surname}'
+              ? patient.displayName
               : 'Patient ${widget.patientId}';
           final ageYears = patient != null
               ? DateTime.now().year - patient.dob.year

@@ -1,3 +1,4 @@
+import '../core/utils/patient_display_name.dart';
 import '../models/hmo_models.dart';
 
 /// Sent to GET /patients as `listStatusFilter` so the server narrows by [Patient.status].
@@ -513,4 +514,12 @@ class Patient {
     if (hmoName == null) return wardDisplayName;
     return '$wardDisplayName - $hmoName';
   }
+
+  /// Full display label: title + first + other + surname (see docs/patient-names.md).
+  String get displayName => formatPatientDisplayName(
+        title: title,
+        firstName: firstName,
+        otherName: otherName,
+        surname: surname,
+      );
 }

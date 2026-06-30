@@ -221,7 +221,7 @@ class _EdTriageScreenState extends ConsumerState<EdTriageScreen> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final patientName = _patient != null
-        ? '${_patient!.firstName} ${_patient!.surname}'.trim()
+        ? _patient!.displayName.trim()
         : 'Patient';
 
     return Scaffold(

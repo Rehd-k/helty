@@ -42,13 +42,8 @@ class ConsultationPaymentReportService {
   }
 
   static String patientDisplayName(Patient patient) {
-    final parts = [
-      patient.title.trim(),
-      patient.firstName.trim(),
-      patient.surname.trim(),
-    ].where((s) => s.isNotEmpty);
-    final name = parts.join(' ').trim();
-    return name.isEmpty ? patient.patientId : name;
+    final name = patient.displayName;
+    return name == 'Unknown' ? patient.patientId : name;
   }
 
   Future<List<ConsultationPaymentReportRow>> fetchReport({

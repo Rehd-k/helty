@@ -20,58 +20,34 @@ final frontDesk = <MenuItem>[
     route: FrontDeskDashboardRoute(),
   ),
   MenuItem(
-    label: 'ED Board',
-    icon: Icons.emergency_outlined,
-    route: EdBoardRoute(),
-  ),
-  MenuItem(
-    label: 'ED Registration',
-    icon: Icons.person_add_alt_1_outlined,
-    route: EdRegistrationRoute(),
-  ),
-  MenuItem(
     label: 'View Waiting Patients',
     icon: Icons.add_alarm_outlined,
     route: NewPatientRoute(use: 'For Register'),
   ),
   MenuItem(
-    label: 'Patients',
+    label: 'Add New Patient',
     icon: Icons.view_agenda_outlined,
-    route: PatientListRoute(),
-    children: [
-      MenuItem(
-        label: 'Add New Patient',
-        icon: Icons.view_agenda_outlined,
-        route: PatientFormRoute(),
-      ),
-      MenuItem(
-        label: 'View Patients',
-        icon: Icons.add_alarm_outlined,
-        route: PatientListRoute(),
-      ),
-      MenuItem(
-        label: 'Registered today',
-        icon: Icons.today_outlined,
-        route: TodayPatientsRoute(),
-      ),
-    ],
+    route: PatientFormRoute(),
   ),
   MenuItem(
-    label: 'Appointments',
-    icon: Icons.calendar_month,
+    label: 'View Patients',
+    icon: Icons.add_alarm_outlined,
+    route: PatientListRoute(),
+  ),
+  MenuItem(
+    label: 'Registered today',
+    icon: Icons.today_outlined,
+    route: TodayPatientsRoute(),
+  ),
+  MenuItem(
+    label: 'Add New Appointment',
+    icon: Icons.view_agenda_outlined,
+    route: NewAppointmentRoute(),
+  ),
+  MenuItem(
+    label: 'View Appointments',
+    icon: Icons.add_alarm_outlined,
     route: AppointmentListRoute(),
-    children: [
-      MenuItem(
-        label: 'Add New Appointment',
-        icon: Icons.view_agenda_outlined,
-        route: NewAppointmentRoute(),
-      ),
-      MenuItem(
-        label: 'View Appointments',
-        icon: Icons.add_alarm_outlined,
-        route: AppointmentListRoute(),
-      ),
-    ],
   ),
 ];
 
@@ -284,10 +260,8 @@ List<MenuItem> nurseMenuFor(Staff? staff, NursingDashboardMe? bootstrap) {
   final outpatientLine = isOutpatientLineNurse(staff);
   final regularNurse = isRegularNurse(staff);
 
-  final showWaiting =
-      matron || opdOngCharge || outpatientLine || regularNurse;
-  final showInpatients =
-      matron || wardCharge || inpatientLine || regularNurse;
+  final showWaiting = matron || opdOngCharge || outpatientLine || regularNurse;
+  final showInpatients = matron || wardCharge || inpatientLine || regularNurse;
   final showEd = matron || erCharge || regularNurse;
   final showOng = matron || ongCharge || regularNurse;
   final showRoster = canManageShiftRoster(staff, bootstrap);

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/utils/api_decimal.dart';
+import '../core/utils/patient_display_name.dart';
 import 'api_service.dart';
 import '../transaction/transaction_models.dart';
 
@@ -348,21 +349,10 @@ class TransactionService {
     return DateTime.now();
   }
 
-  /// Build display name from patient object (firstName, surname, or single-field names).
+  /// Build display name from patient object (structured name fields or pre-formatted).
   static String _patientName(Map<String, dynamic>? j) {
     if (j == null) return '';
-    final first = (j['firstName'] as String?)?.trim() ?? '';
-    final last =
-        (j['surname'] as String?)?.trim() ??
-        (j['lastName'] as String?)?.trim() ??
-        '';
-    final fromParts = [first, last].where((s) => s.isNotEmpty).join(' ');
-    if (fromParts.isNotEmpty) return fromParts;
-    for (final key in ['fullName', 'name', 'displayName']) {
-      final v = j[key]?.toString().trim() ?? '';
-      if (v.isNotEmpty) return v;
-    }
-    return '';
+    return patientDisplayNameFromJson(j, unknownFallback: '');
   }
 
   /// Build display name from staff object (firstName, lastName, or single name).

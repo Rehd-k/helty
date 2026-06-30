@@ -98,10 +98,9 @@ class PendingBillingClearanceAdmission {
   String get wardName => wardEntity?['name']?.toString().trim() ?? '';
 
   String get patientDisplayName {
-    final fn = patient.firstName.trim();
-    final sn = patient.surname.trim();
-    if (fn.isEmpty && sn.isEmpty) return patient.patientId;
-    return '$fn $sn'.trim();
+    final name = patient.displayName;
+    if (name != 'Unknown') return name;
+    return patient.patientId;
   }
 
   String get patientHospitalId => patient.patientId;

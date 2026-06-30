@@ -11,6 +11,9 @@ import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/medication_order_service.dart';
 import 'package:helty/src/services/medication_request_service.dart';
+import 'package:intl/intl.dart';
+
+enum _QuickRange { today, last7, thisMonth }
 
 @RoutePage()
 class MedicationRequestsScreen extends ConsumerStatefulWidget {
@@ -38,6 +41,8 @@ class _MedicationRequestsScreenState
   String? _error;
   int _total = 0;
   int _skip = 0;
+  DateTime _from = _startOfDay(DateTime.now());
+  DateTime _to = _endOfDay(DateTime.now());
 
   @override
   void initState() {
@@ -68,6 +73,8 @@ class _MedicationRequestsScreenState
       final patientQuery = _patientFilterCtrl.text.trim();
       final page = await _service.listPharmacyQueue(
         patientId: patientQuery.isEmpty ? null : patientQuery,
+        fromDate: _from,
+        toDate: _to,
         skip: reset ? 0 : _skip,
         take: _pageSize,
       );
@@ -280,6 +287,40 @@ class _MedicationRequestsScreenState
   String? _patientHospitalNumber(MedicationRequestModel r) =>
       r.patient?.hospitalNumber?.trim();
 
+  Future<void> _pickDateRange() async {
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime.now().subtract(const Duration(days: 3650)),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      initialDateRange: DateTimeRange(start: _from, end: _to),
+    );
+    if (range == null) return;
+    setState(() {
+      _from = _startOfDay(range.start);
+      _to = _endOfDay(range.end);
+    });
+    await _load(reset: true);
+  }
+
+  void _applyQuickRange(_QuickRange quickRange) {
+    final now = DateTime.now();
+    switch (quickRange) {
+      case _QuickRange.today:
+        _from = _startOfDay(now);
+        _to = _endOfDay(now);
+        break;
+      case _QuickRange.last7:
+        _from = _startOfDay(now.subtract(const Duration(days: 6)));
+        _to = _endOfDay(now);
+        break;
+      case _QuickRange.thisMonth:
+        _from = DateTime(now.year, now.month, 1);
+        _to = _endOfDay(now);
+        break;
+    }
+    _load(reset: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -332,6 +373,38 @@ class _MedicationRequestsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _loading || _billing ? null : _pickDateRange,
+                  icon: const Icon(Icons.date_range),
+                  label: Text(
+                    '${DateFormat('dd MMM yyyy').format(_from)} - ${DateFormat('dd MMM yyyy').format(_to)}',
+                  ),
+                ),
+                FilledButton.tonal(
+                  onPressed: _loading || _billing
+                      ? null
+                      : () => _applyQuickRange(_QuickRange.today),
+                  child: const Text('Today'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _loading || _billing
+                      ? null
+                      : () => _applyQuickRange(_QuickRange.last7),
+                  child: const Text('Last 7 days'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _loading || _billing
+                      ? null
+                      : () => _applyQuickRange(_QuickRange.thisMonth),
+                  child: const Text('This month'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -479,7 +552,7 @@ class _MedicationRequestsScreenState
             ),
             const SizedBox(height: 6),
             Text(
-              'Nurse-submitted requests awaiting pharmacy billing will appear here.',
+              'Nurse-submitted requests awaiting pharmacy billing will appear here for the selected date range.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -496,7 +569,7 @@ class _MedicationRequestsScreenState
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       itemCount: _requests.length + (canLoadMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, __) => const SizedBox(height: 6),
       itemBuilder: (context, index) {
         if (index >= _requests.length) {
           return Center(
@@ -528,6 +601,11 @@ class _MedicationRequestsScreenState
     );
   }
 }
+
+DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
+
+DateTime _endOfDay(DateTime d) =>
+    DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
 
 class _SummaryChip extends StatelessWidget {
   const _SummaryChip({
@@ -589,34 +667,44 @@ class _MedicationRequestCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
+  static const _metaStyle = TextStyle(fontSize: 11, height: 1.25);
+  static const _labelStyle = TextStyle(
+    fontSize: 11,
+    height: 1.25,
+    fontWeight: FontWeight.w600,
+  );
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final order = request.medicationOrder;
     final encounter = request.encounter;
-    final isOpd = request.isOpdEncounter;
-    final showSubstitution = order?.wasSubstituted ?? false;
-    final drugLabel = showSubstitution
-        ? order!.currentDrugLabel
-        : (order?.currentDrugLabel ?? '—');
+    final drugLabel = order?.currentDrugLabel ?? '—';
     final createdAt = request.createdAt;
     final relativeTime = createdAt != null
         ? DateFormatter.relativeTimeAgo(createdAt.toLocal())
         : null;
+    final prescriptionLine = _prescriptionLine(order);
+    final hasNotes = request.notes?.trim().isNotEmpty ?? false;
+    final hasSpecialInstructions =
+        order?.specialInstructions?.trim().isNotEmpty ?? false;
+    final courseQty = order?.quantity;
+    final showCourseQty =
+        courseQty != null &&
+        courseQty > 0 &&
+        courseQty != request.requestedQuantity;
 
     return Material(
-      elevation: selected ? 2 : 0,
+      elevation: selected ? 1 : 0,
       color: selected
-          ? colorScheme.primaryContainer.withValues(alpha: 0.18)
+          ? colorScheme.primaryContainer.withValues(alpha: 0.15)
           : colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(
           color: selected
-              ? colorScheme.primary.withValues(alpha: 0.5)
-              : colorScheme.outlineVariant.withValues(alpha: 0.5),
-          width: selected ? 1.5 : 1,
+              ? colorScheme.primary.withValues(alpha: 0.45)
+              : colorScheme.outlineVariant.withValues(alpha: 0.45),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -626,92 +714,132 @@ class _MedicationRequestCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 4,
-                color: selected
-                    ? colorScheme.primary
-                    : medicationRequestStatusColor(
-                        context,
-                        request.status,
-                      ).withValues(alpha: 0.6),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 14, 14, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(context, colorScheme, relativeTime),
-                      const SizedBox(height: 8),
-                      PrescribingDoctorLine(
-                        name: order?.doctor?.displayName,
+            Container(
+              width: 3,
+              color: selected
+                  ? colorScheme.primary
+                  : medicationRequestStatusColor(
+                      context,
+                      request.status,
+                    ).withValues(alpha: 0.55),
+            ),
+            Checkbox(
+              value: selected,
+              onChanged: (_) => onToggleSelect(),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTopRow(context, colorScheme),
+                    const SizedBox(height: 4),
+                    _buildDrugRow(context, colorScheme, drugLabel, order),
+                    if (order != null && order.wasSubstituted) ...[
+                      const SizedBox(height: 3),
+                      MedicationSubstitutionSummary(
+                        prescribedDrug: order.prescribedDrugLabel,
+                        currentDrug: order.currentDrugLabel,
+                        compact: true,
                       ),
-                      const SizedBox(height: 12),
-                      _buildDrugSection(context, colorScheme, drugLabel, order),
-                      if (order != null &&
-                          order.prescriptionDetailLine.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        _buildPrescriptionChips(context, colorScheme, order),
+                    ],
+                    if (prescriptionLine != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        prescriptionLine,
+                        style: _metaStyle.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _buildBillQtyChip(context, colorScheme, showCourseQty),
+                        if (encounter != null)
+                          _EncounterChip(
+                            label: encounter.typeLabel,
+                            status: encounter.status,
+                            colorScheme: colorScheme,
+                          ),
+                        if (relativeTime != null)
+                          Text(
+                            relativeTime,
+                            style: _metaStyle.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                       ],
-                      const SizedBox(height: 12),
-                      _buildRequestQuantityBanner(context, colorScheme),
-                      if (request.notes != null &&
-                          request.notes!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        _buildNotes(context, colorScheme),
-                      ],
-                      if (order?.specialInstructions != null &&
-                          order!.specialInstructions!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        _buildSpecialInstructions(context, colorScheme, order),
-                      ],
-                      const SizedBox(height: 12),
-                      Divider(
-                        height: 1,
-                        color: colorScheme.outlineVariant.withValues(
-                          alpha: 0.4,
+                    ),
+                    const SizedBox(height: 4),
+                    _buildStaffLine(context, colorScheme, order),
+                    if (createdAt != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Requested ${DateFormatter.dateTime(createdAt.toLocal())}',
+                        style: _metaStyle.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      _buildFooter(context, colorScheme, isOpd, encounter),
                     ],
-                  ),
+                    if (hasNotes) ...[
+                      const SizedBox(height: 4),
+                      _buildAnnotationRow(
+                        context,
+                        icon: Icons.notes_outlined,
+                        text: request.notes!.trim(),
+                        color: colorScheme.onSurfaceVariant,
+                        background: null,
+                      ),
+                    ],
+                    if (hasSpecialInstructions) ...[
+                      const SizedBox(height: 4),
+                      _buildAnnotationRow(
+                        context,
+                        icon: Icons.info_outline,
+                        text: order!.specialInstructions!.trim(),
+                        color: colorScheme.onTertiaryContainer,
+                        background: colorScheme.tertiaryContainer.withValues(
+                          alpha: 0.28,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ],
+            ),
+          ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(
-    BuildContext context,
-    ColorScheme colorScheme,
-    String? relativeTime,
-  ) {
+  Widget _buildTopRow(BuildContext context, ColorScheme colorScheme) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Checkbox(
-          value: selected,
-          onChanged: (_) => onToggleSelect(),
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          visualDensity: VisualDensity.compact,
-        ),
         CircleAvatar(
-          radius: 20,
+          radius: 13,
           backgroundColor: colorScheme.primaryContainer,
           child: Text(
             patientInitials,
             style: TextStyle(
               fontWeight: FontWeight.w700,
               color: colorScheme.onPrimaryContainer,
-              fontSize: 14,
+              fontSize: 11,
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,42 +848,54 @@ class _MedicationRequestCard extends StatelessWidget {
                 patientName,
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 15,
+                  fontSize: 13,
+                  height: 1.2,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               if (hospitalNumber != null && hospitalNumber!.isNotEmpty)
                 Text(
                   hospitalNumber!,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
+                    height: 1.2,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
             ],
           ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            MedicationRequestStatusBadge(status: request.status),
-            if (relativeTime != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                relativeTime,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ],
-        ),
+        MedicationRequestStatusBadge(status: request.status),
+        if (request.isRequested) ...[
+          IconButton(
+            tooltip: 'Edit request',
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+          IconButton(
+            tooltip: 'Delete request',
+            onPressed: onDelete,
+            icon: Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: colorScheme.error,
+            ),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildDrugSection(
+  Widget _buildDrugRow(
     BuildContext context,
     ColorScheme colorScheme,
     String drugLabel,
@@ -764,328 +904,178 @@ class _MedicationRequestCard extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            Icons.medication_liquid_outlined,
-            size: 22,
-            color: colorScheme.onSecondaryContainer,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                drugLabel,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-              ),
-              if (order != null && order.wasSubstituted) ...[
-                const SizedBox(height: 4),
-                MedicationSubstitutionSummary(
-                  prescribedDrug: order.prescribedDrugLabel,
-                  currentDrug: order.currentDrugLabel,
-                  compact: true,
-                ),
-              ] else if (order?.orderStatus != null &&
-                  order!.orderStatus!.trim().isNotEmpty) ...[
-                const SizedBox(height: 4),
-                MedicationOrderStatusBadge(status: order.orderStatus!),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPrescriptionChips(
-    BuildContext context,
-    ColorScheme colorScheme,
-    MedicationRequestOrderSummary order,
-  ) {
-    final chips = <({String label, String value})>[
-      if (order.dose != null && order.dose!.trim().isNotEmpty)
-        (label: 'Dose', value: order.dose!.trim()),
-      if (order.frequency != null && order.frequency!.trim().isNotEmpty)
-        (label: 'Frequency', value: order.frequency!.trim()),
-      if (order.duration != null && order.duration!.trim().isNotEmpty)
-        (label: 'Duration', value: order.duration!.trim()),
-      if (order.route != null && order.route!.trim().isNotEmpty)
-        (label: 'Route', value: order.route!.trim()),
-      if (order.quantity != null && order.quantity! > 0)
-        (label: 'Course qty', value: '${order.quantity}'),
-    ];
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: chips
-          .map(
-            (c) => _DetailChip(
-              label: c.label,
-              value: c.value,
-              colorScheme: colorScheme,
-            ),
-          )
-          .toList(),
-    );
-  }
-
-  Widget _buildRequestQuantityBanner(
-    BuildContext context,
-    ColorScheme colorScheme,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            size: 20,
-            color: colorScheme.primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Quantity to bill',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onPrimaryContainer.withValues(
-                      alpha: 0.8,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${request.requestedQuantity} unit${request.requestedQuantity == 1 ? '' : 's'}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (request.medicationOrder?.quantity != null &&
-              request.medicationOrder!.quantity! > 0 &&
-              request.medicationOrder!.quantity != request.requestedQuantity)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  'Full course',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: colorScheme.onPrimaryContainer.withValues(
-                      alpha: 0.7,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${request.medicationOrder!.quantity}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotes(BuildContext context, ColorScheme colorScheme) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
         Icon(
-          Icons.notes_outlined,
+          Icons.medication_liquid_outlined,
           size: 16,
-          color: colorScheme.onSurfaceVariant,
+          color: colorScheme.primary,
         ),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            request.notes!.trim(),
-            style: TextStyle(
-              fontSize: 12,
-              color: colorScheme.onSurfaceVariant,
-              fontStyle: FontStyle.italic,
+            drugLabel,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              height: 1.2,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+        if (order?.orderStatus != null &&
+            order!.orderStatus!.trim().isNotEmpty &&
+            !order.wasSubstituted)
+          MedicationOrderStatusBadge(status: order.orderStatus!),
       ],
     );
   }
 
-  Widget _buildSpecialInstructions(
+  Widget _buildBillQtyChip(
     BuildContext context,
     ColorScheme colorScheme,
-    MedicationRequestOrderSummary order,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline,
-            size: 16,
-            color: colorScheme.onTertiaryContainer,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              order.specialInstructions!.trim(),
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.onTertiaryContainer,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooter(
-    BuildContext context,
-    ColorScheme colorScheme,
-    bool isOpd,
-    MedicationRequestEncounterRef? encounter,
+    bool showCourseQty,
   ) {
     final order = request.medicationOrder;
-    final createdAt = request.createdAt;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  if (encounter != null)
-                    _EncounterChip(
-                      label: encounter.typeLabel,
-                      status: encounter.status,
-                      colorScheme: colorScheme,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              MedicationStaffAttributionColumn(
-                prescribingDoctor: order?.doctor?.displayName,
-                requestedBy: request.requestedByNurse?.displayName,
-                substitutedBy: order?.substitutedByPharmacist?.displayName,
-                substitutedAt: order?.substitutedAt,
-                isOpd: false,
-                compact: true,
-                excludePrescribingDoctor: true,
-              ),
-              if (createdAt != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Requested ${DateFormatter.dateTime(createdAt.toLocal())}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        if (request.isRequested)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton.filledTonal(
-                tooltip: 'Edit request',
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                visualDensity: VisualDensity.compact,
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: 'Delete request',
-                onPressed: onDelete,
-                icon: Icon(Icons.delete_outline, color: colorScheme.error),
-                visualDensity: VisualDensity.compact,
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-class _DetailChip extends StatelessWidget {
-  const _DetailChip({
-    required this.label,
-    required this.value,
-    required this.colorScheme,
-  });
-
-  final String label;
-  final String value;
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
+        color: colorScheme.primaryContainer.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
       ),
       child: RichText(
         text: TextSpan(
-          style: TextStyle(fontSize: 11, color: colorScheme.onSurface),
+          style: TextStyle(
+            fontSize: 11,
+            color: colorScheme.onPrimaryContainer,
+            height: 1.2,
+          ),
           children: [
-            TextSpan(
-              text: '$label: ',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurfaceVariant,
-              ),
+            const TextSpan(
+              text: 'Bill qty ',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            TextSpan(text: value),
+            TextSpan(
+              text:
+                  '${request.requestedQuantity} unit${request.requestedQuantity == 1 ? '' : 's'}',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            ),
+            if (showCourseQty)
+              TextSpan(
+                text: ' · course ${order!.quantity}',
+                style: TextStyle(
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.75),
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStaffLine(
+    BuildContext context,
+    ColorScheme colorScheme,
+    MedicationRequestOrderSummary? order,
+  ) {
+    final doctor = order?.doctor?.displayName.trim();
+    final nurse = request.requestedByNurse?.displayName.trim();
+    final substitutedBy = order?.substitutedByPharmacist?.displayName.trim();
+    final substitutedAt = order?.substitutedAt;
+
+    final parts = <InlineSpan>[];
+    void addPart(String label, String? value) {
+      if (value == null || value.isEmpty) return;
+      if (parts.isNotEmpty) {
+        parts.add(
+          TextSpan(
+            text: ' · ',
+            style: _metaStyle.copyWith(color: colorScheme.onSurfaceVariant),
+          ),
+        );
+      }
+      parts.add(TextSpan(text: '$label: ', style: _labelStyle));
+      parts.add(TextSpan(text: value, style: _metaStyle));
+    }
+
+    addPart('Dr', doctor);
+    addPart('Req', nurse);
+    if (substitutedBy != null && substitutedBy.isNotEmpty) {
+      addPart('Sub', substitutedBy);
+      if (substitutedAt != null) {
+        parts.add(
+          TextSpan(
+            text:
+                ' (${DateFormatter.relativeTimeAgo(substitutedAt.toLocal())})',
+            style: _metaStyle.copyWith(color: colorScheme.onSurfaceVariant),
+          ),
+        );
+      }
+    }
+
+    if (parts.isEmpty) return const SizedBox.shrink();
+
+    return RichText(
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: _metaStyle.copyWith(color: colorScheme.onSurface),
+        children: parts,
+      ),
+    );
+  }
+
+  String? _prescriptionLine(MedicationRequestOrderSummary? order) {
+    if (order == null) return null;
+    final segments = <String>[
+      if (order.dose != null && order.dose!.trim().isNotEmpty)
+        'Dose ${order.dose!.trim()}',
+      if (order.frequency != null && order.frequency!.trim().isNotEmpty)
+        'Freq ${order.frequency!.trim()}',
+      if (order.duration != null && order.duration!.trim().isNotEmpty)
+        'Dur ${order.duration!.trim()}',
+      if (order.route != null && order.route!.trim().isNotEmpty)
+        'Route ${order.route!.trim()}',
+      if (order.quantity != null && order.quantity! > 0)
+        'Course ${order.quantity}',
+    ];
+    if (segments.isEmpty) return null;
+    return segments.join(' · ');
+  }
+
+  Widget _buildAnnotationRow(
+    BuildContext context, {
+    required IconData icon,
+    required String text,
+    required Color color,
+    Color? background,
+  }) {
+    final content = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 11, color: color, height: 1.25),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+
+    if (background == null) return content;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: content,
     );
   }
 }

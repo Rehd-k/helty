@@ -1,4 +1,5 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/core/utils/patient_display_name.dart';
 
 /// When the invoice is linked to a single active billing transaction (`billingLink` on API).
 class BillingInvoiceBillingLink {
@@ -386,6 +387,7 @@ class BillingInvoiceItem {
     this.createdById,
     this.createdByName,
     this.createdAt,
+    this.createdAtLocal,
   });
 
   final String id;
@@ -440,6 +442,9 @@ class BillingInvoiceItem {
   final String? createdById;
   final String? createdByName;
   final DateTime? createdAt;
+
+  /// Local timestamp for when the line was added (preferred for display).
+  final DateTime? createdAtLocal;
 
   /// Invoice line title for UI and payments (custom → purchase item → consumable → drug → service → id).
   String get displayLabel {
@@ -588,6 +593,9 @@ class BillingInvoiceItem {
       createdById: _nullableString(json['createdById'] ?? createdBy?['id']),
       createdByName: createdByName.isNotEmpty ? createdByName : null,
       createdAt: _asDate(json['createdAt']),
+      createdAtLocal:
+          _asLocalWallClockDate(json['createdAtLocal']) ??
+          _asDate(json['createdAt']),
     );
   }
 }
@@ -961,10 +969,11 @@ class BillingPaymentDetail {
             )
             .toList()
         : <BillingPaymentItemAllocation>[];
-    final patientFirst = _nullableString(patient?['firstName']) ?? '';
-    final patientLast =
-        _nullableString(patient?['surname'] ?? patient?['lastName']) ?? '';
-    final patientName = '$patientFirst $patientLast'.trim();
+    final patientName = patient != null
+        ? patientDisplayNameFromJsonOrNull(
+            Map<String, dynamic>.from(patient),
+          )
+        : null;
     return BillingPaymentDetail(
       id: _asString(json['id']),
       amount: _asDouble(json['amount']),
@@ -982,7 +991,7 @@ class BillingPaymentDetail {
       invoiceId: _nullableString(invoice?['id'] ?? json['invoiceId']),
       invoiceNumber: _nullableString(invoice?['invoiceID']),
       invoiceStatus: _nullableString(invoice?['status']),
-      patientName: patientName.isEmpty ? null : patientName,
+      patientName: patientName,
       patientChartNumber: _nullableString(
         patient?['patientId'] ?? invoice?['patientId'],
       ),
@@ -1288,4 +1297,25 @@ bool _asBool(dynamic value, {bool fallback = false}) {
 DateTime? _asDate(dynamic value) {
   if (value == null) return null;
   return DateTime.tryParse(value.toString());
+}
+
+/// Parses API `createdAtLocal` preserving wall-clock Y-M-D (not UTC shift).
+DateTime? _asLocalWallClockDate(dynamic value) {
+  if (value == null) return null;
+  final s = value.toString().trim();
+  if (s.isEmpty) return null;
+  final match = RegExp(
+    r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})',
+  ).firstMatch(s);
+  if (match != null) {
+    return DateTime(
+      int.parse(match.group(1)!),
+      int.parse(match.group(2)!),
+      int.parse(match.group(3)!),
+      int.parse(match.group(4)!),
+      int.parse(match.group(5)!),
+      int.parse(match.group(6)!),
+    );
+  }
+  return DateTime.tryParse(s);
 }

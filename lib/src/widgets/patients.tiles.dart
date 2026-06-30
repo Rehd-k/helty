@@ -42,15 +42,9 @@ class PatientTile extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        patient.surname.capitalize(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        patient.firstName.capitalize(),
+                        patient.displayName == 'Unknown'
+                            ? patient.patientId
+                            : patient.displayName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,

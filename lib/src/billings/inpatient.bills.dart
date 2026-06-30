@@ -1478,9 +1478,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     ]);
     final effectivePatientName = widget.patientName.trim().isNotEmpty
         ? widget.patientName.trim()
-        : (selectedPatient != null
-              ? '${selectedPatient.firstName} ${selectedPatient.surname}'
-              : '');
+        : (selectedPatient != null ? selectedPatient.displayName : '');
 
     if (_loading) {
       return Scaffold(
@@ -2087,7 +2085,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         ], detail),
         const SizedBox(height: 24),
 
-        _buildSectionHeader('CONSUMABLES'),
+        _buildSectionHeader('Supplies & Consumables'),
         _buildChargeGroup(
           colorScheme,
           groupedCharges[ChargeCategory.supplies] ?? [],
@@ -2124,285 +2122,317 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       ref.read(authProvider).staff,
     );
 
-    return Card(
-      elevation: 0,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          elevation: 0,
 
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: items.length,
-        separatorBuilder: (context, index) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final line = _billingLineForCharge(item, detail);
-          final selected = _selectedLineIdsForPay.contains(
-            item.invoiceLineItemId,
-          );
-          final theme = Theme.of(context);
-          final trailingAmount = item.lineAmountDue > 0.001
-              ? item.lineAmountDue
-              : item.displayLineTotal;
-          return Material(
-            color: Colors.transparent,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Checkbox(
-                      value: selected,
-                      onChanged: detail == null
-                          ? null
-                          : (v) {
-                              setState(() {
-                                if (v == true) {
-                                  _selectedLineIdsForPay.add(
-                                    item.invoiceLineItemId,
-                                  );
-                                } else {
-                                  _selectedLineIdsForPay.remove(
-                                    item.invoiceLineItemId,
-                                  );
-                                }
-                              });
-                            },
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onSecondaryTapDown: line == null || item.isLineFullyPaid
-                          ? null
-                          : (d) => _showLinePaymentMenuAt(
-                              d.globalPosition,
-                              line,
-                              item,
-                            ),
-                      onLongPress: line == null || item.isLineFullyPaid
-                          ? null
-                          : () => _showLinePaymentBottomSheet(line, item),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Positioned.fill(
-                              child: _chargeRowPaymentBackdrop(item),
-                            ),
-                            ListTile(
-                              tileColor: Colors.transparent,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              title: Text(
-                                item.description,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: colorScheme.outlineVariant),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final line = _billingLineForCharge(item, detail);
+              final selected = _selectedLineIdsForPay.contains(
+                item.invoiceLineItemId,
+              );
+              final theme = Theme.of(context);
+              final trailingAmount = item.lineAmountDue > 0.001
+                  ? item.lineAmountDue
+                  : item.displayLineTotal;
+              return Material(
+                color: Colors.transparent,
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Checkbox(
+                          value: selected,
+                          onChanged: detail == null
+                              ? null
+                              : (v) {
+                                  setState(() {
+                                    if (v == true) {
+                                      _selectedLineIdsForPay.add(
+                                        item.invoiceLineItemId,
+                                      );
+                                    } else {
+                                      _selectedLineIdsForPay.remove(
+                                        item.invoiceLineItemId,
+                                      );
+                                    }
+                                  });
+                                },
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onSecondaryTapDown:
+                              line == null || item.isLineFullyPaid
+                              ? null
+                              : (d) => _showLinePaymentMenuAt(
+                                  d.globalPosition,
+                                  line,
+                                  item,
                                 ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (line != null) ...[
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      children: [
-                                        _chargeLineKindBadge(line, theme),
-                                        if (line.refundPending)
-                                          _refundPendingBadge(theme),
-                                      ],
+                          onLongPress: line == null || item.isLineFullyPaid
+                              ? null
+                              : () => _showLinePaymentBottomSheet(line, item),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Positioned.fill(
+                                  child: _chargeRowPaymentBackdrop(item),
+                                ),
+                                ListTile(
+                                  tileColor: Colors.transparent,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  title: Text(
+                                    item.description,
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
                                     ),
-                                    const SizedBox(height: 4),
-                                  ],
-                                  if (line != null && line.isRecurringDaily)
-                                    _recurringDailySubtitle(line, theme)
-                                  else
-                                    Row(
-                                      children: [
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (line != null) ...[
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            _chargeLineKindBadge(line, theme),
+                                            if (line.refundPending)
+                                              _refundPendingBadge(theme),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                      ],
+                                      if (line != null && line.isRecurringDaily)
+                                        _recurringDailySubtitle(line, theme)
+                                      else
+                                        Row(
+                                          children: [
+                                            Text(
+                                              _formatDate(item.date),
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                            ),
+                                            if (item.quantity > 1) ...[
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Qty: ${item.quantity}',
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .primary,
+                                                    ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _chargeLinePaymentSummary(item, line),
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                      ),
+                                      if (line?.createdByName != null) ...[
+                                        const SizedBox(height: 2),
                                         Text(
-                                          _formatDate(item.date),
-                                          style: theme.textTheme.bodySmall
+                                          'Added by ${line!.createdByName}',
+                                          style: theme.textTheme.labelSmall
                                               ?.copyWith(
                                                 color: theme
                                                     .colorScheme
                                                     .onSurfaceVariant,
+                                                fontStyle: FontStyle.italic,
                                               ),
                                         ),
-                                        if (item.quantity > 1) ...[
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Qty: ${item.quantity}',
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                                  color:
-                                                      theme.colorScheme.primary,
-                                                ),
-                                          ),
-                                        ],
                                       ],
-                                    ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _chargeLinePaymentSummary(item, line),
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  if (line?.createdByName != null) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Added by ${line!.createdByName}',
-                                      style: theme.textTheme.labelSmall
-                                          ?.copyWith(
-                                            color: theme
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        trailingAmount.toFinancial(
-                                          isMoney: true,
-                                        ),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                          color: item.isLineFullyPaid
-                                              ? theme.colorScheme.tertiary
-                                              : null,
-                                        ),
-                                      ),
-                                      if (item.lineAmountDue > 0.001 &&
-                                          item.amountPaid > 0.001)
-                                        Text(
-                                          'due',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: theme
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                        ),
-                                      if (item.quantity > 1)
-                                        Text(
-                                          '${item.amount.toFinancial(isMoney: true)} / unit',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: theme
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                        ),
                                     ],
                                   ),
-                                  Builder(
-                                    builder: (btnCtx) {
-                                      final refundBtn = line == null
-                                          ? null
-                                          : _lineRefundActionButton(line);
-                                      final deletingLine =
-                                          line != null &&
-                                          _deletingLineIds.contains(line.id);
-                                      return Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: [
-                                          if (refundBtn != null) refundBtn,
-                                          if (canDeleteLine && line != null)
-                                            IconButton(
-                                              tooltip: 'Delete item',
-                                              icon: deletingLine
-                                                  ? SizedBox(
-                                                      width: 18,
-                                                      height: 18,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: theme
-                                                                .colorScheme
-                                                                .error,
-                                                          ),
-                                                    )
-                                                  : Icon(
-                                                      Icons.delete_outline,
-                                                      size: 22,
-                                                      color: theme
-                                                          .colorScheme
-                                                          .error,
-                                                    ),
-                                              onPressed: deletingLine
-                                                  ? null
-                                                  : () => _deleteInvoiceLine(
-                                                      line: line,
-                                                      charge: item,
-                                                    ),
+                                          Text(
+                                            trailingAmount.toFinancial(
+                                              isMoney: true,
                                             ),
-                                          IconButton(
-                                            tooltip: 'Payment options',
-                                            icon: const Icon(
-                                              Icons.payment_outlined,
-                                              size: 22,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                              color: item.isLineFullyPaid
+                                                  ? theme.colorScheme.tertiary
+                                                  : null,
                                             ),
-                                            onPressed:
-                                                line == null ||
-                                                    item.isLineFullyPaid
-                                                ? null
-                                                : () {
-                                                    final box =
-                                                        btnCtx.findRenderObject()
-                                                            as RenderBox?;
-                                                    if (box == null) return;
-                                                    final o = box.localToGlobal(
-                                                      Offset.zero,
-                                                    );
-                                                    _showLinePaymentMenuAt(
-                                                      o +
-                                                          Offset(
-                                                            0,
-                                                            box.size.height,
-                                                          ),
-                                                      line,
-                                                      item,
-                                                    );
-                                                  },
                                           ),
+                                          if (item.lineAmountDue > 0.001 &&
+                                              item.amountPaid > 0.001)
+                                            Text(
+                                              'due',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
+                                          if (item.quantity > 1)
+                                            Text(
+                                              '${item.amount.toFinancial(isMoney: true)} / unit',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
                                         ],
-                                      );
-                                    },
+                                      ),
+                                      Builder(
+                                        builder: (btnCtx) {
+                                          final refundBtn = line == null
+                                              ? null
+                                              : _lineRefundActionButton(line);
+                                          final deletingLine =
+                                              line != null &&
+                                              _deletingLineIds.contains(
+                                                line.id,
+                                              );
+                                          return Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (refundBtn != null) refundBtn,
+                                              if (canDeleteLine && line != null)
+                                                IconButton(
+                                                  tooltip: 'Delete item',
+                                                  icon: deletingLine
+                                                      ? SizedBox(
+                                                          width: 18,
+                                                          height: 18,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                                color: theme
+                                                                    .colorScheme
+                                                                    .error,
+                                                              ),
+                                                        )
+                                                      : Icon(
+                                                          Icons.delete_outline,
+                                                          size: 22,
+                                                          color: theme
+                                                              .colorScheme
+                                                              .error,
+                                                        ),
+                                                  onPressed: deletingLine
+                                                      ? null
+                                                      : () =>
+                                                            _deleteInvoiceLine(
+                                                              line: line,
+                                                              charge: item,
+                                                            ),
+                                                ),
+                                              IconButton(
+                                                tooltip: 'Payment options',
+                                                icon: const Icon(
+                                                  Icons.payment_outlined,
+                                                  size: 22,
+                                                ),
+                                                onPressed:
+                                                    line == null ||
+                                                        item.isLineFullyPaid
+                                                    ? null
+                                                    : () {
+                                                        final box =
+                                                            btnCtx.findRenderObject()
+                                                                as RenderBox?;
+                                                        if (box == null) return;
+                                                        final o = box
+                                                            .localToGlobal(
+                                                              Offset.zero,
+                                                            );
+                                                        _showLinePaymentMenuAt(
+                                                          o +
+                                                              Offset(
+                                                                0,
+                                                                box.size.height,
+                                                              ),
+                                                          line,
+                                                          item,
+                                                        );
+                                                      },
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6, right: 4),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Total: ${chargeSectionTotal(items).toFinancial(isMoney: true)}   '
+              'Paid: ${chargeSectionPaid(items).toFinancial(isMoney: true)}   '
+              'Due: ${chargeSectionDue(items).toFinancial(isMoney: true)}',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 

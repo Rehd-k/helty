@@ -105,7 +105,7 @@ class _CmacPatientPickerFieldState extends State<CmacPatientPickerField> {
                 itemCount: _hits.length,
                 itemBuilder: (_, i) {
                   final p = _hits[i];
-                  final label = '${p.firstName} ${p.surname}'.trim();
+                  final label = p.displayName.trim();
                   return ListTile(
                     dense: true,
                     title: Text(label),

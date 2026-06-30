@@ -1455,7 +1455,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       ref: ref,
       patientUuid: patientUuid,
       patientName:
-          '${selectedPatient.firstName} ${selectedPatient.surname}'.trim(),
+          selectedPatient.displayName.trim(),
       chartNumber: selectedPatient.patientId,
       offerReceipt: printReceiptForBilling,
     );

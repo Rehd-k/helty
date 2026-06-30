@@ -155,104 +155,21 @@ Future<void> showNewPatientInvoiceForm(
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
                 FutureBuilder<List<Ward>>(
                   future: wardsFuture,
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: LinearProgressIndicator(),
-                      );
-                    }
-
-                    if (snapshot.hasError) {
-                      return Text(
-                        'Failed to load wards: ${snapshot.error}',
-                        style: TextStyle(
-                          color: Colors.red.shade700,
-                          fontSize: 12,
-                        ),
-                      );
-                    }
-
-                    final wards = snapshot.data ?? const <Ward>[];
-                    if (wards.isEmpty) {
-                      return Text(
-                        'No wards available.',
-                        style: TextStyle(
-                          color: colorScheme.onSurface.withValues(alpha: 0.6),
-                          fontSize: 12,
-                        ),
-                      );
-                    }
-
-                    final existing = wardId.text.trim();
-                    final hasExisting =
-                        existing.isNotEmpty &&
-                        wards.any((w) => w.id == existing);
-                    Ward? opd;
-                    for (final w in wards) {
-                      if (w.name.trim().toUpperCase() == 'OPD') {
-                        opd = w;
-                        break;
+                    if (snapshot.hasData) {
+                      final wards = snapshot.data ?? const <Ward>[];
+                      Ward? opd;
+                      for (final w in wards) {
+                        if (w.name.trim().toUpperCase() == 'OPD') {
+                          opd = w;
+                          break;
+                        }
                       }
+                      wardId.text = opd?.id ?? (wards.isNotEmpty ? wards.first.id : '');
                     }
-                    final selectedWardId = hasExisting
-                        ? existing
-                        : (opd?.id ?? wards.first.id);
-                    wardId.text = selectedWardId;
-
-                    return DropdownButtonFormField<String>(
-                      initialValue: selectedWardId,
-                      decoration: InputDecoration(
-                        labelText: "Ward",
-                        labelStyle: TextStyle(
-                          fontSize: 13,
-                          color: colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                        filled: true,
-                        fillColor: colorScheme.onSurface.withValues(
-                          alpha: 0.02,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: colorScheme.primary),
-                        ),
-                      ),
-                      icon: Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 18,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurface,
-                      ),
-                      items: wards
-                          .map(
-                            (w) => DropdownMenuItem(
-                              value: w.id,
-                              child: Text(w.name),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (val) {
-                        wardId.text = val ?? selectedWardId;
-                      },
-                    );
+                    return const SizedBox.shrink();
                   },
                 ),
               ],

@@ -1,4 +1,5 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/core/utils/patient_display_name.dart';
 
 import '../helper/date.formatter.dart';
 
@@ -22,6 +23,8 @@ class ReceivableItem {
     this.reason,
     this.mode,
     this.valueStr,
+    this.coverageValue,
+    this.scope,
     this.policyName,
     this.policyReason,
     this.invoiceHumanId,
@@ -29,11 +32,15 @@ class ReceivableItem {
     this.invoiceStatus,
     this.invoiceCreatedAt,
     this.patientFirstName,
+    this.patientOtherName,
     this.patientSurname,
+    this.patientTitle,
+    this.patientApiDisplayName,
     this.patientPublicId,
     this.payerFirstName,
     this.payerLastName,
     this.payerStaffId,
+    this.invoiceLines = const [],
   });
 
   final String coverageId;
@@ -50,6 +57,8 @@ class ReceivableItem {
   final String? reason;
   final String? mode;
   final String? valueStr;
+  final double? coverageValue;
+  final String? scope;
   final String? policyName;
   final String? policyReason;
   final String? invoiceHumanId;
@@ -57,20 +66,48 @@ class ReceivableItem {
   final String? invoiceStatus;
   final DateTime? invoiceCreatedAt;
   final String? patientFirstName;
+  final String? patientOtherName;
   final String? patientSurname;
+  final String? patientTitle;
+  final String? patientApiDisplayName;
   final String? patientPublicId;
   final String? payerFirstName;
   final String? payerLastName;
   final String? payerStaffId;
+  final List<ReceivableInvoiceLine> invoiceLines;
+
+  double get invoiceLinesTotal =>
+      invoiceLines.fold<double>(0, (sum, line) => sum + line.lineTotal);
 
   /// Prefer invoice timestamp, then top-level `createdAt`.
   DateTime? get displayCreatedAt => invoiceCreatedAt ?? createdAt;
 
+  /// Human-readable coverage value, e.g. `100%` or fixed amount label.
+  String? get coverageLabel {
+    final value = coverageValue;
+    if (value == null) return null;
+    final m = mode?.trim().toUpperCase();
+    if (m == 'PERCENT') {
+      final rounded = value == value.roundToDouble()
+          ? value.toInt().toString()
+          : value.toStringAsFixed(2);
+      return '$rounded%';
+    }
+    if (m == 'FIXED') return 'Fixed $value';
+    return value.toString();
+  }
+
   String? get patientDisplayName {
-    final a = patientFirstName ?? '';
-    final b = patientSurname ?? '';
-    final n = '$a $b'.trim();
-    return n.isEmpty ? null : n;
+    final preferred = preferPatientFormattedName(
+      displayName: patientApiDisplayName,
+    );
+    if (preferred != null) return preferred;
+    return formatPatientDisplayNameOrNull(
+      title: patientTitle,
+      firstName: patientFirstName,
+      otherName: patientOtherName,
+      surname: patientSurname,
+    );
   }
 
   /// Short line for remittance checkboxes (policy / kind + patient + date).
@@ -78,6 +115,8 @@ class ReceivableItem {
     final parts = <String>[];
     if (policyName != null && policyName!.trim().isNotEmpty) {
       parts.add(policyName!.trim());
+    } else if (payerName != null && payerName!.trim().isNotEmpty) {
+      parts.add(payerName!.trim());
     } else if (kind != null && kind!.trim().isNotEmpty) {
       var head = kind!.trim();
       if (reason != null && reason!.trim().isNotEmpty) {
@@ -111,6 +150,9 @@ class ReceivableItem {
     final payer = json['payer'] is Map
         ? Map<String, dynamic>.from(json['payer'] as Map)
         : null;
+    final hmo = json['hmo'] is Map
+        ? Map<String, dynamic>.from(json['hmo'] as Map)
+        : null;
 
     final amount = _asDouble(json['amount']);
     final outstandingRaw = json['outstandingAmount'];
@@ -122,6 +164,20 @@ class ReceivableItem {
     final payerFromMap = payer != null
         ? _nullableString(payer['staffId'] ?? payer['id'])
         : null;
+    final hmoIdFromNested = _nullableString(hmo?['id']);
+    final hmoNameFromNested = _nullableString(hmo?['name'] ?? hmo?['displayName']);
+    final coverageValue = tryParseApiDecimal(json['value']);
+    final invoiceItemsRaw = invoice?['invoiceItems'];
+    final invoiceLines = invoiceItemsRaw is List
+        ? invoiceItemsRaw
+              .whereType<Map>()
+              .map(
+                (e) => ReceivableInvoiceLine.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList()
+        : const <ReceivableInvoiceLine>[];
 
     return ReceivableItem(
       coverageId: (json['coverageId'] ?? json['id'] ?? '').toString().trim(),
@@ -134,21 +190,28 @@ class ReceivableItem {
             json['payerStaffId'] ??
             json['ownerStaffId'] ??
             json['hmoId'] ??
+            hmoIdFromNested ??
             payerFromMap,
       ),
       payerName: _nullableString(
-        json['payerName'] ?? json['hmoName'] ?? json['ownerName'],
+        json['payerName'] ??
+            json['hmoName'] ??
+            json['ownerName'] ??
+            hmoNameFromNested,
       ),
       invoiceId: _nullableString(json['invoiceId'] ?? invoice?['id']),
       createdAt: _asDate(json['createdAt']),
       kind: _nullableString(json['kind']),
       reason: _nullableString(json['reason']),
       mode: _nullableString(json['mode']),
-      valueStr: json['value'] == null
-          ? null
-          : json['value'].toString().trim().isEmpty
-          ? null
-          : json['value'].toString().trim(),
+      valueStr: coverageValue?.toString() ??
+          (json['value'] == null
+              ? null
+              : json['value'].toString().trim().isEmpty
+              ? null
+              : json['value'].toString().trim()),
+      coverageValue: coverageValue,
+      scope: _nullableString(json['scope']),
       policyName: _nullableString(policy?['name']),
       policyReason: _nullableString(policy?['reason']),
       invoiceHumanId: _nullableString(
@@ -160,8 +223,15 @@ class ReceivableItem {
       patientFirstName: _nullableString(
         patient?['firstName'] ?? patient?['first_name'],
       ),
+      patientOtherName: _nullableString(patient?['otherName']),
       patientSurname: _nullableString(
         patient?['surname'] ?? patient?['lastName'] ?? patient?['last_name'],
+      ),
+      patientTitle: _nullableString(patient?['title']),
+      patientApiDisplayName: preferPatientFormattedName(
+        patientName: patient?['patientName']?.toString(),
+        name: patient?['name']?.toString(),
+        displayName: patient?['displayName']?.toString(),
       ),
       patientPublicId: _nullableString(
         patient?['patientId'] ?? patient?['patient_id'],
@@ -173,6 +243,64 @@ class ReceivableItem {
         payer?['lastName'] ?? payer?['lastName'] ?? payer?['surname'],
       ),
       payerStaffId: payerStaffTop ?? payerFromMap,
+      invoiceLines: invoiceLines,
+    );
+  }
+}
+
+/// Invoice line nested under a receivable's `invoice.invoiceItems`.
+class ReceivableInvoiceLine {
+  ReceivableInvoiceLine({
+    required this.displayName,
+    required this.quantity,
+    required this.unitPrice,
+    required this.lineTotal,
+  });
+
+  final String displayName;
+  final int quantity;
+  final double unitPrice;
+  final double lineTotal;
+
+  factory ReceivableInvoiceLine.fromJson(Map<String, dynamic> json) {
+    final service = json['service'] is Map
+        ? Map<String, dynamic>.from(json['service'] as Map)
+        : null;
+    final drug = json['drug'] is Map
+        ? Map<String, dynamic>.from(json['drug'] as Map)
+        : null;
+    final purchase = json['purchaseItem'] is Map
+        ? Map<String, dynamic>.from(json['purchaseItem'] as Map)
+        : null;
+
+    final custom = _nullableString(json['customDescription']);
+    String? name;
+    if (custom != null && custom.isNotEmpty) {
+      name = custom;
+    } else if (service != null) {
+      name = _nullableString(service['name']);
+    } else if (purchase != null) {
+      name = _nullableString(
+        purchase['itemName'] ?? purchase['name'] ?? purchase['label'],
+      );
+    } else if (drug != null) {
+      name = _nullableString(
+        drug['brandName'] ?? drug['genericName'] ?? drug['name'],
+      );
+    }
+
+    final quantity = _asInt(json['quantity'], fallback: 1);
+    final unitPrice = _asDouble(json['unitPrice']);
+    final lineTotal = _asDouble(
+      json['lineTotal'],
+      fallback: unitPrice * quantity,
+    );
+
+    return ReceivableInvoiceLine(
+      displayName: name ?? 'Line item',
+      quantity: quantity,
+      unitPrice: unitPrice,
+      lineTotal: lineTotal,
     );
   }
 }

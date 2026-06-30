@@ -121,7 +121,7 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
     }
   }
 
-  String _patientLabel(Patient p) => '${p.firstName} ${p.surname}'.trim();
+  String _patientLabel(Patient p) => p.displayName;
 
   Future<void> _pickDate() async {
     final date = await showDatePicker(

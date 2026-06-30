@@ -47,13 +47,6 @@ Future<List<int>> buildInpatientInvoicePdf({
     }
   }
 
-  double sectionDue(List<ChargeItem> items) =>
-      items.fold(0.0, (sum, item) => sum + item.lineAmountDue);
-  double sectionTotal(List<ChargeItem> items) =>
-      items.fold(0.0, (sum, item) => sum + item.displayLineTotal);
-  double sectionPaid(List<ChargeItem> items) =>
-      items.fold(0.0, (sum, item) => sum + item.amountPaid);
-
   pw.Widget kv(String label, String value, {bool strong = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 4),
@@ -219,9 +212,9 @@ Future<List<int>> buildInpatientInvoicePdf({
       pw.Align(
         alignment: pw.Alignment.centerRight,
         child: pw.Text(
-          'Subtotal: ${sectionTotal(items).toFinancial(isMoney: true)}   '
-          'Paid: ${sectionPaid(items).toFinancial(isMoney: true)}   '
-          'Due: ${sectionDue(items).toFinancial(isMoney: true)}',
+          'Subtotal: ${chargeSectionTotal(items).toFinancial(isMoney: true)}   '
+          'Paid: ${chargeSectionPaid(items).toFinancial(isMoney: true)}   '
+          'Due: ${chargeSectionDue(items).toFinancial(isMoney: true)}',
           style: pw.TextStyle(
             fontSize: 8.8,
             fontWeight: pw.FontWeight.bold,

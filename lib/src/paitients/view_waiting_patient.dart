@@ -1305,7 +1305,7 @@ class _UnregisteredPatientTxn {
       invoiceDisplayId: row.invoiceDisplayId,
       patientNameAsPrinted: patient == null
           ? null
-          : '${patient.firstName} ${patient.surname}'.trim(),
+          : patient.displayName.trim(),
       invoiceStatus: row.seen ? 'SEEN' : 'PAID',
       rowAppearsPaid: true,
       surname: patient?.surname ?? '',

@@ -149,7 +149,7 @@ class PaidWithoutEncounterInvoice {
 
   factory PaidWithoutEncounterInvoice.fromInvoice(Invoice invoice) {
     final p = invoice.patient;
-    final name = '${p.firstName} ${p.surname}'.trim();
+    final name = p.displayName.trim();
     final services = invoice.invoiceItems
         .map((i) => i.name.trim())
         .where((n) => n.isNotEmpty)

@@ -234,6 +234,23 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     _selectionBaselinesReady = true;
   }
 
+  String? get _opdWardId {
+    for (final w in _wards) {
+      if (w.name.trim().toUpperCase() == 'OPD') return w.id;
+    }
+    return null;
+  }
+
+  String? _resolveWardIdForSave() => _selectedWardId ?? _opdWardId;
+
+  String? _wardNameForId(String? id) {
+    if (id == null) return null;
+    for (final w in _wards) {
+      if (w.id == id) return w.name;
+    }
+    return null;
+  }
+
   Patient _buildPatientForSave() {
     final p = widget.patient;
     if (p == null) {
@@ -286,13 +303,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
             ? null
             : _hmoController.text.trim(),
         hmoId: _selectedHmoId,
-        wardId: _selectedWardId,
-        ward: () {
-          for (final w in _wards) {
-            if (w.id == _selectedWardId) return w.name;
-          }
-          return null;
-        }(),
+        wardId: _resolveWardIdForSave(),
+        ward: _wardNameForId(_resolveWardIdForSave()),
         fingerprintData: _fingerprintController.text.trim().isEmpty
             ? null
             : _fingerprintController.text.trim(),
@@ -300,16 +312,19 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       );
     }
 
-    final mergedWardId =
-        _selectionBaselinesReady && _selectedWardId == _wardIdBaseline
-        ? p.wardId
-        : _selectedWardId;
+    final mergedWardId = p.fromUnregisteredFlow
+        ? _resolveWardIdForSave()
+        : (_selectionBaselinesReady && _selectedWardId == _wardIdBaseline
+            ? p.wardId
+            : _selectedWardId);
     final mergedHmoId =
         _selectionBaselinesReady && _selectedHmoId == _hmoIdBaseline
         ? p.hmoId
         : _selectedHmoId;
 
-    String? resolvedWardName = p.ward;
+    String? resolvedWardName = p.fromUnregisteredFlow
+        ? _wardNameForId(_resolveWardIdForSave())
+        : p.ward;
     if (mergedWardId != null) {
       for (final w in _wards) {
         if (w.id == mergedWardId) {
@@ -468,7 +483,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
       setState(() {
         _wards = sorted;
-        if (pat == null) {
+        if (pat == null || pat.fromUnregisteredFlow) {
           _selectedWardId = _selectedWardId ?? opdId;
         } else {
           if (_selectedWardId == null &&
@@ -697,6 +712,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     final colors = theme.colorScheme;
     final isEditing = widget.patient != null;
     final isFromUnregistered = widget.patient?.fromUnregisteredFlow ?? false;
+    final showWardPicker = isEditing && !isFromUnregistered;
     return Scaffold(
       backgroundColor: colors.surfaceContainerHighest.withValues(alpha: 0.03),
       appBar: AppBar(
@@ -848,48 +864,49 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       title: 'Other Info',
                       leadingIcon: Icons.more_horiz,
                       children: [
-                        if (_loadingWards)
-                          const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: LinearProgressIndicator(),
-                          )
-                        else
-                          DropdownButtonFormField<String>(
-                            key: ValueKey(
-                              '${_wards.length}_${_selectedWardId ?? 'none'}',
-                            ),
-                            initialValue: _selectedWardId,
-                            decoration: const InputDecoration(
-                              labelText: 'Ward *',
-                              border: OutlineInputBorder(),
-                              helperText: 'Required. Defaults to OPD',
-                            ),
-                            isExpanded: true,
-                            items: [
-                              if (_selectedWardId != null &&
-                                  _selectedWardId!.isNotEmpty &&
-                                  !_wards.any((w) => w.id == _selectedWardId))
-                                DropdownMenuItem<String>(
-                                  value: _selectedWardId,
-                                  child: Text(
-                                    widget.patient?.ward ??
-                                        'Current ward (reload lists if needed)',
+                        if (showWardPicker) ...[
+                          if (_loadingWards)
+                            const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: LinearProgressIndicator(),
+                            )
+                          else
+                            DropdownButtonFormField<String>(
+                              key: ValueKey(
+                                '${_wards.length}_${_selectedWardId ?? 'none'}',
+                              ),
+                              initialValue: _selectedWardId,
+                              decoration: const InputDecoration(
+                                labelText: 'Ward *',
+                                border: OutlineInputBorder(),
+                              ),
+                              isExpanded: true,
+                              items: [
+                                if (_selectedWardId != null &&
+                                    _selectedWardId!.isNotEmpty &&
+                                    !_wards.any((w) => w.id == _selectedWardId))
+                                  DropdownMenuItem<String>(
+                                    value: _selectedWardId,
+                                    child: Text(
+                                      widget.patient?.ward ??
+                                          'Current ward (reload lists if needed)',
+                                    ),
+                                  ),
+                                ..._wards.map(
+                                  (w) => DropdownMenuItem<String>(
+                                    value: w.id,
+                                    child: Text(w.name),
                                   ),
                                 ),
-                              ..._wards.map(
-                                (w) => DropdownMenuItem<String>(
-                                  value: w.id,
-                                  child: Text(w.name),
-                                ),
-                              ),
-                            ],
-                            onChanged: (v) =>
-                                setState(() => _selectedWardId = v),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Required'
-                                : null,
-                          ),
-                        const SizedBox(height: 8),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _selectedWardId = v),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Required'
+                                  : null,
+                            ),
+                          const SizedBox(height: 8),
+                        ],
                         if (_loadingHmos)
                           const Padding(
                             padding: EdgeInsets.all(12),

@@ -1,5 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
+import 'package:helty/src/core/utils/patient_display_name.dart';
+
 /// Pregnancy status (exact API strings).
 enum PregnancyStatus {
   ONGOING,
@@ -118,28 +120,40 @@ enum PostnatalVisitType {
 class ObstetricsPatientRef {
   const ObstetricsPatientRef({
     required this.id,
+    this.title,
     this.firstName,
+    this.otherName,
     this.surname,
   });
 
   final String id;
+  final String? title;
   final String? firstName;
+  final String? otherName;
   final String? surname;
 
-  String get displayName =>
-      [firstName, surname].where((e) => e != null && e.isNotEmpty).join(' ');
+  String get displayName => patientDisplayNameFromJson({
+        'title': title,
+        'firstName': firstName,
+        'otherName': otherName,
+        'surname': surname,
+      });
 
   factory ObstetricsPatientRef.fromJson(Map<String, dynamic> json) {
     return ObstetricsPatientRef(
       id: json['id'] as String,
+      title: json['title'] as String?,
       firstName: json['firstName'] as String?,
-      surname: json['surname'] as String?,
+      otherName: json['otherName'] as String?,
+      surname: (json['surname'] ?? json['lastName']) as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        if (title != null) 'title': title,
         if (firstName != null) 'firstName': firstName,
+        if (otherName != null) 'otherName': otherName,
         if (surname != null) 'surname': surname,
       };
 }

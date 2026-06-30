@@ -772,7 +772,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                                     _selectedPatient?.id == waiting.id;
 
                                 final displayName = patient != null
-                                    ? '${patient.firstName} ${patient.surname}'
+                                    ? patient.displayName
                                     : 'Unknown';
 
                                 final consultation =
@@ -1187,7 +1187,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final patient = waiting.patient;
     final displayName = patient != null
-        ? '${patient.title} ${patient.firstName} ${patient.surname}'
+        ? patient.displayName
         : 'Unknown';
     final patientCode = patient?.patientId ?? waiting.patientId;
     final gender = patient?.gender ?? '—';

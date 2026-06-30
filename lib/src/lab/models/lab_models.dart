@@ -3,6 +3,7 @@
 import 'dart:convert';
 
 import 'package:helty/src/core/extensions/capitalizer.extention.dart';
+import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:helty/src/models/staff_model.dart';
 
 /// Lab category (e.g. Hematology, Biochemistry).
@@ -350,6 +351,7 @@ class LabOrder {
 class LabOrderPatient {
   const LabOrderPatient({
     required this.id,
+    this.title,
     this.firstName,
     this.otherName,
     this.surname,
@@ -359,6 +361,7 @@ class LabOrderPatient {
   });
 
   final String id;
+  final String? title;
   final String? firstName;
   final String? otherName;
   final String? surname;
@@ -366,14 +369,16 @@ class LabOrderPatient {
   final String? gender;
   final DateTime? dob;
 
-  String get displayName =>
-      [firstName, otherName, surname]
-          .where((e) => e != null && e.isNotEmpty)
-          .join(' ');
+  String get displayName => patientDisplayNameFromJson({
+        'title': title,
+        'firstName': firstName,
+        'otherName': otherName,
+        'surname': surname,
+      });
 
   String get capitalizedDisplayName {
     final parts = <String>[];
-    for (final name in [firstName, otherName, surname]) {
+    for (final name in [title, firstName, otherName, surname]) {
       final trimmed = name?.trim() ?? '';
       if (trimmed.isNotEmpty) parts.add(trimmed.capitalize());
     }
@@ -383,6 +388,7 @@ class LabOrderPatient {
   factory LabOrderPatient.fromJson(Map<String, dynamic> json) =>
       LabOrderPatient(
         id: (json['id'] as String?) ?? '',
+        title: json['title'] as String?,
         firstName: json['firstName'] as String?,
         otherName: json['otherName'] as String?,
         surname: (json['surname'] ?? json['lastName']) as String?,
@@ -395,6 +401,7 @@ class LabOrderPatient {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        if (title != null) 'title': title,
         if (firstName != null) 'firstName': firstName,
         if (otherName != null) 'otherName': otherName,
         if (surname != null) 'surname': surname,

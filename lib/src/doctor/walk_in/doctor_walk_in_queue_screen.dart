@@ -160,7 +160,7 @@ class _DoctorWalkInQueueScreenState
   ) async {
     final patient = waiting.patient;
     final displayName = patient != null
-        ? '${patient.firstName} ${patient.surname}'
+        ? patient.displayName
         : 'Unknown';
     final patientId = waiting.patientId;
 
@@ -528,7 +528,7 @@ class _DoctorWalkInQueueScreenState
                                 final w = _patients[index];
                                 final patient = w.patient;
                                 final name = patient != null
-                                    ? '${patient.firstName} ${patient.surname}'
+                                    ? patient.displayName
                                     : 'Unknown';
                                 final consultation = w.consultationName ?? '—';
                                 final time = DateFormatter.dateTime(

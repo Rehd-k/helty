@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/auth/billing_permissions.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
-import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/models/hmo_models.dart';
 import 'package:helty/src/models/receivables_models.dart';
 import 'package:helty/src/receivables/ui/receivables_analytics_screen.dart';
+import 'package:helty/src/services/hmo_service.dart';
 import 'package:helty/src/services/receivables_service.dart';
 
 enum _ReceivableKind { hmo, discount }
@@ -47,10 +48,7 @@ class _ReceivablesAccessDenied extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(title),
-      ),
+      appBar: AppBar(automaticallyImplyLeading: false, title: Text(title)),
       body: const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
@@ -75,10 +73,15 @@ class _ReceivablesScreen extends StatefulWidget {
 
 class _ReceivablesScreenState extends State<_ReceivablesScreen> {
   final _service = ReceivablesService();
+  final _hmoService = HmoService();
+  final _hmoNameSearchCtrl = TextEditingController();
   bool _loading = true;
   String? _error;
   List<ReceivableItem> _items = const [];
+  List<HmoListItem> _hmoOptions = const [];
   DateTimeRange? _selectedRange;
+  String? _selectedHmoId;
+  String _hmoNameQuery = '';
 
   bool get _isHmo => widget.kind == _ReceivableKind.hmo;
   String get _title => _isHmo ? 'HMO Receivables' : 'Discount Receivables';
@@ -88,12 +91,27 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
     super.initState();
     final now = AppTimezone.now();
     _selectedRange = DateTimeRange(
-      start: AppTimezone.startOfDay(
-        now.subtract(const Duration(days: 6)),
-      ),
+      start: AppTimezone.startOfDay(now.subtract(const Duration(days: 6))),
       end: AppTimezone.endOfDay(now),
     );
+    if (_isHmo) {
+      _loadHmoOptions();
+    }
     _load();
+  }
+
+  @override
+  void dispose() {
+    _hmoNameSearchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadHmoOptions() async {
+    try {
+      final result = await _hmoService.list(take: 100);
+      if (!mounted) return;
+      setState(() => _hmoOptions = result.items);
+    } catch (_) {}
   }
 
   DateTime? _rangeFromUtc() {
@@ -135,6 +153,8 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
               take: 100,
               from: _rangeFromUtc(),
               to: _rangeToUtc(),
+              hmoId: _selectedHmoId,
+              hmoName: _hmoNameQuery.isEmpty ? null : _hmoNameQuery,
             )
           : await _service.getDiscountReceivables(
               take: 100,
@@ -156,17 +176,139 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
     return item.payerStaffId ?? item.payerId ?? '';
   }
 
-  DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
-    return DateTime.tryParse(value.toString());
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
   }
 
-  String _humanName(Map<String, dynamic>? person) {
-    if (person == null) return 'Unknown';
-    final first = person['firstName']?.toString().trim() ?? '';
-    final last = person['surname']?.toString().trim() ?? '';
-    final full = [first, last].where((e) => e.isNotEmpty).join(' ');
-    return full.isEmpty ? 'Unknown' : full;
+  Widget _buildInvoiceDetailContent(ReceivableItem item) {
+    final invoiceRef =
+        item.invoiceHumanId ?? item.invoiceUuid ?? item.invoiceId ?? '-';
+    final created = item.displayCreatedAt;
+    final patientParts = <String>[
+      if (item.patientDisplayName != null) item.patientDisplayName!,
+      if (item.patientPublicId != null && item.patientPublicId!.isNotEmpty)
+        'ID ${item.patientPublicId}',
+    ];
+    final lines = item.invoiceLines;
+    final linesTotal = lines.isNotEmpty ? item.invoiceLinesTotal : item.amount;
+
+    return SizedBox(
+      width: 720,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _detailRow('Invoice', invoiceRef),
+            if (item.invoiceStatus != null && item.invoiceStatus!.isNotEmpty)
+              _detailRow('Invoice status', item.invoiceStatus!),
+            if (created != null)
+              _detailRow('Date', DateFormatter.dateTime(created.toLocal())),
+            if (patientParts.isNotEmpty)
+              _detailRow('Patient', patientParts.join(' · ')),
+            if (_isHmo && item.payerName != null && item.payerName!.isNotEmpty)
+              _detailRow('HMO', item.payerName!),
+            if (!_isHmo &&
+                (item.payerFirstName != null || item.payerLastName != null))
+              _detailRow(
+                'Payer',
+                [
+                  item.payerFirstName,
+                  item.payerLastName,
+                ].whereType<String>().where((s) => s.isNotEmpty).join(' '),
+              ),
+            if (item.policyName != null && item.policyName!.isNotEmpty)
+              _detailRow('Policy', item.policyName!),
+            if (item.coverageLabel != null)
+              _detailRow('Coverage', item.coverageLabel!),
+            if (item.status != null && item.status!.isNotEmpty)
+              _detailRow('Coverage status', item.status!),
+            _detailRow(
+              'Receivable amount',
+              item.outstandingAmount.toFinancial(isMoney: true),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Invoice items',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            if (lines.isEmpty)
+              const Text('No line items on this invoice.')
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('#')),
+                    DataColumn(label: Text('Item')),
+                    DataColumn(label: Text('Qty'), numeric: true),
+                    DataColumn(label: Text('Unit price'), numeric: true),
+                    DataColumn(label: Text('Amount'), numeric: true),
+                  ],
+                  rows: List<DataRow>.generate(lines.length, (i) {
+                    final line = lines[i];
+                    return DataRow(
+                      cells: [
+                        DataCell(Text('${i + 1}')),
+                        DataCell(Text(line.displayName)),
+                        DataCell(Text('${line.quantity}')),
+                        DataCell(
+                          Text(line.unitPrice.toFinancial(isMoney: true)),
+                        ),
+                        DataCell(
+                          Text(line.lineTotal.toFinancial(isMoney: true)),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+              ),
+            if (lines.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Invoice total: ${linesTotal.toFinancial(isMoney: true)}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openInvoiceDetail(ReceivableItem item) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Invoice ${item.invoiceHumanId ?? item.invoiceUuid ?? ''}'),
+        content: _buildInvoiceDetailContent(item),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _rangeLabel(DateTimeRange? range) {
@@ -202,6 +344,86 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
       );
     });
     await _load();
+  }
+
+  Future<void> _applyHmoNameSearch() async {
+    setState(() => _hmoNameQuery = _hmoNameSearchCtrl.text.trim());
+    await _load();
+  }
+
+  Future<void> _clearHmoFilters() async {
+    _hmoNameSearchCtrl.clear();
+    setState(() {
+      _selectedHmoId = null;
+      _hmoNameQuery = '';
+    });
+    await _load();
+  }
+
+  Widget _buildHmoFilterBar() {
+    if (!_isHmo) return const SizedBox.shrink();
+    final hasFilters = _selectedHmoId != null || _hmoNameQuery.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Column(
+        children: [
+          DropdownButtonFormField<String?>(
+            value: _selectedHmoId,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'HMO',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('All HMOs'),
+              ),
+              ..._hmoOptions.map(
+                (hmo) => DropdownMenuItem<String?>(
+                  value: hmo.id,
+                  child: Text(hmo.name),
+                ),
+              ),
+            ],
+            onChanged: (value) async {
+              setState(() => _selectedHmoId = value);
+              await _load();
+            },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _hmoNameSearchCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Search by HMO name',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _applyHmoNameSearch(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Search HMO name',
+                onPressed: _applyHmoNameSearch,
+                icon: const Icon(Icons.search),
+              ),
+              if (hasFilters)
+                IconButton(
+                  tooltip: 'Clear HMO filters',
+                  onPressed: _clearHmoFilters,
+                  icon: const Icon(Icons.filter_alt_off_outlined),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _summaryCard({
@@ -246,122 +468,6 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildStatementContent(Map<String, dynamic> data) {
-    final payer =
-        (data['hmo'] as Map?)?['name']?.toString() ??
-        (data['owner'] as Map?)?['name']?.toString() ??
-        'Unknown payer';
-    final from = _parseDate(data['from']);
-    final to = _parseDate(data['to']);
-    final totalAmount =
-        parseApiDecimal(data['totalAmount']);
-    final rows =
-        (data['rows'] as List?)?.whereType<Map>().toList() ?? const <Map>[];
-
-    return SizedBox(
-      width: 900,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Payer: $payer'),
-            if (from != null || to != null)
-              Text(
-                'Period: ${from != null ? DateFormatter.shortDate(from.toLocal()) : '-'}'
-                ' to ${to != null ? DateFormatter.shortDate(to.toLocal()) : '-'}',
-              ),
-            Text('Total amount: ${totalAmount.toFinancial(isMoney: true)}'),
-            Text('Items: ${rows.length}'),
-            const SizedBox(height: 12),
-            const Text(
-              'Entries',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            if (rows.isEmpty)
-              const Text('No entries found.')
-            else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('#')),
-                    DataColumn(label: Text('Patient')),
-                    DataColumn(label: Text('Invoice')),
-                    DataColumn(label: Text('Amount')),
-                    DataColumn(label: Text('Date')),
-                  ],
-                  rows: List<DataRow>.generate(rows.length, (i) {
-                    final row = Map<String, dynamic>.from(rows[i]);
-                    final amount =
-                        parseApiDecimal(row['amount']);
-                    final invoice = row['invoice'] is Map
-                        ? Map<String, dynamic>.from(row['invoice'] as Map)
-                        : <String, dynamic>{};
-                    final invoiceId =
-                        invoice['invoiceID']?.toString() ??
-                        invoice['id']?.toString() ??
-                        '-';
-                    final patient = invoice['patient'] is Map
-                        ? Map<String, dynamic>.from(invoice['patient'] as Map)
-                        : <String, dynamic>{};
-                    final patientName = _humanName(patient);
-                    final createdAt = _parseDate(row['createdAt']);
-                    return DataRow(
-                      cells: [
-                        DataCell(Text('${i + 1}')),
-                        DataCell(Text(patientName)),
-                        DataCell(Text(invoiceId)),
-                        DataCell(Text(amount.toFinancial(isMoney: true))),
-                        DataCell(
-                          Text(
-                            createdAt != null
-                                ? DateFormatter.dateTime(createdAt.toLocal())
-                                : '-',
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openStatement(ReceivableItem item) async {
-    final payerId = _statementPayerId(item);
-    if (payerId.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Missing payer id for statement')),
-      );
-      return;
-    }
-    try {
-      final data = _isHmo
-          ? await _service.getHmoStatement(payerId)
-          : await _service.getOwnerStatement(payerId);
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Statement'),
-          content: _buildStatementContent(data),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
-    } catch (_) {}
   }
 
   Future<void> _recordRemittance(List<ReceivableItem> items) async {
@@ -525,8 +631,9 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
           ? Center(child: Text(_error!))
           : Column(
               children: [
+                _buildHmoFilterBar(),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  padding: EdgeInsets.fromLTRB(12, _isHmo ? 8 : 12, 12, 8),
                   child: Row(
                     children: [
                       Expanded(
@@ -577,7 +684,7 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
                       ),
                       const SizedBox(width: 8),
                       _summaryCard(
-                        label: 'Unique Payers',
+                        label: _isHmo ? 'Unique HMOs' : 'Unique Payers',
                         value: '$uniquePayers',
                         icon: Icons.groups_outlined,
                         color: Colors.purple,
@@ -588,7 +695,8 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
                 Expanded(
                   child: _ReceivablesList(
                     items: _items,
-                    onOpenStatement: _openStatement,
+                    isHmo: _isHmo,
+                    onOpenDetail: _openInvoiceDetail,
                   ),
                 ),
               ],
@@ -605,10 +713,34 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
 }
 
 class _ReceivablesList extends StatelessWidget {
-  const _ReceivablesList({required this.items, required this.onOpenStatement});
+  const _ReceivablesList({
+    required this.items,
+    required this.isHmo,
+    required this.onOpenDetail,
+  });
 
   final List<ReceivableItem> items;
-  final ValueChanged<ReceivableItem> onOpenStatement;
+  final bool isHmo;
+  final ValueChanged<ReceivableItem> onOpenDetail;
+
+  String _titleFor(ReceivableItem item) {
+    if (isHmo) {
+      if (item.payerName != null && item.payerName!.trim().isNotEmpty) {
+        return item.payerName!.trim();
+      }
+      if (item.policyName != null && item.policyName!.trim().isNotEmpty) {
+        return item.policyName!.trim();
+      }
+      return item.kind?.trim().isNotEmpty == true ? item.kind!.trim() : 'HMO';
+    }
+    if (item.policyName != null && item.policyName!.isNotEmpty) {
+      return item.policyName!;
+    }
+    if (item.kind != null && item.kind!.isNotEmpty) {
+      return '${item.kind}${item.reason != null ? ' · ${item.reason}' : ''}';
+    }
+    return item.payerName ?? item.payerType;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -620,11 +752,7 @@ class _ReceivablesList extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       itemBuilder: (context, index) {
         final item = items[index];
-        final title = item.policyName != null && item.policyName!.isNotEmpty
-            ? item.policyName!
-            : (item.kind != null && item.kind!.isNotEmpty)
-            ? '${item.kind}${item.reason != null ? ' · ${item.reason}' : ''}'
-            : (item.payerName ?? item.payerType);
+        final title = _titleFor(item);
         final patientLine = [
           if (item.patientDisplayName != null) item.patientDisplayName,
           if (item.patientPublicId != null && item.patientPublicId!.isNotEmpty)
@@ -633,21 +761,25 @@ class _ReceivablesList extends StatelessWidget {
         final invoiceRef =
             item.invoiceHumanId ?? item.invoiceUuid ?? item.invoiceId;
         final created = item.displayCreatedAt;
+        final coverageLabel = item.coverageLabel;
         final subLines = <String>[
           if (patientLine.isNotEmpty) patientLine,
           if (invoiceRef != null && invoiceRef.isNotEmpty)
             'Invoice $invoiceRef',
           if (item.invoiceStatus != null && item.invoiceStatus!.isNotEmpty)
             item.invoiceStatus!,
+          if (coverageLabel != null) 'Coverage $coverageLabel',
+          if (item.status != null && item.status!.isNotEmpty) item.status!,
           if (created != null) DateFormatter.dateTime(created.toLocal()),
-          if (item.payerFirstName != null || item.payerLastName != null)
+          if (!isHmo &&
+              (item.payerFirstName != null || item.payerLastName != null))
             'Payer ${[item.payerFirstName, item.payerLastName].whereType<String>().where((s) => s.isNotEmpty).join(' ')}',
         ];
         return Material(
           color: theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
-            onTap: () => onOpenStatement(item),
+            onTap: () => onOpenDetail(item),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

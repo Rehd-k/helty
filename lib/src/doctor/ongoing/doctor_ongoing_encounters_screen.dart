@@ -292,7 +292,7 @@ class _DoctorOngoingEncountersScreenState
             final e = _encounters[index];
             final patient = _patientCache[e.patientId];
             final name = patient != null
-                ? '${patient.title} ${patient.firstName} ${patient.surname}'
+                ? patient.displayName
                 : 'Patient ${e.patientId}';
             final statusColor = _statusColor(e.status, colorScheme);
 

@@ -1,3 +1,5 @@
+import 'package:helty/src/core/utils/patient_display_name.dart';
+
 class InvestigationBreakdownRow {
   const InvestigationBreakdownRow({
     required this.testName,
@@ -82,6 +84,7 @@ class InvestigationPatientRef {
   const InvestigationPatientRef({
     required this.id,
     this.patientId,
+    this.title,
     this.firstName,
     this.otherName,
     this.surname,
@@ -89,20 +92,23 @@ class InvestigationPatientRef {
 
   final String id;
   final String? patientId;
+  final String? title;
   final String? firstName;
   final String? otherName;
   final String? surname;
 
-  String get displayName => [
-        firstName,
-        otherName,
-        surname,
-      ].where((e) => e != null && e.trim().isNotEmpty).join(' ');
+  String get displayName => patientDisplayNameFromJson({
+        'title': title,
+        'firstName': firstName,
+        'otherName': otherName,
+        'surname': surname,
+      });
 
   factory InvestigationPatientRef.fromJson(Map<String, dynamic> json) {
     return InvestigationPatientRef(
       id: json['id']?.toString() ?? '',
       patientId: json['patientId']?.toString(),
+      title: json['title']?.toString(),
       firstName: json['firstName']?.toString(),
       otherName: json['otherName']?.toString(),
       surname: (json['surname'] ?? json['lastName'])?.toString(),

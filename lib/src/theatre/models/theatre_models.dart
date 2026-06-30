@@ -1,6 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/core/utils/patient_display_name.dart';
 
 enum SurgeryRequestStatus {
   requested,
@@ -142,21 +143,27 @@ class TheatrePatientRef {
   const TheatrePatientRef({
     required this.id,
     this.patientId,
+    this.title,
     this.firstName,
+    this.otherName,
     this.surname,
   });
 
   final String id;
   final String? patientId;
+  final String? title;
   final String? firstName;
+  final String? otherName;
   final String? surname;
 
   String get displayName {
-    final f = firstName?.trim() ?? '';
-    final s = surname?.trim() ?? '';
-    if (f.isNotEmpty && s.isNotEmpty) return '$f $s';
-    if (f.isNotEmpty) return f;
-    if (s.isNotEmpty) return s;
+    final formatted = formatPatientDisplayNameOrNull(
+      title: title,
+      firstName: firstName,
+      otherName: otherName,
+      surname: surname,
+    );
+    if (formatted != null) return formatted;
     return patientId ?? id;
   }
 
@@ -164,8 +171,10 @@ class TheatrePatientRef {
     return TheatrePatientRef(
       id: json['id']?.toString() ?? '',
       patientId: json['patientId']?.toString(),
+      title: json['title']?.toString(),
       firstName: json['firstName']?.toString(),
-      surname: json['surname']?.toString(),
+      otherName: json['otherName']?.toString(),
+      surname: (json['surname'] ?? json['lastName'])?.toString(),
     );
   }
 }

@@ -70,12 +70,8 @@ class _DialysisCreateSessionScreenState
   }
 
   String _formatPatientName(Patient p) {
-    final f = p.firstName.trim();
-    final s = p.surname.trim();
-    if (f.isNotEmpty && s.isNotEmpty) return '$f $s';
-    if (f.isNotEmpty) return f;
-    if (s.isNotEmpty) return s;
-    return '—';
+    final name = p.displayName.trim();
+    return name == 'Unknown' ? '—' : name;
   }
 
   String? _resolvedDoctorId() {

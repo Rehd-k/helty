@@ -173,7 +173,7 @@ class ObPatientBanner extends StatelessWidget {
     String name = 'Patient';
     String? idLine;
     if (patient != null) {
-      name = '${patient!.firstName} ${patient!.surname}'.trim();
+      name = patient!.displayName.trim();
       if (patient!.patientId.isNotEmpty) {
         idLine = 'ID ${patient!.patientId}';
       } else if (patient!.cardNo.isNotEmpty) {

@@ -198,7 +198,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                                 DispenseRoute(
                                   patientId: selectedPatient!.patientId,
                                   patientName:
-                                      "${selectedPatient.firstName} ${selectedPatient.surname}",
+                                      selectedPatient.displayName,
                                   id: selectedPatient.id ?? '',
                                   staffId: staffId.isEmpty ? null : staffId,
                                 ),
@@ -269,7 +269,7 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
                                 PurchaseItemSalesRoute(
                                   patientId: selectedPatient!.patientId,
                                   patientName:
-                                      "${selectedPatient.firstName} ${selectedPatient.surname}",
+                                      selectedPatient.displayName,
                                   id: selectedPatient.id ?? '',
                                   staffId: staffId.isEmpty ? null : staffId,
                                 ),

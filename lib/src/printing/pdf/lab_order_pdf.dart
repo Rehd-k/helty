@@ -342,6 +342,63 @@ class _LabPdfPalette {
       ),
     );
   }
+
+  pw.Widget signatureSection() {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 32),
+      padding: const pw.EdgeInsets.only(top: 18),
+      decoration: pw.BoxDecoration(
+        border: pw.Border(top: pw.BorderSide(color: border, width: 0.65)),
+      ),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(child: _signatureBlock('Med Lab Scientist')),
+          pw.SizedBox(width: 36),
+          pw.Expanded(child: _signatureBlock('HOD Med Lab')),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _signatureBlock(String title) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Text(
+          'Signature',
+          style: pw.TextStyle(
+            fontSize: 7.5,
+            color: textMuted,
+            letterSpacing: 0.4,
+          ),
+        ),
+        pw.SizedBox(height: 6),
+        pw.Container(
+          height: 52,
+          padding: const pw.EdgeInsets.all(10),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.white,
+            borderRadius: pw.BorderRadius.circular(8),
+            border: pw.Border.all(color: border, width: 0.75),
+          ),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Container(height: 1.2, color: primaryDark),
+        pw.SizedBox(height: 8),
+        pw.Text(
+          title,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(
+            fontSize: 9.5,
+            fontWeight: pw.FontWeight.bold,
+            color: primary,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Whether a single result line should appear on a printed report.
@@ -862,6 +919,7 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
           palette.resultsSummaryHeader(),
           pw.SizedBox(height: 12),
           ..._buildLabOrderItemPdfSections(palette, entries: itemEntries),
+          palette.signatureSection(),
         ];
       },
     ),
@@ -955,6 +1013,7 @@ Future<List<int>> buildLabPatientItemsPdf({
           palette.resultsSummaryHeader(),
           pw.SizedBox(height: 12),
           ..._buildLabOrderItemPdfSections(palette, entries: itemEntries),
+          palette.signatureSection(),
         ];
       },
     ),

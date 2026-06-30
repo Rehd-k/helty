@@ -1,4 +1,5 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 
 enum MedicationRequestStatus {
@@ -153,28 +154,51 @@ class MedicationRequestPatientRef {
     required this.id,
     required this.firstName,
     required this.surname,
+    this.title,
+    this.otherName,
     this.hospitalNumber,
+    this.apiDisplayName,
   });
 
   final String id;
+  final String? title;
   final String firstName;
+  final String? otherName;
   final String surname;
   final String? hospitalNumber;
+  final String? apiDisplayName;
 
   String get displayName =>
-      [firstName, surname].where((s) => s.trim().isNotEmpty).join(' ');
+      preferPatientFormattedName(displayName: apiDisplayName) ??
+      patientDisplayNameFromJson({
+        'title': title,
+        'firstName': firstName,
+        'otherName': otherName,
+        'surname': surname,
+      });
 
   factory MedicationRequestPatientRef.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
-      return const MedicationRequestPatientRef(id: '', firstName: '', surname: '');
+      return const MedicationRequestPatientRef(
+        id: '',
+        firstName: '',
+        surname: '',
+      );
     }
     return MedicationRequestPatientRef(
       id: json['id']?.toString() ?? '',
+      title: json['title']?.toString(),
       firstName: json['firstName']?.toString() ?? '',
+      otherName: json['otherName']?.toString(),
       surname: json['surname']?.toString() ??
           json['lastName']?.toString() ??
           '',
       hospitalNumber: json['patientId']?.toString(),
+      apiDisplayName: preferPatientFormattedName(
+        patientName: json['patientName']?.toString(),
+        name: json['name']?.toString(),
+        displayName: json['displayName']?.toString(),
+      ),
     );
   }
 }

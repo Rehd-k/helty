@@ -1,5 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
+import 'package:helty/src/core/utils/patient_display_name.dart';
+
 enum RadiologyPriority {
   ROUTINE,
   URGENT,
@@ -156,6 +158,7 @@ enum ReportSeverity {
 class RadiologyPatientRef {
   const RadiologyPatientRef({
     required this.id,
+    this.title,
     this.firstName,
     this.otherName,
     this.surname,
@@ -163,19 +166,23 @@ class RadiologyPatientRef {
   });
 
   final String id;
+  final String? title;
   final String? firstName;
   final String? otherName;
   final String? surname;
   final String? patientId;
 
-  String get displayName =>
-      [firstName, otherName, surname]
-          .where((e) => e != null && e.isNotEmpty)
-          .join(' ');
+  String get displayName => patientDisplayNameFromJson({
+        'title': title,
+        'firstName': firstName,
+        'otherName': otherName,
+        'surname': surname,
+      });
 
   factory RadiologyPatientRef.fromJson(Map<String, dynamic> json) {
     return RadiologyPatientRef(
       id: json['id'] as String? ?? '',
+      title: json['title'] as String?,
       firstName: json['firstName'] as String?,
       otherName: json['otherName'] as String?,
       surname: (json['surname'] ?? json['lastName']) as String?,

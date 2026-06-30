@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' show IconData, Icons;
 
+import '../../core/utils/patient_display_name.dart';
 import 'archived_encounter_models.dart';
 
 /// Known chart section keys from GET /patients/:id/chart.
@@ -145,7 +146,9 @@ class ChartPatientSummary {
   const ChartPatientSummary({
     this.id,
     this.patientId,
+    this.title,
     this.firstName,
+    this.otherName,
     this.surname,
     this.dob,
     this.gender,
@@ -153,11 +156,14 @@ class ChartPatientSummary {
     this.status,
     this.wardName,
     this.hmoName,
+    this.apiDisplayName,
   });
 
   final String? id;
   final String? patientId;
+  final String? title;
   final String? firstName;
+  final String? otherName;
   final String? surname;
   final DateTime? dob;
   final String? gender;
@@ -165,14 +171,19 @@ class ChartPatientSummary {
   final String? status;
   final String? wardName;
   final String? hmoName;
+  final String? apiDisplayName;
 
-  String get displayName {
-    final parts = <String>[
-      if (firstName != null && firstName!.trim().isNotEmpty) firstName!.trim(),
-      if (surname != null && surname!.trim().isNotEmpty) surname!.trim(),
-    ];
-    return parts.isEmpty ? 'Patient' : parts.join(' ');
-  }
+  String get displayName =>
+      preferPatientFormattedName(displayName: apiDisplayName) ??
+      patientDisplayNameFromJson(
+        {
+          'title': title,
+          'firstName': firstName,
+          'otherName': otherName,
+          'surname': surname,
+        },
+        unknownFallback: 'Patient',
+      );
 
   factory ChartPatientSummary.fromJson(Map<String, dynamic> json) {
     final ward = json['ward'];
@@ -180,14 +191,21 @@ class ChartPatientSummary {
     return ChartPatientSummary(
       id: json['id'] as String?,
       patientId: json['patientId'] as String?,
+      title: json['title'] as String?,
       firstName: json['firstName'] as String?,
-      surname: json['surname'] as String?,
+      otherName: json['otherName'] as String?,
+      surname: (json['surname'] ?? json['lastName']) as String?,
       dob: DateTime.tryParse(json['dob']?.toString() ?? ''),
       gender: json['gender'] as String?,
       phoneNumber: json['phoneNumber'] as String?,
       status: json['status'] as String?,
       wardName: ward is Map ? ward['name']?.toString() : null,
       hmoName: hmo is Map ? hmo['name']?.toString() : null,
+      apiDisplayName: preferPatientFormattedName(
+        patientName: json['patientName']?.toString(),
+        name: json['name']?.toString(),
+        displayName: json['displayName']?.toString(),
+      ),
     );
   }
 }

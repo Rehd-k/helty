@@ -1,4 +1,5 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/core/utils/patient_display_name.dart';
 
 // Models for GET/POST/PATCH `/hmos` (see docs/hmo-service-pricing-guide.md).
 
@@ -247,28 +248,40 @@ class HmoPatientRow {
   HmoPatientRow({
     required this.id,
     required this.patientId,
+    this.title,
     required this.surname,
     required this.firstName,
+    this.otherName,
     this.phoneNumber,
   });
 
   final String id;
   final String patientId;
+  final String? title;
   final String surname;
   final String firstName;
+  final String? otherName;
   final String? phoneNumber;
 
   factory HmoPatientRow.fromJson(Map<String, dynamic> json) {
     return HmoPatientRow(
       id: '${json['id'] ?? ''}',
       patientId: json['patientId']?.toString() ?? '',
+      title: json['title']?.toString(),
       surname: json['surname']?.toString() ?? '',
       firstName: json['firstName']?.toString() ?? '',
+      otherName: json['otherName']?.toString(),
       phoneNumber: json['phoneNumber']?.toString(),
     );
   }
 
-  String get displayName => '$surname $firstName'.trim();
+  String get displayName => formatPatientDisplayName(
+        title: title,
+        firstName: firstName,
+        otherName: otherName,
+        surname: surname,
+        unknownFallback: patientId,
+      );
 }
 
 class HmoPatientsPagedResult {

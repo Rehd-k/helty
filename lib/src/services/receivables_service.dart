@@ -37,6 +37,8 @@ class ReceivablesService {
     int? take,
     String? search,
     String? status,
+    String? hmoId,
+    String? hmoName,
     DateTime? from,
     DateTime? to,
   }) async {
@@ -46,10 +48,13 @@ class ReceivablesService {
         queryParameters: {
           if (skip != null) 'skip': skip,
           if (take != null) 'take': take,
-          if (search != null && search.trim().isNotEmpty) 'search': search,
+          if (search != null && search.trim().isNotEmpty) 'q': search.trim(),
           if (status != null && status.trim().isNotEmpty) 'status': status,
-          if (from != null) 'from': AppTimezone.toBackendIso(from),
-          if (to != null) 'to': AppTimezone.toBackendIso(to),
+          if (hmoId != null && hmoId.trim().isNotEmpty) 'hmoId': hmoId.trim(),
+          if (hmoName != null && hmoName.trim().isNotEmpty)
+            'hmoName': hmoName.trim(),
+          if (from != null) 'fromDate': AppTimezone.toBackendIso(from),
+          if (to != null) 'toDate': AppTimezone.toBackendIso(to),
         },
       );
       final list = _extractList(response.data);
@@ -78,10 +83,10 @@ class ReceivablesService {
         queryParameters: {
           if (skip != null) 'skip': skip,
           if (take != null) 'take': take,
-          if (search != null && search.trim().isNotEmpty) 'search': search,
+          if (search != null && search.trim().isNotEmpty) 'q': search.trim(),
           if (status != null && status.trim().isNotEmpty) 'status': status,
-          if (from != null) 'from': AppTimezone.toBackendIso(from),
-          if (to != null) 'to': AppTimezone.toBackendIso(to),
+          if (from != null) 'fromDate': AppTimezone.toBackendIso(from),
+          if (to != null) 'toDate': AppTimezone.toBackendIso(to),
         },
       );
       final list = _extractList(response.data);

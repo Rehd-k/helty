@@ -1117,7 +1117,7 @@ class PayBillState extends ConsumerState<PayBill> {
         '${widget.firstName} ${widget.lastName}'.trim().isNotEmpty
         ? '${widget.firstName} ${widget.lastName}'.trim()
         : (patient != null
-              ? '${patient.firstName} ${patient.surname}'.trim()
+              ? patient.displayName.trim()
               : 'Patient');
     final patientUuid = patient?.id ?? widget.patientId;
 
