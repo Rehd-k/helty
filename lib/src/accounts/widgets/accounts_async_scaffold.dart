@@ -105,24 +105,17 @@ class AccountsAsyncScaffold<T> extends StatelessWidget {
               ),
               data: (data) {
                 final content = builder(context, data);
-                return SingleChildScrollView(
+                return Padding(
                   padding: pad,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AccountsBreakpoints.maxContentWidth,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (header != null) ...[
-                            header!,
-                            const SizedBox(height: 20),
-                          ],
-                          content,
-                        ],
-                      ),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (header != null) ...[
+                        header!,
+                        const SizedBox(height: 20),
+                      ],
+                      Expanded(child: content),
+                    ],
                   ),
                 );
               },

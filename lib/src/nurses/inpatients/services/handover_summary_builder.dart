@@ -136,12 +136,12 @@ class HandoverSummaryBuilder {
   }
 
   void _writeVitalsSection(StringBuffer buf, List<PatientVitalsModel> vitals) {
-    final todayVitals = vitals.where((v) => _isToday(v.createdAt)).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final todayVitals = vitals.where((v) => _isToday(v.effectiveAt)).toList()
+      ..sort((a, b) => b.effectiveAt.compareTo(a.effectiveAt));
 
     final lines = todayVitals.map((v) {
       final parts = <String>[
-        DateFormatter.dateTime(v.createdAt),
+        DateFormatter.dateTime(v.effectiveAt),
         'Temp ${v.temperature?.toString() ?? "—"} °C',
         'BP ${v.systolic ?? "—"}/${v.diastolic ?? "—"}',
         'HR ${v.pulseRate?.toString() ?? "—"}',

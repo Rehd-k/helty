@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
 
 const double _contentMaxWidth = 1200;
 const double _cardRadius = 20;
+
+enum _DatePreset { today, last7Days, last30Days, custom }
 
 @RoutePage()
 class RadiologyDashboardScreen extends ConsumerStatefulWidget {
@@ -24,6 +27,8 @@ class _RadiologyDashboardScreenState
   RadiologyDashboardResponse? _dashboard;
   bool _loading = true;
   String? _error;
+  _DatePreset _selectedPreset = _DatePreset.today;
+  DateTimeRange? _customDateRange;
 
   RadiologyService get _service => ref.read(radiologyServiceProvider);
 
@@ -33,13 +38,59 @@ class _RadiologyDashboardScreenState
     _load();
   }
 
+  (DateTime, DateTime) _resolveDateRange() {
+    final now = DateTime.now();
+    final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    switch (_selectedPreset) {
+      case _DatePreset.today:
+        final start = DateTime(now.year, now.month, now.day);
+        return (start, end);
+      case _DatePreset.last7Days:
+        final start = DateTime(now.year, now.month, now.day).subtract(
+          const Duration(days: 6),
+        );
+        return (start, end);
+      case _DatePreset.last30Days:
+        final start = DateTime(now.year, now.month, now.day).subtract(
+          const Duration(days: 29),
+        );
+        return (start, end);
+      case _DatePreset.custom:
+        final range = _customDateRange;
+        if (range != null) {
+          return (
+            DateTime(
+              range.start.year,
+              range.start.month,
+              range.start.day,
+            ),
+            DateTime(
+              range.end.year,
+              range.end.month,
+              range.end.day,
+              23,
+              59,
+              59,
+            ),
+          );
+        }
+        final start = DateTime(now.year, now.month, now.day);
+        return (start, end);
+    }
+  }
+
+  RadiologyDashboardQuery _dashboardQuery() {
+    final (from, to) = _resolveDateRange();
+    return RadiologyDashboardQuery(fromDate: from, toDate: to);
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final data = await _service.getDashboard();
+      final data = await _service.getDashboard(query: _dashboardQuery());
       if (!mounted) return;
       setState(() {
         _dashboard = data;
@@ -60,6 +111,63 @@ class _RadiologyDashboardScreenState
     }
   }
 
+  Future<void> _pickCustomDateRange() async {
+    final now = DateTime.now();
+    final initial = _customDateRange ??
+        DateTimeRange(
+          start: DateTime(now.year, now.month, now.day),
+          end: DateTime(now.year, now.month, now.day, 23, 59, 59, 999),
+        );
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialDateRange: initial,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme,
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _selectedPreset = _DatePreset.custom;
+      _customDateRange = DateTimeRange(
+        start: DateTime(picked.start.year, picked.start.month, picked.start.day),
+        end: DateTime(
+          picked.end.year,
+          picked.end.month,
+          picked.end.day,
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+    });
+    _load();
+  }
+
+  String _presetLabel(_DatePreset preset) {
+    switch (preset) {
+      case _DatePreset.today:
+        return 'Today';
+      case _DatePreset.last7Days:
+        return 'Last 7 Days';
+      case _DatePreset.last30Days:
+        return 'Last 30 Days';
+      case _DatePreset.custom:
+        if (_customDateRange != null) {
+          final r = _customDateRange!;
+          return '${DateFormatter.shortDate(r.start)} – ${DateFormatter.shortDate(r.end)}';
+        }
+        return 'Custom';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -72,6 +180,13 @@ class _RadiologyDashboardScreenState
             expandedHeight: 140,
             floating: true,
             pinned: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'Refresh',
+                onPressed: _loading ? null : _load,
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 'Radiology',
@@ -135,18 +250,25 @@ class _RadiologyDashboardScreenState
               ),
             ),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Imaging & reports',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Imaging & reports',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFilterBar(theme, colorScheme),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -181,10 +303,55 @@ class _RadiologyDashboardScreenState
     );
   }
 
+  Widget _buildFilterBar(ThemeData theme, ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Wrap(
+        runSpacing: 10,
+        spacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ..._DatePreset.values.where((p) => p != _DatePreset.custom).map(
+            (preset) => ChoiceChip(
+              label: Text(_presetLabel(preset)),
+              selected: _selectedPreset == preset,
+              onSelected: _loading
+                  ? null
+                  : (_) {
+                      setState(() => _selectedPreset = preset);
+                      _load();
+                    },
+            ),
+          ),
+          ChoiceChip(
+            label: Text(_presetLabel(_DatePreset.custom)),
+            selected: _selectedPreset == _DatePreset.custom,
+            onSelected: _loading ? null : (_) => _pickCustomDateRange(),
+          ),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatsGrid(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final d = _dashboard!;
+    final scansLabel =
+        _selectedPreset == _DatePreset.today ? 'Scans today' : 'Total scans';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -200,7 +367,7 @@ class _RadiologyDashboardScreenState
             _StatCard(
               icon: Icons.today_rounded,
               value: '${d.totalScansToday}',
-              label: 'Scans today',
+              label: scansLabel,
               color: colorScheme.primary,
             ),
             _StatCard(

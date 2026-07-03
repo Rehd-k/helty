@@ -13,6 +13,8 @@ abstract final class AccountsEndpoints {
   static const profitLoss = '/accounts/reports/profit-loss';
   static const cashFlow = '/accounts/reports/cash-flow';
   static const revenueByService = '/accounts/reports/revenue-by-service';
+  static const revenueByServiceDetails =
+      '/accounts/reports/revenue-by-service/details';
   static const expenseVsBudget = '/accounts/reports/expense-vs-budget';
   static const collectionEfficiency = '/accounts/reports/collection-efficiency';
   static const periodComparison = '/accounts/reports/period-comparison';

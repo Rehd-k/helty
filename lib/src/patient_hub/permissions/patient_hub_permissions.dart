@@ -85,6 +85,9 @@ bool canAccessPatientHub(Staff? staff) {
   if (_isPharmacy(staff)) return true;
   if (canAccessDialysisModule(staff)) return true;
   if (canAccessTheatreModule(staff)) return true;
+  if (staff.accountType == AccountType.cmac) return true;
+  final r = staff.staffRole.toLowerCase();
+  if (r == 'cmac') return true;
 
   return false;
 }

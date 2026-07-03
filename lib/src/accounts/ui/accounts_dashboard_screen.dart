@@ -45,7 +45,8 @@ class AccountsDashboardScreen extends ConsumerWidget {
             ? _headKpis(data, fmt, context)
             : _staffKpis(data, fmt, context);
 
-        return Column(
+        return SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AccountsKpiGrid(tiles: tiles),
@@ -66,6 +67,7 @@ class AccountsDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             _ActivityFeed(items: data.activityFeed, fmt: fmt),
           ],
+        ),
         );
       },
     );

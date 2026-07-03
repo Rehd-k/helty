@@ -77,6 +77,7 @@ const cmacExecutiveMenuItems = <MenuItem>[
     route: CmacPatientActivityRoute(),
     accent: MenuAccent.secondary,
   ),
+  patientHubMenuItem,
   MenuItem(
     label: 'Clinical',
     icon: Icons.medical_information_outlined,
@@ -385,6 +386,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? billingMenu.where((m) => m.route is! SystemSetupRoute).toList()
             : billingMenu,
       );
+      if (r == 'billing_head') {
+        common.addAll(billingHeadExtraMenu);
+      }
     }
 
     final bootstrap = ref.watch(nursingBootstrapDataProvider);
@@ -405,6 +409,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         common.addAll(phamDispense);
       } else {
         common.addAll(pharmacy);
+      }
+      final isPharmacyHead =
+          at == 'pharmacy_head' ||
+          r == 'pharmacy_head' ||
+          (staff?.pharmacyRole?.toLowerCase().replaceAll('-', '_') ==
+              'pharmacy_head');
+      if (isPharmacyHead) {
+        common.addAll(pharmacyHeadExtraMenu);
       }
     }
 

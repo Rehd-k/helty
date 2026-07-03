@@ -91,6 +91,42 @@ class EncounterService {
     return [];
   }
 
+  /// GET /encounters?patientId=…&status=ONGOING — open encounters for a patient.
+  ///
+  /// Used by the pharmacy refill bill dialog to resolve (or let staff pick) the
+  /// encounter to bill against. Defaults to `ONGOING`; pass [status] to widen.
+  Future<List<EncounterModel>> fetchByPatient({
+    required String patientId,
+    String? status = 'ONGOING',
+    int skip = 0,
+    int take = 50,
+  }) async {
+    final query = <String, dynamic>{
+      'patientId': patientId,
+      'skip': skip,
+      'take': take,
+    };
+    if (status != null && status.isNotEmpty) query['status'] = status;
+
+    final response = await _dio.get<dynamic>(
+      '/encounters',
+      queryParameters: query,
+    );
+    final raw = response.data;
+    if (raw is List) {
+      return raw
+          .map((e) => EncounterModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    if (raw is Map<String, dynamic>) {
+      final list = raw['data'] as List? ?? [];
+      return list
+          .map((e) => EncounterModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
   /// GET /encounters — list EMERGENCY encounters (ED board interim).
   Future<List<EncounterModel>> fetchEmergencyEncounters({
     String? doctorId,

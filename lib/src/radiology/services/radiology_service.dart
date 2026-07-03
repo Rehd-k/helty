@@ -346,12 +346,18 @@ class RadiologyService {
     return '$base$_base/images/$imageId/file';
   }
 
+  static final _imageFileBytesOptions = Options(
+    responseType: ResponseType.bytes,
+    receiveTimeout: const Duration(seconds: 120),
+    headers: {'Accept': '*/*'},
+  );
+
   /// Fetches image file bytes (with auth). Use for in-app viewer.
   Future<List<int>> getImageFileBytes(String imageId) async {
     try {
       final resp = await _dio.get<List<int>>(
         '$_base/images/$imageId/file',
-        options: Options(responseType: ResponseType.bytes),
+        options: _imageFileBytesOptions,
       );
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
@@ -421,9 +427,14 @@ class RadiologyService {
 
   // ─── Dashboard ──────────────────────────────────────────────────────────
 
-  Future<RadiologyDashboardResponse> getDashboard() async {
+  Future<RadiologyDashboardResponse> getDashboard({
+    RadiologyDashboardQuery? query,
+  }) async {
     try {
-      final resp = await _dio.get<Map<String, dynamic>>('$_base/dashboard');
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/dashboard',
+        queryParameters: query?.toQuery(),
+      );
       final data = resp.data;
       if (data == null) {
         return const RadiologyDashboardResponse();
@@ -528,5 +539,22 @@ class RadiologyService {
     } on DioException catch (e) {
       _handleError(e);
     }
+  }
+}
+
+class RadiologyDashboardQuery {
+  const RadiologyDashboardQuery({
+    required this.fromDate,
+    required this.toDate,
+  });
+
+  final DateTime fromDate;
+  final DateTime toDate;
+
+  Map<String, dynamic> toQuery() {
+    return {
+      'fromDate': fromDate.toUtc().toIso8601String(),
+      'toDate': toDate.toUtc().toIso8601String(),
+    };
   }
 }

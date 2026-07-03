@@ -23,10 +23,11 @@ class AccountsRefundRequestsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!canApproveFinancialActions(ref.watch(authProvider).staff)) {
+    if (!canApproveItemRefundRequests(ref.watch(authProvider).staff)) {
       return const AccountsAccessDenied(
         title: 'Item refund requests',
-        message: 'Only the Account Head can approve item refund requests.',
+        message:
+            'Only the Account Head or Billing Head can approve item refund requests.',
       );
     }
     final async = ref.watch(accountsPendingRefundRequestsProvider);
@@ -35,7 +36,8 @@ class AccountsRefundRequestsScreen extends ConsumerWidget {
 
     return AccountsAsyncScaffold<List<AccountsPendingRefundRequest>>(
       title: 'Item refund requests',
-      subtitle: 'Pending line-item refunds awaiting account head approval',
+      subtitle:
+          'Pending line-item refunds awaiting account or billing head approval',
       colors: AccountsPalette.audit,
       asyncValue: async,
       onRetry: () => ref.invalidate(accountsPendingRefundRequestsProvider),

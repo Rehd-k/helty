@@ -34,7 +34,8 @@ class AccountsComplianceScreen extends ConsumerWidget {
         if (items.isEmpty) {
           return const AccountsEmptyState(title: 'No Compliance checklist', subtitle: 'No records for the selected filters.');
         }
-        return Wrap(
+        return SingleChildScrollView(
+          child: Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
@@ -88,6 +89,7 @@ class AccountsComplianceScreen extends ConsumerWidget {
                 ),
               ),
           ],
+        ),
         );
       },
     );

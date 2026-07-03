@@ -156,10 +156,16 @@ class _AccountsJournalEntriesScreenState
             ),
             const SizedBox(height: 24),
             if (entries.isEmpty)
-              const AccountsEmptyState(title: 'No Journal entries', subtitle: 'No records for the selected filters.')
+              const Expanded(
+                child: AccountsEmptyState(
+                  title: 'No Journal entries',
+                  subtitle: 'No records for the selected filters.',
+                ),
+              )
             else
-              AccountsDataTableBox(
-                child: DataTable2(
+              Expanded(
+                child: AccountsDataTableBox(
+                  child: DataTable2(
                   minWidth: 1000,
                   columns: const [
                     DataColumn2(label: Text('Date'), size: ColumnSize.S),
@@ -185,6 +191,7 @@ class _AccountsJournalEntriesScreenState
                       ),
                   ],
                 ),
+              ),
               ),
           ],
         );

@@ -34,7 +34,8 @@ class AccountsCollectionEfficiencyScreen extends ConsumerWidget {
         if (data.period.isEmpty && data.billedAmount == 0) {
           return const AccountsEmptyState(title: 'No Collection efficiency', subtitle: 'No records for the selected filters.');
         }
-        return AccountsKpiGrid(
+        return SingleChildScrollView(
+          child: AccountsKpiGrid(
           tiles: [
             AccountsKpiTile(
               label: 'Billed',
@@ -62,6 +63,7 @@ class AccountsCollectionEfficiencyScreen extends ConsumerWidget {
               icon: Icons.money_off_rounded,
             ),
           ],
+        ),
         );
       },
     );

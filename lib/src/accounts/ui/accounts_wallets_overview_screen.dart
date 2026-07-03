@@ -62,8 +62,9 @@ class AccountsWalletsOverviewScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
-            AccountsDataTableBox(
-              child: DataTable2(
+            Expanded(
+              child: AccountsDataTableBox(
+                child: DataTable2(
                 columns: const [
                   DataColumn2(label: Text('Patient'), size: ColumnSize.L),
                   DataColumn2(label: Text('Balance'), size: ColumnSize.S),
@@ -98,6 +99,7 @@ class AccountsWalletsOverviewScreen extends ConsumerWidget {
                     ),
                 ],
               ),
+            ),
             ),
           ],
         );

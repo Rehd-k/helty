@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:auto_route/auto_route.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
@@ -56,7 +57,7 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
   }
 
   void _sortVitals() {
-    _vitals.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    _vitals.sort((a, b) => b.effectiveAt.compareTo(a.effectiveAt));
   }
 
   @override
@@ -133,7 +134,7 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
                     .map(
                       (v) => DataRow(
                         cells: [
-                          DataCell(Text(DateFormatter.dateTime(v.createdAt))),
+                          DataCell(Text(DateFormatter.dateTime(v.effectiveAt))),
                           DataCell(Text(v.temperature?.toString() ?? '—')),
                           DataCell(
                             Text(
@@ -155,7 +156,8 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Use the “Record Vitals” button to add new observations. Historical records are read-only.',
+            'Use “Record Vitals” to add observations. Adjust the recorded time '
+            'when entering vitals taken earlier.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: scheme.onSurface.withValues(alpha: 0.7),
             ),
@@ -237,6 +239,7 @@ class _RecordVitalsDialog extends StatefulWidget {
 
 class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
   final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _timeCtrl;
   final _tempCtrl = TextEditingController();
   final _sysCtrl = TextEditingController();
   final _diaCtrl = TextEditingController();
@@ -250,7 +253,16 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _timeCtrl = TextEditingController(
+      text: DateFormatter.timeOnly(AppTimezone.now()),
+    );
+  }
+
+  @override
   void dispose() {
+    _timeCtrl.dispose();
     _tempCtrl.dispose();
     _sysCtrl.dispose();
     _diaCtrl.dispose();
@@ -273,6 +285,17 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final parsedTime = AppTimezone.parseTimeOnDate(
+      _timeCtrl.text,
+      AppTimezone.now(),
+    );
+    if (parsedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid time (e.g. 2:30 PM).')),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final result = await widget.waitingService.createPatientVitals(
@@ -288,6 +311,7 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
           bloodGlucose: _glucoseCtrl.text,
           painScore: _painCtrl.value.toInt().toString(),
           recordedByNurseId: widget.nurseId,
+          recordedAt: parsedTime,
         ),
       );
       if (!mounted) return;
@@ -318,6 +342,16 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                TextFormField(
+                  controller: _timeCtrl,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(
+                    labelText: 'Recorded time',
+                    hintText: 'e.g. 2:30 PM',
+                    helperText: 'Enter time as hh:mm AM or PM',
+                  ),
+                ),
+                const SizedBox(height: 12),
                 if (!narrowForm)
                   Row(
                     children: [
@@ -568,15 +602,15 @@ class _VitalsTrendDialogState extends State<_VitalsTrendDialog> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final sorted = List<PatientVitalsModel>.from(widget.vitals)
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      ..sort((a, b) => a.effectiveAt.compareTo(b.effectiveAt));
 
     final series = <({DateTime t, double y})>[];
     DateTime? firstT;
     for (final v in sorted) {
       final y = _metricValue(v, _metric);
       if (y == null) continue;
-      firstT ??= v.createdAt;
-      series.add((t: v.createdAt, y: y));
+      firstT ??= v.effectiveAt;
+      series.add((t: v.effectiveAt, y: y));
     }
 
     final dialogW = inpatientDialogBodyWidth(context);

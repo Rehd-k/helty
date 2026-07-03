@@ -29,8 +29,27 @@ class _RadiologyWorklistScreenState
   DateTime? _toDate;
   static const int _take = 20;
   int _skip = 0;
+  final _patientSearchCtrl = TextEditingController();
+  String _searchQuery = '';
 
   RadiologyService get _service => ref.read(radiologyServiceProvider);
+
+  List<RadiologyOrder> get _filteredOrders {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return _orders;
+    return _orders.where((order) {
+      final name = (order.patient?.displayName ?? '').toLowerCase();
+      final hospitalNo =
+          (order.patient?.patientId ?? order.patientId).toLowerCase();
+      return name.contains(query) || hospitalNo.contains(query);
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    _patientSearchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -128,8 +147,14 @@ class _RadiologyWorklistScreenState
       _fromDate = null;
       _toDate = null;
       _skip = 0;
+      _searchQuery = '';
+      _patientSearchCtrl.clear();
     });
     _load();
+  }
+
+  void _applySearch() {
+    setState(() => _searchQuery = _patientSearchCtrl.text.trim());
   }
 
   @override
@@ -186,6 +211,37 @@ class _RadiologyWorklistScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _patientSearchCtrl,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Search by patient name or hospital number…',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          filled: true,
+                          fillColor: colorScheme.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                        onSubmitted: (_) => _applySearch(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      tooltip: 'Search',
+                      onPressed: _applySearch,
+                      icon: const Icon(Icons.arrow_forward, size: 20),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -246,7 +302,9 @@ class _RadiologyWorklistScreenState
             child: Row(
               children: [
                 Text(
-                  '$_total request(s)',
+                  _searchQuery.isEmpty
+                      ? '$_total request(s)'
+                      : '${_filteredOrders.length} of $_total request(s)',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -267,7 +325,7 @@ class _RadiologyWorklistScreenState
           Expanded(
             child: _loading && _orders.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : _orders.isEmpty
+                : _filteredOrders.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -279,7 +337,9 @@ class _RadiologyWorklistScreenState
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'No requests match the filter.',
+                          _searchQuery.isEmpty
+                              ? 'No requests match the filter.'
+                              : 'No patients match your search.',
                           style: theme.textTheme.bodyLarge?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -294,9 +354,9 @@ class _RadiologyWorklistScreenState
                     },
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _orders.length + 1,
+                      itemCount: _filteredOrders.length + 1,
                       itemBuilder: (context, index) {
-                        if (index == _orders.length) {
+                        if (index == _filteredOrders.length) {
                           final hasMore = _skip + _orders.length < _total;
                           if (!hasMore) return const SizedBox(height: 16);
                           return Padding(
@@ -312,7 +372,7 @@ class _RadiologyWorklistScreenState
                             ),
                           );
                         }
-                        final order = _orders[index];
+                        final order = _filteredOrders[index];
                         return _OrderCard(
                           order: order,
                           onTap: () => context.router.push(

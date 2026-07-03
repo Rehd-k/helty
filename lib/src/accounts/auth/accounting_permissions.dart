@@ -50,4 +50,10 @@ bool canPerformBankReconciliation(Staff? staff) => isAccountHead(staff);
 
 bool canViewProfitLoss(Staff? staff) => isAccountHead(staff);
 
+bool canViewRevenueByService(Staff? staff) =>
+    canViewProfitLoss(staff) || staffCanAccessPrivilegedBilling(staff);
+
+bool canApproveItemRefundRequests(Staff? staff) =>
+    canApproveFinancialActions(staff) || staffCanAccessPrivilegedBilling(staff);
+
 bool canViewStaffFinancialActivity(Staff? staff) => isAccountHead(staff);

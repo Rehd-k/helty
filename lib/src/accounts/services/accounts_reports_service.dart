@@ -104,6 +104,34 @@ class AccountsReportsService extends AccountsBaseService {
     }
   }
 
+  Future<AccountsRevenueByServiceDetailsResponse> fetchRevenueByServiceDetails({
+    required String period,
+    DateTime? asOf,
+    required String serviceCategory,
+    int skip = 0,
+    int take = 50,
+    String? q,
+  }) async {
+    try {
+      final response = await dio.get<dynamic>(
+        AccountsEndpoints.revenueByServiceDetails,
+        queryParameters: {
+          'period': period,
+          if (asOf != null) 'asOf': asOf.toUtc().toIso8601String(),
+          'serviceCategory': serviceCategory,
+          'skip': skip,
+          'take': take,
+          if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+        },
+      );
+      return AccountsRevenueByServiceDetailsResponse.fromJson(
+        asMap(response.data),
+      );
+    } on DioException catch (e) {
+      throwApi(e, 'Revenue by service details');
+    }
+  }
+
   Future<List<AccountsExpenseBudgetRow>> fetchExpenseVsBudget({
     required String period,
     DateTime? asOf,

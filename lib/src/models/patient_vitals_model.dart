@@ -1,3 +1,5 @@
+import 'package:helty/src/helper/app_timezone.dart';
+
 import 'staff_attribution.dart';
 
 class PatientVitalsModel {
@@ -18,6 +20,7 @@ class PatientVitalsModel {
     this.bloodGlucose,
     this.notes,
     this.recordedBy,
+    this.recordedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -42,8 +45,12 @@ class PatientVitalsModel {
   final String? notes;
   final String? recordedBy;
 
+  final DateTime? recordedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// When the vitals were taken (falls back to [createdAt] when unset).
+  DateTime get effectiveAt => recordedAt ?? createdAt;
 
   factory PatientVitalsModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
@@ -88,6 +95,9 @@ class PatientVitalsModel {
             json['recordedById']?.toString();
         return flat?.isNotEmpty == true ? flat : null;
       }(),
+      recordedAt: json['recordedAt'] != null
+          ? parseDate(json['recordedAt'])
+          : null,
       createdAt: parseDate(json['createdAt']),
       updatedAt: parseDate(json['updatedAt']),
     );
@@ -111,6 +121,7 @@ class PatientVitalsModel {
     if (bloodGlucose != null) 'bloodGlucose': bloodGlucose,
     if (notes != null) 'notes': notes,
     if (recordedBy != null) 'recordedBy': recordedBy,
+    if (recordedAt != null) 'recordedAt': recordedAt!.toIso8601String(),
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -137,6 +148,7 @@ class CreatePatientVitalsDto {
     this.bloodGlucose,
     this.painScore,
     this.recordedByNurseId,
+    this.recordedAt,
   });
 
   final String? waitingPatientId;
@@ -157,6 +169,7 @@ class CreatePatientVitalsDto {
   final String? bloodGlucose;
   final String? painScore;
   final String? recordedByNurseId;
+  final DateTime? recordedAt;
 
   Map<String, dynamic> toJson() => {
     if (waitingPatientId != null && waitingPatientId!.isNotEmpty)
@@ -181,6 +194,8 @@ class CreatePatientVitalsDto {
     if (painScore != null) 'painScore': painScore,
     if (recordedByNurseId != null && recordedByNurseId!.isNotEmpty)
       'recordedByNurseId': recordedByNurseId,
+    if (recordedAt != null)
+      'recordedAt': AppTimezone.toBackendIso(recordedAt!),
   };
 }
 
@@ -197,6 +212,7 @@ class UpdatePatientVitalsDto {
     this.pulseRate,
     this.spo2,
     this.notes,
+    this.recordedAt,
   });
 
   final int? systolic;
@@ -209,6 +225,7 @@ class UpdatePatientVitalsDto {
   final int? pulseRate;
   final double? spo2;
   final String? notes;
+  final DateTime? recordedAt;
 
   Map<String, dynamic> toJson() => {
     if (systolic != null) 'systolic': systolic,
@@ -221,5 +238,7 @@ class UpdatePatientVitalsDto {
     if (pulseRate != null) 'pulseRate': pulseRate,
     if (spo2 != null) 'spo2': spo2,
     if (notes != null) 'notes': notes,
+    if (recordedAt != null)
+      'recordedAt': AppTimezone.toBackendIso(recordedAt!),
   };
 }

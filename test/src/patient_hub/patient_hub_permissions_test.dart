@@ -100,6 +100,11 @@ void main() {
       expect(canAccessPatientHub(theatre), isTrue);
     });
 
+    test('allows CMAC account', () {
+      final cmac = staff(role: 'CMAC', accountType: AccountType.cmac);
+      expect(canAccessPatientHub(cmac), isTrue);
+    });
+
     test('denies billing staff', () {
       final billing = staff(role: 'billing_staff', accountType: AccountType.billing);
       expect(canAccessPatientHub(billing), isFalse);

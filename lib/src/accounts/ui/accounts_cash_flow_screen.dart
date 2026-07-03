@@ -37,7 +37,8 @@ class AccountsCashFlowScreen extends ConsumerWidget {
         if (data.operating.isEmpty) {
           return const AccountsEmptyState(title: 'No Cash flow statement', subtitle: 'No records for the selected filters.');
         }
-        return Column(
+        return SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _summaryRow('Opening balance', data.openingBalance, fmt),
@@ -60,6 +61,7 @@ class AccountsCashFlowScreen extends ConsumerWidget {
             ),
             ..._lines(data.financing, fmt),
           ],
+        ),
         );
       },
     );

@@ -39,7 +39,8 @@ class AccountsPaymentMixScreen extends ConsumerWidget {
             icon: Icons.pie_chart_outline_rounded,
           );
         }
-        return LayoutBuilder(
+        return SingleChildScrollView(
+          child: LayoutBuilder(
           builder: (context, constraints) {
             final narrow = constraints.maxWidth < 720;
             final chart = SizedBox(
@@ -93,6 +94,7 @@ class AccountsPaymentMixScreen extends ConsumerWidget {
               ],
             );
           },
+        ),
         );
       },
     );

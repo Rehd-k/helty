@@ -12,6 +12,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
+import 'package:helty/src/printing/pdf/radiology_clinical_notes_pdf.dart';
 import 'package:helty/src/printing/pdf/radiology_report_pdf.dart';
 import 'package:helty/src/radiology/ui/radiology_ui_helpers.dart';
 import 'package:helty/src/radiology/ui/widgets/radiology_image_viewer.dart';
@@ -30,6 +31,7 @@ class RadiologyRequestDetailScreen extends ConsumerStatefulWidget {
 class _RadiologyRequestDetailScreenState
     extends ConsumerState<RadiologyRequestDetailScreen> {
   RadiologyOrder? _order;
+  Map<String, List<RadiologyImage>> _itemImages = {};
   bool _loading = true;
   bool _statusUpdating = false;
   String? _itemActionId;
@@ -50,9 +52,11 @@ class _RadiologyRequestDetailScreenState
     });
     try {
       final order = await service.getOrder(widget.requestId);
+      final itemImages = await fetchRadiologyOrderImagesByItem(service, order);
       if (!mounted) return;
       setState(() {
         _order = order;
+        _itemImages = itemImages;
         _selectedItemId = order.items.isNotEmpty ? order.items.first.id : null;
         _loading = false;
       });
@@ -108,9 +112,9 @@ class _RadiologyRequestDetailScreenState
       );
       await _load();
       final listed = await service.listImages(itemId);
-      if (!mounted || _order == null) return;
+      if (!mounted) return;
       setState(() {
-        _order = _orderWithItemImages(_order!, itemId, listed);
+        _itemImages = {..._itemImages, itemId: listed};
       });
     } catch (e) {
       if (!mounted) return;
@@ -293,54 +297,33 @@ class _RadiologyRequestDetailScreenState
     );
   }
 
-  RadiologyOrder _orderWithItemImages(
-    RadiologyOrder order,
-    String itemId,
-    List<RadiologyImage> images,
-  ) {
-    return RadiologyOrder(
-      id: order.id,
-      patientId: order.patientId,
-      requestedById: order.requestedById,
-      items: order.items
-          .map(
-            (i) => i.id == itemId ? _copyItemWithImages(i, images) : i,
-          )
-          .toList(),
-      encounterId: order.encounterId,
-      departmentId: order.departmentId,
-      status: order.status,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-      patient: order.patient,
-      requestedBy: order.requestedBy,
+  bool _hasClinicalNotes(RadiologyOrder order) {
+    return order.items.any(
+      (item) => (item.clinicalNotes ?? '').trim().isNotEmpty,
     );
   }
 
-  RadiologyOrderItem _copyItemWithImages(
-    RadiologyOrderItem item,
-    List<RadiologyImage> images,
-  ) {
-    return RadiologyOrderItem(
-      id: item.id,
-      orderId: item.orderId,
-      scanType: item.scanType,
-      priority: item.priority,
-      status: item.status,
-      bodyPart: item.bodyPart,
-      contrast: item.contrast,
-      clinicalNotes: item.clinicalNotes,
-      reasonForInvestigation: item.reasonForInvestigation,
-      invoiceId: item.invoiceId,
-      invoiceItemId: item.invoiceItemId,
-      serviceId: item.serviceId,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-      schedule: item.schedule,
-      procedure: item.procedure,
-      images: images,
-      report: item.report,
+  Future<void> _printClinicalNotes() async {
+    final order = _order;
+    if (order == null) return;
+    await Printing.layoutPdf(
+      onLayout: (_) async =>
+          Uint8List.fromList(await buildRadiologyClinicalNotesPdf(order)),
     );
+  }
+
+  Future<void> _shareClinicalNotes() async {
+    final order = _order;
+    if (order == null) return;
+    final bytes = await buildRadiologyClinicalNotesPdf(order);
+    await Printing.sharePdf(
+      bytes: Uint8List.fromList(bytes),
+      filename: 'radiology_clinical_notes_${order.id}.pdf',
+    );
+  }
+
+  List<RadiologyImage> _imagesForItem(RadiologyOrderItem item) {
+    return _itemImages[item.id] ?? item.images ?? const [];
   }
 
   @override
@@ -362,6 +345,16 @@ class _RadiologyRequestDetailScreenState
       appBar: AppBar(
         title: Text('Radiology order ${order!.id.substring(0, 8)}'),
         actions: [
+          IconButton(
+            onPressed: _hasClinicalNotes(_order!) ? _printClinicalNotes : null,
+            icon: const Icon(Icons.note_alt_outlined),
+            tooltip: 'Print clinical notes',
+          ),
+          IconButton(
+            onPressed: _hasClinicalNotes(_order!) ? _shareClinicalNotes : null,
+            icon: const Icon(Icons.note_add_outlined),
+            tooltip: 'Share clinical notes',
+          ),
           IconButton(
             onPressed: _order!.items.any((e) => e.report != null) ? _printOrderReport : null,
             icon: const Icon(Icons.print_outlined),
@@ -431,14 +424,14 @@ class _RadiologyRequestDetailScreenState
                     ),
                   if (item.report != null)
                     _ValueRow('Report preview', reportPreviewText(item.report)),
-                  if ((item.images ?? []).isNotEmpty) ...[
+                  if (_imagesForItem(item).isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
                       'Uploaded images/files',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                     const SizedBox(height: 6),
-                    ...item.images!.map(
+                    ..._imagesForItem(item).map(
                       (img) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: RadiologyImageSlide(
@@ -453,6 +446,12 @@ class _RadiologyRequestDetailScreenState
                     spacing: 8,
                     runSpacing: 8,
                     children: [
+                      if ((item.clinicalNotes ?? '').trim().isNotEmpty)
+                        OutlinedButton.icon(
+                          onPressed: _printClinicalNotes,
+                          icon: const Icon(Icons.note_alt_outlined),
+                          label: const Text('Print notes'),
+                        ),
                       OutlinedButton.icon(
                         onPressed: () => _addSchedule(item.id),
                         icon: const Icon(Icons.schedule),

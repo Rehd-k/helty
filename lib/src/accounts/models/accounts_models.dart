@@ -607,6 +607,248 @@ class AccountsServiceRevenueRow {
 }
 
 @immutable
+class AccountsRevenueByServiceDetailPatient {
+  const AccountsRevenueByServiceDetailPatient({
+    required this.id,
+    this.patientId,
+    required this.displayName,
+    this.phoneNumber,
+  });
+
+  final String id;
+  final String? patientId;
+  final String displayName;
+  final String? phoneNumber;
+
+  factory AccountsRevenueByServiceDetailPatient.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return AccountsRevenueByServiceDetailPatient(
+      id: json['id']?.toString() ?? '',
+      patientId: json['patientId']?.toString(),
+      displayName: json['displayName']?.toString() ?? '',
+      phoneNumber: json['phoneNumber']?.toString(),
+    );
+  }
+}
+
+@immutable
+class AccountsRevenueByServiceDetailInvoice {
+  const AccountsRevenueByServiceDetailInvoice({
+    required this.id,
+    required this.invoiceID,
+  });
+
+  final String id;
+  final String invoiceID;
+
+  factory AccountsRevenueByServiceDetailInvoice.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return AccountsRevenueByServiceDetailInvoice(
+      id: json['id']?.toString() ?? '',
+      invoiceID: json['invoiceID']?.toString() ?? '',
+    );
+  }
+}
+
+@immutable
+class AccountsRevenueByServiceDetailService {
+  const AccountsRevenueByServiceDetailService({
+    this.id,
+    this.name,
+    this.categoryName,
+  });
+
+  final String? id;
+  final String? name;
+  final String? categoryName;
+
+  factory AccountsRevenueByServiceDetailService.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return AccountsRevenueByServiceDetailService(
+      id: json['id']?.toString(),
+      name: json['name']?.toString(),
+      categoryName: json['categoryName']?.toString(),
+    );
+  }
+}
+
+@immutable
+class AccountsRevenueByServiceDetailLineItem {
+  const AccountsRevenueByServiceDetailLineItem({
+    required this.quantity,
+    required this.unitPrice,
+    this.customDescription,
+  });
+
+  final int quantity;
+  final double unitPrice;
+  final String? customDescription;
+
+  factory AccountsRevenueByServiceDetailLineItem.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return AccountsRevenueByServiceDetailLineItem(
+      quantity: _toInt(json['quantity']),
+      unitPrice: _toDouble(json['unitPrice']),
+      customDescription: json['customDescription']?.toString(),
+    );
+  }
+}
+
+@immutable
+class AccountsRevenueByServiceDetailPayment {
+  const AccountsRevenueByServiceDetailPayment({
+    required this.id,
+    required this.source,
+    this.method,
+    this.reference,
+    required this.receivedBy,
+  });
+
+  final String id;
+  final String source;
+  final String? method;
+  final String? reference;
+  final String receivedBy;
+
+  factory AccountsRevenueByServiceDetailPayment.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return AccountsRevenueByServiceDetailPayment(
+      id: json['id']?.toString() ?? '',
+      source: json['source']?.toString() ?? '',
+      method: json['method']?.toString(),
+      reference: json['reference']?.toString(),
+      receivedBy: json['receivedBy']?.toString() ?? '',
+    );
+  }
+}
+
+@immutable
+class AccountsRevenueByServiceDetailRow {
+  const AccountsRevenueByServiceDetailRow({
+    required this.allocationId,
+    required this.paidAt,
+    required this.amount,
+    required this.patient,
+    required this.invoice,
+    required this.service,
+    required this.lineItem,
+    required this.payment,
+    this.encounterId,
+  });
+
+  final String allocationId;
+  final DateTime paidAt;
+  final double amount;
+  final AccountsRevenueByServiceDetailPatient patient;
+  final AccountsRevenueByServiceDetailInvoice invoice;
+  final AccountsRevenueByServiceDetailService service;
+  final AccountsRevenueByServiceDetailLineItem lineItem;
+  final AccountsRevenueByServiceDetailPayment payment;
+  final String? encounterId;
+
+  factory AccountsRevenueByServiceDetailRow.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    final patientRaw = json['patient'];
+    final invoiceRaw = json['invoice'];
+    final serviceRaw = json['service'];
+    final lineItemRaw = json['lineItem'];
+    final paymentRaw = json['payment'];
+    return AccountsRevenueByServiceDetailRow(
+      allocationId: json['allocationId']?.toString() ?? '',
+      paidAt: _parseDate(json['paidAt']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+      amount: _toDouble(json['amount']),
+      patient: patientRaw is Map
+          ? AccountsRevenueByServiceDetailPatient.fromJson(
+              Map<String, dynamic>.from(patientRaw),
+            )
+          : const AccountsRevenueByServiceDetailPatient(
+              id: '',
+              displayName: '',
+            ),
+      invoice: invoiceRaw is Map
+          ? AccountsRevenueByServiceDetailInvoice.fromJson(
+              Map<String, dynamic>.from(invoiceRaw),
+            )
+          : const AccountsRevenueByServiceDetailInvoice(id: '', invoiceID: ''),
+      service: serviceRaw is Map
+          ? AccountsRevenueByServiceDetailService.fromJson(
+              Map<String, dynamic>.from(serviceRaw),
+            )
+          : const AccountsRevenueByServiceDetailService(),
+      lineItem: lineItemRaw is Map
+          ? AccountsRevenueByServiceDetailLineItem.fromJson(
+              Map<String, dynamic>.from(lineItemRaw),
+            )
+          : const AccountsRevenueByServiceDetailLineItem(
+              quantity: 0,
+              unitPrice: 0,
+            ),
+      payment: paymentRaw is Map
+          ? AccountsRevenueByServiceDetailPayment.fromJson(
+              Map<String, dynamic>.from(paymentRaw),
+            )
+          : const AccountsRevenueByServiceDetailPayment(
+              id: '',
+              source: '',
+              receivedBy: '',
+            ),
+      encounterId: json['encounterId']?.toString(),
+    );
+  }
+}
+
+@immutable
+class AccountsRevenueByServiceDetailsResponse {
+  const AccountsRevenueByServiceDetailsResponse({
+    required this.period,
+    required this.asOf,
+    required this.serviceCategory,
+    required this.totalAmount,
+    required this.total,
+    required this.skip,
+    required this.take,
+    required this.rows,
+  });
+
+  final String period;
+  final DateTime asOf;
+  final String serviceCategory;
+  final double totalAmount;
+  final int total;
+  final int skip;
+  final int take;
+  final List<AccountsRevenueByServiceDetailRow> rows;
+
+  factory AccountsRevenueByServiceDetailsResponse.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return AccountsRevenueByServiceDetailsResponse(
+      period: json['period']?.toString() ?? '',
+      asOf: _parseDate(json['asOf']) ?? DateTime.now(),
+      serviceCategory: json['serviceCategory']?.toString() ?? '',
+      totalAmount: _toDouble(json['totalAmount']),
+      total: _toInt(json['total']),
+      skip: _toInt(json['skip']),
+      take: _toInt(json['take']),
+      rows: (json['rows'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map(
+            (e) => AccountsRevenueByServiceDetailRow.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+@immutable
 class AccountsExpenseBudgetRow {
   const AccountsExpenseBudgetRow({
     required this.category,

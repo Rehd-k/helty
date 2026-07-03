@@ -44,7 +44,8 @@ class AccountsProfitLossScreen extends ConsumerWidget {
         if (data.revenueLines.isEmpty && data.expenseLines.isEmpty) {
           return const AccountsEmptyState(title: 'No Profit & loss report', subtitle: 'No records for the selected filters.');
         }
-        return Column(
+        return SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Card(
@@ -77,6 +78,7 @@ class AccountsProfitLossScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             ..._lines(data.expenseLines, fmt),
           ],
+        ),
         );
       },
     );

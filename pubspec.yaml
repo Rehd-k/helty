@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.0.6
+version: 2.0.8
 
 environment:
   sdk: ^3.9.2
@@ -154,3 +154,8 @@ msix_config:
   languages: en-us
   output_name: helty
   capabilities: internetClient, privateNetworkClientServer, documentsLibrary, picturesLibrary, removableStorage
+    # App Installer Auto-Update Configuration
+  hours_between_update_checks: 0 # 0 = check every time the app opens
+  automatic_background_task: true # Check for updates in the background
+  update_blocks_activation: true # Prevent the app from opening until the update finishes
+  show_prompt: true # Show Windows UI when checking/installing updates

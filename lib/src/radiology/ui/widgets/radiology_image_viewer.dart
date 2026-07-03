@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
@@ -26,12 +27,37 @@ Future<Uint8List> loadRadiologyImageBytes(
   return Uint8List.fromList(raw);
 }
 
+Future<void> saveRadiologyImageBytes(
+  BuildContext context, {
+  required RadiologyImage image,
+  required Uint8List bytes,
+}) async {
+  final fileName = image.fileName.trim().isNotEmpty
+      ? image.fileName.trim()
+      : 'radiology_${image.id}';
+  if (radiologyImageIsLikelyPdf(image)) {
+    await Printing.sharePdf(bytes: bytes, filename: fileName);
+    return;
+  }
+  final saved = await FilePicker.platform.saveFile(
+    fileName: fileName,
+    bytes: bytes,
+  );
+  if (!context.mounted) return;
+  if (saved != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Saved $fileName')),
+    );
+  }
+}
+
 void showRadiologyImageExpanded(
   BuildContext context, {
   required RadiologyImage image,
   required Uint8List bytes,
 }) {
   final isPdf = radiologyImageIsLikelyPdf(image);
+  final isRaster = radiologyImageIsLikelyRaster(image);
   showDialog<void>(
     context: context,
     builder: (ctx) {
@@ -55,6 +81,13 @@ void showRadiologyImageExpanded(
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (!isPdf && !isRaster)
+                      TextButton.icon(
+                        onPressed: () =>
+                            saveRadiologyImageBytes(ctx, image: image, bytes: bytes),
+                        icon: const Icon(Icons.save_alt_outlined, size: 18),
+                        label: const Text('Save'),
+                      ),
                     IconButton(
                       onPressed: () => Navigator.of(ctx).pop(),
                       icon: const Icon(Icons.close),
@@ -70,13 +103,44 @@ void showRadiologyImageExpanded(
                         canChangeOrientation: false,
                         pdfFileName: image.fileName,
                       )
-                    : InteractiveViewer(
-                        minScale: 0.5,
-                        maxScale: 4,
-                        child: Center(
-                          child: Image.memory(bytes, fit: BoxFit.contain),
-                        ),
-                      ),
+                    : isRaster
+                        ? InteractiveViewer(
+                            minScale: 0.5,
+                            maxScale: 4,
+                            child: Center(
+                              child: Image.memory(bytes, fit: BoxFit.contain),
+                            ),
+                          )
+                        : Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.insert_drive_file_outlined,
+                                    size: 64,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'This file type cannot be previewed in the app.',
+                                    style: Theme.of(ctx).textTheme.bodyMedium,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  FilledButton.icon(
+                                    onPressed: () => saveRadiologyImageBytes(
+                                      ctx,
+                                      image: image,
+                                      bytes: bytes,
+                                    ),
+                                    icon: const Icon(Icons.save_alt_outlined),
+                                    label: const Text('Save file'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
               ),
             ],
           ),
@@ -156,20 +220,6 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
     final isPdf = radiologyImageIsLikelyPdf(widget.image);
     final isRaster = radiologyImageIsLikelyRaster(widget.image);
 
-    if (!isPdf && !isRaster) {
-      final child = ListTile(
-        leading: Icon(
-          Icons.insert_drive_file_outlined,
-          color: theme.colorScheme.primary,
-        ),
-        title: Text(widget.image.fileName),
-        subtitle: _subtitle != null ? Text(_subtitle!) : null,
-      );
-      return widget.compact
-          ? child
-          : Card(child: child);
-    }
-
     final content = FutureBuilder<Uint8List>(
       future: _bytesFuture,
       builder: (context, snap) {
@@ -184,7 +234,10 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
         if (isPdf) {
           return _buildPdfPreview(theme, bytes);
         }
-        return _buildRasterPreview(theme, bytes);
+        if (isRaster) {
+          return _buildRasterPreview(theme, bytes);
+        }
+        return _buildUnknownPreview(theme, bytes);
       },
     );
 
@@ -235,7 +288,41 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
   }
 
   Widget _buildPdfPreview(ThemeData theme, Uint8List bytes) {
-    final pdfHeight = widget.compact ? widget.maxPreviewHeight : 320.0;
+    if (widget.compact) {
+      return Material(
+        color: theme.colorScheme.surfaceContainerHighest,
+        child: InkWell(
+          onTap: () => _onTap(context, bytes),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_compactCaption(theme) != null) _compactCaption(theme)!,
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.picture_as_pdf,
+                        size: 48,
+                        color: theme.colorScheme.error,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap to view PDF',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final pdfHeight = 320.0;
     final preview = SizedBox(
       height: pdfHeight,
       child: PdfPreview(
@@ -246,22 +333,6 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
       ),
     );
 
-    if (widget.compact) {
-      return Material(
-        color: theme.colorScheme.surfaceContainerHighest,
-        child: InkWell(
-          onTap: () => _onTap(context, bytes),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_compactCaption(theme) != null) _compactCaption(theme)!,
-              Expanded(child: preview),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -271,6 +342,60 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
           child: InkWell(
             onTap: () => _onTap(context, bytes),
             child: preview,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUnknownPreview(ThemeData theme, Uint8List bytes) {
+    final tile = ListTile(
+      leading: Icon(
+        Icons.insert_drive_file_outlined,
+        color: theme.colorScheme.primary,
+      ),
+      title: Text(widget.image.fileName),
+      subtitle: _subtitle != null ? Text(_subtitle!) : null,
+      trailing: IconButton(
+        tooltip: 'Save file',
+        onPressed: () =>
+            saveRadiologyImageBytes(context, image: widget.image, bytes: bytes),
+        icon: const Icon(Icons.save_alt_outlined),
+      ),
+      onTap: () => _onTap(context, bytes),
+    );
+
+    if (widget.compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_compactCaption(theme) != null) _compactCaption(theme)!,
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  'Tap to view options',
+                  style: theme.textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+          tile,
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        tile,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Text(
+            'Preview not available for this file type.',
+            style: theme.textTheme.bodySmall,
           ),
         ),
       ],
@@ -411,6 +536,15 @@ class _RadiologyImageCarouselState extends State<RadiologyImageCarousel> {
     }
   }
 
+  void _goToPage(int index) {
+    if (index < 0 || index >= widget.images.length) return;
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+  }
+
   String? _labelFor(RadiologyImage image) {
     return widget.itemLabels[image.orderItemId];
   }
@@ -432,21 +566,43 @@ class _RadiologyImageCarouselState extends State<RadiologyImageCarousel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              '${_index + 1} / ${widget.images.length}',
-              style: theme.textTheme.labelLarge,
+            IconButton(
+              tooltip: 'Previous',
+              visualDensity: VisualDensity.compact,
+              onPressed: _index > 0 ? () => _goToPage(_index - 1) : null,
+              icon: const Icon(Icons.chevron_left),
             ),
-            Text(
-              'Tap image to expand',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            Expanded(
+              child: Text(
+                '${_index + 1} / ${widget.images.length}',
+                style: theme.textTheme.labelLarge,
+                textAlign: TextAlign.center,
               ),
+            ),
+            IconButton(
+              tooltip: 'Next',
+              visualDensity: VisualDensity.compact,
+              onPressed: _index < widget.images.length - 1
+                  ? () => _goToPage(_index + 1)
+                  : null,
+              icon: const Icon(Icons.chevron_right),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+            'Swipe or use arrows · tap to expand',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 4),
         SizedBox(
           height: widget.height,
           child: DecoratedBox(
@@ -460,6 +616,7 @@ class _RadiologyImageCarouselState extends State<RadiologyImageCarousel> {
               borderRadius: BorderRadius.circular(8),
               child: PageView.builder(
                 controller: _pageController,
+                physics: const PageScrollPhysics(),
                 itemCount: widget.images.length,
                 onPageChanged: (i) => setState(() => _index = i),
                 itemBuilder: (context, i) {
@@ -468,8 +625,8 @@ class _RadiologyImageCarouselState extends State<RadiologyImageCarousel> {
                     service: widget.service,
                     image: image,
                     itemLabel: _labelFor(image),
-                    showHeader: true,
-                    maxPreviewHeight: widget.height - 56,
+                    showHeader: false,
+                    maxPreviewHeight: widget.height - 8,
                     compact: true,
                   );
                 },
@@ -482,17 +639,21 @@ class _RadiologyImageCarouselState extends State<RadiologyImageCarousel> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(widget.images.length, (i) {
             final selected = i == _index;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: selected ? 10 : 6,
-                height: selected ? 10 : 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.25),
+            return GestureDetector(
+              onTap: () => _goToPage(i),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: selected ? 10 : 6,
+                  height: selected ? 10 : 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.25),
+                  ),
                 ),
               ),
             );
@@ -501,6 +662,23 @@ class _RadiologyImageCarouselState extends State<RadiologyImageCarousel> {
       ],
     );
   }
+}
+
+/// Fetches images grouped by order item (embedded or via listImages).
+Future<Map<String, List<RadiologyImage>>> fetchRadiologyOrderImagesByItem(
+  RadiologyService service,
+  RadiologyOrder order,
+) async {
+  final map = <String, List<RadiologyImage>>{};
+  for (final item in order.items) {
+    final embedded = item.images;
+    if (embedded != null && embedded.isNotEmpty) {
+      map[item.id] = embedded;
+    } else {
+      map[item.id] = await service.listImages(item.id);
+    }
+  }
+  return map;
 }
 
 /// Fetches all images for a radiology order (embedded or via listImages).

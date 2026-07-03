@@ -7,7 +7,7 @@ import '../../nursing/models/nursing_models.dart';
 import 'home_screen.dart';
 
 /// Clinical unified patient lookup — all clinical departments except medical records billing chart.
-final patientHubMenuItem = MenuItem(
+const patientHubMenuItem = MenuItem(
   label: 'Patient Hub',
   icon: Icons.hub_outlined,
   route: PatientHubSearchRoute(),
@@ -116,6 +116,20 @@ final bills = <MenuItem>[
     label: 'Transaction',
     icon: Icons.list_outlined,
     route: TransactionsRoute(),
+  ),
+];
+
+/// Extra entries for billing head only (reports + refund approvals).
+final billingHeadExtraMenu = <MenuItem>[
+  const MenuItem(
+    label: 'Item refund requests',
+    icon: Icons.receipt_long_outlined,
+    route: AccountsRefundRequestsRoute(),
+  ),
+  const MenuItem(
+    label: 'Revenue by service',
+    icon: Icons.category_rounded,
+    route: AccountsRevenueByServiceRoute(),
   ),
 ];
 
@@ -355,6 +369,30 @@ final doctors = <MenuItem>[
   ),
 ];
 
+/// Head-of-pharmacy only entries (command dashboard + financial reports).
+final pharmacyHeadExtraMenu = <MenuItem>[
+  const MenuItem(
+    label: 'Head Dashboard',
+    icon: Icons.space_dashboard_outlined,
+    route: PharmacyHeadDashboardRoute(),
+  ),
+  const MenuItem(
+    label: 'Pharmacy Reports',
+    icon: Icons.assessment_outlined,
+    route: PharmacyReportsHubRoute(),
+  ),
+  MenuItem(
+    label: 'Sales Breakdown',
+    icon: Icons.pie_chart_outline,
+    route: PharmacySalesBreakdownRoute(),
+  ),
+  MenuItem(
+    label: 'Inventory Valuation',
+    icon: Icons.warehouse_outlined,
+    route: PharmacyInventoryValuationRoute(),
+  ),
+];
+
 final pharmacy = <MenuItem>[
   patientHubMenuItem,
   MenuItem(
@@ -413,6 +451,11 @@ final pharmacy = <MenuItem>[
     label: 'Medication Requests',
     icon: Icons.medication_outlined,
     route: MedicationRequestsRoute(),
+  ),
+  MenuItem(
+    label: 'Refill Requests',
+    icon: Icons.autorenew_outlined,
+    route: PharmacyRefillRequestsRoute(),
   ),
   MenuItem(
     label: 'Pharmacy Waiting Patient',
@@ -479,6 +522,11 @@ final phamDispense = <MenuItem>[
     label: 'Medication Requests',
     icon: Icons.medication_outlined,
     route: MedicationRequestsRoute(),
+  ),
+  MenuItem(
+    label: 'Refill Requests',
+    icon: Icons.autorenew_outlined,
+    route: PharmacyRefillRequestsRoute(),
   ),
   MenuItem(
     label: 'Pharmacy Waiting Patient',

@@ -1,23 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 
+bool radiologyMimeIsGeneric(String? mimeType) {
+  final mime = mimeType?.toLowerCase().trim() ?? '';
+  return mime.isEmpty || mime == 'application/octet-stream';
+}
+
 bool radiologyImageIsLikelyPdf(RadiologyImage img) {
   final mime = img.mimeType?.toLowerCase() ?? '';
-  if (mime.contains('pdf')) return true;
+  if (!radiologyMimeIsGeneric(mime) && mime.contains('pdf')) return true;
   return img.fileName.toLowerCase().endsWith('.pdf');
 }
 
 bool radiologyImageIsLikelyRaster(RadiologyImage img) {
   if (radiologyImageIsLikelyPdf(img)) return false;
   final mime = img.mimeType?.toLowerCase() ?? '';
-  if (mime.startsWith('image/') && !mime.contains('svg')) return true;
+  if (!radiologyMimeIsGeneric(mime) &&
+      mime.startsWith('image/') &&
+      !mime.contains('svg')) {
+    return true;
+  }
   final name = img.fileName.toLowerCase();
   return name.endsWith('.jpg') ||
       name.endsWith('.jpeg') ||
       name.endsWith('.png') ||
       name.endsWith('.gif') ||
-      name.endsWith('.webp');
+      name.endsWith('.webp') ||
+      name.endsWith('.bmp') ||
+      name.endsWith('.tif') ||
+      name.endsWith('.tiff');
 }
+
+bool radiologyImageIsPreviewable(RadiologyImage img) =>
+    radiologyImageIsLikelyPdf(img) || radiologyImageIsLikelyRaster(img);
 
 String orderStatusLabel(RadiologyOrderStatus status) {
   switch (status) {

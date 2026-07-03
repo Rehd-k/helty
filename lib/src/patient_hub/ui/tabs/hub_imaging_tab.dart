@@ -2,6 +2,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:helty/src/radiology/services/radiology_service.dart';
+import 'package:helty/src/radiology/ui/widgets/radiology_order_results_dialog.dart';
 import '../../models/patient_hub_models.dart';
 import '../../../patient_chart/models/patient_chart_models.dart';
 import '../../providers/patient_hub_providers.dart';
@@ -20,6 +22,7 @@ class HubImagingScreen extends ConsumerStatefulWidget {
 
 class _HubImagingScreenState extends ConsumerState<HubImagingScreen> {
   HubSortOrder _sort = HubSortOrder.newestFirst;
+  final _radiologyService = RadiologyService();
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +104,16 @@ class _HubImagingScreenState extends ConsumerState<HubImagingScreen> {
                         title: Text(hubRowTitle(section, item)),
                         subtitle: Text(hubRowSubtitle(item) ?? ''),
                         trailing: _statusChip(context, item['status']?.toString()),
+                        onTap: () {
+                          final orderId = item['id']?.toString() ??
+                              item['orderId']?.toString();
+                          if (orderId == null || orderId.isEmpty) return;
+                          showRadiologyOrderResultsDialog(
+                            context,
+                            service: _radiologyService,
+                            orderId: orderId,
+                          );
+                        },
                       ),
                     );
                   },

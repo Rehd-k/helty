@@ -116,11 +116,16 @@ class _AccountsDailyCashReconScreenState
             ),
             const SizedBox(height: 24),
             if (rows.isEmpty)
-              const AccountsEmptyState(title: 'No Daily cash reconciliation history', subtitle: 'No records for the selected filters.',
+              const Expanded(
+                child: AccountsEmptyState(
+                  title: 'No Daily cash reconciliation history',
+                  subtitle: 'No records for the selected filters.',
+                ),
               )
             else
-              AccountsDataTableBox(
-                child: DataTable2(
+              Expanded(
+                child: AccountsDataTableBox(
+                  child: DataTable2(
                   columns: const [
                     DataColumn2(label: Text('Date'), size: ColumnSize.S),
                     DataColumn2(label: Text('Expected'), size: ColumnSize.S),
@@ -141,6 +146,7 @@ class _AccountsDailyCashReconScreenState
                       ),
                   ],
                 ),
+              ),
               ),
           ],
         );

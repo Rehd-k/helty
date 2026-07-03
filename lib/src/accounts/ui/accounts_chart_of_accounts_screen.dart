@@ -149,10 +149,16 @@ class _AccountsChartOfAccountsScreenState
             ),
             const SizedBox(height: 24),
             if (accounts.isEmpty)
-              const AccountsEmptyState(title: 'No Chart of accounts', subtitle: 'No records for the selected filters.')
+              const Expanded(
+                child: AccountsEmptyState(
+                  title: 'No Chart of accounts',
+                  subtitle: 'No records for the selected filters.',
+                ),
+              )
             else
-              AccountsDataTableBox(
-                child: DataTable2(
+              Expanded(
+                child: AccountsDataTableBox(
+                  child: DataTable2(
                   columns: const [
                     DataColumn2(label: Text('Code'), size: ColumnSize.S),
                     DataColumn2(label: Text('Name'), size: ColumnSize.L),
@@ -180,6 +186,7 @@ class _AccountsChartOfAccountsScreenState
                       ),
                   ],
                 ),
+              ),
               ),
           ],
         );

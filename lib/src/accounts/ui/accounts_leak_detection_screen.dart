@@ -34,7 +34,8 @@ class AccountsLeakDetectionScreen extends ConsumerWidget {
         if (leaks.isEmpty) {
           return const AccountsEmptyState(title: 'No Leak detection', subtitle: 'No records for the selected filters.');
         }
-        return Column(
+        return SingleChildScrollView(
+          child: Column(
           children: [
             for (final l in leaks)
               Card(
@@ -57,6 +58,7 @@ class AccountsLeakDetectionScreen extends ConsumerWidget {
                 ),
               ),
           ],
+        ),
         );
       },
     );

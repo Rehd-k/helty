@@ -777,72 +777,90 @@ class _ImagingOrderResultsDialogState
     final order = widget.order;
     final theme = widget.theme;
     final firstItem = order.items.isNotEmpty ? order.items.first : null;
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final maxContentHeight = (viewportHeight * 0.62).clamp(360.0, 560.0);
+    final carouselHeight =
+        (maxContentHeight * 0.42).clamp(150.0, 200.0);
+    final detailsMaxHeight = maxContentHeight - carouselHeight - 88;
 
     return AlertDialog(
       title: Text('Order ${order.id.substring(0, 8)}'),
       content: SizedBox(
         width: 520,
-        child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxContentHeight),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _ResultRow(
-                label: 'Ordered',
-                value: DateFormatter.formatFromBackend(
-                  order.createdAt,
-                  DateFormatter.dateTime,
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: detailsMaxHeight),
+                child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ResultRow(
+                      label: 'Ordered',
+                      value: DateFormatter.formatFromBackend(
+                        order.createdAt,
+                        DateFormatter.dateTime,
+                      ),
+                    ),
+                    if (order.encounterId != null &&
+                        order.encounterId!.trim().isNotEmpty)
+                      _ResultRow(label: 'Encounter', value: order.encounterId!),
+                    _ResultRow(label: 'Status', value: order.status.name),
+                    _ResultRow(label: 'Items', value: '${order.items.length}'),
+                    if (firstItem != null) ...[
+                      _ResultRow(
+                        label: 'Study',
+                        value: firstItem.studyLabel(
+                          namesByServiceId: widget.studyNamesByServiceId,
+                        ),
+                      ),
+                      if (firstItem.bodyPart != null &&
+                          firstItem.bodyPart!.trim().isNotEmpty)
+                        _ResultRow(label: 'Area', value: firstItem.bodyPart!),
+                      if (firstItem.contrast != null)
+                        _ResultRow(
+                          label: 'Contrast',
+                          value: firstItem.contrast! ? 'Yes' : 'No',
+                        ),
+                    ],
+                  ],
                 ),
               ),
-              if (order.encounterId != null &&
-                  order.encounterId!.trim().isNotEmpty)
-                _ResultRow(label: 'Encounter', value: order.encounterId!),
-              _ResultRow(label: 'Status', value: order.status.name),
-              _ResultRow(label: 'Items', value: '${order.items.length}'),
-              if (firstItem != null) ...[
-                _ResultRow(
-                  label: 'Study',
-                  value: firstItem.studyLabel(
-                    namesByServiceId: widget.studyNamesByServiceId,
-                  ),
-                ),
-                if (firstItem.bodyPart != null &&
-                    firstItem.bodyPart!.trim().isNotEmpty)
-                  _ResultRow(label: 'Area', value: firstItem.bodyPart!),
-                if (firstItem.contrast != null)
-                  _ResultRow(
-                    label: 'Contrast',
-                    value: firstItem.contrast! ? 'Yes' : 'No',
-                  ),
-              ],
-              const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Results',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_loadingImages)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_imagesError != null)
               Text(
-                'Results',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+                'Could not load images: $_imagesError',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.error,
                 ),
+              )
+            else
+              RadiologyImageCarousel(
+                service: widget.orderService,
+                images: _images,
+                itemLabels: _itemLabels,
+                height: carouselHeight,
               ),
-              const SizedBox(height: 8),
-              if (_loadingImages)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_imagesError != null)
-                Text(
-                  'Could not load images: $_imagesError',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                )
-              else
-                RadiologyImageCarousel(
-                  service: widget.orderService,
-                  images: _images,
-                  itemLabels: _itemLabels,
-                ),
-            ],
-          ),
+          ],
+        ),
         ),
       ),
       actions: [

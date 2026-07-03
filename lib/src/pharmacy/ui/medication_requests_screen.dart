@@ -15,6 +15,97 @@ import 'package:intl/intl.dart';
 
 enum _QuickRange { today, last7, thisMonth }
 
+enum _RequestListMode { time, patient }
+
+enum _RequestListEntryKind { header, row }
+
+class _RequestListEntry {
+  const _RequestListEntry.header(this.group)
+    : request = null,
+      kind = _RequestListEntryKind.header;
+
+  const _RequestListEntry.row(this.request)
+    : group = null,
+      kind = _RequestListEntryKind.row;
+
+  final _RequestListEntryKind kind;
+  final _PatientRequestGroup? group;
+  final MedicationRequestModel? request;
+}
+
+class _PatientRequestGroup {
+  const _PatientRequestGroup({
+    required this.key,
+    required this.patientName,
+    required this.hospitalNumber,
+    required this.patientInitials,
+    required this.requests,
+  });
+
+  final String key;
+  final String patientName;
+  final String? hospitalNumber;
+  final String patientInitials;
+  final List<MedicationRequestModel> requests;
+
+  DateTime get newestRequestTime => _requestTime(requests.first);
+}
+
+DateTime _requestTime(MedicationRequestModel r) =>
+    r.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+int _compareRequestsNewestFirst(
+  MedicationRequestModel a,
+  MedicationRequestModel b,
+) => _requestTime(b).compareTo(_requestTime(a));
+
+String _patientGroupKey(MedicationRequestModel r) {
+  final id = r.patient?.id.trim();
+  if (id != null && id.isNotEmpty) return id;
+  final hn = r.patient?.hospitalNumber?.trim();
+  if (hn != null && hn.isNotEmpty) return 'hn:$hn';
+  return 'unknown-${r.id}';
+}
+
+List<MedicationRequestModel> _sortedRequests(
+  List<MedicationRequestModel> requests,
+) {
+  final copy = List<MedicationRequestModel>.from(requests)
+    ..sort(_compareRequestsNewestFirst);
+  return copy;
+}
+
+List<_PatientRequestGroup> _groupRequestsByPatient(
+  List<MedicationRequestModel> requests, {
+  required String Function(MedicationRequestModel) patientInitials,
+  required String Function(MedicationRequestModel) patientLabel,
+  required String? Function(MedicationRequestModel) hospitalNumber,
+}) {
+  final map = <String, List<MedicationRequestModel>>{};
+  for (final r in requests) {
+    map.putIfAbsent(_patientGroupKey(r), () => []).add(r);
+  }
+
+  final groups = <_PatientRequestGroup>[];
+  for (final entry in map.entries) {
+    final sorted = List<MedicationRequestModel>.from(entry.value)
+      ..sort(_compareRequestsNewestFirst);
+    final first = sorted.first;
+    groups.add(
+      _PatientRequestGroup(
+        key: entry.key,
+        patientName: patientLabel(first),
+        hospitalNumber: hospitalNumber(first),
+        patientInitials: patientInitials(first),
+        requests: sorted,
+      ),
+    );
+  }
+
+  groups.sort((a, b) => b.newestRequestTime.compareTo(a.newestRequestTime));
+  return groups;
+}
+
 @RoutePage()
 class MedicationRequestsScreen extends ConsumerStatefulWidget {
   const MedicationRequestsScreen({super.key});
@@ -43,6 +134,7 @@ class _MedicationRequestsScreenState
   int _skip = 0;
   DateTime _from = _startOfDay(DateTime.now());
   DateTime _to = _endOfDay(DateTime.now());
+  _RequestListMode _listMode = _RequestListMode.time;
 
   @override
   void initState() {
@@ -287,6 +379,29 @@ class _MedicationRequestsScreenState
   String? _patientHospitalNumber(MedicationRequestModel r) =>
       r.patient?.hospitalNumber?.trim();
 
+  List<_RequestListEntry> _buildListEntries() {
+    if (_listMode == _RequestListMode.time) {
+      return _sortedRequests(
+        _requests,
+      ).map((r) => _RequestListEntry.row(r)).toList();
+    }
+
+    final groups = _groupRequestsByPatient(
+      _requests,
+      patientInitials: _patientInitials,
+      patientLabel: _patientLabel,
+      hospitalNumber: _patientHospitalNumber,
+    );
+    final entries = <_RequestListEntry>[];
+    for (final group in groups) {
+      entries.add(_RequestListEntry.header(group));
+      for (final request in group.requests) {
+        entries.add(_RequestListEntry.row(request));
+      }
+    }
+    return entries;
+  }
+
   Future<void> _pickDateRange() async {
     final range = await showDateRangePicker(
       context: context,
@@ -403,6 +518,30 @@ class _MedicationRequestsScreenState
                   child: const Text('This month'),
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SegmentedButton<_RequestListMode>(
+                segments: const [
+                  ButtonSegment<_RequestListMode>(
+                    value: _RequestListMode.time,
+                    label: Text('Time'),
+                    icon: Icon(Icons.schedule, size: 18),
+                  ),
+                  ButtonSegment<_RequestListMode>(
+                    value: _RequestListMode.patient,
+                    label: Text('Patient'),
+                    icon: Icon(Icons.person_outline, size: 18),
+                  ),
+                ],
+                selected: {_listMode},
+                onSelectionChanged: (selection) {
+                  if (selection.isEmpty) return;
+                  setState(() => _listMode = selection.first);
+                },
+                showSelectedIcon: false,
+              ),
             ),
             const SizedBox(height: 10),
             Row(
@@ -566,12 +705,26 @@ class _MedicationRequestsScreenState
   }
 
   Widget _buildRequestList(ColorScheme colorScheme, bool canLoadMore) {
+    final entries = _buildListEntries();
+    final showPatientHeader = _listMode == _RequestListMode.time;
+
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      itemCount: _requests.length + (canLoadMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 6),
+      itemCount: entries.length + (canLoadMore ? 1 : 0),
+      separatorBuilder: (context, index) {
+        if (index >= entries.length - 1) {
+          return const SizedBox(height: 6);
+        }
+        final current = entries[index];
+        final next = entries[index + 1];
+        if (current.kind == _RequestListEntryKind.header ||
+            next.kind == _RequestListEntryKind.header) {
+          return const SizedBox(height: 10);
+        }
+        return const SizedBox(height: 6);
+      },
       itemBuilder: (context, index) {
-        if (index >= _requests.length) {
+        if (index >= entries.length) {
           return Center(
             child: OutlinedButton.icon(
               onPressed: _loadingMore ? null : () => _load(reset: false),
@@ -586,10 +739,24 @@ class _MedicationRequestsScreenState
             ),
           );
         }
-        final request = _requests[index];
+
+        final entry = entries[index];
+        if (entry.kind == _RequestListEntryKind.header) {
+          final group = entry.group!;
+          return _PatientGroupHeader(
+            patientInitials: group.patientInitials,
+            patientName: group.patientName,
+            hospitalNumber: group.hospitalNumber,
+            requestCount: group.requests.length,
+            colorScheme: colorScheme,
+          );
+        }
+
+        final request = entry.request!;
         return _MedicationRequestCard(
           request: request,
           selected: _selectedIds.contains(request.id),
+          showPatientHeader: showPatientHeader,
           patientInitials: _patientInitials(request),
           patientName: _patientLabel(request),
           hospitalNumber: _patientHospitalNumber(request),
@@ -606,6 +773,89 @@ DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
 
 DateTime _endOfDay(DateTime d) =>
     DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
+
+class _PatientGroupHeader extends StatelessWidget {
+  const _PatientGroupHeader({
+    required this.patientInitials,
+    required this.patientName,
+    required this.hospitalNumber,
+    required this.requestCount,
+    required this.colorScheme,
+  });
+
+  final String patientInitials;
+  final String patientName;
+  final String? hospitalNumber;
+  final int requestCount;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: colorScheme.primaryContainer,
+            child: Text(
+              patientInitials,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onPrimaryContainer,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  patientName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (hospitalNumber != null && hospitalNumber!.isNotEmpty)
+                  Text(
+                    hospitalNumber!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
+                      height: 1.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                Text(
+                  '$requestCount request${requestCount == 1 ? '' : 's'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _SummaryChip extends StatelessWidget {
   const _SummaryChip({
@@ -650,6 +900,7 @@ class _MedicationRequestCard extends StatelessWidget {
   const _MedicationRequestCard({
     required this.request,
     required this.selected,
+    this.showPatientHeader = true,
     required this.patientInitials,
     required this.patientName,
     required this.hospitalNumber,
@@ -660,6 +911,7 @@ class _MedicationRequestCard extends StatelessWidget {
 
   final MedicationRequestModel request;
   final bool selected;
+  final bool showPatientHeader;
   final String patientInitials;
   final String patientName;
   final String? hospitalNumber;
@@ -714,109 +966,113 @@ class _MedicationRequestCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-            Container(
-              width: 3,
-              color: selected
-                  ? colorScheme.primary
-                  : medicationRequestStatusColor(
-                      context,
-                      request.status,
-                    ).withValues(alpha: 0.55),
-            ),
-            Checkbox(
-              value: selected,
-              onChanged: (_) => onToggleSelect(),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTopRow(context, colorScheme),
-                    const SizedBox(height: 4),
-                    _buildDrugRow(context, colorScheme, drugLabel, order),
-                    if (order != null && order.wasSubstituted) ...[
-                      const SizedBox(height: 3),
-                      MedicationSubstitutionSummary(
-                        prescribedDrug: order.prescribedDrugLabel,
-                        currentDrug: order.currentDrugLabel,
-                        compact: true,
-                      ),
-                    ],
-                    if (prescriptionLine != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        prescriptionLine,
-                        style: _metaStyle.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+              Container(
+                width: 3,
+                color: selected
+                    ? colorScheme.primary
+                    : medicationRequestStatusColor(
+                        context,
+                        request.status,
+                      ).withValues(alpha: 0.55),
+              ),
+              Checkbox(
+                value: selected,
+                onChanged: (_) => onToggleSelect(),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTopRow(context, colorScheme),
+                      const SizedBox(height: 4),
+                      _buildDrugRow(context, colorScheme, drugLabel, order),
+                      if (order != null && order.wasSubstituted) ...[
+                        const SizedBox(height: 3),
+                        MedicationSubstitutionSummary(
+                          prescribedDrug: order.prescribedDrugLabel,
+                          currentDrug: order.currentDrugLabel,
+                          compact: true,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 5),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        _buildBillQtyChip(context, colorScheme, showCourseQty),
-                        if (encounter != null)
-                          _EncounterChip(
-                            label: encounter.typeLabel,
-                            status: encounter.status,
-                            colorScheme: colorScheme,
-                          ),
-                        if (relativeTime != null)
-                          Text(
-                            relativeTime,
-                            style: _metaStyle.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
                       ],
-                    ),
-                    const SizedBox(height: 4),
-                    _buildStaffLine(context, colorScheme, order),
-                    if (createdAt != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'Requested ${DateFormatter.dateTime(createdAt.toLocal())}',
-                        style: _metaStyle.copyWith(
+                      if (prescriptionLine != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          prescriptionLine,
+                          style: _metaStyle.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 5),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _buildBillQtyChip(
+                            context,
+                            colorScheme,
+                            showCourseQty,
+                          ),
+                          if (encounter != null)
+                            _EncounterChip(
+                              label: encounter.typeLabel,
+                              status: encounter.status,
+                              colorScheme: colorScheme,
+                            ),
+                          if (relativeTime != null)
+                            Text(
+                              relativeTime,
+                              style: _metaStyle.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      _buildStaffLine(context, colorScheme, order),
+                      if (createdAt != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Requested ${DateFormatter.dateTime(createdAt.toLocal())}',
+                          style: _metaStyle.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                      if (hasNotes) ...[
+                        const SizedBox(height: 4),
+                        _buildAnnotationRow(
+                          context,
+                          icon: Icons.notes_outlined,
+                          text: request.notes!.trim(),
                           color: colorScheme.onSurfaceVariant,
+                          background: null,
                         ),
-                      ),
-                    ],
-                    if (hasNotes) ...[
-                      const SizedBox(height: 4),
-                      _buildAnnotationRow(
-                        context,
-                        icon: Icons.notes_outlined,
-                        text: request.notes!.trim(),
-                        color: colorScheme.onSurfaceVariant,
-                        background: null,
-                      ),
-                    ],
-                    if (hasSpecialInstructions) ...[
-                      const SizedBox(height: 4),
-                      _buildAnnotationRow(
-                        context,
-                        icon: Icons.info_outline,
-                        text: order!.specialInstructions!.trim(),
-                        color: colorScheme.onTertiaryContainer,
-                        background: colorScheme.tertiaryContainer.withValues(
-                          alpha: 0.28,
+                      ],
+                      if (hasSpecialInstructions) ...[
+                        const SizedBox(height: 4),
+                        _buildAnnotationRow(
+                          context,
+                          icon: Icons.info_outline,
+                          text: order!.specialInstructions!.trim(),
+                          color: colorScheme.onTertiaryContainer,
+                          background: colorScheme.tertiaryContainer.withValues(
+                            alpha: 0.28,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
@@ -824,6 +1080,37 @@ class _MedicationRequestCard extends StatelessWidget {
   }
 
   Widget _buildTopRow(BuildContext context, ColorScheme colorScheme) {
+    if (!showPatientHeader) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          MedicationRequestStatusBadge(status: request.status),
+          if (request.isRequested) ...[
+            IconButton(
+              tooltip: 'Edit request',
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+            IconButton(
+              tooltip: 'Delete request',
+              onPressed: onDelete,
+              icon: Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: colorScheme.error,
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+          ],
+        ],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

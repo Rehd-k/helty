@@ -54,8 +54,9 @@ class AccountsAgingReportScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 24),
-            AccountsDataTableBox(
-              child: DataTable2(
+            Expanded(
+              child: AccountsDataTableBox(
+                child: DataTable2(
                 columnSpacing: 10,
                 horizontalMargin: 10,
                 minWidth: 1000,
@@ -85,6 +86,7 @@ class AccountsAgingReportScreen extends ConsumerWidget {
                     ),
                 ],
               ),
+            ),
             ),
           ],
         );

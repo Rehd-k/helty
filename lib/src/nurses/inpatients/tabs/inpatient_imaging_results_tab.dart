@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
+import 'package:helty/src/radiology/ui/widgets/radiology_order_results_dialog.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 
@@ -195,6 +196,11 @@ class _InpatientImagingResultsScreenState
         admissionEncounterId.isNotEmpty &&
         order.encounterId == admissionEncounterId;
     return DataRow(
+      onSelectChanged: (_) => showRadiologyOrderResultsDialog(
+        context,
+        service: _imagingOrderService,
+        order: order,
+      ),
       cells: [
         DataCell(Text(firstItem?.scanType.displayLabel ?? '-')),
         if (showVisitCol)

@@ -31,11 +31,15 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
     case 'inpatient_nurse':
     case 'outpatient_nurse':
       return const NursesDashboardRoute();
+    case 'pharmacy_head':
+      return const PharmacyHeadDashboardRoute();
     case 'pharmacy':
     case 'pharmacy_store':
-    case 'pharmacy_head':
       if (r == 'PHARMACY_DISPENSARY' || at == 'pharmacy_dispensary') {
         return EnlistPaitientRoute(serviceName: 'Pharmacy');
+      }
+      if (r == 'PHARMACY_HEAD') {
+        return const PharmacyHeadDashboardRoute();
       }
       return const MedicineInventoryRoute();
     case 'pharmacy_dispensary':

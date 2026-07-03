@@ -124,6 +124,54 @@ final accountsRevenueByServiceProvider =
   );
 });
 
+class AccountsRevenueByServiceDetailsParams {
+  const AccountsRevenueByServiceDetailsParams({
+    required this.period,
+    required this.serviceCategory,
+    this.asOf,
+    this.skip = 0,
+    this.take = 50,
+    this.q,
+  });
+
+  final String period;
+  final String serviceCategory;
+  final DateTime? asOf;
+  final int skip;
+  final int take;
+  final String? q;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AccountsRevenueByServiceDetailsParams &&
+          runtimeType == other.runtimeType &&
+          period == other.period &&
+          serviceCategory == other.serviceCategory &&
+          asOf == other.asOf &&
+          skip == other.skip &&
+          take == other.take &&
+          q == other.q;
+
+  @override
+  int get hashCode =>
+      Object.hash(period, serviceCategory, asOf, skip, take, q);
+}
+
+final accountsRevenueByServiceDetailsProvider = FutureProvider.autoDispose
+    .family<AccountsRevenueByServiceDetailsResponse,
+        AccountsRevenueByServiceDetailsParams>((ref, params) async {
+  final svc = ref.watch(accountsReportsServiceProvider);
+  return svc.fetchRevenueByServiceDetails(
+    period: params.period,
+    asOf: params.asOf,
+    serviceCategory: params.serviceCategory,
+    skip: params.skip,
+    take: params.take,
+    q: params.q,
+  );
+});
+
 final accountsExpenseVsBudgetProvider =
     FutureProvider.autoDispose<List<AccountsExpenseBudgetRow>>((ref) async {
   final period = ref.watch(accountsPeriodProvider);
