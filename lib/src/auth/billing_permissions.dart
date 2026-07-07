@@ -100,13 +100,40 @@ bool canRequestInvoiceItemRefund(Staff? staff) {
       });
 }
 
+bool isBillingHead(Staff? staff) {
+  if (staff == null) return false;
+  if (staff.accountType == AccountType.super_admin) return true;
+  final r = staff.staffRole.trim().toUpperCase().replaceAll('-', '_');
+  return r == 'BILLING_HEAD' || r == 'SUPER_ADMIN';
+}
+
+/// Billing department staff who may edit recurring line start dates.
+bool canEditRecurringInvoiceItemStartDateForStaff(Staff? staff) {
+  if (staff == null) return false;
+  if (canDeleteInpatientInvoice(staff)) return true;
+  return _hasAccountType(staff, {AccountType.billing}) ||
+      _hasRole(staff, {'BILLING_STAFF', 'BILLS'});
+}
+
 /// Delete an entire inpatient invoice and all of its line items.
+///
+/// Allowed: super admin, account head, billing head.
 bool canDeleteInpatientInvoice(Staff? staff) {
   if (staff == null) return false;
   if (staff.accountType == AccountType.super_admin) return true;
   final r = staff.staffRole.trim().toUpperCase().replaceAll('-', '_');
   if (r == 'SUPER_ADMIN') return true;
-  return staff.accountType == AccountType.accounting;
+  return isAccountHead(staff) || isBillingHead(staff);
+}
+
+/// Whether a recurring daily line's start date may be edited (delete + re-add).
+bool canEditRecurringInvoiceItemStartDate(Staff? staff, BillingInvoiceItem line) {
+  if (!canEditRecurringInvoiceItemStartDateForStaff(staff)) return false;
+  if (!line.isRecurringDaily) return false;
+  if (line.serviceId.trim().isEmpty) return false;
+  if (line.lineItemAmountPaid > 0.001) return false;
+  if (line.refundPending) return false;
+  return true;
 }
 
 /// Cancel a pending refund request (original requester or account head).

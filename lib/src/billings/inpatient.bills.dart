@@ -99,6 +99,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   String? _refundRequestsError;
   bool _deletingInvoice = false;
   final Set<String> _deletingLineIds = {};
+  final Set<String> _replacingRecurringLineIds = {};
 
   @override
   void initState() {
@@ -650,6 +651,187 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return withStart.first;
   }
 
+  DateTime? _recurringLineStartDate(BillingInvoiceItem line) {
+    final active = _activeUsageSegment(line);
+    if (active?.startAt != null) {
+      return _dateOnlyLocal(active!.startAt!);
+    }
+    final starts = line.usageSegments
+        .where((s) => s.startAt != null)
+        .map((s) => s.startAt!)
+        .toList();
+    if (starts.isEmpty) return null;
+    starts.sort();
+    return _dateOnlyLocal(starts.first);
+  }
+
+  String? _recurringEditBlockReason(BillingInvoiceItem line) {
+    final staff = ref.read(authProvider).staff;
+    if (!canEditRecurringInvoiceItemStartDateForStaff(staff)) {
+      return 'Only billing staff or department heads can edit recurring start dates';
+    }
+    if (!line.isRecurringDaily) return null;
+    if (line.serviceId.trim().isEmpty) {
+      return 'Only service recurring lines can have their start date edited';
+    }
+    if (line.lineItemAmountPaid > 0.001) {
+      return 'Cannot edit start date on a line with payments — request a refund first';
+    }
+    if (line.refundPending) {
+      return 'Cannot edit start date while a refund request is pending';
+    }
+    return null;
+  }
+
+  Future<void> _editRecurringItemStartDate({
+    required BillingInvoiceItem line,
+    required ChargeItem charge,
+  }) async {
+    if (_replacingRecurringLineIds.contains(line.id)) return;
+
+    final blockReason = _recurringEditBlockReason(line);
+    if (blockReason != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(blockReason)),
+      );
+      return;
+    }
+
+    final invoice = _billingDetail;
+    if (invoice == null || !mounted) return;
+
+    final currentStart = _recurringLineStartDate(line) ?? _dateOnlyLocal(DateTime.now());
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: currentStart,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      helpText: 'Recurring start date',
+    );
+    if (picked == null || !mounted) return;
+
+    final newStart = _dateOnlyLocal(picked);
+    if (newStart == currentStart) return;
+
+    final now = DateTime.now();
+    final oldDays = _inclusiveCalendarDays(currentStart, now);
+    final newDays = _inclusiveCalendarDays(newStart, now);
+    final oldEstimate = line.unitPrice * line.quantity * oldDays;
+    final newEstimate = line.unitPrice * line.quantity * newDays;
+    final wasPaused = !_isRecurringUsageActive(line);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit recurring start date'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                charge.description,
+                style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('Current start: ${_formatDate(currentStart)}'),
+              Text('New start: ${_formatDate(newStart)}'),
+              const SizedBox(height: 8),
+              Text(
+                'Estimated total: '
+                '${oldEstimate.toFinancial(isMoney: true)} → '
+                '${newEstimate.toFinancial(isMoney: true)} '
+                '($newDays ${newDays == 1 ? 'day' : 'days'} × '
+                '${line.unitPrice.toFinancial(isMoney: true)})',
+              ),
+              const SizedBox(height: 12),
+              Text(
+                wasPaused
+                    ? 'This replaces the line on the invoice. Pause history is reset; '
+                          'the line will be re-paused after the date change.'
+                    : 'This replaces the line on the invoice. The amount will be '
+                          'recalculated from the new start date.',
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'If re-adding fails after delete, you will need to add the service again manually.',
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(ctx).colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Update start date'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final existingIds = invoice.invoiceItems.map((i) => i.id).toSet();
+    setState(() => _replacingRecurringLineIds.add(line.id));
+    try {
+      final updated = await _invoiceService.replaceRecurringBillingItem(
+        invoiceId: invoice.id,
+        itemId: line.id,
+        existingItemIds: existingIds,
+        pauseAfterReAdd: wasPaused,
+        payload: AddInvoiceItemPayload(
+          serviceId: line.serviceId,
+          unitPrice: line.unitPrice,
+          quantity: line.quantity,
+          isRecurringDaily: true,
+          startedAt: newStart,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _selectedLineIdsForPay.remove(line.id);
+        _selectedLineIdsForPay.remove(charge.invoiceLineItemId);
+      });
+      await _loadBillingData();
+      if (!mounted) return;
+
+      final newLine = InvoiceService.findReplacedRecurringLine(
+        detail: updated,
+        existingItemIds: existingIds,
+        serviceId: line.serviceId,
+      );
+      final totalLabel = newLine != null
+          ? newLine.lineTotal.toFinancial(isMoney: true)
+          : 'updated';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Recurring start date updated to ${_formatDate(newStart)} · '
+            'Line total $totalLabel',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_invoiceDeleteErrorMessage(e))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _replacingRecurringLineIds.remove(line.id));
+      }
+    }
+  }
+
   Widget _recurringDailySubtitle(BillingInvoiceItem line, ThemeData theme) {
     final dailyRate = line.unitPrice;
     final active = _activeUsageSegment(line);
@@ -861,6 +1043,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       await _submitRefundRequest(line);
     } else if (choice == 'cancel_refund') {
       await _cancelRefundRequest(line);
+    } else if (choice == 'edit_recurring_start') {
+      await _editRecurringItemStartDate(line: line, charge: charge);
     } else if (choice == 'delete_line') {
       await _deleteInvoiceLine(line: line, charge: charge);
     }
@@ -1119,6 +1303,26 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         );
       }
     }
+    if (canEditRecurringInvoiceItemStartDate(
+      ref.read(authProvider).staff,
+      line,
+    )) {
+      entries.add(
+        const PopupMenuItem<String>(
+          value: 'edit_recurring_start',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.edit_calendar_outlined, size: 22),
+            title: Text('Edit start date'),
+            subtitle: Text(
+              'Change recurring start and recalculate amount',
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+        ),
+      );
+    }
     final refundEntries = _lineRefundMenuEntries(line);
     if (refundEntries.isNotEmpty) {
       entries.add(const PopupMenuDivider());
@@ -1222,6 +1426,20 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                   ),
                   onTap: () => Navigator.pop(ctx, 'resume_recurring'),
                 ),
+            ],
+            if (canEditRecurringInvoiceItemStartDate(
+              ref.read(authProvider).staff,
+              line,
+            )) ...[
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.edit_calendar_outlined),
+                title: const Text('Edit start date'),
+                subtitle: const Text(
+                  'Change recurring start and recalculate amount',
+                ),
+                onTap: () => Navigator.pop(ctx, 'edit_recurring_start'),
+              ),
             ],
             if (_lineRefundMenuEntries(line).isNotEmpty) ...[
               const Divider(height: 1),

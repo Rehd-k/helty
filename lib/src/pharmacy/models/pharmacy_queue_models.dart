@@ -532,6 +532,31 @@ class QueueOrder {
   double get medicationsSubtotal =>
       medications.fold(0, (sum, m) => sum + m.lineTotal);
 
+  /// Medications ordered for display:
+  /// 1. Pending (not yet dispensed) lines first, kept in their original
+  ///    chronological invoice order (earliest added at the top).
+  /// 2. Dispensed lines after, from latest dispensed to earliest.
+  List<PrescribedMedication> get medicationsSorted {
+    bool dispensed(PrescribedMedication m) => m.isDispensed || m.settled;
+
+    final pending = <PrescribedMedication>[];
+    final done = <PrescribedMedication>[];
+    for (final m in medications) {
+      (dispensed(m) ? done : pending).add(m);
+    }
+
+    done.sort((a, b) {
+      final da = a.dispensedAt ?? a.substitutedAt;
+      final db = b.dispensedAt ?? b.substitutedAt;
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return db.compareTo(da);
+    });
+
+    return [...pending, ...done];
+  }
+
   static Map<String, dynamic>? _invoiceStaffPerson(Map<String, dynamic> json) {
     final staff = json['staff'] is Map
         ? Map<String, dynamic>.from(json['staff'] as Map)

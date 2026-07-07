@@ -37,10 +37,15 @@ void main() {
       );
     });
 
+    test('allows dispensed orders for repeat requests', () {
+      expect(_order(status: 'Dispensed').medicationRequestDisableReason, isNull);
+      expect(_order(status: 'Dispensed').canRequestMedication, isTrue);
+    });
+
     test('explains unsupported order status', () {
       expect(
-        _order(status: 'Dispensed').medicationRequestDisableReason,
-        'Order status is "Dispensed" — requests require Prescribed or Pending Dispense',
+        _order(status: 'Cancelled').medicationRequestDisableReason,
+        'Order status is "Cancelled" — requests require Prescribed, Pending Dispense, or Dispensed',
       );
     });
   });
@@ -71,7 +76,7 @@ void main() {
       );
     });
 
-    test('falls back to order-level reason', () {
+    test('allows dispensed orders for repeat requests', () {
       expect(
         nurseMedicationRequestDisableReason(
           order: _order(status: 'Dispensed'),
@@ -79,7 +84,19 @@ void main() {
           isNurse: true,
           isAdmissionActive: true,
         ),
-        'Order status is "Dispensed" — requests require Prescribed or Pending Dispense',
+        isNull,
+      );
+    });
+
+    test('falls back to order-level reason', () {
+      expect(
+        nurseMedicationRequestDisableReason(
+          order: _order(status: 'Cancelled'),
+          isOutpatient: false,
+          isNurse: true,
+          isAdmissionActive: true,
+        ),
+        'Order status is "Cancelled" — requests require Prescribed, Pending Dispense, or Dispensed',
       );
     });
   });

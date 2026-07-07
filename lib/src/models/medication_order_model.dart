@@ -93,9 +93,17 @@ class MedicationOrderModel {
   bool get canRequestMedication {
     if (drugId.trim().isEmpty) return false;
     if (isLegacyBilledAtPrescribe) return false;
-    final s = status.trim();
-    return s == 'Prescribed' || s == 'Pending Dispense';
+    return _medicationRequestAllowedStatuses.contains(status.trim());
   }
+
+  static const _medicationRequestAllowedStatuses = {
+    'Prescribed',
+    'Pending Dispense',
+    'Dispensed',
+  };
+
+  static const _medicationRequestAllowedStatusesLabel =
+      'Prescribed, Pending Dispense, or Dispensed';
 
   /// Human-readable reason when [canRequestMedication] is false; null when allowed.
   String? get medicationRequestDisableReason {
@@ -108,9 +116,9 @@ class MedicationOrderModel {
     }
     final s = status.trim();
     if (s.isEmpty) {
-      return 'Requests require order status Prescribed or Pending Dispense';
+      return 'Requests require order status $_medicationRequestAllowedStatusesLabel';
     }
-    return 'Order status is "$s" — requests require Prescribed or Pending Dispense';
+    return 'Order status is "$s" — requests require $_medicationRequestAllowedStatusesLabel';
   }
 
   factory MedicationOrderModel.fromJson(Map<String, dynamic> json) {

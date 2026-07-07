@@ -326,6 +326,60 @@ class InvoiceService {
     }
   }
 
+  /// Delete a recurring line and re-add with a new [payload] (new start date).
+  ///
+  /// When [pauseAfterReAdd] is true, pauses the newly created line so paused
+  /// lines stay paused after the start date is changed.
+  Future<BillingInvoiceDetail> replaceRecurringBillingItem({
+    required String invoiceId,
+    required String itemId,
+    required Set<String> existingItemIds,
+    required AddInvoiceItemPayload payload,
+    bool pauseAfterReAdd = false,
+  }) async {
+    await deleteItem(invoiceId, itemId);
+    var detail = await addBillingItem(invoiceId: invoiceId, payload: payload);
+    final serviceId = payload.serviceId?.trim() ?? '';
+    final newLine = findReplacedRecurringLine(
+      detail: detail,
+      existingItemIds: existingItemIds,
+      serviceId: serviceId,
+    );
+    if (pauseAfterReAdd && newLine != null) {
+      detail = await pauseRecurringItem(
+        invoiceId: invoiceId,
+        itemId: newLine.id,
+      );
+    }
+    return detail;
+  }
+
+  /// Picks the new recurring line after [replaceRecurringBillingItem].
+  static BillingInvoiceItem? findReplacedRecurringLine({
+    required BillingInvoiceDetail detail,
+    required Set<String> existingItemIds,
+    required String serviceId,
+  }) {
+    final sid = serviceId.trim();
+    if (sid.isEmpty) return null;
+    final candidates = detail.invoiceItems
+        .where(
+          (i) =>
+              !existingItemIds.contains(i.id) &&
+              i.isRecurringDaily &&
+              i.serviceId.trim() == sid,
+        )
+        .toList();
+    if (candidates.isEmpty) return null;
+    if (candidates.length == 1) return candidates.first;
+    candidates.sort((a, b) {
+      final ta = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final tb = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return tb.compareTo(ta);
+    });
+    return candidates.first;
+  }
+
   Future<BillingInvoiceDetail> recordInvoicePayment({
     required String invoiceId,
     required RecordPaymentPayload payload,

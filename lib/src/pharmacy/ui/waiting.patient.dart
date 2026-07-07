@@ -1440,7 +1440,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          ...order.medications.map(
+          ...order.medicationsSorted.map(
             (med) => _buildMedicationCard(order, med, colorScheme),
           ),
           if (order.medications.isNotEmpty) ...[
