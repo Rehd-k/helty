@@ -97,6 +97,22 @@ class MedicationOrderModel {
     return s == 'Prescribed' || s == 'Pending Dispense';
   }
 
+  /// Human-readable reason when [canRequestMedication] is false; null when allowed.
+  String? get medicationRequestDisableReason {
+    if (canRequestMedication) return null;
+    if (drugId.trim().isEmpty) {
+      return 'No drug is linked to this order';
+    }
+    if (isLegacyBilledAtPrescribe) {
+      return 'Legacy order — already billed at prescribe';
+    }
+    final s = status.trim();
+    if (s.isEmpty) {
+      return 'Requests require order status Prescribed or Pending Dispense';
+    }
+    return 'Order status is "$s" — requests require Prescribed or Pending Dispense';
+  }
+
   factory MedicationOrderModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
     final q = json['quantity'];

@@ -1,3 +1,4 @@
+import 'package:helty/src/models/medication_order_model.dart';
 import 'package:helty/src/models/medication_request_model.dart';
 
 /// Label for the requester column — OPD auto-requests store the doctor in
@@ -46,3 +47,38 @@ bool canNurseCancelMedicationRequest(
 /// Pharmacy may cancel any REQUESTED request.
 bool canPharmacyCancelMedicationRequest(MedicationRequestModel request) =>
     request.isRequested;
+
+bool canNurseRequestMedication({
+  required MedicationOrderModel order,
+  required bool isOutpatient,
+  required bool isNurse,
+  required bool isAdmissionActive,
+}) =>
+    !isOutpatient &&
+    isNurse &&
+    isAdmissionActive &&
+    order.canRequestMedication;
+
+/// Tooltip text when [canNurseRequestMedication] is false; null when allowed.
+String? nurseMedicationRequestDisableReason({
+  required MedicationOrderModel order,
+  required bool isOutpatient,
+  required bool isNurse,
+  required bool isAdmissionActive,
+  String? admissionStatus,
+}) {
+  if (!isNurse) {
+    return 'Only nurses can request medication from pharmacy';
+  }
+  if (isOutpatient) {
+    return 'Medication requests are not available for outpatient encounters';
+  }
+  if (!isAdmissionActive) {
+    final st = admissionStatus?.trim();
+    if (st != null && st.isNotEmpty) {
+      return 'Admission is ${st.toUpperCase()} — requests are only allowed while admitted';
+    }
+    return 'Admission is not active — requests are only allowed while admitted';
+  }
+  return order.medicationRequestDisableReason;
+}

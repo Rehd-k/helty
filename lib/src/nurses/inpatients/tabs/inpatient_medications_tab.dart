@@ -1,4 +1,4 @@
-﻿import 'package:auto_route/auto_route.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/app_timezone.dart';
@@ -18,6 +18,7 @@ import 'package:helty/src/services/medication_administration_service.dart';
 import 'package:helty/src/services/medication_dose_schedule_service.dart';
 import 'package:helty/src/services/medication_order_service.dart';
 import 'package:helty/src/models/staff_attribution.dart';
+import 'package:helty/src/pharmacy/utils/medication_request_permissions.dart';
 import 'package:helty/src/pharmacy/widgets/medication_attribution_widgets.dart';
 import 'package:helty/src/pharmacy/widgets/medication_workflow_badges.dart';
 import 'package:helty/src/services/medication_request_service.dart';
@@ -1607,11 +1608,21 @@ class _ActiveOrderCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final canAdminister =
         order.administrationStatus == MedicationAdministrationStatus.active;
-    final canRequest =
-        !scope.isOutpatient &&
-        scope.isNurse &&
-        scope.isAdmissionActive &&
-        order.canRequestMedication;
+    final canRequest = canNurseRequestMedication(
+      order: order,
+      isOutpatient: scope.isOutpatient,
+      isNurse: scope.isNurse,
+      isAdmissionActive: scope.isAdmissionActive,
+    );
+    final requestDisableReason = canRequest
+        ? null
+        : nurseMedicationRequestDisableReason(
+            order: order,
+            isOutpatient: scope.isOutpatient,
+            isNurse: scope.isNurse,
+            isAdmissionActive: scope.isAdmissionActive,
+            admissionStatus: scope.admissionStatus,
+          );
     final requestCount = order.medicationRequests.length;
     final scheduleAccent =
         _InpatientMedicationsScreenState._scheduleAccentColor(
@@ -1710,17 +1721,17 @@ class _ActiveOrderCard extends StatelessWidget {
               spacing: 8,
               children: [
                 if (scope.isNurse && !scope.isOutpatient) ...[
-                  if (order.isLegacyBilledAtPrescribe)
+                  if (requestDisableReason != null)
                     Tooltip(
-                      message: 'Legacy order â€” already billed at prescribe',
-                      child: OutlinedButton(
+                      message: requestDisableReason,
+                      child: FilledButton.tonal(
                         onPressed: null,
                         child: const Text('Request'),
                       ),
                     )
                   else
                     FilledButton.tonal(
-                      onPressed: canRequest ? onRequest : null,
+                      onPressed: onRequest,
                       child: const Text('Request'),
                     ),
                   if (canAdminister)
