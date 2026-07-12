@@ -1,4 +1,5 @@
 /// Canonical patient display-name formatting (see docs/patient-names.md).
+library;
 
 String? _trimOrNull(String? value) {
   final trimmed = value?.trim() ?? '';
@@ -29,10 +30,11 @@ String formatPatientDisplayName({
   String? surname,
   String unknownFallback = 'Unknown',
 }) {
-  final parts = [firstName, otherName, surname]
-      .map(_trimOrNull)
-      .whereType<String>()
-      .toList();
+  final parts = [
+    firstName,
+    otherName,
+    surname,
+  ].map(_trimOrNull).whereType<String>().toList();
   var name = parts.join(' ').trim();
   final titleTrimmed = title?.trim();
   if (titleTrimmed != null && titleTrimmed.isNotEmpty) {
@@ -50,10 +52,11 @@ String? formatPatientDisplayNameOrNull({
   String? otherName,
   String? surname,
 }) {
-  final parts = [firstName, otherName, surname]
-      .map(_trimOrNull)
-      .whereType<String>()
-      .toList();
+  final parts = [
+    firstName,
+    otherName,
+    surname,
+  ].map(_trimOrNull).whereType<String>().toList();
   var name = parts.join(' ').trim();
   final titleTrimmed = title?.trim();
   if (titleTrimmed != null && titleTrimmed.isNotEmpty) {

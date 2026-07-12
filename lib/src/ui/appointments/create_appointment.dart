@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/widgets/patient_avatar.dart';
 import '../../helper/date.formatter.dart';
 import '../../models/staff_model.dart';
 import '../../paitients/patient_model.dart';
@@ -398,19 +399,7 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
                       final p = _patientHits[i];
                       return ListTile(
                         dense: true,
-                        leading: CircleAvatar(
-                          backgroundColor: colorScheme.primaryContainer,
-                          child: Text(
-                            p.firstName.isNotEmpty
-                                ? p.firstName[0].toUpperCase()
-                                : '?',
-                            style: TextStyle(
-                              color: colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
+                        leading: PatientAvatar.fromPatient(p, size: 40),
                         title: Text(
                           _patientLabel(p),
                           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -451,16 +440,12 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
+          PatientAvatar.fromPatient(
+            p,
+            size: 36,
             backgroundColor: colorScheme.primary,
-            child: Text(
-              p.firstName.isNotEmpty ? p.firstName[0].toUpperCase() : '?',
-              style: TextStyle(
-                color: colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            foregroundColor: colorScheme.onPrimary,
+            fontWeight: FontWeight.bold,
           ),
           const SizedBox(width: 12),
           Expanded(

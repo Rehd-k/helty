@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/patient_avatar.dart';
+
 /// OPD encounter patient summary: name, age, gender, allergies, chronic conditions,
 /// past admissions count, insurance. Allergies shown as red badge when present.
 class DoctorEncounterPatientHeader extends StatelessWidget {
@@ -13,6 +15,9 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
   final String? doctorName;
   final String doctorLabel;
   final String? lastUpdatedByName;
+  final String? avatarUrl;
+  final String? firstName;
+  final String? surname;
 
   const DoctorEncounterPatientHeader({
     super.key,
@@ -26,15 +31,10 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
     this.doctorName,
     this.doctorLabel = 'Doctor',
     this.lastUpdatedByName,
+    this.avatarUrl,
+    this.firstName,
+    this.surname,
   });
-
-  static String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-        .toUpperCase();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,16 +61,13 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircleAvatar(
-                radius: 26,
+              PatientAvatar(
+                avatarUrl: avatarUrl,
+                firstName: firstName,
+                surname: surname,
+                size: 52,
                 backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-                child: Text(
-                  _initials(patientName),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
+                foregroundColor: colorScheme.primary,
               ),
               const SizedBox(width: 16),
               Column(

@@ -789,6 +789,8 @@ class AccountsRevenueByServiceDetailRoute
     required String serviceCategory,
     required String period,
     DateTime? asOf,
+    DateTime? from,
+    DateTime? to,
     List<_i264.PageRouteInfo>? children,
   }) : super(
          AccountsRevenueByServiceDetailRoute.name,
@@ -797,6 +799,8 @@ class AccountsRevenueByServiceDetailRoute
            serviceCategory: serviceCategory,
            period: period,
            asOf: asOf,
+           from: from,
+           to: to,
          ),
          initialChildren: children,
        );
@@ -812,6 +816,8 @@ class AccountsRevenueByServiceDetailRoute
         serviceCategory: args.serviceCategory,
         period: args.period,
         asOf: args.asOf,
+        from: args.from,
+        to: args.to,
       );
     },
   );
@@ -823,6 +829,8 @@ class AccountsRevenueByServiceDetailRouteArgs {
     required this.serviceCategory,
     required this.period,
     this.asOf,
+    this.from,
+    this.to,
   });
 
   final _i265.Key? key;
@@ -833,9 +841,13 @@ class AccountsRevenueByServiceDetailRouteArgs {
 
   final DateTime? asOf;
 
+  final DateTime? from;
+
+  final DateTime? to;
+
   @override
   String toString() {
-    return 'AccountsRevenueByServiceDetailRouteArgs{key: $key, serviceCategory: $serviceCategory, period: $period, asOf: $asOf}';
+    return 'AccountsRevenueByServiceDetailRouteArgs{key: $key, serviceCategory: $serviceCategory, period: $period, asOf: $asOf, from: $from, to: $to}';
   }
 
   @override
@@ -845,12 +857,19 @@ class AccountsRevenueByServiceDetailRouteArgs {
     return key == other.key &&
         serviceCategory == other.serviceCategory &&
         period == other.period &&
-        asOf == other.asOf;
+        asOf == other.asOf &&
+        from == other.from &&
+        to == other.to;
   }
 
   @override
   int get hashCode =>
-      key.hashCode ^ serviceCategory.hashCode ^ period.hashCode ^ asOf.hashCode;
+      key.hashCode ^
+      serviceCategory.hashCode ^
+      period.hashCode ^
+      asOf.hashCode ^
+      from.hashCode ^
+      to.hashCode;
 }
 
 /// generated route for

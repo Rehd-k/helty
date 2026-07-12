@@ -1,4 +1,5 @@
 import '../core/utils/patient_display_name.dart';
+import '../core/utils/patient_initials.dart';
 import '../models/hmo_models.dart';
 
 /// Sent to GET /patients as `listStatusFilter` so the server narrows by [Patient.status].
@@ -167,6 +168,9 @@ class Patient {
   /// When returned by GET /patients/:id (e.g. medicationOrders, prescriptions).
   final List<PatientPrescriptionHistoryEntry> prescriptionHistory;
 
+  /// Public profile photo URL from the patient portal (512×512 JPEG).
+  final String? avatarUrl;
+
   Patient({
     this.id,
     required this.patientId,
@@ -212,6 +216,7 @@ class Patient {
     this.admissionDate,
     this.allergies = const [],
     this.prescriptionHistory = const [],
+    this.avatarUrl,
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
@@ -339,6 +344,7 @@ class Patient {
       ]),
       allergies: _parsePatientAllergies(json['allergies']),
       prescriptionHistory: _parsePatientPrescriptionHistory(json),
+      avatarUrl: avatarUrlFromJson(json),
     );
   }
 
@@ -440,6 +446,7 @@ class Patient {
       admissionDate: admissionDate ?? this.admissionDate,
       allergies: allergies,
       prescriptionHistory: prescriptionHistory,
+      avatarUrl: avatarUrl,
     );
   }
 
@@ -490,6 +497,7 @@ class Patient {
       admissionDate: admissionDate,
       allergies: allergies,
       prescriptionHistory: prescriptionHistory,
+      avatarUrl: avatarUrl,
     );
   }
 

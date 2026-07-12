@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/core/utils/patient_initials.dart';
 import 'package:helty/src/models/staff_model.dart';
 
 /// Lab category (e.g. Hematology, Biochemistry).
@@ -358,6 +359,7 @@ class LabOrderPatient {
     this.patientId,
     this.gender,
     this.dob,
+    this.avatarUrl,
   });
 
   final String id;
@@ -368,6 +370,7 @@ class LabOrderPatient {
   final String? patientId;
   final String? gender;
   final DateTime? dob;
+  final String? avatarUrl;
 
   String get displayName => patientDisplayNameFromJson({
         'title': title,
@@ -397,6 +400,7 @@ class LabOrderPatient {
         dob: json['dob'] != null
             ? DateTime.tryParse(json['dob'] as String)
             : null,
+        avatarUrl: avatarUrlFromJson(json),
       );
 
   Map<String, dynamic> toJson() => {

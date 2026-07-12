@@ -9,6 +9,7 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 import 'package:helty/src/wallet/wallet_payment_resolver.dart';
 import 'package:helty/src/wallet/wallet_providers.dart';
@@ -209,8 +210,10 @@ class _PatientWalletHistoryScreenState
           final txs = page.transactions;
           final hasNext = txs.length >= _pageSize;
 
-          return ListView(
-            padding: const EdgeInsets.all(24),
+          return ResponsiveBody(
+            center: false,
+            builder: (context, bp) => ListView(
+              padding: EdgeInsets.zero,
             children: [
               Card(
                 child: Padding(
@@ -297,8 +300,9 @@ class _PatientWalletHistoryScreenState
                 ],
               ),
               const SizedBox(height: 16),
-              AccountsDataTableBox(
-                child: DataTable2(
+              ResponsiveDataTable(
+                child: AccountsDataTableBox(
+                  child: DataTable2(
                   columnSpacing: 12,
                   horizontalMargin: 12,
                   minWidth: 900,
@@ -379,19 +383,17 @@ class _PatientWalletHistoryScreenState
                   ],
                 ),
               ),
+              ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
+              ResponsiveToolbar(
+                actions: [
                   Text('Page ${_pageIndex + 1}'),
-                  const SizedBox(width: 12),
                   OutlinedButton(
                     onPressed: _pageIndex > 0
                         ? () => setState(() => _pageIndex--)
                         : null,
                     child: const Text('Previous'),
                   ),
-                  const SizedBox(width: 8),
                   OutlinedButton(
                     onPressed: hasNext
                         ? () => setState(() => _pageIndex++)
@@ -401,6 +403,7 @@ class _PatientWalletHistoryScreenState
                 ],
               ),
             ],
+          ),
           );
         },
       ),

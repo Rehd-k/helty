@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/clinical_image_picker.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/staff_attribution.dart';
@@ -160,9 +161,10 @@ class _InpatientWoundAssessmentScreenState
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: SectionCard(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: SectionCard(
         title: 'Wound assessments',
         subtitle: 'Document wound location, stage, and signs of infection',
         actions: [
@@ -228,6 +230,7 @@ class _InpatientWoundAssessmentScreenState
                       .toList(),
                 ),
               ),
+      ),
       ),
     );
   }

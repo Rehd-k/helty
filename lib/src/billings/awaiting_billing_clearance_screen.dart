@@ -5,8 +5,8 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/admission_billing_clearance_models.dart';
-import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/providers/admission_clearance_providers.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/admission_service.dart';
 
 const _pageSize = 20;
@@ -28,6 +28,7 @@ class _AwaitingBillingClearanceScreenState
   int _skip = 0;
   String? _openingInvoiceAdmissionId;
   String? _clearingAdmissionId;
+  final Map<String, AdmissionBillingSummary> _billingOverrides = {};
 
   @override
   void dispose() {
@@ -38,7 +39,37 @@ class _AwaitingBillingClearanceScreenState
   PendingClearanceQuery get _query => (skip: _skip, take: _pageSize);
 
   void _reload() {
+    setState(() => _billingOverrides.clear());
     ref.invalidate(pendingBillingClearanceProvider(_query));
+  }
+
+  AdmissionBillingSummary _billingFor(PendingBillingClearanceAdmission row) {
+    return _billingOverrides[row.id] ?? row.billing;
+  }
+
+  PendingBillingClearanceAdmission _effectiveRow(
+    PendingBillingClearanceAdmission row,
+  ) {
+    final billing = _billingFor(row);
+    if (identical(billing, row.billing)) return row;
+    return PendingBillingClearanceAdmission(
+      id: row.id,
+      admissionDate: row.admissionDate,
+      dischargeDateTime: row.dischargeDateTime,
+      outcome: row.outcome,
+      dischargeSummary: row.dischargeSummary,
+      room: row.room,
+      wardEntity: row.wardEntity,
+      bed: row.bed,
+      attendingDoctor: row.attendingDoctor,
+      clinicallyDischargedBy: row.clinicallyDischargedBy,
+      patient: row.patient,
+      billing: billing,
+    );
+  }
+
+  void _patchBilling(String admissionId, AdmissionBillingSummary billing) {
+    setState(() => _billingOverrides[admissionId] = billing);
   }
 
   List<PendingBillingClearanceAdmission> _filterRows(
@@ -46,22 +77,28 @@ class _AwaitingBillingClearanceScreenState
   ) {
     final q = _searchController.text.trim().toLowerCase();
     if (q.isEmpty) return rows;
-    return rows.where((r) {
-      final name = r.patientDisplayName.toLowerCase();
-      final id = r.patientHospitalId.toLowerCase();
-      final ward = r.wardName.toLowerCase();
-      final room = (r.room ?? '').toLowerCase();
-      return name.contains(q) ||
-          id.contains(q) ||
-          ward.contains(q) ||
-          room.contains(q);
-    }).toList(growable: false);
+    return rows
+        .where((r) {
+          final effective = _effectiveRow(r);
+          final name = effective.patientDisplayName.toLowerCase();
+          final id = effective.patientHospitalId.toLowerCase();
+          final ward = effective.wardName.toLowerCase();
+          final room = (effective.room ?? '').toLowerCase();
+          final invoices = effective.invoiceNumbersDisplay.toLowerCase();
+          return name.contains(q) ||
+              id.contains(q) ||
+              ward.contains(q) ||
+              room.contains(q) ||
+              invoices.contains(q);
+        })
+        .toList(growable: false);
   }
 
   Future<void> _openBill(PendingBillingClearanceAdmission row) async {
     if (_openingInvoiceAdmissionId != null) return;
 
-    final invoice = row.primaryInvoice;
+    final effective = _effectiveRow(row);
+    final invoice = effective.primaryInvoice;
     if (invoice == null || invoice.id.isEmpty) {
       _showSnack('No invoice linked to this admission.');
       return;
@@ -85,7 +122,8 @@ class _AwaitingBillingClearanceScreenState
 
   Future<void> _clearAdmission(PendingBillingClearanceAdmission row) async {
     if (_clearingAdmissionId != null) return;
-    if (!row.billing.allPaid) {
+    final effective = _effectiveRow(row);
+    if (!effective.billing.allPaid) {
       _showSnack('Record all payments before clearing billing.');
       return;
     }
@@ -95,7 +133,7 @@ class _AwaitingBillingClearanceScreenState
       builder: (ctx) => AlertDialog(
         title: const Text('Clear billing'),
         content: Text(
-          'Finalize discharge for ${row.patientDisplayName}? '
+          'Finalize discharge for ${effective.patientDisplayName}? '
           'The patient will be moved to OPD.',
         ),
         actions: [
@@ -121,7 +159,11 @@ class _AwaitingBillingClearanceScreenState
     } on BillingClearanceBlockedException catch (e) {
       if (!mounted) return;
       _showSnack(e.message);
-      _reload();
+      if (e.billing != null) {
+        _patchBilling(row.id, e.billing!);
+      } else {
+        _reload();
+      }
     } catch (e) {
       if (!mounted) return;
       _showSnack('Clear failed: $e');
@@ -131,7 +173,9 @@ class _AwaitingBillingClearanceScreenState
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -141,42 +185,33 @@ class _AwaitingBillingClearanceScreenState
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < kInpatientCompactBreakpoint;
-            final pad = compact ? 16.0 : 24.0;
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          final compact = bp.isMobile;
 
-            return Padding(
-              padding: EdgeInsets.all(pad),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildTitleSection(colorScheme, async, compact),
-                  const SizedBox(height: 16),
-                  _buildSearchBar(colorScheme, compact),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: async.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => _buildError(colorScheme, e),
-                      data: (page) => _buildContent(
-                        colorScheme,
-                        page,
-                        compact,
-                      ),
-                    ),
-                  ),
-                  async.maybeWhen(
-                    data: (page) => _buildPagination(colorScheme, page),
-                    orElse: () => const SizedBox.shrink(),
-                  ),
-                ],
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildTitleSection(colorScheme, async, compact),
+              const SizedBox(height: 16),
+              _buildSearchBar(colorScheme, compact),
+              const SizedBox(height: 16),
+              Expanded(
+                child: async.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => _buildError(colorScheme, e),
+                  data: (page) => _buildContent(colorScheme, page, compact),
+                ),
               ),
-            );
-          },
-        ),
+              async.maybeWhen(
+                data: (page) => _buildPagination(colorScheme, page),
+                orElse: () => const SizedBox.shrink(),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -201,7 +236,7 @@ class _AwaitingBillingClearanceScreenState
         ),
         const SizedBox(height: 4),
         Text(
-          'Clinically discharged patients with outstanding or pending bills.',
+          'Clinically discharged; confirm billing before moving patient to OPD.',
           style: TextStyle(
             fontSize: 14,
             color: colorScheme.onSurface.withValues(alpha: 0.6),
@@ -262,7 +297,7 @@ class _AwaitingBillingClearanceScreenState
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by name, patient ID, ward or room',
+                hintText: 'Search by name, patient ID, ward, room or invoice',
                 prefixIcon: Icon(
                   Icons.search,
                   size: 18,
@@ -320,16 +355,14 @@ class _AwaitingBillingClearanceScreenState
     PendingBillingClearancePage page,
     bool compact,
   ) {
-    final rows = _filterRows(page.admissions);
+    final rows = _filterRows(page.admissions).map(_effectiveRow).toList();
     if (rows.isEmpty) {
       return Center(
         child: Text(
           page.admissions.isEmpty
               ? 'No patients awaiting billing clearance.'
               : 'No matches for your search.',
-          style: TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.7),
-          ),
+          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
         ),
       );
     }
@@ -376,8 +409,9 @@ class _AwaitingBillingClearanceScreenState
                 _HeaderCell('WARD', flex: 2),
                 _HeaderCell('ROOM', flex: 1),
                 _HeaderCell('DISCHARGED', flex: 2),
-                _HeaderCell('OUTCOME', flex: 2),
                 _HeaderCell('DOCTOR', flex: 2),
+                _HeaderCell('INVOICES', flex: 2),
+                _HeaderCell('STATUS', flex: 2),
                 _HeaderCell('BALANCE', flex: 2, alignRight: true),
                 _HeaderCell('ACTIONS', flex: 3, alignRight: true),
               ],
@@ -409,104 +443,129 @@ class _AwaitingBillingClearanceScreenState
     ColorScheme colorScheme,
     PendingBillingClearanceAdmission row,
   ) {
-    final balance = row.billing.totalBalance;
+    final billing = row.billing;
+    final balance = billing.totalBalance;
     final isOpening = _openingInvoiceAdmissionId == row.id;
     final isClearing = _clearingAdmissionId == row.id;
-    final canClear = row.billing.allPaid;
+    final canClear = billing.allPaid;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  row.patientDisplayName,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  row.patientHospitalId,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(row.wardName.isEmpty ? '—' : row.wardName),
-          ),
-          Expanded(
-            flex: 1,
-            child: Text(row.room?.trim().isNotEmpty == true ? row.room! : '—'),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              row.dischargeDateTime != null
-                  ? DateFormatter.dateTime(row.dischargeDateTime!)
-                  : '—',
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(row.outcome ?? '—', overflow: TextOverflow.ellipsis),
-          ),
-          Expanded(flex: 2, child: Text(row.attendingDoctorName)),
-          Expanded(
-            flex: 2,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                balance.toFinancial(isMoney: true),
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: balance > 0 ? colorScheme.error : colorScheme.primary,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      row.patientDisplayName,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      row.patientHospitalId,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                alignment: WrapAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: isOpening ? null : () => _openBill(row),
-                    child: isOpening
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('View bill'),
-                  ),
-                  FilledButton(
-                    onPressed: (!canClear || isClearing)
-                        ? null
-                        : () => _clearAdmission(row),
-                    child: isClearing
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Clear'),
-                  ),
-                ],
+              Expanded(
+                flex: 2,
+                child: Text(row.wardName.isEmpty ? '—' : row.wardName),
               ),
-            ),
+              Expanded(
+                flex: 1,
+                child: Text(
+                  row.room?.trim().isNotEmpty == true ? row.room! : '—',
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  row.dischargeDateTime != null
+                      ? DateFormatter.dateTime(row.dischargeDateTime!)
+                      : '—',
+                ),
+              ),
+              Expanded(flex: 2, child: Text(row.attendingDoctorName)),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  row.invoiceNumbersDisplay,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: _ClearanceStatusBadge(
+                  label: billing.clearanceStatusLabel,
+                  billing: billing,
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    balance.toFinancial(isMoney: true),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: balance > 0
+                          ? colorScheme.error
+                          : colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isOpening ? null : () => _openBill(row),
+                        child: isOpening
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('View bill'),
+                      ),
+                      FilledButton(
+                        onPressed: (!canClear || isClearing)
+                            ? null
+                            : () => _clearAdmission(row),
+                        child: isClearing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Clear billing'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
+          if (billing.hasCoverage) ...[
+            const SizedBox(height: 10),
+            _CoverageBreakdown(billing: billing, compact: false),
+          ],
         ],
       ),
     );
@@ -516,10 +575,11 @@ class _AwaitingBillingClearanceScreenState
     ColorScheme colorScheme,
     PendingBillingClearanceAdmission row,
   ) {
-    final balance = row.billing.totalBalance;
+    final billing = row.billing;
+    final balance = billing.totalBalance;
     final isOpening = _openingInvoiceAdmissionId == row.id;
     final isClearing = _clearingAdmissionId == row.id;
-    final canClear = row.billing.allPaid;
+    final canClear = billing.allPaid;
 
     return Card(
       child: Padding(
@@ -527,15 +587,34 @@ class _AwaitingBillingClearanceScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              row.patientDisplayName,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
-            Text(
-              row.patientHospitalId,
-              style: TextStyle(
-                color: colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.patientDisplayName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        row.patientHospitalId,
+                        style: TextStyle(
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _ClearanceStatusBadge(
+                  label: billing.clearanceStatusLabel,
+                  billing: billing,
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text('${row.wardName} · ${row.room ?? '—'}'),
@@ -543,7 +622,28 @@ class _AwaitingBillingClearanceScreenState
               Text(
                 'Discharged ${DateFormatter.dateTime(row.dischargeDateTime!)}',
               ),
-            Text('Balance: ${balance.toFinancial(isMoney: true)}'),
+            Text('Invoices: ${row.invoiceNumbersDisplay}'),
+            Text(
+              'Balance: ${balance.toFinancial(isMoney: true)}',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: balance > 0 ? colorScheme.error : colorScheme.primary,
+              ),
+            ),
+            if (billing.hasCoverage) ...[
+              const SizedBox(height: 8),
+              _CoverageBreakdown(billing: billing, compact: true),
+            ],
+            if (billing.invoices.length == 1) ...[
+              const SizedBox(height: 4),
+              Text(
+                billing.invoices.first.settlementLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurface.withValues(alpha: 0.65),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -559,7 +659,7 @@ class _AwaitingBillingClearanceScreenState
                     onPressed: (!canClear || isClearing)
                         ? null
                         : () => _clearAdmission(row),
-                    child: const Text('Clear'),
+                    child: const Text('Clear billing'),
                   ),
                 ),
               ],
@@ -613,12 +713,166 @@ class _AwaitingBillingClearanceScreenState
   }
 }
 
+class _ClearanceStatusBadge extends StatelessWidget {
+  const _ClearanceStatusBadge({required this.label, required this.billing});
+
+  final String label;
+  final AdmissionBillingSummary billing;
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = billing.allPaid && billing.totalBalance <= 0.005;
+    final partial = billing.totalBalance > 0.005 && billing.totalAmountPaid > 0.005;
+
+    final Color bg;
+    final Color fg;
+    if (ready) {
+      bg = Colors.green.withValues(alpha: 0.12);
+      fg = Colors.green.shade800;
+    } else if (partial) {
+      bg = Colors.orange.withValues(alpha: 0.12);
+      fg = Colors.orange.shade900;
+    } else {
+      bg = Colors.red.withValues(alpha: 0.1);
+      fg = Colors.red.shade800;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+class _CoverageBreakdown extends StatelessWidget {
+  const _CoverageBreakdown({required this.billing, required this.compact});
+
+  final AdmissionBillingSummary billing;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final muted = colorScheme.onSurface.withValues(alpha: 0.65);
+
+    Widget cell(String label, String value, {Color? valueColor}) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 11, color: muted)),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: compact ? 12 : 13,
+              fontWeight: FontWeight.w600,
+              color: valueColor ?? colorScheme.onSurface,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.onSurface.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.12)),
+      ),
+      child: compact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: cell(
+                        'Total',
+                        billing.totalAmount.toFinancial(isMoney: true),
+                      ),
+                    ),
+                    Expanded(
+                      child: cell(
+                        'Paid (cash)',
+                        billing.totalAmountPaid.toFinancial(isMoney: true),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: cell(
+                        'Covered',
+                        billing.totalCoveredAmount.toFinancial(isMoney: true),
+                        valueColor: Colors.deepPurple,
+                      ),
+                    ),
+                    Expanded(
+                      child: cell(
+                        'Balance',
+                        billing.totalBalance.toFinancial(isMoney: true),
+                        valueColor: billing.totalBalance > 0
+                            ? colorScheme.error
+                            : Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: cell(
+                    'Total',
+                    billing.totalAmount.toFinancial(isMoney: true),
+                  ),
+                ),
+                Expanded(
+                  child: cell(
+                    'Paid (cash)',
+                    billing.totalAmountPaid.toFinancial(isMoney: true),
+                  ),
+                ),
+                Expanded(
+                  child: cell(
+                    'Covered (HMO/discount)',
+                    billing.totalCoveredAmount.toFinancial(isMoney: true),
+                    valueColor: Colors.deepPurple,
+                  ),
+                ),
+                Expanded(
+                  child: cell(
+                    'Balance',
+                    billing.totalBalance.toFinancial(isMoney: true),
+                    valueColor: billing.totalBalance > 0
+                        ? colorScheme.error
+                        : Colors.green.shade700,
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
 class _HeaderCell extends StatelessWidget {
-  const _HeaderCell(
-    this.label, {
-    this.flex = 1,
-    this.alignRight = false,
-  });
+  const _HeaderCell(this.label, {this.flex = 1, this.alignRight = false});
 
   final String label;
   final int flex;
@@ -636,9 +890,9 @@ class _HeaderCell extends StatelessWidget {
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
-            color: Theme.of(context).colorScheme.onSurface.withValues(
-              alpha: 0.55,
-            ),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.55),
           ),
         ),
       ),

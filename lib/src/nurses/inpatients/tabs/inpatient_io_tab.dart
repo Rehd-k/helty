@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/intake_output_record_model.dart';
@@ -420,9 +421,10 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
     final intakeTotal = _dailyTotalMl(true);
     final outputTotal = _dailyTotalMl(false);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildBalanceSummary(
@@ -485,6 +487,7 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 

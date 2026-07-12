@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:helty/src/radiology/services/radiology_service.dart';
@@ -63,7 +64,8 @@ class _HubImagingScreenState extends ConsumerState<HubImagingScreen> {
         items = hubFilterByDateRange(items, range);
         items = hubSortRows(items, _sort);
 
-        return HubSectionScaffold(
+        return ResponsiveBody(
+          builder: (context, bp) => HubSectionScaffold(
           sortDropdown: DropdownButton<HubSortOrder>(
             value: _sort,
             items: const [
@@ -118,6 +120,7 @@ class _HubImagingScreenState extends ConsumerState<HubImagingScreen> {
                     );
                   },
                 ),
+        ),
         );
       },
     );

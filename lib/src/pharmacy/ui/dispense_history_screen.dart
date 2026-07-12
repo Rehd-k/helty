@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:intl/intl.dart';
 
@@ -377,9 +378,9 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
         automaticallyImplyLeading: false,
         title: const Text('Dispense History'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Wrap(
@@ -562,8 +563,7 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
                     )
                   : _rows.isEmpty
                   ? const Center(child: Text('No dispense records found.'))
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                  : ResponsiveDataTable(
                       child: Scrollbar(
                         controller: _tableVerticalScrollController,
                         child: SingleChildScrollView(

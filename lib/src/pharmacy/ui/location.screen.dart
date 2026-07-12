@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../models/pharmacy_model.dart';
@@ -291,24 +292,21 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 320, child: _buildFormPanel()),
-            const SizedBox(width: 24),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildTopBar(),
-                  const SizedBox(height: 24),
-                  Expanded(child: _buildLocationsGrid()),
-                ],
-              ),
-            ),
-          ],
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => ResponsiveRowColumn(
+          gap: 24,
+          first: bp.isMobile
+              ? _buildFormPanel()
+              : SizedBox(width: 320, child: _buildFormPanel()),
+          second: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildTopBar(bp),
+              const SizedBox(height: 24),
+              Expanded(child: _buildLocationsGrid()),
+            ],
+          ),
         ),
       ),
     );
@@ -579,7 +577,17 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(AppBreakpoints bp) {
+    final filters = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildFilterTab('All'),
+        const SizedBox(width: 8),
+        _buildFilterTab('Main Stores'),
+        const SizedBox(width: 8),
+        _buildFilterTab('Dispensaries'),
+      ],
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -587,41 +595,68 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search locations...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: Colors.grey.shade400,
-                  size: 20,
+      child: bp.stackPanels
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search locations...',
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontSize: 14,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: Colors.grey.shade400,
+                      size: 20,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF8F9FA),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
-                filled: true,
-                fillColor: const Color(0xFFF8F9FA),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: filters,
                 ),
-              ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search locations...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.grey.shade400,
+                        size: 20,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF8F9FA),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                filters,
+              ],
             ),
-          ),
-          const Spacer(),
-          Row(
-            children: [
-              _buildFilterTab('All'),
-              const SizedBox(width: 8),
-              _buildFilterTab('Main Stores'),
-              const SizedBox(width: 8),
-              _buildFilterTab('Dispensaries'),
-            ],
-          ),
-        ],
-      ),
     );
   }
 

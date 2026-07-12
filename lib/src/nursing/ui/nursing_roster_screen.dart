@@ -9,6 +9,7 @@ import '../../models/ward_models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/staff_providers.dart';
 import '../../services/staff_service.dart';
+import 'package:helty/src/core/responsive.dart';
 import '../models/nursing_models.dart';
 import '../providers/nursing_providers.dart';
 import '../ward_matching.dart';
@@ -476,15 +477,14 @@ class _NursingRosterScreenState extends ConsumerState<NursingRosterScreen> {
       ),
       body: !canManage
           ? Center(child: Text(_error ?? 'Access denied'))
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
+          : ResponsiveBody(
+              center: false,
+              builder: (context, bp) => Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.zero,
+                    child: ResponsiveToolbar(
+                      actions: [
                       OutlinedButton.icon(
                         onPressed: _pickDate,
                         icon: const Icon(Icons.calendar_today, size: 16),
@@ -581,6 +581,7 @@ class _NursingRosterScreenState extends ConsumerState<NursingRosterScreen> {
                 ),
               ],
             ),
+          ),
     );
   }
 }

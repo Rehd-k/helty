@@ -2,7 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 
+import '../core/widgets/patient_avatar.dart';
 import '../helper/date.formatter.dart';
 import '../models/patient_vitals_model.dart';
 import '../models/consultation_credit_model.dart';
@@ -266,27 +268,23 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. TOP SECTION: FILTER BAR
-            _buildFilterBar(colorScheme),
-            const SizedBox(height: 24),
-
-            // 2. BOTTOM SECTION: TABLE (2/3) & DETAILS (1/3)
+            _buildFilterBar(colorScheme, bp),
+            SizedBox(height: bp.isMobile ? 16 : 24),
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left Side: Table (2/3)
-                  Expanded(flex: 2, child: _buildPatientTable(colorScheme)),
-                  const SizedBox(width: 24),
-
-                  // Right Side: Details Pane (1/3)
-                  Expanded(flex: 1, child: _buildDetailsPane(colorScheme)),
-                ],
+              child: ResponsiveRowColumn(
+                firstFlex: 2,
+                secondFlex: 1,
+                gap: bp.isMobile ? 16 : 24,
+                first: SizedBox(
+                  height: bp.isMobile ? 360 : null,
+                  child: _buildPatientTable(colorScheme),
+                ),
+                second: _buildDetailsPane(colorScheme),
               ),
             ),
           ],
@@ -296,101 +294,120 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
   }
 
   // --- FILTER BAR WIDGET ---
-  Widget _buildFilterBar(ColorScheme colorScheme) {
+  Widget _buildFilterBar(ColorScheme colorScheme, AppBreakpoints bp) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(bp.isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
-      child: Wrap(
+      child: bp.isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildSearchField(colorScheme),
+                const SizedBox(height: 12),
+                _buildDateRangeButton(colorScheme),
+                const SizedBox(height: 8),
+                _buildClearFiltersButton(colorScheme),
+              ],
+            )
+          : Wrap(
         spacing: 16,
         runSpacing: 16,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          // Global Search Bar
           SizedBox(
             width: 350,
-            child: TextField(
-              controller: _searchController,
-              onSubmitted: (_) => _fetchPatients(),
-              decoration: InputDecoration(
-                hintText: "Search bill #, invoice id, or patient name...",
-                hintStyle: TextStyle(
-                  fontSize: 13,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 20,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                    color: colorScheme.outline.withValues(alpha: 0.3),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                    color: colorScheme.outline.withValues(alpha: 0.3),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: colorScheme.primary),
-                ),
-              ),
-              style: const TextStyle(fontSize: 13),
-            ),
+            child: _buildSearchField(colorScheme),
           ),
-
-          // Date Range Picker
-          OutlinedButton.icon(
-            onPressed: _pickDateRange,
-            icon: Icon(Icons.date_range, size: 18, color: colorScheme.primary),
-            label: Text(
-              _selectedDateRange == null
-                  ? "Select Date Range"
-                  : DateFormatter.dateTime(_selectedDateRange!.start),
-              style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              side: BorderSide(
-                color: colorScheme.outline.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
-
-          // Clear Filters Button
-          TextButton.icon(
-            onPressed: () {
-              setState(() {
-                _searchController.clear();
-              });
-              _fetchPatients();
-            },
-            icon: const Icon(Icons.clear_all, size: 18),
-            label: const Text("Clear", style: TextStyle(fontSize: 13)),
-          ),
+          _buildDateRangeButton(colorScheme),
+          _buildClearFiltersButton(colorScheme),
         ],
       ),
     );
   }
 
+  Widget _buildSearchField(ColorScheme colorScheme) {
+    return TextField(
+      controller: _searchController,
+      onSubmitted: (_) => _fetchPatients(),
+      decoration: InputDecoration(
+        hintText: "Search bill #, invoice id, or patient name...",
+        hintStyle: TextStyle(
+          fontSize: 13,
+          color: colorScheme.onSurface.withValues(alpha: 0.5),
+        ),
+        prefixIcon: Icon(
+          Icons.search,
+          size: 20,
+          color: colorScheme.onSurface.withValues(alpha: 0.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colorScheme.primary),
+        ),
+      ),
+      style: const TextStyle(fontSize: 13),
+    );
+  }
+
+  Widget _buildDateRangeButton(ColorScheme colorScheme) {
+    return OutlinedButton.icon(
+      onPressed: _pickDateRange,
+      icon: Icon(Icons.date_range, size: 18, color: colorScheme.primary),
+      label: Text(
+        _selectedDateRange == null
+            ? "Select Date Range"
+            : DateFormatter.dateTime(_selectedDateRange!.start),
+        style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        side: BorderSide(
+          color: colorScheme.outline.withValues(alpha: 0.3),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClearFiltersButton(ColorScheme colorScheme) {
+    return TextButton.icon(
+      onPressed: () {
+        setState(() {
+          _searchController.clear();
+        });
+        _fetchPatients();
+      },
+      icon: const Icon(Icons.clear_all, size: 18),
+      label: const Text("Clear", style: TextStyle(fontSize: 13)),
+    );
+  }
+
   // --- PATIENT TABLE WIDGET (2/3 Width) ---
   Widget _buildPatientTable(ColorScheme colorScheme) {
-    return Container(
+    return ResponsiveDataTable(
+      child: Container(
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
@@ -494,18 +511,14 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                                   flex: 3,
                                   child: Row(
                                     children: [
-                                      CircleAvatar(
-                                        radius: 18,
+                                      PatientAvatar(
+                                        firstName: patient.firstName,
+                                        surname: patient.surname,
+                                        size: 36,
                                         backgroundColor: colorScheme.primary
                                             .withValues(alpha: 0.08),
-                                        child: Text(
-                                          patient.initials,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colorScheme.primary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                                        foregroundColor: colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
@@ -684,6 +697,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -751,17 +765,13 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 28,
+                PatientAvatar(
+                  firstName: patient.firstName,
+                  surname: patient.surname,
+                  size: 56,
                   backgroundColor: colorScheme.primary.withValues(alpha: 0.15),
-                  child: Text(
-                    patient.initials,
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  foregroundColor: colorScheme.primary,
+                  fontWeight: FontWeight.bold,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1270,24 +1280,6 @@ class _UnregisteredPatientTxn {
     return '—';
   }
 
-  String get initials {
-    final printed = patientNameAsPrinted?.trim();
-    if (printed != null && printed.isNotEmpty) {
-      final parts = printed.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-      final list = parts.toList();
-      if (list.isEmpty) return '?';
-      if (list.length == 1) {
-        final c = list[0][0].toUpperCase();
-        return c;
-      }
-      return '${list[0][0]}${list[1][0]}'.toUpperCase();
-    }
-    final buffer = StringBuffer();
-    if (firstName.isNotEmpty) buffer.write(firstName[0].toUpperCase());
-    if (surname.isNotEmpty) buffer.write(surname[0].toUpperCase());
-    return buffer.isEmpty ? '?' : buffer.toString();
-  }
-
   bool get isPaid => rowAppearsPaid;
 
   bool get isOpdWard {
@@ -1303,9 +1295,7 @@ class _UnregisteredPatientTxn {
     return _UnregisteredPatientTxn(
       transactionId: row.invoiceId,
       invoiceDisplayId: row.invoiceDisplayId,
-      patientNameAsPrinted: patient == null
-          ? null
-          : patient.displayName.trim(),
+      patientNameAsPrinted: patient?.displayName.trim(),
       invoiceStatus: row.seen ? 'SEEN' : 'PAID',
       rowAppearsPaid: true,
       surname: patient?.surname ?? '',

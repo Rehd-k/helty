@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/api_service.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
 
@@ -76,21 +77,16 @@ class _SelectUserState extends State<SelectUser> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Logic to determine which view to show
-    Widget content;
-
+  Widget _buildContent() {
     if (!_isSearching && _searchCtrl.text.isEmpty) {
-      // 1. Initial State: User hasn't typed yet
-      content = const EmptyStateWidget(
+      return const EmptyStateWidget(
         icon: Icons.search_rounded,
         title: "Start Searching",
         message: "Find a patient to view pending bills and encounters.",
       );
-    } else if (widget.patients.isEmpty) {
-      // 2. No Results State: User typed, but list is empty
-      content = EmptyStateWidget(
+    }
+    if (widget.patients.isEmpty) {
+      return EmptyStateWidget(
         icon: Icons.person_off_outlined,
         title: "Oops, such empty",
         message: "We couldn't find any patient matching '${_searchCtrl.text}'.",
@@ -101,147 +97,183 @@ class _SelectUserState extends State<SelectUser> {
             ? context.router.push(PatientFormRoute())
             : context.router.pop(),
       );
-    } else {
-      // 3. Results List
-      content = ListView.separated(
-        padding: const EdgeInsets.all(12),
-        itemCount: widget.patients.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          return PatientTile(
-            patient: widget.patients[index],
-            onTap: () => widget.onPatientSelected(widget.patients[index]),
-          );
-        },
-      );
     }
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: widget.patients.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        return PatientTile(
+          patient: widget.patients[index],
+          onTap: () => widget.onPatientSelected(widget.patients[index]),
+        );
+      },
+    );
+  }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildNewPatientButton() {
+    return ElevatedButton.icon(
+      onPressed: () => showNewPatientInvoiceForm(
+        context,
+        firstName,
+        surname,
+        age,
+        gender,
+        wardId,
+        createNewPatient,
+      ),
+      icon: const Icon(
+        Icons.person_add_alt_1_rounded,
+        size: 16,
+      ),
+      label: const Text(
+        "New Patient",
+        style: TextStyle(fontSize: 13),
+      ),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(bool compact) {
+    final titleRow = Row(
       children: [
-        // Main Search Card
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Search Bar Header
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).cardColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(Icons.person_search_rounded, size: 20),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Find Patient',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (_allowQuickNewPatient)
-                            ElevatedButton.icon(
-                              onPressed: () => showNewPatientInvoiceForm(
-                                context,
-                                firstName,
-                                surname,
-                                age,
-                                gender,
-                                wardId,
-                                createNewPatient,
-                              ),
-                              icon: const Icon(
-                                Icons.person_add_alt_1_rounded,
-                                size: 16,
-                              ),
-                              label: const Text(
-                                "New Patient",
-                                style: TextStyle(fontSize: 13),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      // Modern Search Input
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.transparent),
-                        ),
-                        child: TextField(
-                          controller: _searchCtrl,
-                          onChanged: (val) {
-                            setState(() {
-                              _isSearching = val.isNotEmpty;
-                            });
-                            widget.onSearch(val);
-                          },
-                          decoration: InputDecoration(
-                            hintText: "Name, ID, or Phone number...",
-                            hintStyle: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 14,
-                            ),
-                            border: InputBorder.none,
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: Colors.grey,
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(Icons.fingerprint),
-                              onPressed: () {},
-                              tooltip: "Scan Fingerprint",
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Divider(height: 1),
-
-                // Dynamic Content Area
-                Expanded(child: content),
-              ],
-            ),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.person_search_rounded, size: 20),
+        ),
+        const SizedBox(width: 12),
+        const Text(
+          'Find Patient',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
         ),
+        if (!compact && _allowQuickNewPatient) ...[
+          const Spacer(),
+          _buildNewPatientButton(),
+        ],
       ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (compact && _allowQuickNewPatient) ...[
+            titleRow,
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _buildNewPatientButton(),
+            ),
+          ] else
+            titleRow,
+          const SizedBox(height: 16),
+          TextField(
+            controller: _searchCtrl,
+            onChanged: (val) {
+              setState(() {
+                _isSearching = val.isNotEmpty;
+              });
+              widget.onSearch(val);
+            },
+            decoration: InputDecoration(
+              hintText: "Name, ID, or Phone number...",
+              hintStyle: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 14,
+              ),
+              border: InputBorder.none,
+              prefixIcon: const Icon(
+                Icons.search,
+                color: Colors.grey,
+              ),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.fingerprint),
+                onPressed: () {},
+                tooltip: "Scan Fingerprint",
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchCard(bool compact, {required bool boundedHeight}) {
+    final content = _buildContent();
+    final card = Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(compact),
+          const Divider(height: 1),
+          if (boundedHeight)
+            Expanded(child: content)
+          else
+            SizedBox(
+              height: _fallbackListHeight(context),
+              child: content,
+            ),
+        ],
+      ),
+    );
+
+    if (boundedHeight) {
+      return Expanded(child: card);
+    }
+    return card;
+  }
+
+  double _fallbackListHeight(BuildContext context) {
+    final media = MediaQuery.of(context);
+    const chrome = 220.0;
+    final available = media.size.height - media.padding.vertical - chrome;
+    return (available * 0.55).clamp(280, 600);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < AppBreakpoints.tabletMin;
+        final boundedHeight = constraints.maxHeight.isFinite;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildSearchCard(compact, boundedHeight: boundedHeight),
+          ],
+        );
+      },
     );
   }
 }

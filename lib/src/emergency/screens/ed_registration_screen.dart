@@ -8,6 +8,7 @@ import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/staff_service.dart';
 import 'package:helty/src/widgets/patient_select_action_layout.dart';
 
@@ -269,13 +270,16 @@ class _EdRegistrationScreenState extends ConsumerState<EdRegistrationScreen> {
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      body: PatientSelectActionLayout(
-        serviceName: 'ED',
-        title: 'ED Registration',
-        subtitle: 'Register or find a patient and open an emergency visit.',
-        actionPanel: selectedPatient != null
-            ? _buildRegistrationForm(selectedPatient)
-            : null,
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => PatientSelectActionLayout(
+          serviceName: 'ED',
+          title: 'ED Registration',
+          subtitle: 'Register or find a patient and open an emergency visit.',
+          actionPanel: selectedPatient != null
+              ? _buildRegistrationForm(selectedPatient)
+              : null,
+        ),
       ),
     );
   }

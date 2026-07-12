@@ -1,52 +1,47 @@
 import 'package:flutter/material.dart';
 
-/// Shared CMD layout breakpoints (align with financial command center).
-enum CmdBreakpointSize { mobile, tablet, desktop }
+import 'package:helty/src/core/layout/app_breakpoints.dart';
 
-/// Width-derived layout flags and padding for command-center screens.
+/// @deprecated Use [AppBreakpoints] from `package:helty/src/core/responsive.dart`.
+typedef CmdBreakpointSize = AppBreakpointSize;
+
+/// @deprecated Use [AppBreakpoints] from `package:helty/src/core/responsive.dart`.
 @immutable
 class CmdBreakpoints {
   const CmdBreakpoints._(this.size, this.maxWidth);
 
-  final CmdBreakpointSize size;
+  final AppBreakpointSize size;
   final double maxWidth;
 
-  bool get isMobile => size == CmdBreakpointSize.mobile;
-  bool get isTablet => size == CmdBreakpointSize.tablet;
-  bool get isDesktop => size == CmdBreakpointSize.desktop;
+  bool get isMobile => size == AppBreakpointSize.mobile;
+  bool get isTablet => size == AppBreakpointSize.tablet;
+  bool get isDesktop => size == AppBreakpointSize.desktop;
 
-  /// Max content width for centered CMD panels (matches financial screen).
-  static const double maxContentWidth = 1280;
-
-  static const double _tabletMin = 600;
-  static const double _desktopMin = 1100;
+  static const double maxContentWidth = AppBreakpoints.maxContentWidth;
 
   factory CmdBreakpoints.fromWidth(double width) {
-    CmdBreakpointSize s;
-    if (width >= _desktopMin) {
-      s = CmdBreakpointSize.desktop;
-    } else if (width >= _tabletMin) {
-      s = CmdBreakpointSize.tablet;
-    } else {
-      s = CmdBreakpointSize.mobile;
-    }
-    return CmdBreakpoints._(s, width);
+    final bp = AppBreakpoints.fromWidth(width);
+    return CmdBreakpoints._(bp.size, bp.maxWidth);
   }
 
-  double get paddingH => isMobile ? 16 : 24;
-  double get paddingV => isMobile ? 16 : 24;
+  double get paddingH => AppBreakpoints.fromWidth(maxWidth).paddingH;
+  double get paddingV => AppBreakpoints.fromWidth(maxWidth).paddingV;
 
-  /// KPI grid columns: mobile 2, tablet 3, desktop 5 (dashboard-style).
   int kpiCrossAxisCount({int mobile = 2, int tablet = 3, int desktop = 5}) {
-    if (isDesktop) return desktop;
-    if (isTablet) return tablet;
-    return mobile;
+    return AppBreakpoints.fromWidth(maxWidth).kpiCrossAxisCount(
+      mobile: mobile,
+      tablet: tablet,
+      desktop: desktop,
+    );
   }
 
-  /// Aspect ratio for KPI tiles; slightly taller on very narrow phones.
   double kpiChildAspectRatio({double narrowMobileMax = 360}) {
-    if (isDesktop) return 1.6;
-    if (isTablet) return 1.55;
-    return maxWidth < narrowMobileMax ? 1.35 : 1.45;
+    return AppBreakpoints.fromWidth(maxWidth).kpiChildAspectRatio(
+      narrowMobileMax: narrowMobileMax,
+      desktopRatio: 1.6,
+      tabletRatio: 1.55,
+      mobileRatio: 1.45,
+      narrowMobileRatio: 1.35,
+    );
   }
 }

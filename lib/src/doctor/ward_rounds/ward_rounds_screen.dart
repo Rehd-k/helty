@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/admission_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/admission_service.dart';
@@ -97,44 +98,18 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
     final colorScheme = theme.colorScheme;
 
     if (_loading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              'Loading your inpatients…',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+      return ResponsiveBody(
+        builder: (context, bp) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+              CircularProgressIndicator(color: colorScheme.primary),
               const SizedBox(height: 16),
               Text(
-                _error!,
-                textAlign: TextAlign.center,
+                'Loading your inpatients…',
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.error,
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _loadAdmissions,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
               ),
             ],
           ),
@@ -142,67 +117,119 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
       );
     }
 
-    if (_admissions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.bed_outlined,
-              size: 64,
-              color: colorScheme.onSurface.withValues(alpha: 0.4),
+    if (_error != null) {
+      return ResponsiveBody(
+        builder: (context, bp) => Center(
+          child: Padding(
+            padding: EdgeInsets.all(bp.paddingH),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: _loadAdmissions,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Retry'),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'No inpatients under your care',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Admitted patients with you as attending doctor will appear here for ward rounds.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadAdmissions,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(24),
-        itemCount: _admissions.length,
-        itemBuilder: (context, index) {
-          final a = _admissions[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              title: Text(a.provisionalDiagnosis ?? 'Admission'),
-              subtitle: Text(
-                '${a.ward ?? 'Ward'} • Bed ${a.bedPreference ?? '—'} • Patient ${a.patientId}',
+    if (_admissions.isEmpty) {
+      return ResponsiveBody(
+        builder: (context, bp) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.bed_outlined,
+                size: 64,
+                color: colorScheme.onSurface.withValues(alpha: 0.4),
               ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton(
-                    onPressed: () => _showDocumentRoundDialog(a),
-                    child: const Text('Document round'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: () => _openInpatientView(a),
-                    child: const Text('Open'),
-                  ),
-                ],
+              const SizedBox(height: 16),
+              Text(
+                'No inpatients under your care',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
-            ),
-          );
-        },
+              const SizedBox(height: 8),
+              Text(
+                'Admitted patients with you as attending doctor will appear here for ward rounds.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ResponsiveBody(
+      center: false,
+      expand: false,
+      builder: (context, bp) => RefreshIndicator(
+        onRefresh: _loadAdmissions,
+        child: ListView.builder(
+          itemCount: _admissions.length,
+          itemBuilder: (context, index) {
+            final a = _admissions[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                title: Text(a.provisionalDiagnosis ?? 'Admission'),
+                subtitle: Text(
+                  '${a.ward ?? 'Ward'} • Bed ${a.bedPreference ?? '—'} • Patient ${a.patientId}',
+                ),
+                trailing: bp.isMobile
+                    ? PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'round') {
+                            _showDocumentRoundDialog(a);
+                          } else if (value == 'open') {
+                            _openInpatientView(a);
+                          }
+                        },
+                        itemBuilder: (ctx) => const [
+                          PopupMenuItem(
+                            value: 'round',
+                            child: Text('Document round'),
+                          ),
+                          PopupMenuItem(value: 'open', child: Text('Open')),
+                        ],
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton(
+                            onPressed: () => _showDocumentRoundDialog(a),
+                            child: const Text('Document round'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: () => _openInpatientView(a),
+                            child: const Text('Open'),
+                          ),
+                        ],
+                      ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

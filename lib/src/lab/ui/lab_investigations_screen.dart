@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
@@ -499,7 +500,9 @@ class _LabInvestigationsScreenState
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => RefreshIndicator(
         onRefresh: () async => _refresh(),
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -604,6 +607,7 @@ class _LabInvestigationsScreenState
             ),
           ],
         ),
+      ),
       ),
     );
   }

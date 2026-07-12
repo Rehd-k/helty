@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import '../../helper/date.formatter.dart';
 import '../../models/staff_model.dart';
 import '../../models/super_admin_department_preview.dart';
@@ -166,11 +167,13 @@ class _PurchasesRequisitionHistoryScreenState
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
           children: [
-            Row(
+            ResponsiveWrapGrid(
+              mobileColumns: 1,
+              tabletColumns: 2,
+              desktopColumns: 2,
               children: [
                 DropdownButton<String?>(
                   value: _statusFilter,
@@ -186,7 +189,6 @@ class _PurchasesRequisitionHistoryScreenState
                     _load();
                   },
                 ),
-                const SizedBox(width: 16),
                 DropdownButton<String?>(
                   value: _departmentFilter,
                   hint: const Text('All departments'),

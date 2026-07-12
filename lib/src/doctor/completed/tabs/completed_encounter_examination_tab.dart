@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
 
 @RoutePage()
@@ -19,8 +20,11 @@ class CompletedEncounterExaminationTab extends StatelessWidget {
     final content =
         e.examinationNotes?.isNotEmpty == true ? e.examinationNotes! : 'No examination notes recorded.';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -37,6 +41,7 @@ class CompletedEncounterExaminationTab extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

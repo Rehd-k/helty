@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_order_dialogs.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
 import 'package:helty/src/helper/date.formatter.dart';
@@ -72,9 +73,10 @@ class _CompletedEncounterLabsTabState extends State<CompletedEncounterLabsTab> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: ListView.builder(
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => ListView.builder(
+        padding: EdgeInsets.zero,
         itemCount: _orders.length,
         itemBuilder: (_, i) {
           final o = _orders[i];

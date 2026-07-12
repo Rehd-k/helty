@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -375,48 +376,45 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
           ],
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
-        child: Column(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            ResponsiveWrapGrid(
+              mobileColumns: 1,
+              tabletColumns: 2,
+              desktopColumns: 3,
+              spacing: 16,
+              runSpacing: 16,
               children: [
-                Expanded(
-                  child: _buildStatCard(
-                    theme: theme,
-                    icon: Icons.payments_outlined,
-                    iconColor: const Color(0xFF6366F1),
-                    title: 'Page value (received)',
-                    value: _rows.isEmpty
-                        ? '₦0.00'
-                        : _rows
-                              .fold<num>(0, (sum, r) => sum + r.totalCost)
-                              .toFinancial(isMoney: true),
-                  ),
+                _buildStatCard(
+                  theme: theme,
+                  icon: Icons.payments_outlined,
+                  iconColor: const Color(0xFF6366F1),
+                  title: 'Page value (received)',
+                  value: _rows.isEmpty
+                      ? '₦0.00'
+                      : _rows
+                            .fold<num>(0, (sum, r) => sum + r.totalCost)
+                            .toFinancial(isMoney: true),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    theme: theme,
-                    icon: Icons.move_to_inbox_outlined,
-                    iconColor: accent,
-                    title: 'Units on this page',
-                    value:
-                        '${_rows.fold<int>(0, (sum, r) => sum + r.quantity)} units',
-                    isUnitTextBold: true,
-                  ),
+                _buildStatCard(
+                  theme: theme,
+                  icon: Icons.move_to_inbox_outlined,
+                  iconColor: accent,
+                  title: 'Units on this page',
+                  value:
+                      '${_rows.fold<int>(0, (sum, r) => sum + r.quantity)} units',
+                  isUnitTextBold: true,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    theme: theme,
-                    icon: Icons.assignment_turned_in_outlined,
-                    iconColor: const Color(0xFFEA580C),
-                    title: 'Batches listed',
-                    value: '${_rows.length}',
-                    isUnitTextBold: true,
-                  ),
+                _buildStatCard(
+                  theme: theme,
+                  icon: Icons.assignment_turned_in_outlined,
+                  iconColor: const Color(0xFFEA580C),
+                  title: 'Batches listed',
+                  value: '${_rows.length}',
+                  isUnitTextBold: true,
                 ),
               ],
             ),
@@ -845,19 +843,14 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
       );
     }
 
-    return Scrollbar(
-      controller: _verticalScrollController,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
+    return ResponsiveDataTable(
+      child: Scrollbar(
         controller: _verticalScrollController,
-        scrollDirection: Axis.vertical,
-        child: Scrollbar(
-          controller: _horizontalScrollController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _horizontalScrollController,
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _verticalScrollController,
+          scrollDirection: Axis.vertical,
+          child: DataTable(
               sortColumnIndex: _sortColumnIndex,
               sortAscending: _isAscending,
               headingRowColor: WidgetStateProperty.all(Colors.white),
@@ -970,7 +963,6 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                   ],
                 );
               }).toList(),
-            ),
           ),
         ),
       ),

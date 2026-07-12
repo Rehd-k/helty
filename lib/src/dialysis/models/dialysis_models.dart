@@ -2,6 +2,7 @@
 
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/core/utils/patient_initials.dart';
 
 import '../../providers/module_request_flow_provider.dart';
 
@@ -55,6 +56,7 @@ class DialysisPatientRef {
     this.firstName,
     this.otherName,
     this.surname,
+    this.avatarUrl,
   });
 
   final String id;
@@ -63,6 +65,7 @@ class DialysisPatientRef {
   final String? firstName;
   final String? otherName;
   final String? surname;
+  final String? avatarUrl;
 
   String get displayName {
     final formatted = formatPatientDisplayNameOrNull(
@@ -83,6 +86,7 @@ class DialysisPatientRef {
       firstName: json['firstName']?.toString(),
       otherName: json['otherName']?.toString(),
       surname: (json['surname'] ?? json['lastName'])?.toString(),
+      avatarUrl: avatarUrlFromJson(json),
     );
   }
 }

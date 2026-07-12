@@ -7,6 +7,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_service.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
 import 'package:helty/src/theatre/widgets/theatre_add_consumable_sheet.dart';
@@ -338,11 +339,13 @@ class _TheatreCaseDetailScreenState
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: ResponsiveBody(
+        center: false,
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -502,6 +505,7 @@ class _TheatreCaseDetailScreenState
               ),
           ],
         ),
+      ),
       ),
     );
   }

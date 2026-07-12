@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 
+import '../core/widgets/patient_avatar.dart';
 import '../paitients/patient_providers.dart';
 
 class SelectedPatientCard extends ConsumerWidget {
@@ -72,22 +73,12 @@ class SelectedPatientCard extends ConsumerWidget {
                                 width: 2,
                               ),
                             ),
-                            child: CircleAvatar(
-                              radius: 28,
+                            child: PatientAvatar.fromPatient(
+                              selectedPatient,
+                              size: 56,
                               backgroundColor: Theme.of(
                                 context,
                               ).primaryColor.withValues(alpha: 0.1),
-                              child: Text(
-                                (selectedPatient.firstName.isNotEmpty
-                                        ? selectedPatient.firstName
-                                        : '?')
-                                    .substring(0, 1)
-                                    .toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
                             ),
                           ),
                           Positioned(

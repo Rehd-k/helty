@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -230,77 +231,74 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left Main Section
-              Expanded(
-                flex: 7,
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(theme),
-                      const SizedBox(height: 24),
-
-                      // Main Table Area with Horizontal and Vertical Scrolling
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: theme.cardColor,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.1),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: _isLoading
-                                    ? const Center(
-                                        child: CircularProgressIndicator(),
-                                      )
-                                    : _errorMessage.isNotEmpty
-                                    ? Center(
-                                        child: Text(
-                                          _errorMessage,
-                                          style: TextStyle(
-                                            color: theme.colorScheme.error,
-                                          ),
-                                        ),
-                                      )
-                                    : _buildTable(theme),
-                              ),
-                              _buildPagination(theme),
-                            ],
-                          ),
+          ResponsiveBody(
+            center: false,
+            bottomPadding: 16,
+            builder: (context, bp) => ResponsiveRowColumn(
+              firstFlex: 7,
+              secondFlex: 3,
+              gap: bp.isMobile ? 16 : 24,
+              first: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(theme),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.1),
                         ),
                       ),
-                    ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : _errorMessage.isNotEmpty
+                                ? Center(
+                                    child: Text(
+                                      _errorMessage,
+                                      style: TextStyle(
+                                        color: theme.colorScheme.error,
+                                      ),
+                                    ),
+                                  )
+                                : _buildTable(theme),
+                          ),
+                          _buildPagination(theme),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-
-              // Right Side Panel (Details)
-              Container(
-                width: 380,
+              second: Container(
                 decoration: BoxDecoration(
                   color: theme.cardColor,
                   border: Border(
-                    left: BorderSide(
-                      color: theme.dividerColor.withValues(alpha: 0.2),
-                    ),
+                    left: bp.isMobile
+                        ? BorderSide.none
+                        : BorderSide(
+                            color: theme.dividerColor.withValues(alpha: 0.2),
+                          ),
                   ),
                 ),
                 child: _selectedDrug == null
-                    ? const Center(
-                        child: Text("Select a medicine to view details"),
+                    ? SizedBox(
+                        height: bp.isMobile ? 240 : null,
+                        child: const Center(
+                          child: Text("Select a medicine to view details"),
+                        ),
                       )
                     : _buildDetailsPanel(theme, _selectedDrug!),
               ),
-            ],
+            ),
           ),
 
           if (_isFiltersOpen)
@@ -438,16 +436,11 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
     return Scrollbar(
       controller: _verticalScrollController,
       thumbVisibility: true,
-      child: SingleChildScrollView(
-        controller: _verticalScrollController,
-        scrollDirection: Axis.vertical,
-        child: Scrollbar(
-          controller: _horizontalScrollController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _horizontalScrollController,
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+      child: ResponsiveDataTable(
+        child: SingleChildScrollView(
+          controller: _verticalScrollController,
+          scrollDirection: Axis.vertical,
+          child: DataTable(
               sortColumnIndex: _sortColumnIndex,
               sortAscending: _isAscending,
               headingRowColor: WidgetStateProperty.all(
@@ -660,7 +653,6 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 

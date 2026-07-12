@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 
+import 'package:helty/src/core/responsive.dart';
 import '../helper/date.formatter.dart';
 import '../models/invoice.dart';
 import '../models/staff_model.dart';
@@ -399,9 +400,11 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
     final auth = ref.watch(authProvider);
     final currentStaffId = auth.staff?.id;
     return Scaffold(
-      body: Column(
-        children: [
-          PatientsFilterWidget(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
+          children: [
+            PatientsFilterWidget(
             searchCategories: const [
               {'name': 'patientId', 'value': 'Patient ID'},
               {'name': 'services', 'value': 'Services'},
@@ -412,10 +415,11 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
             dateFilter: true,
           ),
           Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Builder(
+            child: ResponsiveRowColumn(
+              firstFlex: 2,
+              secondFlex: 1,
+              gap: bp.isMobile ? 12 : 16,
+              first: Builder(
                     builder: (context) {
                       if (_isLoading) {
                         return const Center(
@@ -619,16 +623,15 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                       );
                     },
                   ),
-                ),
-                Expanded(
-                  child: selectedInvoice == null
-                      ? Center(child: Text('Please Select Bill To See Details'))
-                      : SummaryBills(invoice: selectedInvoice!),
-                ),
-              ],
+              second: selectedInvoice == null
+                  ? const Center(
+                      child: Text('Please Select Bill To See Details'),
+                    )
+                  : SummaryBills(invoice: selectedInvoice!),
             ),
           ),
         ],
+        ),
       ),
     );
   }

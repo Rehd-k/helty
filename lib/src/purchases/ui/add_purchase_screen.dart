@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -602,21 +603,15 @@ class _PurchasesAddPurchaseScreenState
           child: Container(color: Colors.grey.shade200, height: 1),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 1,
-              child: SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => ResponsiveRowColumn(
+          first: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                         _buildSectionHeader(
                           'Product & Location',
                           Icons.inventory_2_outlined,
@@ -942,11 +937,7 @@ class _PurchasesAddPurchaseScreenState
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(flex: 1, child: _buildRightPanel(theme)),
-          ],
+          second: _buildRightPanel(theme),
         ),
       ),
     );

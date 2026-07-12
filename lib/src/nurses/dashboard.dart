@@ -3,12 +3,13 @@ import 'dart:math' as math;
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app_router.gr.dart';
 import '../auth/nursing_permissions.dart';
-import '../cmd/cmd_breakpoints.dart';
+import '../core/widgets/patient_avatar.dart';
 import '../helper/date.formatter.dart';
 import '../models/nurse_dashboard_models.dart';
 import '../nursing/models/nursing_models.dart';
@@ -333,13 +334,15 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: Column(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
         children: [
           if (_loading) const LinearProgressIndicator(minHeight: 2),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final bp = CmdBreakpoints.fromWidth(constraints.maxWidth);
+                final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
                 final admitH = bp.isMobile
                     ? 280.0
                     : bp.isTablet
@@ -367,7 +370,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                         constraints: BoxConstraints(
                           maxWidth: math.min(
                             constraints.maxWidth,
-                            CmdBreakpoints.maxContentWidth,
+                            AppBreakpoints.maxContentWidth,
                           ),
                         ),
                         child: Column(
@@ -423,6 +426,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -431,7 +435,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
     required Staff? staff,
     required NursingDashboardMe? bootstrap,
     required ColorScheme colorScheme,
-    required CmdBreakpoints bp,
+    required AppBreakpoints bp,
   }) {
     final children = <Widget>[];
 
@@ -508,7 +512,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   Widget _unitRosterCountsSection(
     List<NursingUnitRosterCount> counts,
     ColorScheme colorScheme,
-    CmdBreakpoints bp,
+    AppBreakpoints bp,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,14 +631,6 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
         .where((w) => w.isNotEmpty)
         .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
         .join(' ');
-  }
-
-  String _personInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    final list = parts.toList();
-    if (list.isEmpty) return '?';
-    if (list.length == 1) return list.first[0].toUpperCase();
-    return (list.first[0] + list.last[0]).toUpperCase();
   }
 
   Widget _myRosterSection(
@@ -777,6 +773,11 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
               final patientTitle = a.patientName.isNotEmpty
                   ? a.patientName
                   : a.admissionId;
+              final nameParts = patientTitle
+                  .trim()
+                  .split(RegExp(r'\s+'))
+                  .where((p) => p.isNotEmpty)
+                  .toList();
               final shiftLabel = ShiftType.fromString(a.shiftType)?.label ??
                   _formatLabel(a.shiftType);
               final locationParts = <String>[
@@ -805,11 +806,14 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          radius: 18,
+                        PatientAvatar(
+                          firstName: nameParts.isNotEmpty
+                              ? nameParts.first
+                              : null,
+                          surname: nameParts.length > 1 ? nameParts.last : null,
+                          size: 36,
                           backgroundColor: colorScheme.secondaryContainer,
                           foregroundColor: colorScheme.onSecondaryContainer,
-                          child: Text(_personInitials(patientTitle)),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -942,7 +946,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   }
 
   Widget _nurseDashboardHeader({
-    required CmdBreakpoints bp,
+    required AppBreakpoints bp,
     required NurseDashboardHeader header,
     required ColorScheme colorScheme,
     String? nursingUnit,
@@ -1026,16 +1030,16 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
     );
   }
 
-  int _nurseKpiCrossAxisCount(CmdBreakpoints bp) => bp.isDesktop ? 4 : 2;
+  int _nurseKpiCrossAxisCount(AppBreakpoints bp) => bp.isDesktop ? 4 : 2;
 
-  double _nurseKpiChildAspectRatio(CmdBreakpoints bp) {
+  double _nurseKpiChildAspectRatio(AppBreakpoints bp) {
     if (bp.isDesktop) return 1.65;
     if (bp.isTablet) return 1.48;
     return bp.maxWidth < 360 ? 1.2 : 1.36;
   }
 
   Widget _nurseKpiGrid(
-    CmdBreakpoints bp,
+    AppBreakpoints bp,
     NurseDashboardKpis kpis,
     ColorScheme colorScheme,
   ) {
@@ -1329,7 +1333,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   }
 
   Widget _nurseChartsAndSidebar({
-    required CmdBreakpoints bp,
+    required AppBreakpoints bp,
     required NurseDashboardOverview data,
     required ColorScheme colorScheme,
     required double admissionsHeight,

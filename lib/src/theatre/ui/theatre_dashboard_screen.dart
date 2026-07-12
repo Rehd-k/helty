@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
 import 'package:helty/src/theatre/widgets/theatre_status_chip.dart';
@@ -116,12 +117,15 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildQueueTab(context, queueAsync, queueParams),
-          _buildScheduleTab(context, scheduleAsync, scheduleParams),
-        ],
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => TabBarView(
+          controller: _tabController,
+          children: [
+            _buildQueueTab(context, queueAsync, queueParams),
+            _buildScheduleTab(context, scheduleAsync, scheduleParams),
+          ],
+        ),
       ),
     );
   }

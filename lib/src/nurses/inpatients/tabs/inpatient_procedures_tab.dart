@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
@@ -221,9 +222,10 @@ class _InpatientProceduresScreenState
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: SectionCard(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: SectionCard(
         title: 'Procedures',
         subtitle: 'Bedside and theatre procedures for this admission',
         actions: [
@@ -234,6 +236,7 @@ class _InpatientProceduresScreenState
           ),
         ],
         child: tableChild,
+      ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/dialysis/models/dialysis_models.dart';
 import 'package:helty/src/dialysis/providers/dialysis_providers.dart';
@@ -305,8 +306,9 @@ class _DialysisCreateSessionScreenState
           onPressed: () => _clearPaidContextAndPop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -513,6 +515,7 @@ class _DialysisCreateSessionScreenState
             ),
           ],
         ),
+      ),
       ),
     );
   }

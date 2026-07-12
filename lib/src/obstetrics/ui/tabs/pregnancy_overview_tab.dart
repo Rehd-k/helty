@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
@@ -100,53 +101,47 @@ class _ObstetricsPregnancyOverviewTabState
     final latest = latestAntenatalVisit(p);
     final theme = Theme.of(context);
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        ObSectionHeader(title: 'Summary'),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final cross = constraints.maxWidth > 500 ? 2 : 2;
-            return GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: cross,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.6,
-              children: [
-                ObInfoTile(
-                  icon: Icons.pregnant_woman_rounded,
-                  label: 'Gravida / Para',
-                  value: pregnancyGpLabel(p),
-                ),
-                ObInfoTile(
-                  icon: Icons.event_rounded,
-                  label: 'EDD countdown',
-                  value: formatEddCountdown(glance.daysUntilEdd),
-                  accentColor: theme.colorScheme.tertiary,
-                ),
-                ObInfoTile(
-                  icon: Icons.calendar_today_rounded,
-                  label: 'Booking',
-                  value: p.bookingDate != null
-                      ? DateFormatter.formatFromBackend(
-                          p.bookingDate,
-                          DateFormatter.shortDate,
-                        )
-                      : '—',
-                ),
-                ObInfoTile(
-                  icon: Icons.flag_rounded,
-                  label: 'Outcome',
-                  value: (p.outcome != null && p.outcome!.isNotEmpty)
-                      ? p.outcome!
-                      : '—',
-                ),
-              ],
-            );
-          },
-        ),
+    return ResponsiveBody(
+      center: false,
+      bottomPadding: 0,
+      builder: (context, bp) => ListView(
+        children: [
+          ObSectionHeader(title: 'Summary'),
+          ResponsiveWrapGrid(
+            mobileColumns: 1,
+            tabletColumns: 2,
+            desktopColumns: 2,
+            children: [
+              ObInfoTile(
+                icon: Icons.pregnant_woman_rounded,
+                label: 'Gravida / Para',
+                value: pregnancyGpLabel(p),
+              ),
+              ObInfoTile(
+                icon: Icons.event_rounded,
+                label: 'EDD countdown',
+                value: formatEddCountdown(glance.daysUntilEdd),
+                accentColor: theme.colorScheme.tertiary,
+              ),
+              ObInfoTile(
+                icon: Icons.calendar_today_rounded,
+                label: 'Booking',
+                value: p.bookingDate != null
+                    ? DateFormatter.formatFromBackend(
+                        p.bookingDate,
+                        DateFormatter.shortDate,
+                      )
+                    : '—',
+              ),
+              ObInfoTile(
+                icon: Icons.flag_rounded,
+                label: 'Outcome',
+                value: (p.outcome != null && p.outcome!.isNotEmpty)
+                    ? p.outcome!
+                    : '—',
+              ),
+            ],
+          ),
         if (pregnancyBookingSummaryLines(p).isNotEmpty) ...[
           const SizedBox(height: 20),
           ObSectionHeader(title: 'Booking assessment'),
@@ -254,7 +249,8 @@ class _ObstetricsPregnancyOverviewTabState
         _Row(label: 'EDD', value: DateFormatter.formatFromBackend(p.edd, DateFormatter.shortDate)),
         if (p.patient != null && p.patient!.displayName.isNotEmpty)
           _Row(label: 'Patient', value: p.patient!.displayName),
-      ],
+        ],
+      ),
     );
   }
 }

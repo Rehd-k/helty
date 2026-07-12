@@ -4,10 +4,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/consulting_room_model.dart';
 import 'package:helty/src/doctor/widgets/start_encounter_dialog.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/models/waiting_patient_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/models/consultation_credit_model.dart';
@@ -237,34 +239,32 @@ class _DoctorWalkInQueueScreenState
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Walk-in Queue',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
+            ResponsiveToolbar(
+              leading: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Walk-in Queue',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Select your consulting room. Double-tap a patient to open their file.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Select your consulting room. Double-tap a patient to open their file.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+              actions: [
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -275,6 +275,7 @@ class _DoctorWalkInQueueScreenState
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.people_outline,
@@ -295,89 +296,80 @@ class _DoctorWalkInQueueScreenState
               ],
             ),
             const SizedBox(height: 24),
-
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Search by name, ID, consultation...',
-                      prefixIcon: Icon(
-                        Icons.search,
-                        size: 20,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: colorScheme.outline.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: colorScheme.outline.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: colorScheme.primary,
-                          width: 1.5,
-                        ),
-                      ),
+            ResponsiveRowColumn(
+              first: TextField(
+                controller: _searchCtrl,
+                decoration: InputDecoration(
+                  hintText: 'Search by name, ID, consultation...',
+                  prefixIcon: Icon(
+                    Icons.search,
+                    size: 20,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.outline.withValues(alpha: 0.3),
                     ),
-                    style: const TextStyle(fontSize: 14),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.outline.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 1.5,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  width: 260,
-                  child: DropdownButtonFormField<ConsultingRoomModel?>(
-                    initialValue: _selectedRoom,
-                    decoration: InputDecoration(
-                      labelText: 'Consulting room',
-                      labelStyle: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.3,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    hint: const Text('Select room'),
-                    items: [
-                      const DropdownMenuItem<ConsultingRoomModel?>(
-                        value: null,
-                        child: Text('All rooms'),
-                      ),
-                      ..._consultingRooms.map(
-                        (room) => DropdownMenuItem<ConsultingRoomModel?>(
-                          value: room,
-                          child: Text(room.name),
-                        ),
-                      ),
-                    ],
-                    onChanged: _loadingRooms
-                        ? null
-                        : (room) => _onConsultingRoomChanged(room),
+                style: const TextStyle(fontSize: 14),
+              ),
+              second: DropdownButtonFormField<ConsultingRoomModel?>(
+                initialValue: _selectedRoom,
+                decoration: InputDecoration(
+                  labelText: 'Consulting room',
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
                   ),
                 ),
-              ],
+                hint: const Text('Select room'),
+                items: [
+                  const DropdownMenuItem<ConsultingRoomModel?>(
+                    value: null,
+                    child: Text('All rooms'),
+                  ),
+                  ..._consultingRooms.map(
+                    (room) => DropdownMenuItem<ConsultingRoomModel?>(
+                      value: room,
+                      child: Text(room.name),
+                    ),
+                  ),
+                ],
+                onChanged: _loadingRooms
+                    ? null
+                    : (room) => _onConsultingRoomChanged(room),
+              ),
             ),
             const SizedBox(height: 10),
             FromToDateFilter(
@@ -399,89 +391,83 @@ class _DoctorWalkInQueueScreenState
             ),
             const SizedBox(height: 10),
             Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: colorScheme.outline.withValues(alpha: 0.2),
-                  ),
-                ),
+              child: ResponsiveDataTable(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.onSurface.withValues(alpha: 0.04),
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16),
+                    if (!bp.isMobile)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.onSurface.withValues(alpha: 0.04),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                'PATIENT',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                'CONSULTATION',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                'TIME',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Text(
+                                'STATUS',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 4,
-                            child: Text(
-                              'PATIENT',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              'CONSULTATION',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              'TIME',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 1,
-                            child: Text(
-                              'STATUS',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                     Divider(
                       height: 1,
                       color: colorScheme.outline.withValues(alpha: 0.1),
@@ -539,128 +525,25 @@ class _DoctorWalkInQueueScreenState
                                   color: Colors.transparent,
                                   child: InkWell(
                                     onDoubleTap: () => _onPatientDoubleTap(w),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 14,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            flex: 4,
-                                            child: Row(
-                                              children: [
-                                                CircleAvatar(
-                                                  radius: 18,
-                                                  backgroundColor: colorScheme
-                                                      .primary
-                                                      .withValues(alpha: 0.12),
-                                                  child: Text(
-                                                    name.trim().isEmpty
-                                                        ? '?'
-                                                        : name.trim().substring(
-                                                            0,
-                                                            1,
-                                                          ),
-                                                    style: TextStyle(
-                                                      color:
-                                                          colorScheme.primary,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Text(
-                                                  name,
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 14,
-                                                    color:
-                                                        colorScheme.onSurface,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                    child: bp.isMobile
+                                        ? _buildMobileQueueRow(
+                                            context,
+                                            colorScheme,
+                                            name,
+                                            consultation,
+                                            time,
+                                            isWaiting,
+                                            w,
+                                          )
+                                        : _buildDesktopQueueRow(
+                                            context,
+                                            colorScheme,
+                                            name,
+                                            consultation,
+                                            time,
+                                            isWaiting,
+                                            w,
                                           ),
-                                          Expanded(
-                                            flex: 2,
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  consultation,
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: colorScheme
-                                                        .onSurface
-                                                        .withValues(
-                                                          alpha: 0.7,
-                                                        ),
-                                                  ),
-                                                ),
-                                                if (w.primaryConsultationCredit !=
-                                                        null &&
-                                                    w.primaryConsultationCredit!
-                                                        .hasCreditMetadata) ...[
-                                                  const SizedBox(height: 4),
-                                                  ConsultationCreditChip.fromLine(
-                                                    line: w
-                                                        .primaryConsultationCredit!,
-                                                    compact: true,
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ),
-                                          Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              time,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: colorScheme.onSurface
-                                                    .withValues(alpha: 0.6),
-                                              ),
-                                            ),
-                                          ),
-                                          Expanded(
-                                            flex: 1,
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: isWaiting
-                                                    ? Colors.orange.withValues(
-                                                        alpha: 0.12,
-                                                      )
-                                                    : Colors.green.withValues(
-                                                        alpha: 0.12,
-                                                      ),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                w.status,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: isWaiting
-                                                      ? Colors.orange[800]
-                                                      : Colors.green[700],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
                                   ),
                                 );
                               },
@@ -686,6 +569,207 @@ class _DoctorWalkInQueueScreenState
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMobileQueueRow(
+    BuildContext context,
+    ColorScheme colorScheme,
+    String name,
+    String consultation,
+    String time,
+    bool isWaiting,
+    WaitingPatientModel w,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              w.patient != null
+                  ? PatientAvatar.fromPatient(
+                      w.patient!,
+                      size: 36,
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.12,
+                      ),
+                      foregroundColor: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    )
+                  : PatientAvatar(
+                      firstName: name.trim(),
+                      size: 36,
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.12,
+                      ),
+                      foregroundColor: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isWaiting
+                      ? Colors.orange.withValues(alpha: 0.12)
+                      : Colors.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  w.status,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isWaiting ? Colors.orange[800] : Colors.green[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            consultation,
+            style: TextStyle(
+              fontSize: 13,
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          if (w.primaryConsultationCredit != null &&
+              w.primaryConsultationCredit!.hasCreditMetadata) ...[
+            const SizedBox(height: 4),
+            ConsultationCreditChip.fromLine(
+              line: w.primaryConsultationCredit!,
+              compact: true,
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            time,
+            style: TextStyle(
+              fontSize: 13,
+              color: colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopQueueRow(
+    BuildContext context,
+    ColorScheme colorScheme,
+    String name,
+    String consultation,
+    String time,
+    bool isWaiting,
+    WaitingPatientModel w,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Row(
+              children: [
+                w.patient != null
+                    ? PatientAvatar.fromPatient(
+                        w.patient!,
+                        size: 36,
+                        backgroundColor: colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        foregroundColor: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      )
+                    : PatientAvatar(
+                        firstName: name.trim(),
+                        size: 36,
+                        backgroundColor: colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        foregroundColor: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                const SizedBox(width: 12),
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  consultation,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                if (w.primaryConsultationCredit != null &&
+                    w.primaryConsultationCredit!.hasCreditMetadata) ...[
+                  const SizedBox(height: 4),
+                  ConsultationCreditChip.fromLine(
+                    line: w.primaryConsultationCredit!,
+                    compact: true,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              time,
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isWaiting
+                    ? Colors.orange.withValues(alpha: 0.12)
+                    : Colors.green.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                w.status,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isWaiting ? Colors.orange[800] : Colors.green[700],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

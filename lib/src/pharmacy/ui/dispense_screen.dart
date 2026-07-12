@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/billings/widgets/catalog_sales_widgets.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/invoice.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/ward_models.dart';
@@ -16,6 +17,7 @@ import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/ward_service.dart';
 
 import '../../paitients/patient_model.dart';
+import '../../core/widgets/patient_avatar.dart';
 import '../../paitients/patient_providers.dart';
 
 /// Ward name used for drug pricing when an OPD patient has HMO coverage.
@@ -455,14 +457,13 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: LayoutBuilder(
+        child: ResponsiveBody(
+          center: false,
+          builder: (context, bp) => LayoutBuilder(
             builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 900;
               final maxH = constraints.maxHeight;
 
-              if (isWide) {
+              if (!bp.stackPanels) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -485,7 +486,6 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                 );
               }
 
-              // Stacked layout: scrollable column with constrained heights to avoid overflow
               final leftH = (maxH * 0.45).clamp(320.0, 500.0);
               final midH = (maxH * 0.35).clamp(280.0, 400.0);
               final rightH = (maxH * 0.35).clamp(280.0, 400.0);
@@ -1021,10 +1021,23 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
-                child: Icon(Icons.person, color: colorScheme.primary),
-              ),
+              selectedPatient != null
+                  ? PatientAvatar.fromPatient(
+                      selectedPatient,
+                      size: 40,
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                      foregroundColor: colorScheme.primary,
+                    )
+                  : PatientAvatar(
+                      firstName: patientName.trim(),
+                      size: 40,
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                      foregroundColor: colorScheme.primary,
+                    ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

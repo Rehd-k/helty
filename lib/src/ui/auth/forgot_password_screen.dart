@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
@@ -78,7 +79,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         title: const Text('Forgot password'),
         leading: BackButton(onPressed: () => context.router.maybePop()),
       ),
-      body: Center(
+      body: ResponsiveBody(
+        builder: (context, bp) => Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
           child: ConstrainedBox(
@@ -178,6 +180,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
@@ -140,9 +141,10 @@ class _RadiologyCreateRequestScreenState
           onPressed: () => context.router.maybePop(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
+          child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -230,6 +232,7 @@ class _RadiologyCreateRequestScreenState
           ),
         ),
       ),
+    ),
     );
   }
 }

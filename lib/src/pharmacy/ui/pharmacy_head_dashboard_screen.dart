@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/widgets/date.filter.dart';
 import 'package:intl/intl.dart';
 
@@ -135,23 +136,24 @@ class _PharmacyHeadDashboardScreenState
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _reload,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              _buildHeader(theme),
-              const SizedBox(height: 18),
-              _buildFilterBar(theme),
-              const SizedBox(height: 18),
-              if (_isLoading && _dashboard == null)
-                const Padding(
-                  padding: EdgeInsets.only(top: 80),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_error != null && _dashboard == null)
-                _errorCard(_error!)
-              else if (_dashboard != null)
-                ..._buildBody(theme, _dashboard!),
-            ],
+          child: ResponsiveBody(
+            builder: (context, bp) => ListView(
+              children: [
+                _buildHeader(theme, bp),
+                const SizedBox(height: 18),
+                _buildFilterBar(theme),
+                const SizedBox(height: 18),
+                if (_isLoading && _dashboard == null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 80),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_error != null && _dashboard == null)
+                  _errorCard(_error!)
+                else if (_dashboard != null)
+                  ..._buildBody(theme, _dashboard!, bp),
+              ],
+            ),
           ),
         ),
       ),
@@ -191,44 +193,54 @@ class _PharmacyHeadDashboardScreenState
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, AppBreakpoints bp) {
+    final updated = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Text(
+        'Updated ${DateFormat.Hm().format(_lastUpdated)}',
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: const Color(0xFF475569),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pharmacy Command Center',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Sales, profit and inventory worth across all stores.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: const Color(0xFF64748B),
+          ),
+        ),
+      ],
+    );
+    if (bp.stackPanels) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          title,
+          const SizedBox(height: 12),
+          updated,
+        ],
+      );
+    }
     return Row(
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pharmacy Command Center',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Sales, profit and inventory worth across all stores.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Text(
-            'Updated ${DateFormat.Hm().format(_lastUpdated)}',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF475569),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
+        Expanded(child: title),
+        updated,
       ],
     );
   }
@@ -335,7 +347,11 @@ class _PharmacyHeadDashboardScreenState
     );
   }
 
-  List<Widget> _buildBody(ThemeData theme, PharmacyHeadDashboardData data) {
+  List<Widget> _buildBody(
+    ThemeData theme,
+    PharmacyHeadDashboardData data,
+    AppBreakpoints bp,
+  ) {
     final summary = data.summary;
     return [
       if (summary.profitUnknownCount > 0) ...[
@@ -344,7 +360,7 @@ class _PharmacyHeadDashboardScreenState
       ],
       _sectionHeader(theme, 'Executive summary'),
       const SizedBox(height: 12),
-      _buildKpiGrid(theme, summary),
+      _buildKpiGrid(theme, summary, bp),
       const SizedBox(height: 24),
       _sectionHeader(theme, 'Sales & profit trend'),
       const SizedBox(height: 12),
@@ -356,7 +372,7 @@ class _PharmacyHeadDashboardScreenState
       const SizedBox(height: 24),
       _sectionHeader(theme, 'Quick actions'),
       const SizedBox(height: 12),
-      _quickActions(theme),
+      _quickActions(theme, bp),
       if (_error != null) ...[
         const SizedBox(height: 12),
         _errorCard(_error!),
@@ -398,7 +414,11 @@ class _PharmacyHeadDashboardScreenState
     );
   }
 
-  Widget _buildKpiGrid(ThemeData theme, PharmacyHeadSummary s) {
+  Widget _buildKpiGrid(
+    ThemeData theme,
+    PharmacyHeadSummary s,
+    AppBreakpoints bp,
+  ) {
     final tiles = <_HeadKpi>[
       _HeadKpi(
         'Total Sales',
@@ -483,29 +503,13 @@ class _PharmacyHeadDashboardScreenState
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final columns = width >= 1100
-            ? 4
-            : width >= 760
-            ? 3
-            : width >= 480
-            ? 2
-            : 1;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: tiles.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            childAspectRatio: 2.1,
-          ),
-          itemBuilder: (context, i) => _kpiCard(theme, tiles[i]),
-        );
-      },
+    return ResponsiveWrapGrid(
+      mobileColumns: 1,
+      tabletColumns: 2,
+      desktopColumns: 4,
+      spacing: bp.kpiSpacing,
+      runSpacing: bp.kpiSpacing,
+      children: tiles.map((kpi) => _kpiCard(theme, kpi)).toList(),
     );
   }
 
@@ -796,7 +800,7 @@ class _PharmacyHeadDashboardScreenState
     );
   }
 
-  Widget _quickActions(ThemeData theme) {
+  Widget _quickActions(ThemeData theme, AppBreakpoints bp) {
     final actions = <_Action>[
       _Action('Reports hub', Icons.assessment_rounded,
           const PharmacyReportsHubRoute()),
@@ -815,54 +819,40 @@ class _PharmacyHeadDashboardScreenState
       _Action('Medicine inventory', Icons.inventory_2_outlined,
           const MedicineInventoryRoute()),
     ];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 760
-            ? 4
-            : constraints.maxWidth >= 480
-            ? 3
-            : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: actions.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-          ),
-          itemBuilder: (context, i) {
-            final a = actions[i];
-            return InkWell(
+    return ResponsiveWrapGrid(
+      mobileColumns: 2,
+      tabletColumns: 3,
+      desktopColumns: 4,
+      spacing: 12,
+      runSpacing: 12,
+      children: actions.map((a) {
+        return InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => context.router.push(a.route),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              onTap: () => context.router.push(a.route),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(a.icon, color: const Color(0xFF4338CA), size: 22),
+                const Spacer(),
+                Text(
+                  a.label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(a.icon, color: const Color(0xFF4338CA), size: 22),
-                    const Spacer(),
-                    Text(
-                      a.label,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+              ],
+            ),
+          ),
         );
-      },
+      }).toList(),
     );
   }
 

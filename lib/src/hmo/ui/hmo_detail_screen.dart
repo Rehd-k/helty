@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../models/hmo_models.dart';
 import '../../services/hmo_service.dart';
@@ -147,8 +148,9 @@ class _HmoDetailScreenState extends State<HmoDetailScreen> {
           ? Center(child: Text(_error!))
           : d == null
           ? const Center(child: Text('Not found'))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+          : ResponsiveBody(
+              expand: false,
+              builder: (context, bp) => SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -207,8 +209,7 @@ class _HmoDetailScreenState extends State<HmoDetailScreen> {
                               style: TextStyle(color: theme.hintColor),
                             ),
                           )
-                        : SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
+                        : ResponsiveDataTable(
                             child: DataTable(
                               columns: const [
                                 DataColumn(label: Text('Service')),
@@ -275,6 +276,7 @@ class _HmoDetailScreenState extends State<HmoDetailScreen> {
                 ],
               ),
             ),
+          ),
     );
   }
 

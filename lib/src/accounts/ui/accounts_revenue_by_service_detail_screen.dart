@@ -23,11 +23,15 @@ class AccountsRevenueByServiceDetailScreen extends ConsumerStatefulWidget {
     required this.serviceCategory,
     required this.period,
     this.asOf,
+    this.from,
+    this.to,
   });
 
   final String serviceCategory;
   final String period;
   final DateTime? asOf;
+  final DateTime? from;
+  final DateTime? to;
 
   @override
   ConsumerState<AccountsRevenueByServiceDetailScreen> createState() =>
@@ -73,6 +77,8 @@ class _AccountsRevenueByServiceDetailScreenState
     return AccountsRevenueByServiceDetailsParams(
       period: widget.period,
       asOf: widget.asOf,
+      from: widget.from,
+      to: widget.to,
       serviceCategory: widget.serviceCategory,
       skip: _skip,
       take: _take,
@@ -92,7 +98,9 @@ class _AccountsRevenueByServiceDetailScreenState
 
     final async = ref.watch(accountsRevenueByServiceDetailsProvider(_params));
     final fmt = accountsNairaFormat();
-    final periodLabel = AccountsPeriodFilter.labelFor(widget.period);
+    final periodLabel = widget.from != null && widget.to != null
+        ? '${DateFormatter.shortDate(widget.from!)} – ${DateFormatter.shortDate(widget.to!)}'
+        : AccountsPeriodFilter.labelFor(widget.period);
 
     return AccountsAsyncScaffold<AccountsRevenueByServiceDetailsResponse>(
       title: widget.serviceCategory,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../cmd/cmd_breakpoints.dart';
+import 'package:helty/src/core/layout/app_breakpoints.dart';
 import 'cmac_period_toolbar.dart';
 import 'cmac_vibrant_backdrop.dart';
 
@@ -62,12 +62,12 @@ class CmacAnalyticsScaffold extends ConsumerWidget {
             SliverToBoxAdapter(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final bp = CmdBreakpoints.fromWidth(constraints.maxWidth);
+                  final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
                   return Align(
                     alignment: Alignment.topCenter,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(
-                        maxWidth: CmdBreakpoints.maxContentWidth,
+                        maxWidth: AppBreakpoints.maxContentWidth,
                       ),
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(

@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../patient_chart/models/patient_chart_models.dart';
@@ -48,26 +49,17 @@ class HubOverviewScreen extends ConsumerWidget {
             final vitals = sections.section(PatientChartSectionKeys.vitals);
             final labs = sections.section(PatientChartSectionKeys.labReports);
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+            return ResponsiveBody(
+              expand: false,
+              builder: (context, bp) => SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  LayoutBuilder(
-                    builder: (context, c) {
-                      final cols = c.maxWidth > 900
-                          ? 4
-                          : c.maxWidth > 560
-                              ? 2
-                              : 1;
-                      return GridView.count(
-                        crossAxisCount: cols,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 1.6,
-                        children: [
+                  ResponsiveWrapGrid(
+                    mobileColumns: 1,
+                    tabletColumns: 2,
+                    desktopColumns: 4,
+                    children: [
                           HubStatCard(
                             label: 'Encounters',
                             value: '${header.summary.encounterCount}',
@@ -89,8 +81,6 @@ class HubOverviewScreen extends ConsumerWidget {
                             icon: Icons.biotech_outlined,
                           ),
                         ],
-                      );
-                    },
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -132,6 +122,7 @@ class HubOverviewScreen extends ConsumerWidget {
                     ),
                 ],
               ),
+            ),
             );
           },
         );

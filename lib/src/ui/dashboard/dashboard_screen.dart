@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 @RoutePage()
 class DashboardScreen extends StatelessWidget {
@@ -8,10 +9,11 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // placeholder cards, would be wired up with real data via providers
-    return Padding(
+    return ResponsiveBody(
+      builder: (context, bp) => Padding(
       padding: const EdgeInsets.all(16.0),
       child: GridView.count(
-        crossAxisCount: MediaQuery.of(context).size.width > 800 ? 3 : 1,
+        crossAxisCount: bp.isDesktop ? 3 : 1,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
         children: const [
@@ -19,6 +21,7 @@ class DashboardScreen extends StatelessWidget {
           _DashboardCard(title: 'Appointments', value: '0'),
           _DashboardCard(title: 'Admissions', value: '0'),
         ],
+      ),
       ),
     );
   }

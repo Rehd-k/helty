@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../models/hmo_models.dart';
 import '../../models/service_model.dart';
@@ -749,41 +750,28 @@ class _HmoServicePricingScreenState extends State<HmoServicePricingScreen> {
       ),
       body: _loadingHmos
           ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 960;
-                const pad = EdgeInsets.all(20);
+          : ResponsiveBody(
+              center: false,
+              builder: (context, bp) {
                 final form = _buildFormCard(theme);
                 final prices = _buildPricesPanel(theme);
 
-                if (!wide) {
+                if (bp.stackPanels) {
                   return SingleChildScrollView(
-                    padding: pad,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         form,
-                        const SizedBox(height: 20),
+                        SizedBox(height: bp.isMobile ? 16 : 20),
                         prices,
                       ],
                     ),
                   );
                 }
 
-                return Padding(
-                  padding: pad,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(child: form),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: SingleChildScrollView(child: prices),
-                      ),
-                    ],
-                  ),
+                return ResponsiveRowColumn(
+                  first: SingleChildScrollView(child: form),
+                  second: SingleChildScrollView(child: prices),
                 );
               },
             ),

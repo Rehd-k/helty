@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../models/hmo_models.dart';
 import '../../services/hmo_service.dart';
@@ -80,9 +81,8 @@ class _HmoListScreenState extends State<HmoListScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(

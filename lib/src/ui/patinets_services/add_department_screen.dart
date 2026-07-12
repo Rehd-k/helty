@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../services/department_service.dart';
 
@@ -52,7 +53,8 @@ class AddDepartmentScreenState extends State<AddDepartmentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('New department')),
-      body: Padding(
+      body: ResponsiveBody(
+        builder: (context, bp) => Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
@@ -83,6 +85,7 @@ class AddDepartmentScreenState extends State<AddDepartmentScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

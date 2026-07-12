@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/store/models/store_models.dart';
 import 'package:helty/src/store/providers/store_providers.dart';
@@ -101,7 +102,8 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
     final theme = Theme.of(context);
     final locationsAsync = ref.watch(storeLocationsFutureProvider);
     return Scaffold(
-      body: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
@@ -269,6 +271,7 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
           const SizedBox(height: 16),
           Expanded(child: _buildBody(theme)),
         ],
+      ),
       ),
     );
   }

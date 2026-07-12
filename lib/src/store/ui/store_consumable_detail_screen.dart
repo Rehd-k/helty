@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/store/models/consumable_models.dart';
@@ -224,7 +225,8 @@ class _StoreConsumableDetailScreenState
         icon: const Icon(Icons.add),
         label: const Text('Add batch'),
       ),
-      body: _loading
+      body: ResponsiveBody(
+        builder: (context, bp) => _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(
@@ -284,6 +286,7 @@ class _StoreConsumableDetailScreenState
                       ),
                   ],
                 ),
+      ),
     );
   }
 }

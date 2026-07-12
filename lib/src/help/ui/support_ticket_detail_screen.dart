@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../widgets/notifications/app_notification_provider.dart';
 import '../models/support_ticket_models.dart';
@@ -72,16 +73,19 @@ class _SupportTicketDetailScreenState
             ),
         ],
       ),
-      body: SupportTicketDetailContent(
-        key: ValueKey(_contentKey),
-        ticketId: widget.ticketId,
-        onDetailChanged: (SupportTicketDetail? d) {
-          if (d == null) return;
-          setState(() {
-            _title = d.title;
-            _status = d.status;
-          });
-        },
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => SupportTicketDetailContent(
+          key: ValueKey(_contentKey),
+          ticketId: widget.ticketId,
+          onDetailChanged: (SupportTicketDetail? d) {
+            if (d == null) return;
+            setState(() {
+              _title = d.title;
+              _status = d.status;
+            });
+          },
+        ),
       ),
     );
   }

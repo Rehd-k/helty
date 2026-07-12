@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/services/service_service.dart';
@@ -50,7 +51,8 @@ class ViewServiceScreenState extends ConsumerState<ViewServiceScreen> {
     );
 
     return Scaffold(
-      body: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
         children: [
           PatientsFilterWidget(
             searchCategories: const [
@@ -106,6 +108,7 @@ class ViewServiceScreenState extends ConsumerState<ViewServiceScreen> {
             ),
           ),
         ],
+      ),
       ),
       floatingActionButtonLocation: ExpandableFab.location,
       floatingActionButton: ExpandableFab(

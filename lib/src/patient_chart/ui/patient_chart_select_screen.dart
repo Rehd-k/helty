@@ -5,7 +5,9 @@ import '../../../app_router.gr.dart';
 import '../../helper/date.formatter.dart';
 import '../../paitients/patient_model.dart';
 import '../../paitients/patient_service.dart';
+import '../../core/widgets/patient_avatar.dart';
 import '../../widgets/filter.patients.dart';
+import 'package:helty/src/core/responsive.dart';
 
 @RoutePage()
 class PatientChartSelectScreen extends StatefulWidget {
@@ -104,10 +106,11 @@ class _PatientChartSelectScreenState extends State<PatientChartSelectScreen> {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Patient chart')),
-      body: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: EdgeInsets.fromLTRB(bp.paddingH, 12, bp.paddingH, 0),
             child: PatientsFilterWidget(
               searchCategories: const [
                 {'name': 'patientId', 'value': 'Patient ID'},
@@ -160,13 +163,7 @@ class _PatientChartSelectScreenState extends State<PatientChartSelectScreen> {
                             }
                             final p = _patients[index];
                             return ListTile(
-                              leading: CircleAvatar(
-                                child: Text(
-                                  p.surname.isNotEmpty
-                                      ? p.surname[0].toUpperCase()
-                                      : '?',
-                                ),
-                              ),
+                              leading: PatientAvatar.fromPatient(p, size: 40),
                               title: Text('${p.surname} ${p.firstName}'),
                               subtitle: Text(
                                 '${p.patientId} · ${DateFormatter.medicalDate(p.dob)}',
@@ -179,6 +176,7 @@ class _PatientChartSelectScreenState extends State<PatientChartSelectScreen> {
                       ),
           ),
         ],
+        ),
       ),
     );
   }

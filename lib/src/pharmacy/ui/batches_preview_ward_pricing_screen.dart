@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -161,12 +162,13 @@ class _BatchesPreviewWardPricingScreenState
             )
           : RefreshIndicator(
               onRefresh: _load,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              child: ResponsiveBody(
+                expand: false,
+                builder: (context, bp) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     Text(
                       'Drug ID: ${widget.id}',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -214,7 +216,8 @@ class _BatchesPreviewWardPricingScreenState
                       )
                     else
                       _WardPricesTable(prices: _wardPrices),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -230,8 +233,7 @@ class _BatchesTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFmt = DateFormat.yMMMd();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return ResponsiveDataTable(
       child: DataTable(
         columns: const [
           DataColumn(label: Text('Batch')),
@@ -271,8 +273,7 @@ class _WardPricesTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return ResponsiveDataTable(
       child: DataTable(
         columns: const [
           DataColumn(label: Text('Ward')),

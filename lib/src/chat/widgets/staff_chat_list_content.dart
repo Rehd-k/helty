@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../models/staff_model.dart';
 import '../../providers/auth_provider.dart';
@@ -228,9 +229,10 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
     final pad = widget.dense ? 8.0 : 0.0;
     final cs = theme.colorScheme;
     final myStaffId = ref.watch(currentStaffProvider)?.id;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    return FlexPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
         Padding(
           padding: EdgeInsets.fromLTRB(pad, 0, pad, 8),
           child: Row(
@@ -385,6 +387,7 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
                 ),
         ),
       ],
+    ),
     );
   }
 }

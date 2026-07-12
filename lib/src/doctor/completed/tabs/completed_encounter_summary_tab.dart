@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
 import 'package:intl/intl.dart';
 
@@ -17,8 +18,11 @@ class CompletedEncounterSummaryTab extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -76,6 +80,7 @@ class CompletedEncounterSummaryTab extends StatelessWidget {
           ],
         ],
       ),
+    ),
     );
   }
 }
@@ -124,26 +129,33 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bp = AppBreakpoints.of(context);
+    final labelStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+    );
+    final valueStyle = theme.textTheme.bodyMedium;
+
+    if (bp.isMobile) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: labelStyle),
+            const SizedBox(height: 2),
+            Text(value, style: valueStyle),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
+          SizedBox(width: 120, child: Text(label, style: labelStyle)),
+          Expanded(child: Text(value, style: valueStyle)),
         ],
       ),
     );

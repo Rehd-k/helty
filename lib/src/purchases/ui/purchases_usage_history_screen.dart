@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/services/invoice_purchases_service.dart';
 import 'package:intl/intl.dart';
@@ -406,9 +407,8 @@ class _PurchasesUsageHistoryScreenState
         automaticallyImplyLeading: false,
         title: const Text('Usage History'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Wrap(
@@ -444,16 +444,13 @@ class _PurchasesUsageHistoryScreenState
                   icon: const Icon(Icons.location_on_outlined),
                   label: Text(_selectedLocationName ?? 'Location'),
                 ),
-                SizedBox(
-                  width: 220,
-                  child: TextField(
-                    controller: _patientCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Patient search',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
+                TextField(
+                  controller: _patientCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Patient search',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    isDense: true,
                   ),
                 ),
                 if (_selectedItemId != null)
@@ -609,13 +606,10 @@ class _PurchasesUsageHistoryScreenState
                     )
                   : _rows.isEmpty
                   ? const Center(child: Text('No usage records found.'))
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Scrollbar(
+                  : ResponsiveDataTable(
+                      child: SingleChildScrollView(
                         controller: _tableVerticalScrollController,
-                        child: SingleChildScrollView(
-                          controller: _tableVerticalScrollController,
-                          child: DataTable(
+                        child: DataTable(
                             columns: const [
                               DataColumn(label: Text('Issued At')),
                               DataColumn(label: Text('Issued By')),
@@ -686,7 +680,6 @@ class _PurchasesUsageHistoryScreenState
                           ),
                         ),
                       ),
-                    ),
             ),
             const SizedBox(height: 8),
             Row(

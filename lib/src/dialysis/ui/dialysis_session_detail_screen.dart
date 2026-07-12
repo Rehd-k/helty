@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/auth/dialysis_permissions.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/dialysis/models/dialysis_models.dart';
@@ -202,8 +203,9 @@ class _DialysisSessionDetailScreenState
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -322,6 +324,7 @@ class _DialysisSessionDetailScreenState
               ),
           ],
         ),
+      ),
       ),
     );
   }

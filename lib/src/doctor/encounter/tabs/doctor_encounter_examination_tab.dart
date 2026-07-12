@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
@@ -200,8 +201,11 @@ class _DoctorEncounterExaminationTabState
       return const Center(child: CircularProgressIndicator());
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -290,6 +294,7 @@ class _DoctorEncounterExaminationTabState
             ),
         ],
       ),
+    ),
     );
   }
 }

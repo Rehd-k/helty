@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../purchases/models/purchases_model.dart';
 import '../../purchases/services/purchases_service.dart';
@@ -230,15 +231,15 @@ class _CreateRequisitionScreenState
           child: Container(color: Colors.grey.shade200, height: 1),
         ),
       ),
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left Side: Item Selection Form
-          Expanded(
-            flex: 5,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => ResponsiveRowColumn(
+          gap: 0,
+          firstFlex: 5,
+          secondFlex: 4,
+          first: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,16 +376,15 @@ class _CreateRequisitionScreenState
                 ),
               ),
             ),
-          ),
-
-          // Right Side: Requisition "Cart" Summary
-          Expanded(
-            flex: 4,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(left: BorderSide(color: Colors.grey.shade200)),
+          second: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                left: bp.stackPanels
+                    ? BorderSide.none
+                    : BorderSide(color: Colors.grey.shade200),
               ),
+            ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -521,8 +521,7 @@ class _CreateRequisitionScreenState
                 ],
               ),
             ),
-          ),
-        ],
+        ),
       ),
     );
   }

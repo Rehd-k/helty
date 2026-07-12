@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
@@ -181,7 +182,9 @@ class _ObstetricsEditAntenatalVisitScreenState
     if (_loading && _visitDateCtrl.text.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit antenatal visit')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ResponsiveBody(
+          builder: (context, bp) => const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
     final scopePregnancy = PregnancyViewScope.of(context)?.pregnancy;
@@ -207,7 +210,13 @@ class _ObstetricsEditAntenatalVisitScreenState
         icon: Icons.medical_services_rounded,
       ),
       children: [
-        AntenatalVisitVitalsFields(
+        ResponsiveBody(
+          center: false,
+          bottomPadding: 0,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AntenatalVisitVitalsFields(
           visitDateController: _visitDateCtrl,
           gestationWeeksController: _gestationWeeksCtrl,
           gestationDaysController: _gestationDaysCtrl,
@@ -232,6 +241,9 @@ class _ObstetricsEditAntenatalVisitScreenState
           pcvController: _pcvCtrl,
           notesController: _notesCtrl,
           ultrasoundController: _ultrasoundCtrl,
+        ),
+            ],
+          ),
         ),
       ],
     );

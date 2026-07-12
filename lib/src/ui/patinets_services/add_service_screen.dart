@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/services/service_service.dart';
 
@@ -116,7 +117,8 @@ class AddServiceScreenState extends ConsumerState<AddServiceScreen> {
           IconButton(onPressed: getVlaues, icon: Icon(Icons.refresh_outlined)),
         ],
       ),
-      body: !allowed
+      body: ResponsiveBody(
+        builder: (context, bp) => !allowed
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -235,6 +237,7 @@ class AddServiceScreenState extends ConsumerState<AddServiceScreen> {
                 ),
               ),
             ),
+      ),
     );
   }
 }

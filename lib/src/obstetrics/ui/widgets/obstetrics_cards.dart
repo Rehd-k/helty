@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_theme.dart';
 import 'package:helty/src/obstetrics/utils/obstetrics_display.dart';
@@ -206,10 +207,22 @@ class ObPatientBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: scheme.primaryContainer,
-            child: Icon(Icons.person_rounded, color: scheme.onPrimaryContainer),
-          ),
+          if (patient != null)
+            PatientAvatar.fromPatient(
+              patient!,
+              size: 40,
+              backgroundColor: scheme.primaryContainer,
+              foregroundColor: scheme.onPrimaryContainer,
+            )
+          else
+            PatientAvatar(
+              avatarUrl: obstetricsPatient?.avatarUrl,
+              firstName: obstetricsPatient?.firstName,
+              surname: obstetricsPatient?.surname,
+              size: 40,
+              backgroundColor: scheme.primaryContainer,
+              foregroundColor: scheme.onPrimaryContainer,
+            ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

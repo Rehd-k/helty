@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/admission_alert_model.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
@@ -153,9 +154,10 @@ class _InpatientAlertsScreenState extends State<InpatientAlertsScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: SectionCard(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: SectionCard(
         title: 'Alerts',
         subtitle:
             'Clinical and workflow alerts for this admission',
@@ -184,6 +186,7 @@ class _InpatientAlertsScreenState extends State<InpatientAlertsScreen> {
                   ],
                 ],
               ),
+      ),
       ),
     );
   }

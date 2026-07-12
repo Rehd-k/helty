@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
@@ -125,7 +126,9 @@ class _ObstetricsPregnancyViewScreenState
       return Scaffold(
         backgroundColor: colorScheme.surfaceContainerLowest,
         appBar: AppBar(title: const Text('Pregnancy')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ResponsiveBody(
+          builder: (context, bp) => const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
     if (_error != null && _pregnancy == null) {
@@ -137,19 +140,21 @@ class _ObstetricsPregnancyViewScreenState
             onPressed: () => context.router.maybePop(),
           ),
         ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(_error!, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => context.router.maybePop(),
-                  child: const Text('Back'),
-                ),
-              ],
+        body: ResponsiveBody(
+          builder: (context, bp) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () => context.router.maybePop(),
+                    child: const Text('Back'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -210,16 +215,20 @@ class _ObstetricsPregnancyViewScreenState
                 ),
               ),
             ),
-            body: Column(
-              children: [
-                PregnancyHeroHeader(pregnancy: p),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _load,
-                    child: child,
+            body: ResponsiveBody(
+              center: false,
+              bottomPadding: 0,
+              builder: (context, bp) => Column(
+                children: [
+                  PregnancyHeroHeader(pregnancy: p),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _load,
+                      child: child,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },

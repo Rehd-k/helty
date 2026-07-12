@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/auth_provider.dart';
@@ -159,28 +160,29 @@ class _PharmacyInventoryValuationScreenState
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _expiryBar(),
-          const SizedBox(height: 16),
-          if (_loading && _valuation.stores.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 80),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_error != null && _valuation.stores.isEmpty)
-            _errorCard(_error!)
-          else ...[
-            _totalsCard(theme),
+      body: ResponsiveBody(
+        builder: (context, bp) => ListView(
+          children: [
+            _expiryBar(),
             const SizedBox(height: 16),
-            _storeList(theme),
-            if (_focusLocationId != null) ...[
-              const SizedBox(height: 20),
-              _batchSection(theme),
+            if (_loading && _valuation.stores.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null && _valuation.stores.isEmpty)
+              _errorCard(_error!)
+            else ...[
+              _totalsCard(theme),
+              const SizedBox(height: 16),
+              _storeList(theme),
+              if (_focusLocationId != null) ...[
+                const SizedBox(height: 20),
+                _batchSection(theme),
+              ],
             ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -433,68 +435,59 @@ class _PharmacyInventoryValuationScreenState
   }
 
   Widget _batchTable(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Drug')),
-                DataColumn(label: Text('Batch')),
-                DataColumn(label: Text('Expiry')),
-                DataColumn(label: Text('Qty'), numeric: true),
-                DataColumn(label: Text('Unit cost'), numeric: true),
-                DataColumn(label: Text('Value at cost'), numeric: true),
-                DataColumn(label: Text('Supplier')),
-              ],
-              rows: [
-                for (final b in _batches.rows)
-                  DataRow(
-                    cells: [
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 200),
-                          child: Text(
-                            b.drugName,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+    return Column(
+      children: [
+        ResponsiveDataTable(
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Drug')),
+              DataColumn(label: Text('Batch')),
+              DataColumn(label: Text('Expiry')),
+              DataColumn(label: Text('Qty'), numeric: true),
+              DataColumn(label: Text('Unit cost'), numeric: true),
+              DataColumn(label: Text('Value at cost'), numeric: true),
+              DataColumn(label: Text('Supplier')),
+            ],
+            rows: [
+              for (final b in _batches.rows)
+                DataRow(
+                  cells: [
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 200),
+                        child: Text(
+                          b.drugName,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      DataCell(Text(b.batchNumber)),
-                      DataCell(
-                        Text(
-                          b.expiryDate == null
-                              ? '—'
-                              : _date.format(b.expiryDate!),
+                    ),
+                    DataCell(Text(b.batchNumber)),
+                    DataCell(
+                      Text(
+                        b.expiryDate == null
+                            ? '—'
+                            : _date.format(b.expiryDate!),
+                      ),
+                    ),
+                    DataCell(Text(_count.format(b.quantityRemaining))),
+                    DataCell(Text(_money.format(b.unitCost))),
+                    DataCell(Text(_money.format(b.lineValueAtCost))),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 160),
+                        child: Text(
+                          b.supplierName,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      DataCell(Text(_count.format(b.quantityRemaining))),
-                      DataCell(Text(_money.format(b.unitCost))),
-                      DataCell(Text(_money.format(b.lineValueAtCost))),
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 160),
-                          child: Text(
-                            b.supplierName,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
+                    ),
+                  ],
+                ),
+            ],
           ),
-          _batchPager(),
-        ],
-      ),
+        ),
+        _batchPager(),
+      ],
     );
   }
 

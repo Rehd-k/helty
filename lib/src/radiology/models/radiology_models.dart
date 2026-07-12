@@ -1,6 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/core/utils/patient_initials.dart';
 
 enum RadiologyPriority {
   ROUTINE,
@@ -163,6 +164,7 @@ class RadiologyPatientRef {
     this.otherName,
     this.surname,
     this.patientId,
+    this.avatarUrl,
   });
 
   final String id;
@@ -171,6 +173,7 @@ class RadiologyPatientRef {
   final String? otherName;
   final String? surname;
   final String? patientId;
+  final String? avatarUrl;
 
   String get displayName => patientDisplayNameFromJson({
         'title': title,
@@ -187,6 +190,7 @@ class RadiologyPatientRef {
       otherName: json['otherName'] as String?,
       surname: (json['surname'] ?? json['lastName']) as String?,
       patientId: json['patientId'] as String?,
+      avatarUrl: avatarUrlFromJson(json),
     );
   }
 }

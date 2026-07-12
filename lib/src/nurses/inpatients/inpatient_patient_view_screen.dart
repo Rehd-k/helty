@@ -617,6 +617,9 @@ class _InpatientPatientViewScreenState
       allergies: allergies,
       codeStatus: codeStatus,
       riskFlags: riskFlags,
+      avatarUrl: patient.avatarUrl,
+      firstName: patient.firstName,
+      surname: patient.surname,
     );
   }
 

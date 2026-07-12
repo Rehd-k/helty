@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/widgets/date.filter.dart';
 import 'package:intl/intl.dart';
 
@@ -186,24 +187,25 @@ class _PharmacySalesBreakdownScreenState
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _filterBar(theme),
-          const SizedBox(height: 16),
-          if (_loading && _data.rows.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 80),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_error != null && _data.rows.isEmpty)
-            _errorCard(_error!)
-          else ...[
-            _totalsCard(theme),
+      body: ResponsiveBody(
+        builder: (context, bp) => ListView(
+          children: [
+            _filterBar(theme),
             const SizedBox(height: 16),
-            _table(theme),
+            if (_loading && _data.rows.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null && _data.rows.isEmpty)
+              _errorCard(_error!)
+            else ...[
+              _totalsCard(theme),
+              const SizedBox(height: 16),
+              _table(theme),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -366,19 +368,11 @@ class _PharmacySalesBreakdownScreenState
       return _emptyCard('No sales for the selected filters.');
     }
     final rows = _sortedRows;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          sortColumnIndex: _sortColumn,
-          sortAscending: _sortAsc,
-          columns: [
+    return ResponsiveDataTable(
+      child: DataTable(
+        sortColumnIndex: _sortColumn,
+        sortAscending: _sortAsc,
+        columns: [
             DataColumn(
               label: Text(_groupBy.label),
               onSort: (i, _) => _onSort(0),
@@ -452,7 +446,6 @@ class _PharmacySalesBreakdownScreenState
               ),
           ],
         ),
-      ),
     );
   }
 

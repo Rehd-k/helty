@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/service_category_service.dart';
 
 import '../../models/service_category_model.dart';
@@ -56,7 +57,8 @@ class AddCategoryScreenState extends State<AddCategoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('New category')),
-      body: Padding(
+      body: ResponsiveBody(
+        builder: (context, bp) => Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
@@ -92,6 +94,7 @@ class AddCategoryScreenState extends State<AddCategoryScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

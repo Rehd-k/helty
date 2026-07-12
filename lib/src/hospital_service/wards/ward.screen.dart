@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/hospital_service/setup_widgets/setup_form_widgets.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/services/ward_service.dart';
 
@@ -287,46 +288,24 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 900;
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          if (_isLoadingWards && _wards.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            if (_isLoadingWards && _wards.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (isNarrow) {
-              return Column(
-                children: [
-                  _buildWardListCard(cs, isNarrow: true),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: _selectedWard == null
-                        ? _buildEmptyWardDetail(cs)
-                        : _buildWardDetailCard(cs),
-                  ),
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                SizedBox(
-                  width: 360,
-                  child: _buildWardListCard(cs, isNarrow: false),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _selectedWard == null
-                      ? _buildEmptyWardDetail(cs)
-                      : _buildWardDetailCard(cs),
-                ),
-              ],
-            );
-          },
-        ),
+          return ResponsiveRowColumn(
+            stackWhenWidthBelow: 900,
+            first: SizedBox(
+              width: bp.isMobile ? double.infinity : 360,
+              child: _buildWardListCard(cs, isNarrow: bp.isMobile),
+            ),
+            second: _selectedWard == null
+                ? _buildEmptyWardDetail(cs)
+                : _buildWardDetailCard(cs),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openWardForm(),

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/cmac/cmac_palette.dart';
 import 'package:helty/src/cmac/widgets/cmac_vibrant_backdrop.dart';
 
-import '../cmd_breakpoints.dart';
+import 'package:helty/src/core/layout/app_breakpoints.dart';
 
 class CmdAsyncScaffold<T> extends StatelessWidget {
   const CmdAsyncScaffold({
@@ -58,13 +58,13 @@ class CmdAsyncScaffold<T> extends StatelessWidget {
         colors: colors,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final bp = CmdBreakpoints.fromWidth(constraints.maxWidth);
+            final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
             Widget wrapBody(Widget child) {
               return Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(
-                    maxWidth: CmdBreakpoints.maxContentWidth,
+                    maxWidth: AppBreakpoints.maxContentWidth,
                   ),
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(

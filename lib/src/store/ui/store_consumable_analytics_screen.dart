@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/store/models/store_models.dart';
 import 'package:helty/src/store/providers/store_providers.dart';
@@ -88,7 +89,8 @@ class _StoreConsumableAnalyticsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Consumable analytics')),
-      body: ListView(
+      body: ResponsiveBody(
+        builder: (context, bp) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Row(
@@ -161,6 +163,7 @@ class _StoreConsumableAnalyticsScreenState
             ),
           ],
         ],
+      ),
       ),
     );
   }

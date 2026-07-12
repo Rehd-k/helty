@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/store/models/store_models.dart';
@@ -68,9 +69,8 @@ class _StoreDashboardScreenState extends ConsumerState<StoreDashboardScreen> {
         slivers: [
           _buildAppBar(context, theme),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: Column(
+            child: ResponsiveBody(
+              builder: (context, bp) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildSummaryRow(theme),
@@ -196,36 +196,11 @@ class _StoreDashboardScreenState extends ConsumerState<StoreDashboardScreen> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 720;
-        if (isNarrow) {
-          return SizedBox(
-            height: 130,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: cards.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) => SizedBox(
-                width: 200,
-                child: cards[index],
-              ),
-            ),
-          );
-        }
-        return Row(
-          children: cards
-              .map(
-                (c) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: c,
-                  ),
-                ),
-              )
-              .toList(),
-        );
-      },
+    return ResponsiveWrapGrid(
+      mobileColumns: 1,
+      tabletColumns: 2,
+      desktopColumns: 4,
+      children: cards,
     );
   }
 

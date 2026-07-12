@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
@@ -106,80 +107,82 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
     final theme = Theme.of(context);
     final pad = widget.dense ? 8.0 : 0.0;
     final isSuperAdmin = staffIsSuperAdmin(ref.watch(currentStaffProvider));
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(pad, 0, pad, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Support tickets',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+    return FlexPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(pad, 0, pad, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Support tickets',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: _loading ? null : _load,
-                icon: const Icon(Icons.refresh_rounded, size: 22),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: createTicketAndOpen,
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('New'),
-              ),
-            ],
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: _loading ? null : _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 22),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: createTicketAndOpen,
+                  icon: const Icon(Icons.add_rounded, size: 20),
+                  label: const Text('New'),
+                ),
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: _loading && _tickets.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null && _tickets.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.all(16 + pad),
-                      children: [
-                        Text(_error!,
-                            style: TextStyle(color: theme.colorScheme.error)),
-                        const SizedBox(height: 12),
-                        FilledButton(onPressed: _load, child: const Text('Retry')),
-                      ],
-                    )
-                  : _tickets.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: EdgeInsets.all(16 + pad),
-                          children: [
-                            Text(
-                              'No support tickets yet.',
-                              style: theme.textTheme.titleSmall,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Create a ticket to reach IT or support.',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+          Expanded(
+            child: _loading && _tickets.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null && _tickets.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.all(16 + pad),
+                        children: [
+                          Text(_error!,
+                              style: TextStyle(color: theme.colorScheme.error)),
+                          const SizedBox(height: 12),
+                          FilledButton(onPressed: _load, child: const Text('Retry')),
+                        ],
+                      )
+                    : _tickets.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: EdgeInsets.all(16 + pad),
+                            children: [
+                              Text(
+                                'No support tickets yet.',
+                                style: theme.textTheme.titleSmall,
                               ),
-                            ),
-                          ],
-                        )
-                      : isSuperAdmin
-                          ? _buildGroupedTicketList(theme, pad)
-                          : ListView.separated(
-                              padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
-                              itemCount: _tickets.length,
-                              separatorBuilder: (_, __) => Divider(
-                                  height: 1, color: theme.dividerColor),
-                              itemBuilder: (context, i) {
-                                final t = _tickets[i];
-                                return _ticketTile(theme, t);
-                              },
-                            ),
-        ),
-      ],
+                              const SizedBox(height: 6),
+                              Text(
+                                'Create a ticket to reach IT or support.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          )
+                        : isSuperAdmin
+                            ? _buildGroupedTicketList(theme, pad)
+                            : ListView.separated(
+                                padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
+                                itemCount: _tickets.length,
+                                separatorBuilder: (_, __) => Divider(
+                                    height: 1, color: theme.dividerColor),
+                                itemBuilder: (context, i) {
+                                  final t = _tickets[i];
+                                  return _ticketTile(theme, t);
+                                },
+                              ),
+          ),
+        ],
+      ),
     );
   }
 

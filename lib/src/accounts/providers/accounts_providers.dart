@@ -30,6 +30,11 @@ final accountsPeriodProvider =
   return const AccountsPeriodFilter(period: 'today');
 });
 
+final accountsRevenueFilterProvider =
+    StateProvider<AccountsRevenueFilter>((ref) {
+  return const AccountsRevenueFilter(period: 'today');
+});
+
 final accountsDashboardProvider =
     FutureProvider.autoDispose<AccountsDashboardBundle>((ref) async {
   final period = ref.watch(accountsPeriodProvider);
@@ -116,11 +121,13 @@ final accountsDailyCollectionsProvider =
 
 final accountsRevenueByServiceProvider =
     FutureProvider.autoDispose<List<AccountsServiceRevenueRow>>((ref) async {
-  final period = ref.watch(accountsPeriodProvider);
+  final filter = ref.watch(accountsRevenueFilterProvider);
   final svc = ref.watch(accountsReportsServiceProvider);
   return svc.fetchRevenueByService(
-    period: period.period,
-    asOf: period.asOf,
+    period: filter.period,
+    asOf: filter.asOf,
+    from: filter.from,
+    to: filter.to,
   );
 });
 
@@ -129,6 +136,8 @@ class AccountsRevenueByServiceDetailsParams {
     required this.period,
     required this.serviceCategory,
     this.asOf,
+    this.from,
+    this.to,
     this.skip = 0,
     this.take = 50,
     this.q,
@@ -137,6 +146,8 @@ class AccountsRevenueByServiceDetailsParams {
   final String period;
   final String serviceCategory;
   final DateTime? asOf;
+  final DateTime? from;
+  final DateTime? to;
   final int skip;
   final int take;
   final String? q;
@@ -149,13 +160,15 @@ class AccountsRevenueByServiceDetailsParams {
           period == other.period &&
           serviceCategory == other.serviceCategory &&
           asOf == other.asOf &&
+          from == other.from &&
+          to == other.to &&
           skip == other.skip &&
           take == other.take &&
           q == other.q;
 
   @override
   int get hashCode =>
-      Object.hash(period, serviceCategory, asOf, skip, take, q);
+      Object.hash(period, serviceCategory, asOf, from, to, skip, take, q);
 }
 
 final accountsRevenueByServiceDetailsProvider = FutureProvider.autoDispose
@@ -165,6 +178,8 @@ final accountsRevenueByServiceDetailsProvider = FutureProvider.autoDispose
   return svc.fetchRevenueByServiceDetails(
     period: params.period,
     asOf: params.asOf,
+    from: params.from,
+    to: params.to,
     serviceCategory: params.serviceCategory,
     skip: params.skip,
     take: params.take,

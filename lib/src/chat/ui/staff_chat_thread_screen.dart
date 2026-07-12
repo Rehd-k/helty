@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../widgets/staff_chat_thread_content.dart';
 
@@ -22,10 +23,13 @@ class StaffChatThreadScreen extends ConsumerWidget {
     final t = title?.trim();
     return Scaffold(
       appBar: AppBar(title: Text(t != null && t.isNotEmpty ? t : 'Chat')),
-      body: StaffChatThreadContent(
-        conversationId: conversationId,
-        conversationTitle: t,
-        peerStaffId: peerStaffId,
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => StaffChatThreadContent(
+          conversationId: conversationId,
+          conversationTitle: t,
+          peerStaffId: peerStaffId,
+        ),
       ),
     );
   }

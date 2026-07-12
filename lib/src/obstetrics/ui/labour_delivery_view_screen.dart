@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
@@ -102,7 +103,9 @@ class _ObstetricsLabourDeliveryViewScreenState
     if (_loading && _delivery == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Labour & delivery')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ResponsiveBody(
+          builder: (context, bp) => const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
     if (_error != null && _delivery == null) {
@@ -114,7 +117,9 @@ class _ObstetricsLabourDeliveryViewScreenState
             onPressed: () => context.router.maybePop(),
           ),
         ),
-        body: Center(child: Text(_error!)),
+        body: ResponsiveBody(
+          builder: (context, bp) => Center(child: Text(_error!)),
+        ),
       );
     }
 
@@ -146,18 +151,22 @@ class _ObstetricsLabourDeliveryViewScreenState
             ],
           ),
         ),
-        body: RefreshIndicator(
-          onRefresh: _load,
-          child: TabBarView(
-            children: [
-              _PartogramList(entries: _partogram, onAdd: _addPartogram),
-              _BabiesList(
-                babies: _babies,
-                onAdd: _addBaby,
-                labourDeliveryId: widget.labourDeliveryId,
-                onRefresh: _load,
-              ),
-            ],
+        body: ResponsiveBody(
+          center: false,
+          bottomPadding: 0,
+          builder: (context, bp) => RefreshIndicator(
+            onRefresh: _load,
+            child: TabBarView(
+              children: [
+                _PartogramList(entries: _partogram, onAdd: _addPartogram),
+                _BabiesList(
+                  babies: _babies,
+                  onAdd: _addBaby,
+                  labourDeliveryId: widget.labourDeliveryId,
+                  onRefresh: _load,
+                ),
+              ],
+            ),
           ),
         ),
       ),

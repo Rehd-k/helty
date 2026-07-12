@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
@@ -91,8 +92,11 @@ class _ObstetricsPostnatalListScreenState
             ),
         ],
       ),
-      body: Column(
-        children: [
+      body: ResponsiveBody(
+        center: false,
+        bottomPadding: 0,
+        builder: (context, bp) => Column(
+          children: [
           if (_error != null)
             Material(
               color: colorScheme.errorContainer,
@@ -140,7 +144,8 @@ class _ObstetricsPostnatalListScreenState
                     },
                   ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

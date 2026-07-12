@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/dialysis/utils/dialysis_patient_encounters_utils.dart';
 import 'package:helty/src/dialysis/widgets/dialysis_encounter_notes_sheet.dart';
@@ -235,7 +236,10 @@ class _DialysisPatientEncountersScreenState
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: ResponsiveBody(
+        center: false,
+        expand: false,
+        builder: (context, bp) => RefreshIndicator(
         onRefresh: () => _load(reset: true),
         child: _loading
             ? ListView(
@@ -492,6 +496,7 @@ class _DialysisPatientEncountersScreenState
                         ),
                     ],
                   ),
+      ),
       ),
     );
   }

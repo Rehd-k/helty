@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
@@ -79,34 +80,24 @@ class _DoctorOutpatientListScreenState
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'My Appointments',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Outpatient list — click a row to open encounter.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          Text(
+            'My Appointments',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Outpatient list — click a row to open encounter.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
           FromToDateFilter(
             doRefresh: () => _load(),
@@ -120,7 +111,6 @@ class _DoctorOutpatientListScreenState
                   _load();
                 },
           ),
-
           const SizedBox(height: 24),
           Expanded(
             child: _loading
@@ -143,44 +133,40 @@ class _DoctorOutpatientListScreenState
                       ],
                     ),
                   )
-                : _buildTable(context),
+                : _buildTable(context, bp),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTable(BuildContext context) {
+  Widget _buildTable(BuildContext context, AppBreakpoints bp) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-      ),
+    return ResponsiveDataTable(
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              color: colorScheme.onSurface.withValues(alpha: 0.03),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
+          if (!bp.isMobile)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: colorScheme.onSurface.withValues(alpha: 0.03),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  _headerCell('PATIENT NAME'),
+                  _headerCell('AGE'),
+                  _headerCell('APPOINTMENT TIME'),
+                  _headerCell('STATUS'),
+                  _headerCell('VISIT TYPE'),
+                  _headerCell('INSURANCE'),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                _headerCell('PATIENT NAME'),
-                _headerCell('AGE'),
-                _headerCell('APPOINTMENT TIME'),
-                _headerCell('STATUS'),
-                _headerCell('VISIT TYPE'),
-                _headerCell('INSURANCE'),
-              ],
-            ),
-          ),
           Divider(
             height: 1,
             color: colorScheme.outline.withValues(alpha: 0.12),
@@ -211,6 +197,67 @@ class _DoctorOutpatientListScreenState
                     : enc.status == 'in_consultation'
                     ? colorScheme.primary
                     : Colors.green;
+
+                if (bp.isMobile) {
+                  return InkWell(
+                    onTap: () => _openEncounter(context, enc),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '$age • ${_formatTime(enc.startedAt)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: statusColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              if (enc.visitType != null)
+                                Text(enc.visitType!),
+                              if (enc.insurance != null)
+                                Text(enc.insurance!),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
 
                 return InkWell(
                   onTap: () => _openEncounter(context, enc),

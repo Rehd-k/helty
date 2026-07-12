@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
 
 @RoutePage()
@@ -27,8 +28,10 @@ class CompletedEncounterHistoryTab extends StatelessWidget {
       'Social history': e.socialHistory,
     };
 
-    return ListView(
-      padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => ListView(
+        padding: EdgeInsets.zero,
       children: [
         for (final entry in items.entries)
           _Block(
@@ -38,6 +41,7 @@ class CompletedEncounterHistoryTab extends StatelessWidget {
             colorScheme: colorScheme,
           ),
       ],
+    ),
     );
   }
 }

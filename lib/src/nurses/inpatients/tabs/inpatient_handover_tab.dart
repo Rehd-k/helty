@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/handover_report_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
@@ -174,9 +175,10 @@ class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCard(
@@ -324,6 +326,7 @@ class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
                           ),
           ),
         ],
+      ),
       ),
     );
   }

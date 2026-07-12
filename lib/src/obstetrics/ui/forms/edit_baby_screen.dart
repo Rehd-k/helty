@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
@@ -117,7 +118,9 @@ class _ObstetricsEditBabyScreenState
     if (_loading && _birthWeightCtrl.text.isEmpty && _error == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit baby')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ResponsiveBody(
+          builder: (context, bp) => const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
     return ObstetricsFormScaffold(
@@ -140,7 +143,13 @@ class _ObstetricsEditBabyScreenState
         icon: Icons.child_care_rounded,
       ),
       children: [
-        ObFormSectionCard(
+        ResponsiveBody(
+          center: false,
+          bottomPadding: 0,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ObFormSectionCard(
           title: 'Baby details',
           icon: Icons.child_care_rounded,
           children: [
@@ -189,6 +198,9 @@ class _ObstetricsEditBabyScreenState
               maxLines: 2,
             ),
           ],
+        ),
+            ],
+          ),
         ),
       ],
     );

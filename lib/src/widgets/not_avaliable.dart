@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 
 @RoutePage()
 class NotAvailableScreen extends StatelessWidget {
@@ -11,9 +12,8 @@ class NotAvailableScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: ResponsiveBody(
+          builder: (context, bp) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

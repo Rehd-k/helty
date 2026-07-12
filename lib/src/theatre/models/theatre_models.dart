@@ -2,6 +2,7 @@
 
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/core/utils/patient_initials.dart';
 
 enum SurgeryRequestStatus {
   requested,
@@ -147,6 +148,7 @@ class TheatrePatientRef {
     this.firstName,
     this.otherName,
     this.surname,
+    this.avatarUrl,
   });
 
   final String id;
@@ -155,6 +157,7 @@ class TheatrePatientRef {
   final String? firstName;
   final String? otherName;
   final String? surname;
+  final String? avatarUrl;
 
   String get displayName {
     final formatted = formatPatientDisplayNameOrNull(
@@ -175,6 +178,7 @@ class TheatrePatientRef {
       firstName: json['firstName']?.toString(),
       otherName: json['otherName']?.toString(),
       surname: (json['surname'] ?? json['lastName'])?.toString(),
+      avatarUrl: avatarUrlFromJson(json),
     );
   }
 }

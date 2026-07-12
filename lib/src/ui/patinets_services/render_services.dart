@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice.dart';
@@ -531,7 +532,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           ],
         ],
       ),
-      body: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ParkedBillingChipsBar(onResume: _resumeParkedSession),
@@ -572,6 +574,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

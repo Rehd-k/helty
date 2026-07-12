@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
+import '../../core/widgets/patient_avatar.dart';
 import '../../helper/date.formatter.dart';
 import '../../auth/nursing_permissions.dart';
 import '../../models/staff_model.dart';
@@ -10,6 +11,7 @@ import '../../models/ward_models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/staff_providers.dart';
 import '../../services/staff_service.dart';
+import 'package:helty/src/core/responsive.dart';
 import '../models/nursing_models.dart';
 import '../providers/nursing_providers.dart';
 import '../ward_matching.dart';
@@ -426,9 +428,12 @@ class _NursingAssignmentsScreenState
               child: const Icon(Icons.add),
             )
           : null,
-      body: TabBarView(
-        controller: _tabs,
-        children: [_inpatientTab(canInpatient), _outpatientTab(canOutpatient)],
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => TabBarView(
+          controller: _tabs,
+          children: [_inpatientTab(canInpatient), _outpatientTab(canOutpatient)],
+        ),
       ),
     );
   }
@@ -466,23 +471,20 @@ class _NursingAssignmentsScreenState
     ];
 
     final patientTitle = a.patientName ?? a.admissionId;
-    final initials = patientTitle.trim().isNotEmpty
-        ? patientTitle
-              .trim()
-              .split(RegExp(r'\s+'))
-              .where((p) => p.isNotEmpty)
-              .map((p) => p[0])
-              .take(2)
-              .join()
-              .toUpperCase()
-        : '?';
+    final nameParts = patientTitle
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
 
     return ListTile(
       isThreeLine: true,
-      leading: CircleAvatar(
+      leading: PatientAvatar(
+        firstName: nameParts.isNotEmpty ? nameParts.first : null,
+        surname: nameParts.length > 1 ? nameParts.last : null,
+        size: 40,
         backgroundColor: theme.colorScheme.primaryContainer,
         foregroundColor: theme.colorScheme.onPrimaryContainer,
-        child: Text(initials),
       ),
       title: Text(
         patientTitle,

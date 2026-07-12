@@ -15,6 +15,7 @@ import '../models/consultation_credit_model.dart';
 import '../models/waiting_patient_model.dart';
 import '../services/waiting_patient_service.dart';
 import '../widgets/consultation_credit_chip.dart';
+import '../core/widgets/patient_avatar.dart';
 
 @RoutePage()
 class WaitingPatientsScreen extends ConsumerStatefulWidget {
@@ -47,6 +48,12 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
   final _searchCtrl = TextEditingController();
   String _statusFilter = 'Unassigned'; // Unassigned, Assigned, All
   ConsultingRoomModel? _filterRoom;
+  String _draftStatusFilter = 'Unassigned';
+  ConsultingRoomModel? _draftFilterRoom;
+  DateTime? _draftFromDate;
+  DateTime? _draftToDate;
+  bool _filtersExpanded = false;
+  bool _dateFilterInitialized = false;
 
   final int _rowsPerPage = 20;
   int _currentPage = 0;
@@ -161,6 +168,8 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
       setState(() {
         _consultingRooms = unique.values.toList();
         _selectedRoom = _roomFromList(_selectedRoom);
+        _filterRoom = _roomFromList(_filterRoom);
+        _draftFilterRoom = _roomFromList(_draftFilterRoom);
       });
     } catch (e) {
       if (!mounted) return;
@@ -364,6 +373,40 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
     );
   }
 
+  void _updateDraftDateFilter(
+    String query,
+    String category,
+    DateTime? from,
+    DateTime? to,
+  ) {
+    final shouldLoadInitialPage = !_dateFilterInitialized;
+    setState(() {
+      _draftFromDate = from;
+      _draftToDate = to;
+      _dateFilterInitialized = true;
+      if (shouldLoadInitialPage) {
+        _fromDate = from;
+        _toDate = to;
+        _currentPage = 0;
+      }
+    });
+    if (shouldLoadInitialPage) {
+      _loadPage(reset: true);
+    }
+  }
+
+  void _applyQueueFilters() {
+    setState(() {
+      _statusFilter = _draftStatusFilter;
+      _filterRoom = _draftFilterRoom;
+      _fromDate = _draftFromDate;
+      _toDate = _draftToDate;
+      _currentPage = 0;
+      _filtersExpanded = false;
+    });
+    _loadPage(reset: true);
+  }
+
   Widget _waitingCountChip(ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -405,7 +448,9 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Patient: ${waiting.patient?.firstName ?? waiting.patientId}'),
+              Text(
+                'Patient: ${waiting.patient?.firstName ?? waiting.patientId}',
+              ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: shiftType,
@@ -426,7 +471,9 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                   initialValue: nursingUnit,
                   decoration: const InputDecoration(labelText: 'Unit'),
                   items: NursingUnit.values
-                      .where((u) => u == NursingUnit.opd || u == NursingUnit.ong)
+                      .where(
+                        (u) => u == NursingUnit.opd || u == NursingUnit.ong,
+                      )
                       .map(
                         (u) => DropdownMenuItem(
                           value: u.apiValue,
@@ -446,7 +493,9 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: nurseId.isEmpty ? null : () => Navigator.pop(ctx, true),
+              onPressed: nurseId.isEmpty
+                  ? null
+                  : () => Navigator.pop(ctx, true),
               child: const Text('Assign'),
             ),
           ],
@@ -457,22 +506,24 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
     if (saved != true || nurseId.isEmpty) return;
 
     try {
-      await ref.read(nursingApiServiceProvider).createOutpatientAssignment(
-        nurseId: nurseId,
-        invoiceId: waiting.invoiceId,
-        nursingUnit: nursingUnit,
-        shiftDate: DateTime.now(),
-        shiftType: shiftType,
-      );
+      await ref
+          .read(nursingApiServiceProvider)
+          .createOutpatientAssignment(
+            nurseId: nurseId,
+            invoiceId: waiting.invoiceId,
+            nursingUnit: nursingUnit,
+            shiftDate: DateTime.now(),
+            shiftType: shiftType,
+          );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nurse assigned')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Nurse assigned')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -567,99 +618,31 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Filters row
+          // Search and filter toggle
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: LayoutBuilder(
               builder: (context, fc) {
-                final wideFilters = fc.maxWidth >= 680;
-                final statusFilter = DropdownButtonHideUnderline(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: DropdownButton<String>(
-                      value: _statusFilter,
-                      icon: Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 18,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colorScheme.onSurface,
-                      ),
-                      items: <String>['Unassigned', 'Assigned', 'All']
-                          .map(
-                            (s) => DropdownMenuItem(value: s, child: Text(s)),
-                          )
-                          .toList(),
-                      onChanged: (val) {
-                        if (val == null) return;
-                        setState(() {
-                          _statusFilter = val;
-                          _currentPage = 0;
-                        });
-                        _loadPage(reset: true);
-                      },
-                    ),
+                final filterButton = OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _filtersExpanded = !_filtersExpanded;
+                    });
+                  },
+                  icon: Icon(
+                    _filtersExpanded
+                        ? Icons.filter_list_off_outlined
+                        : Icons.filter_list_outlined,
+                    size: 18,
                   ),
+                  label: Text(_filtersExpanded ? 'Hide filters' : 'Filters'),
                 );
-                final roomFilter = DropdownButtonHideUnderline(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: DropdownButton<ConsultingRoomModel?>(
-                      value: _filterRoom,
-                      hint: const Text('All rooms'),
-                      icon: Icon(
-                        Icons.meeting_room_outlined,
-                        size: 18,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colorScheme.onSurface,
-                      ),
-                      items: [
-                        const DropdownMenuItem<ConsultingRoomModel?>(
-                          value: null,
-                          child: Text('All rooms'),
-                        ),
-                        ..._consultingRooms.map(
-                          (room) => DropdownMenuItem<ConsultingRoomModel?>(
-                            value: room,
-                            child: Text(room.name),
-                          ),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        setState(() {
-                          _filterRoom = val;
-                          _currentPage = 0;
-                        });
-                        _loadPage(reset: true);
-                      },
-                    ),
-                  ),
-                );
-                if (wideFilters) {
+                if (fc.maxWidth >= 520) {
                   return Row(
                     children: [
                       Expanded(child: _waitingQueueSearchField(colorScheme)),
                       const SizedBox(width: 12),
-                      statusFilter,
-                      const SizedBox(width: 12),
-                      roomFilter,
+                      filterButton,
                     ],
                   );
                 }
@@ -668,31 +651,134 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                   children: [
                     _waitingQueueSearchField(colorScheme),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(child: statusFilter),
-                        const SizedBox(width: 10),
-                        Expanded(child: roomFilter),
-                      ],
-                    ),
+                    filterButton,
                   ],
                 );
               },
             ),
           ),
+          Visibility(
+            visible: _filtersExpanded,
+            maintainState: true,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.22,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colorScheme.outline.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: LayoutBuilder(
+                  builder: (context, fc) {
+                    final wideFilters = fc.maxWidth >= 680;
+                    final statusFilter = DropdownButtonFormField<String>(
+                      initialValue: _draftStatusFilter,
+                      decoration: const InputDecoration(
+                        labelText: 'Status',
+                        prefixIcon: Icon(Icons.assignment_outlined, size: 18),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: <String>['Unassigned', 'Assigned', 'All']
+                          .map(
+                            (status) => DropdownMenuItem(
+                              value: status,
+                              child: Text(status),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _draftStatusFilter = value);
+                      },
+                    );
+                    final roomFilter =
+                        DropdownButtonFormField<ConsultingRoomModel?>(
+                          initialValue: _draftFilterRoom,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Consulting room',
+                            prefixIcon: Icon(
+                              Icons.meeting_room_outlined,
+                              size: 18,
+                            ),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: [
+                            const DropdownMenuItem<ConsultingRoomModel?>(
+                              value: null,
+                              child: Text('All rooms'),
+                            ),
+                            ..._consultingRooms.map(
+                              (room) => DropdownMenuItem<ConsultingRoomModel?>(
+                                value: room,
+                                child: Text(
+                                  room.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() => _draftFilterRoom = value);
+                          },
+                        );
+                    final selectFilters = wideFilters
+                        ? Row(
+                            children: [
+                              Expanded(child: statusFilter),
+                              const SizedBox(width: 12),
+                              Expanded(child: roomFilter),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              statusFilter,
+                              const SizedBox(height: 12),
+                              roomFilter,
+                            ],
+                          );
 
-          FromToDateFilter(
-            doRefresh: () => _loadPage(reset: true),
-            dateFilter: true,
-            onFilterChanged:
-                (String query, String category, DateTime? from, DateTime? to) {
-                  setState(() {
-                    _fromDate = from;
-                    _toDate = to;
-                    _currentPage = 0;
-                  });
-                  _loadPage(reset: true);
-                },
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Filter waiting patients',
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        selectFilters,
+                        const SizedBox(height: 12),
+                        FromToDateFilter(
+                          doRefresh: () {},
+                          dateFilter: true,
+                          onFilterChanged: _updateDraftDateFilter,
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton.icon(
+                            onPressed: _applyQueueFilters,
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text('Apply filters'),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
           Expanded(
             child: LayoutBuilder(
@@ -800,30 +886,48 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                                           flex: 5,
                                           child: Row(
                                             children: [
-                                              CircleAvatar(
-                                                radius: 16,
-                                                backgroundColor: isUnassigned
-                                                    ? colorScheme.primary
-                                                          .withValues(
-                                                            alpha: 0.1,
-                                                          )
-                                                    : Colors.grey.withValues(
-                                                        alpha: 0.1,
-                                                      ),
-                                                child: Text(
-                                                  displayName.trim().substring(
-                                                    0,
-                                                    1,
-                                                  ),
-                                                  style: TextStyle(
-                                                    color: isUnassigned
-                                                        ? colorScheme.primary
-                                                        : Colors.grey,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
+                                              patient != null
+                                                  ? PatientAvatar.fromPatient(
+                                                      patient,
+                                                      size: 32,
+                                                      backgroundColor:
+                                                          isUnassigned
+                                                          ? colorScheme.primary
+                                                                .withValues(
+                                                                  alpha: 0.1,
+                                                                )
+                                                          : Colors.grey
+                                                                .withValues(
+                                                                  alpha: 0.1,
+                                                                ),
+                                                      foregroundColor:
+                                                          isUnassigned
+                                                          ? colorScheme.primary
+                                                          : Colors.grey,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    )
+                                                  : PatientAvatar(
+                                                      firstName: displayName
+                                                          .trim(),
+                                                      size: 32,
+                                                      backgroundColor:
+                                                          isUnassigned
+                                                          ? colorScheme.primary
+                                                                .withValues(
+                                                                  alpha: 0.1,
+                                                                )
+                                                          : Colors.grey
+                                                                .withValues(
+                                                                  alpha: 0.1,
+                                                                ),
+                                                      foregroundColor:
+                                                          isUnassigned
+                                                          ? colorScheme.primary
+                                                          : Colors.grey,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
                                               const SizedBox(width: 12),
                                               Text(
                                                 displayName,
@@ -1186,9 +1290,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final patient = waiting.patient;
-    final displayName = patient != null
-        ? patient.displayName
-        : 'Unknown';
+    final displayName = patient != null ? patient.displayName : 'Unknown';
     final patientCode = patient?.patientId ?? waiting.patientId;
     final gender = patient?.gender ?? '—';
     final ageYears = patient != null
@@ -1229,20 +1331,25 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
-                    child: Text(
-                      displayName.trim().isEmpty
-                          ? '?'
-                          : displayName.trim().substring(0, 1),
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  patient != null
+                      ? PatientAvatar.fromPatient(
+                          patient,
+                          size: 44,
+                          backgroundColor: colorScheme.primary.withValues(
+                            alpha: 0.2,
+                          ),
+                          foregroundColor: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        )
+                      : PatientAvatar(
+                          firstName: displayName.trim(),
+                          size: 44,
+                          backgroundColor: colorScheme.primary.withValues(
+                            alpha: 0.2,
+                          ),
+                          foregroundColor: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -1283,20 +1390,25 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
-                    child: Text(
-                      displayName.trim().isEmpty
-                          ? '?'
-                          : displayName.trim().substring(0, 1),
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  patient != null
+                      ? PatientAvatar.fromPatient(
+                          patient,
+                          size: 48,
+                          backgroundColor: colorScheme.primary.withValues(
+                            alpha: 0.2,
+                          ),
+                          foregroundColor: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        )
+                      : PatientAvatar(
+                          firstName: displayName.trim(),
+                          size: 48,
+                          backgroundColor: colorScheme.primary.withValues(
+                            alpha: 0.2,
+                          ),
+                          foregroundColor: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
@@ -1587,31 +1699,31 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                     const SizedBox(height: 12),
                   ],
                   ElevatedButton.icon(
-                onPressed: _sending
-                    ? null
-                    : () async {
-                        await _sendToConsulting(waiting);
-                      },
-                icon: const Icon(
-                  Icons.send_rounded,
-                  size: 18,
-                  color: Colors.white,
-                ),
-                label: Text(
-                  _sendButtonLabel(waiting),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                    onPressed: _sending
+                        ? null
+                        : () async {
+                            await _sendToConsulting(waiting);
+                          },
+                    icon: const Icon(
+                      Icons.send_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                    label: Text(
+                      _sendButtonLabel(waiting),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
                 ],
               ),
             ),

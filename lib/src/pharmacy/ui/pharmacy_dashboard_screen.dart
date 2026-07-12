@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../models/pharmacy_dashboard_model.dart';
@@ -240,33 +241,38 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _bootstrap,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              _buildHeader(theme),
-              const SizedBox(height: 18),
-              _buildFilterBar(theme),
-              const SizedBox(height: 18),
-              if (_isLoading && _dashboard == null)
-                const Center(child: CircularProgressIndicator())
-              else if (_error != null && _dashboard == null)
-                _errorCard(_error!)
-              else if (_dashboard != null)
-                ..._buildDashboardBody(theme, _dashboard!),
-            ],
+          child: ResponsiveBody(
+            builder: (context, bp) => ListView(
+              children: [
+                _buildHeader(theme, bp),
+                const SizedBox(height: 18),
+                _buildFilterBar(theme),
+                const SizedBox(height: 18),
+                if (_isLoading && _dashboard == null)
+                  const Center(child: CircularProgressIndicator())
+                else if (_error != null && _dashboard == null)
+                  _errorCard(_error!)
+                else if (_dashboard != null)
+                  ..._buildDashboardBody(theme, _dashboard!, bp),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildDashboardBody(ThemeData theme, PharmacyDashboardData data) {
+  List<Widget> _buildDashboardBody(
+    ThemeData theme,
+    PharmacyDashboardData data,
+    AppBreakpoints bp,
+  ) {
     return [
-      _buildKpiGrid(theme, _buildKpis(data.summary)),
+      _buildKpiGrid(theme, _buildKpis(data.summary), bp),
       const SizedBox(height: 18),
-      _buildOperationsRow(theme, data),
+      _buildOperationsRow(theme, data, bp),
       const SizedBox(height: 18),
-      _buildBottomRow(theme, data),
+      _buildBottomRow(theme, data, bp),
       if (_error != null) ...[
         const SizedBox(height: 12),
         _errorCard(_error!),
@@ -274,44 +280,54 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     ];
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, AppBreakpoints bp) {
+    final updated = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Text(
+        'Updated ${DateFormat.Hm().format(_lastUpdated)}',
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: const Color(0xFF475569),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pharmacy Dashboard',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Live pharmacy operations, inventory and revenue insights.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: const Color(0xFF64748B),
+          ),
+        ),
+      ],
+    );
+    if (bp.stackPanels) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          title,
+          const SizedBox(height: 12),
+          updated,
+        ],
+      );
+    }
     return Row(
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pharmacy Dashboard',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Live pharmacy operations, inventory and revenue insights.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Text(
-            'Updated ${DateFormat.Hm().format(_lastUpdated)}',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF475569),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
+        Expanded(child: title),
+        updated,
       ],
     );
   }
@@ -462,13 +478,18 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  Widget _buildKpiGrid(ThemeData theme, List<_KpiMetric> kpis) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: kpis
-          .map((kpi) => SizedBox(width: 260, child: _kpiCard(theme, kpi)))
-          .toList(),
+  Widget _buildKpiGrid(
+    ThemeData theme,
+    List<_KpiMetric> kpis,
+    AppBreakpoints bp,
+  ) {
+    return ResponsiveWrapGrid(
+      mobileColumns: 1,
+      tabletColumns: 2,
+      desktopColumns: 3,
+      spacing: bp.kpiSpacing,
+      runSpacing: bp.kpiSpacing,
+      children: kpis.map((kpi) => _kpiCard(theme, kpi)).toList(),
     );
   }
 
@@ -511,25 +532,23 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  Widget _buildOperationsRow(ThemeData theme, PharmacyDashboardData data) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _panel(
-            title: 'Order Status Breakdown',
-            child: _statusBars(theme, data.orderStatuses),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 2,
-          child: _panel(
-            title: 'Top-Selling Medications',
-            child: _topSellingTable(data.topSelling),
-          ),
-        ),
-      ],
+  Widget _buildOperationsRow(
+    ThemeData theme,
+    PharmacyDashboardData data,
+    AppBreakpoints bp,
+  ) {
+    return ResponsiveRowColumn(
+      gap: 12,
+      firstFlex: 1,
+      secondFlex: 2,
+      first: _panel(
+        title: 'Order Status Breakdown',
+        child: _statusBars(theme, data.orderStatuses),
+      ),
+      second: _panel(
+        title: 'Top-Selling Medications',
+        child: _topSellingTable(data.topSelling),
+      ),
     );
   }
 
@@ -597,8 +616,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     if (rows.isEmpty) {
       return const Text('No top-selling medication data available.');
     }
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return ResponsiveDataTable(
       child: DataTable(
         headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
         columns: const [
@@ -631,57 +649,54 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  Widget _buildBottomRow(ThemeData theme, PharmacyDashboardData data) {
+  Widget _buildBottomRow(
+    ThemeData theme,
+    PharmacyDashboardData data,
+    AppBreakpoints bp,
+  ) {
     final points = data.revenueTrend.map((e) => e.netRevenue).toList();
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _panel(
-            title: 'Revenue Trend (Net Revenue)',
-            child: SizedBox(
-              height: 170,
-              child: points.length < 2
-                  ? const Center(child: Text('No revenue trend data.'))
-                  : CustomPaint(
-                      painter: _SparklinePainter(
-                        points: points,
-                        color: const Color(0xFF4F46E5),
-                        fillArea: true,
-                      ),
-                    ),
-            ),
-          ),
+    return ResponsiveRowColumn(
+      gap: 12,
+      first: _panel(
+        title: 'Revenue Trend (Net Revenue)',
+        child: SizedBox(
+          height: 170,
+          child: points.length < 2
+              ? const Center(child: Text('No revenue trend data.'))
+              : CustomPaint(
+                  painter: _SparklinePainter(
+                    points: points,
+                    color: const Color(0xFF4F46E5),
+                    fillArea: true,
+                  ),
+                ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _panel(
-            title: 'Safety & Compliance Alerts',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _MiniAlertTile(
-                  title: 'Total alerts',
-                  value: data.safety.totalAlerts.toString(),
-                  color: const Color(0xFFDC2626),
-                ),
-                const SizedBox(height: 10),
-                _MiniAlertTile(
-                  title: 'High-severity alerts',
-                  value: data.safety.highSeverityAlerts.toString(),
-                  color: const Color(0xFFB91C1C),
-                ),
-                const SizedBox(height: 10),
-                _MiniAlertTile(
-                  title: 'Overridden alerts',
-                  value: data.safety.overriddenAlerts.toString(),
-                  color: const Color(0xFFF59E0B),
-                ),
-              ],
+      ),
+      second: _panel(
+        title: 'Safety & Compliance Alerts',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _MiniAlertTile(
+              title: 'Total alerts',
+              value: data.safety.totalAlerts.toString(),
+              color: const Color(0xFFDC2626),
             ),
-          ),
+            const SizedBox(height: 10),
+            _MiniAlertTile(
+              title: 'High-severity alerts',
+              value: data.safety.highSeverityAlerts.toString(),
+              color: const Color(0xFFB91C1C),
+            ),
+            const SizedBox(height: 10),
+            _MiniAlertTile(
+              title: 'Overridden alerts',
+              value: data.safety.overriddenAlerts.toString(),
+              color: const Color(0xFFF59E0B),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

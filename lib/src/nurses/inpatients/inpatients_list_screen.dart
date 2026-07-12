@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -426,6 +427,11 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       ),
       itemBuilder: (context, index) {
         final row = _filteredRows[index];
+        final nameParts = row.name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((p) => p.isNotEmpty)
+            .toList();
         return InkWell(
           onTap: () => _openInpatientView(row),
           child: Padding(
@@ -436,18 +442,16 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                   flex: 3,
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 16,
+                      PatientAvatar(
+                        firstName:
+                            nameParts.isNotEmpty ? nameParts.first : null,
+                        surname: nameParts.length > 1 ? nameParts.last : null,
+                        size: 32,
                         backgroundColor: colorScheme.primary.withValues(
                           alpha: 0.12,
                         ),
-                        child: Text(
-                          row.initials,
-                          style: TextStyle(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        foregroundColor: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -585,6 +589,11 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final row = _filteredRows[index];
+        final nameParts = row.name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((p) => p.isNotEmpty)
+            .toList();
         return Material(
           elevation: 0,
           color: colorScheme.surface,
@@ -603,18 +612,16 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 18,
+                      PatientAvatar(
+                        firstName:
+                            nameParts.isNotEmpty ? nameParts.first : null,
+                        surname: nameParts.length > 1 ? nameParts.last : null,
+                        size: 36,
                         backgroundColor: colorScheme.primary.withValues(
                           alpha: 0.12,
                         ),
-                        child: Text(
-                          row.initials,
-                          style: TextStyle(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        foregroundColor: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
                       ),
                       const SizedBox(width: 12),
                       Expanded(

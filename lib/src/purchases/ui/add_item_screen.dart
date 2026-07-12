@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../pharmacy/inputs/morden.form.inpts.dart';
 import '../models/purchases_model.dart';
@@ -155,134 +156,126 @@ class _PurchasesAddItemScreenState extends State<PurchasesAddItemScreen> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                ModernTextField(
-                  label: 'Item Name',
-                  hint: 'e.g., Surgical Masks (Box of 50)',
-                  controller: _itemNameCtrl,
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'SKU',
-                        hint: 'Optional stock keeping unit',
-                        controller: _skuCtrl,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Category',
-                        hint: 'e.g., Medical Supplies',
-                        controller: _categoryCtrl,
-                      ),
-                    ),
-                  ],
-                ),
-                ModernTextField(
-                  label: 'Description',
-                  hint: 'Optional item description',
-                  controller: _descriptionCtrl,
-                ),
-                ModernTextField(
-                  label: 'Unit of Measure',
-                  hint: 'e.g., box, piece, pack',
-                  controller: _unitCtrl,
-                ),
-                if (_manufacturers.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _selectedManufacturerId,
-                      decoration: const InputDecoration(
-                        labelText: 'PurchasesManufacturer',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem<String>(
-                          value: null,
-                          child: Text('None'),
-                        ),
-                        ..._manufacturers.map(
-                          (m) => DropdownMenuItem<String>(
-                            value: m.id,
-                            child: Text(m.name),
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _selectedManufacturerId = v),
-                    ),
+      body: ResponsiveBody(
+        builder: (context, bp) => Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              ModernTextField(
+                label: 'Item Name',
+                hint: 'e.g., Surgical Masks (Box of 50)',
+                controller: _itemNameCtrl,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
+              ),
+              ResponsiveWrapGrid(
+                mobileColumns: 1,
+                tabletColumns: 2,
+                desktopColumns: 2,
+                children: [
+                  ModernTextField(
+                    label: 'SKU',
+                    hint: 'Optional stock keeping unit',
+                    controller: _skuCtrl,
                   ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Reorder Level',
-                        hint: 'Minimum stock threshold',
-                        controller: _reorderLevelCtrl,
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Reorder Quantity',
-                        hint: 'Default reorder amount',
-                        controller: _reorderQtyCtrl,
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                ModernTextField(
-                  label: 'Selling Price (catalog)',
-                  hint: '0.00 — leave 0 for free items',
-                  controller: _sellingPriceCtrl,
-                  icon: Icons.sell_outlined,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                  ModernTextField(
+                    label: 'Category',
+                    hint: 'e.g., Medical Supplies',
+                    controller: _categoryCtrl,
                   ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return null;
-                    final n = double.tryParse(v.replaceAll(',', '.'));
-                    if (n == null) return 'Invalid price';
-                    if (n < 0) return 'Must not be negative';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(
-                          widget.existingItem != null
-                              ? 'Update Item'
-                              : 'Save Item',
+                ],
+              ),
+              ModernTextField(
+                label: 'Description',
+                hint: 'Optional item description',
+                controller: _descriptionCtrl,
+              ),
+              ModernTextField(
+                label: 'Unit of Measure',
+                hint: 'e.g., box, piece, pack',
+                controller: _unitCtrl,
+              ),
+              if (_manufacturers.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _selectedManufacturerId,
+                    decoration: const InputDecoration(
+                      labelText: 'PurchasesManufacturer',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('None'),
+                      ),
+                      ..._manufacturers.map(
+                        (m) => DropdownMenuItem<String>(
+                          value: m.id,
+                          child: Text(m.name),
                         ),
+                      ),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _selectedManufacturerId = v),
+                  ),
                 ),
-              ],
-            ),
+              ResponsiveWrapGrid(
+                mobileColumns: 1,
+                tabletColumns: 2,
+                desktopColumns: 2,
+                children: [
+                  ModernTextField(
+                    label: 'Reorder Level',
+                    hint: 'Minimum stock threshold',
+                    controller: _reorderLevelCtrl,
+                    keyboardType: TextInputType.number,
+                  ),
+                  ModernTextField(
+                    label: 'Reorder Quantity',
+                    hint: 'Default reorder amount',
+                    controller: _reorderQtyCtrl,
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
+              ),
+              ModernTextField(
+                label: 'Selling Price (catalog)',
+                hint: '0.00 — leave 0 for free items',
+                controller: _sellingPriceCtrl,
+                icon: Icons.sell_outlined,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null;
+                  final n = double.tryParse(v.replaceAll(',', '.'));
+                  if (n == null) return 'Invalid price';
+                  if (n < 0) return 'Must not be negative';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _submitForm,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        widget.existingItem != null
+                            ? 'Update Item'
+                            : 'Save Item',
+                      ),
+              ),
+            ],
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/encounter_edit_meta.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/services/encounter_service.dart';
@@ -125,7 +126,10 @@ class _EncounterEditHistoryDetailScreenState
                     ),
                   ),
                 )
-              : _buildBody(context, theme, scheme),
+              : ResponsiveBody(
+                  center: false,
+                  builder: (context, bp) => _buildBody(context, theme, scheme),
+                ),
     );
   }
 
@@ -138,7 +142,7 @@ class _EncounterEditHistoryDetailScreenState
     final snap = detail.snapshot.encounter;
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.zero,
       children: [
         Text(
           DateFormatter.dateTime(detail.editedAt),

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
@@ -250,9 +251,12 @@ class _DoctorEncounterDiagnosisTabState
 
     final readOnly = !scope.canEdit;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: AbsorbPointer(
+    return ResponsiveBody(
+      center: false,
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        padding: EdgeInsets.zero,
+        child: AbsorbPointer(
         absorbing: readOnly,
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -395,6 +399,7 @@ class _DoctorEncounterDiagnosisTabState
         ],
         ),
       ),
+    ),
     );
   }
 

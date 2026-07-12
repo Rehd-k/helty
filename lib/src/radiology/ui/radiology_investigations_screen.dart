@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/extensions/number.extention.dart';
@@ -168,7 +169,9 @@ class _RadiologyInvestigationsScreenState
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => RefreshIndicator(
         onRefresh: () async => _refresh(),
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -258,6 +261,7 @@ class _RadiologyInvestigationsScreenState
             ),
           ],
         ),
+      ),
       ),
     );
   }

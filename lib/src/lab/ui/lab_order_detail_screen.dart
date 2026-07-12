@@ -1,5 +1,6 @@
-﻿import 'package:auto_route/auto_route.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
@@ -133,7 +134,9 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => RefreshIndicator(
         onRefresh: _refreshOrder,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -179,6 +182,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -334,9 +338,9 @@ class _OrderInfoCard extends StatelessWidget {
             const SizedBox(height: 16),
             _InfoRow(
               label: 'Patient',
-              value: order.patient?.displayName ?? '—',
+              value: order.patient?.displayName ?? '?',
             ),
-            _InfoRow(label: 'Doctor', value: order.doctor?.displayName ?? '—'),
+            _InfoRow(label: 'Doctor', value: order.doctor?.displayName ?? '?'),
             if (order.createdAt != null)
               _InfoRow(
                 label: 'Created',

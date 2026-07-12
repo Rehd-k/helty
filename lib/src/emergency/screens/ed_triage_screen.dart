@@ -11,6 +11,7 @@ import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/clinical_specialty_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
+import 'package:helty/src/core/responsive.dart';
 
 @RoutePage()
 class EdTriageScreen extends ConsumerStatefulWidget {
@@ -229,114 +230,97 @@ class _EdTriageScreenState extends ConsumerState<EdTriageScreen> {
       appBar: AppBar(title: Text('Triage — $patientName')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  Text(
-                    'Vitals',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+          : ResponsiveBody(
+              maxWidth: 720,
+              builder: (context, bp) => Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    Text(
+                      'Vitals',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _systolicCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Systolic BP',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
+                    SizedBox(height: bp.isMobile ? 8 : 12),
+                    ResponsiveRowColumn(
+                      stackWhenWidthBelow: 500,
+                      first: TextFormField(
+                        controller: _systolicCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Systolic BP',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      second: TextFormField(
+                        controller: _diastolicCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Diastolic BP',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    SizedBox(height: bp.isMobile ? 8 : 12),
+                    ResponsiveRowColumn(
+                      stackWhenWidthBelow: 500,
+                      first: TextFormField(
+                        controller: _pulseCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Pulse',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      second: TextFormField(
+                        controller: _tempCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Temp (°C)',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _diastolicCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Diastolic BP',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
+                    ),
+                    SizedBox(height: bp.isMobile ? 8 : 12),
+                    ResponsiveRowColumn(
+                      stackWhenWidthBelow: 500,
+                      first: TextFormField(
+                        controller: _spo2Ctrl,
+                        decoration: const InputDecoration(
+                          labelText: 'SpO2 (%)',
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _pulseCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Pulse',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
                         ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return null;
+                          final n = double.tryParse(v.trim());
+                          if (n == null || n < 0 || n > 100) {
+                            return '0–100';
+                          }
+                          return null;
+                        },
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _tempCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Temp (°C)',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
+                      second: TextFormField(
+                        controller: _painCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Pain (0–10)',
+                          border: OutlineInputBorder(),
                         ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return null;
+                          final n = int.tryParse(v.trim());
+                          if (n == null || n < 0 || n > 10) {
+                            return '0–10';
+                          }
+                          return null;
+                        },
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _spo2Ctrl,
-                          decoration: const InputDecoration(
-                            labelText: 'SpO2 (%)',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return null;
-                            final n = double.tryParse(v.trim());
-                            if (n == null || n < 0 || n > 100) {
-                              return '0–100';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _painCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Pain (0–10)',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return null;
-                            final n = int.tryParse(v.trim());
-                            if (n == null || n < 0 || n > 10) {
-                              return '0–10';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _vitalsNotesCtrl,
@@ -407,6 +391,7 @@ class _EdTriageScreenState extends ConsumerState<EdTriageScreen> {
                 ],
               ),
             ),
+          ),
     );
   }
 }

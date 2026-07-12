@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/enlist_services/select.user.dart';
 import 'package:helty/src/enlist_services/selected.user.dart';
 import 'package:helty/src/paitients/patient_model.dart';
@@ -136,44 +137,46 @@ class _PatientSelectActionLayoutState
     final patients = patientState.patients;
     final selectedPatient = patientState.selectedPatient;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 1100;
-        final selectUser = _buildSelectUser(patients, isWide: isWide);
+    return FlexPanel(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= AppBreakpoints.desktopMin;
+          final selectUser = _buildSelectUser(patients, isWide: isWide);
 
-        return Padding(
-          padding: widget.padding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (widget.title != null) ...[
-                Text(
-                  widget.title!,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (widget.subtitle != null) ...[
-                  const SizedBox(height: 4),
+          return Padding(
+            padding: widget.padding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.title != null) ...[
                   Text(
-                    widget.subtitle!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.7),
+                    widget.title!,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                  if (widget.subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.subtitle!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
                 ],
-                const SizedBox(height: 20),
+                if (widget.topBar != null) widget.topBar!,
+                Expanded(
+                  child: isWide
+                      ? _buildWideLayout(selectUser, selectedPatient)
+                      : _buildNarrowLayout(selectUser, selectedPatient),
+                ),
               ],
-              if (widget.topBar != null) widget.topBar!,
-              Expanded(
-                child: isWide
-                    ? _buildWideLayout(selectUser, selectedPatient)
-                    : _buildNarrowLayout(selectUser, selectedPatient),
-              ),
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 }

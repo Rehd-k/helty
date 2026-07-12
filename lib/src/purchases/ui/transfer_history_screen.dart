@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import '../../helper/date.formatter.dart';
 import '../models/purchases_model.dart';
 import '../services/purchases_service.dart';
@@ -95,9 +96,8 @@ class _PurchasesTransferHistoryScreenState
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Wrap(
@@ -128,8 +128,7 @@ class _PurchasesTransferHistoryScreenState
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
                   ? const Center(child: Text('No transfer history found.'))
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                  : ResponsiveDataTable(
                       child: DataTable(
                         columns: const [
                           DataColumn(label: Text('Date')),

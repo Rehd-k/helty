@@ -1,5 +1,6 @@
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/discount_policy_models.dart';
 import 'package:helty/src/services/discount_policy_service.dart';
 
@@ -150,12 +151,14 @@ class _DiscountPolicyManagementScreenState
           IconButton(onPressed: () => _upsert(), icon: const Icon(Icons.add)),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(child: Text(_error!))
+                : ListView.separated(
+                    padding: EdgeInsets.zero,
                   itemBuilder: (context, index) {
                     final p = _items[index];
                     return ListTile(
@@ -179,6 +182,7 @@ class _DiscountPolicyManagementScreenState
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemCount: _items.length,
                 ),
+      ),
     );
   }
 }

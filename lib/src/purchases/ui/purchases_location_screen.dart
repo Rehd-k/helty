@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../models/purchases_model.dart';
@@ -292,24 +293,18 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 320, child: _buildFormPanel()),
-            const SizedBox(width: 24),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildTopBar(),
-                  const SizedBox(height: 24),
-                  Expanded(child: _buildLocationsGrid()),
-                ],
-              ),
-            ),
-          ],
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => ResponsiveRowColumn(
+          first: _buildFormPanel(),
+          second: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildTopBar(),
+              const SizedBox(height: 24),
+              Expanded(child: _buildLocationsGrid()),
+            ],
+          ),
         ),
       ),
     );
@@ -664,17 +659,15 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
         ),
       );
     }
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 400,
-        childAspectRatio: 1.5,
-        crossAxisSpacing: 24,
-        mainAxisSpacing: 24,
+    return SingleChildScrollView(
+      child: ResponsiveWrapGrid(
+        mobileColumns: 1,
+        tabletColumns: 2,
+        desktopColumns: 3,
+        children: _filteredLocations
+            .map((location) => _buildLocationCard(location))
+            .toList(),
       ),
-      itemCount: _filteredLocations.length,
-      itemBuilder: (context, index) {
-        return _buildLocationCard(_filteredLocations[index]);
-      },
     );
   }
 

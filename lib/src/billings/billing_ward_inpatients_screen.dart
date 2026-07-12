@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/models/ward_models.dart';
-import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/ward_service.dart';
 
 bool _looksLikeUuid(String s) {
@@ -127,9 +128,9 @@ class _BillingWardInpatientsScreenState
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openPatientBilling(InpatientCensus row) async {
@@ -152,10 +153,7 @@ class _BillingWardInpatientsScreenState
           );
       if (!mounted) return;
       await context.router.push(
-        PatientBillingRoute(
-          invoiceId: invoice.id,
-          patientName: row.name,
-        ),
+        PatientBillingRoute(invoiceId: invoice.id, patientName: row.name),
       );
     } catch (e) {
       _showError('Failed to open billing: $e');
@@ -171,31 +169,26 @@ class _BillingWardInpatientsScreenState
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < kInpatientCompactBreakpoint;
-            final pad = compact ? 16.0 : 24.0;
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          final compact = bp.isMobile;
 
-            return Padding(
-              padding: EdgeInsets.all(pad),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildTitleSection(colorScheme, totalCount, compact),
-                  SizedBox(height: compact ? 16 : 24),
-                  _buildFilterSection(colorScheme, compact),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: compact
-                        ? _buildCompactPatientList(colorScheme)
-                        : _buildWidePatientTable(colorScheme),
-                  ),
-                ],
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildTitleSection(colorScheme, totalCount, compact),
+              SizedBox(height: compact ? 16 : 24),
+              _buildFilterSection(colorScheme, compact),
+              const SizedBox(height: 16),
+              Expanded(
+                child: compact
+                    ? _buildCompactPatientList(colorScheme)
+                    : _buildWidePatientTable(colorScheme),
               ),
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -655,16 +648,18 @@ class _BillingWardInpatientsScreenState
   }
 
   Widget _patientAvatar(InpatientCensus row, ColorScheme colorScheme) {
-    return CircleAvatar(
-      radius: 16,
+    final nameParts = row.name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    return PatientAvatar(
+      firstName: nameParts.isNotEmpty ? nameParts.first : null,
+      surname: nameParts.length > 1 ? nameParts.last : null,
+      size: 32,
       backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-      child: Text(
-        row.initials,
-        style: TextStyle(
-          color: colorScheme.primary,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      foregroundColor: colorScheme.primary,
+      fontWeight: FontWeight.bold,
     );
   }
 }

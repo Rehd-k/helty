@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/errors/app_exception.dart';
 import '../models/server_time_model.dart';
 import 'server_time_service.dart';
 
@@ -46,12 +47,13 @@ class ApiEndpointSelector {
           failures.add('$baseUrl: $e');
           pending--;
           if (pending == 0 && !completer.isCompleted) {
-            completer.completeError(
-              Exception(
-                'None of the configured servers responded.\n'
+            if (kDebugMode) {
+              debugPrint(
+                'ApiEndpointSelector: none of the configured servers responded.\n'
                 '${failures.join('\n')}',
-              ),
-            );
+              );
+            }
+            completer.completeError(const NetworkException());
           }
         }),
       );

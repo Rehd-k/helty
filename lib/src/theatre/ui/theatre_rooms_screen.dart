@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/auth/theatre_permissions.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
@@ -133,23 +134,28 @@ class _TheatreRoomsScreenState extends ConsumerState<TheatreRoomsScreen> {
               label: const Text('Add room'),
             )
           : null,
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(_error!),
-                  const SizedBox(height: 16),
-                  FilledButton(onPressed: _load, child: const Text('Retry')),
-                ],
-              ),
-            )
-          : _rooms.isEmpty
-          ? const Center(child: Text('No theatre rooms configured'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(_error!),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _load,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _rooms.isEmpty
+                    ? const Center(child: Text('No theatre rooms configured'))
+                    : ListView.separated(
+                        padding: EdgeInsets.zero,
               itemCount: _rooms.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
@@ -168,6 +174,7 @@ class _TheatreRoomsScreenState extends ConsumerState<TheatreRoomsScreen> {
                 );
               },
             ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/dialysis/models/dialysis_models.dart';
 import 'package:helty/src/dialysis/providers/dialysis_providers.dart';
@@ -152,13 +153,12 @@ class _DialysisDashboardScreenState extends ConsumerState<DialysisDashboardScree
             ),
           ),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: Column(
+            child: ResponsiveBody(
+              builder: (context, bp) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildSummaryRow(theme),
-                  const SizedBox(height: 24),
+                  SizedBox(height: bp.isMobile ? 16 : 24),
                   _buildSessionsSection(context, theme),
                 ],
               ),
@@ -220,32 +220,11 @@ class _DialysisDashboardScreenState extends ConsumerState<DialysisDashboardScree
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 720) {
-          return SizedBox(
-            height: 130,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: cards.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => SizedBox(width: 200, child: cards[i]),
-            ),
-          );
-        }
-        return Row(
-          children: cards
-              .map(
-                (c) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: c,
-                  ),
-                ),
-              )
-              .toList(),
-        );
-      },
+    return ResponsiveWrapGrid(
+      mobileColumns: 1,
+      tabletColumns: 2,
+      desktopColumns: 4,
+      children: cards,
     );
   }
 

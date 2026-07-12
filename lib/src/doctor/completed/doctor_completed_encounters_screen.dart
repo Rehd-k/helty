@@ -2,6 +2,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
@@ -243,7 +245,7 @@ class _DoctorCompletedEncountersScreenState
 
     final filtered = _filteredEncounters;
 
-    Widget listSliver() {
+    Widget listSliver(AppBreakpoints bp) {
       if (_loading && _encounters.isEmpty) {
         return SliverFillRemaining(
           hasScrollBody: false,
@@ -322,7 +324,7 @@ class _DoctorCompletedEncountersScreenState
         );
       }
       return SliverPadding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        padding: const EdgeInsets.only(top: 16),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, index) {
@@ -339,16 +341,21 @@ class _DoctorCompletedEncountersScreenState
                     horizontal: 20,
                     vertical: 12,
                   ),
-                  leading: CircleAvatar(
-                    backgroundColor: colorScheme.primaryContainer,
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                  leading: patient != null
+                      ? PatientAvatar.fromPatient(
+                          patient,
+                          size: 40,
+                          backgroundColor: colorScheme.primaryContainer,
+                          foregroundColor: colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w600,
+                        )
+                      : PatientAvatar(
+                          firstName: name.trim(),
+                          size: 40,
+                          backgroundColor: colorScheme.primaryContainer,
+                          foregroundColor: colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
                   title: Text(
                     name.trim(),
                     style: const TextStyle(fontWeight: FontWeight.w600),
@@ -414,14 +421,15 @@ class _DoctorCompletedEncountersScreenState
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadEncounters,
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      bottomPadding: 24,
+      builder: (context, bp) => RefreshIndicator(
+        onRefresh: _loadEncounters,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -466,59 +474,111 @@ class _DoctorCompletedEncountersScreenState
                     ),
                   ],
                   const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          controller: _searchCtrl,
-                          decoration: InputDecoration(
-                            hintText:
-                                'Search by patient, doctor, ID, or chief complaint',
-                            prefixIcon: Icon(
-                              Icons.search,
-                              size: 20,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            isDense: true,
+                  if (bp.isMobile) ...[
+                    TextField(
+                      controller: _searchCtrl,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Search by patient, doctor, ID, or chief complaint',
+                        prefixIcon: Icon(
+                          Icons.search,
+                          size: 20,
+                          color: colorScheme.onSurface.withValues(
+                            alpha: 0.6,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      TextButton.icon(
-                        onPressed: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: _filterDate ?? DateTime.now(),
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime.now(),
-                          );
-                          if (date != null && mounted) {
-                            setState(() => _filterDate = date);
-                          }
-                        },
-                        icon: const Icon(Icons.calendar_today, size: 18),
-                        label: Text(
-                          _filterDate != null
-                              ? DateFormat.yMMMd().format(_filterDate!)
-                              : 'Filter by date',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        isDense: true,
                       ),
-                      if (_filterDate != null) ...[
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: () => setState(() => _filterDate = null),
-                          icon: const Icon(Icons.clear),
-                          tooltip: 'Clear date filter',
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _filterDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (date != null && mounted) {
+                              setState(() => _filterDate = date);
+                            }
+                          },
+                          icon: const Icon(Icons.calendar_today, size: 18),
+                          label: Text(
+                            _filterDate != null
+                                ? DateFormat.yMMMd().format(_filterDate!)
+                                : 'Filter by date',
+                          ),
                         ),
+                        if (_filterDate != null)
+                          IconButton(
+                            onPressed: () => setState(() => _filterDate = null),
+                            icon: const Icon(Icons.clear),
+                            tooltip: 'Clear date filter',
+                          ),
                       ],
-                    ],
-                  ),
+                    ),
+                  ] else
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _searchCtrl,
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Search by patient, doctor, ID, or chief complaint',
+                              prefixIcon: Icon(
+                                Icons.search,
+                                size: 20,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _filterDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (date != null && mounted) {
+                              setState(() => _filterDate = date);
+                            }
+                          },
+                          icon: const Icon(Icons.calendar_today, size: 18),
+                          label: Text(
+                            _filterDate != null
+                                ? DateFormat.yMMMd().format(_filterDate!)
+                                : 'Filter by date',
+                          ),
+                        ),
+                        if (_filterDate != null) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => setState(() => _filterDate = null),
+                            icon: const Icon(Icons.clear),
+                            tooltip: 'Clear date filter',
+                          ),
+                        ],
+                      ],
+                    ),
                   const SizedBox(height: 12),
                   FromToDateFilter(
                     doRefresh: () {},
@@ -539,9 +599,9 @@ class _DoctorCompletedEncountersScreenState
                 ],
               ),
             ),
-          ),
-          listSliver(),
-        ],
+            listSliver(bp),
+          ],
+        ),
       ),
     );
   }

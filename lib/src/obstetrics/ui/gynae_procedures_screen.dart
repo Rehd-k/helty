@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
@@ -138,7 +139,10 @@ class _ObstetricsGynaeProceduresScreenState
       );
     }
 
-    final listBody = _loading && _procedures.isEmpty
+    final listBody = ResponsiveBody(
+      center: false,
+      bottomPadding: 0,
+      builder: (context, bp) => _loading && _procedures.isEmpty
         ? const SizedBox(
             height: 200,
             child: Center(child: CircularProgressIndicator()),
@@ -187,7 +191,8 @@ class _ObstetricsGynaeProceduresScreenState
                     ),
                   const SizedBox(height: 80),
                 ],
-              );
+              ),
+    );
 
     return ObListScaffold(
       title: 'Gynaecology',

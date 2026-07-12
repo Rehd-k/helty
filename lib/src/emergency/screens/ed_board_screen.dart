@@ -9,6 +9,7 @@ import 'package:helty/src/emergency/utils/ed_role_helper.dart';
 import 'package:helty/src/emergency/utils/ed_workflow_helper.dart';
 import 'package:helty/src/emergency/widgets/ed_status_chip.dart';
 import 'package:helty/src/emergency/widgets/esi_badge.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -212,33 +213,31 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ED Board',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Active emergency visits — tap refresh to update',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurface.withValues(alpha: 0.65),
-                        ),
-                      ),
-                    ],
+            ResponsiveToolbar(
+              leading: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ED Board',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Active emergency visits — tap refresh to update',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
                 IconButton(
                   onPressed: _loading ? null : () => _load(),
                   icon: const Icon(Icons.refresh_rounded),
@@ -246,13 +245,14 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
                 ),
                 if (EdRoleHelper.canRegister(accountType))
                   FilledButton.icon(
-                    onPressed: () => context.router.push(const EdRegistrationRoute()),
+                    onPressed: () =>
+                        context.router.push(const EdRegistrationRoute()),
                     icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
                     label: const Text('Register patient'),
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: bp.isMobile ? 12 : 16),
             if (_loading && _visits.isEmpty)
               const Expanded(
                 child: Center(child: CircularProgressIndicator()),
@@ -295,31 +295,37 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
               )
             else
               Expanded(
-                child: Material(
-                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(14),
-                  clipBehavior: Clip.antiAlias,
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      headingRowColor: WidgetStatePropertyAll(
-                        scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                child: ResponsiveDataTable(
+                  child: Material(
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(14),
+                    clipBehavior: Clip.antiAlias,
+                    child: SingleChildScrollView(
+                      child: DataTable(
+                        headingRowColor: WidgetStatePropertyAll(
+                          scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        ),
+                        columns: const [
+                          DataColumn(label: Text('Patient')),
+                          DataColumn(label: Text('ESI')),
+                          DataColumn(label: Text('Chief complaint')),
+                          DataColumn(label: Text('Arrival')),
+                          DataColumn(label: Text('Wait')),
+                          DataColumn(label: Text('Doctor')),
+                          DataColumn(label: Text('Status')),
+                          DataColumn(label: Text('Actions')),
+                        ],
+                        rows: _visits
+                            .map(
+                              (v) => _buildRow(
+                                v,
+                                canTriage: canTriage,
+                                canDoctor: canDoctor,
+                                accountType: accountType,
+                              ),
+                            )
+                            .toList(),
                       ),
-                      columns: const [
-                        DataColumn(label: Text('Patient')),
-                        DataColumn(label: Text('ESI')),
-                        DataColumn(label: Text('Chief complaint')),
-                        DataColumn(label: Text('Arrival')),
-                        DataColumn(label: Text('Wait')),
-                        DataColumn(label: Text('Doctor')),
-                        DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('Actions')),
-                      ],
-                      rows: _visits.map((v) => _buildRow(
-                        v,
-                        canTriage: canTriage,
-                        canDoctor: canDoctor,
-                        accountType: accountType,
-                      )).toList(),
                     ),
                   ),
                 ),

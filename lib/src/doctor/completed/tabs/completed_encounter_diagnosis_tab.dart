@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
 import 'package:helty/src/models/encounter_model.dart';
 
@@ -65,8 +66,11 @@ class CompletedEncounterDiagnosisTab extends StatelessWidget {
     final List<EncounterDiagnosisSnapshot> linkedExtra =
         e.linkedDiagnoses.length > 1 ? e.linkedDiagnoses.sublist(1) : [];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -200,6 +204,7 @@ class CompletedEncounterDiagnosisTab extends StatelessWidget {
             ),
         ],
       ),
+    ),
     );
   }
 }

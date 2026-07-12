@@ -19,6 +19,8 @@ import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
 import 'package:helty/src/printing/escpos/receipt_printer_picker_sheet.dart';
 import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 import 'package:helty/src/wallet/wallet_providers.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
+import 'package:helty/src/core/layout/app_breakpoints.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // These payment methods require a bank to be selected before paying.
@@ -147,6 +149,9 @@ class PayBillState extends ConsumerState<PayBill> {
   late String _patientId;
   late String _staffId;
   late double _originalAmount;
+
+  /// Outstanding before any discount previewed in this dialog.
+  double _basePayable = 0;
   double _amountToPay = 0;
   String? _insurance;
   List<String> charges = [];
@@ -196,7 +201,6 @@ class PayBillState extends ConsumerState<PayBill> {
   bool _isLoading = true;
   List<DiscountPolicy> _discountPolicies = const [];
   bool _discountPoliciesLoading = false;
-  bool _applyingInvoiceDiscount = false;
   String? _selectedInvoicePolicyId;
 
   /// Set from last loaded invoice; used to gate HMO-desk Pay when patient has no HMO.
@@ -227,12 +231,14 @@ class PayBillState extends ConsumerState<PayBill> {
         _originalAmount > cap ? cap : _originalAmount,
       );
     }
+    _basePayable = _originalAmount;
     _amountToPay = _originalAmount;
     _items = List.of(widget.selectedItems);
     _itemsForPrint = List.of(widget.selectedItems);
     final displayId = widget.invoiceDisplayId?.trim();
-    _invoiceDisplayId =
-        displayId != null && displayId.isNotEmpty ? displayId : null;
+    _invoiceDisplayId = displayId != null && displayId.isNotEmpty
+        ? displayId
+        : null;
 
     _fetchDetails();
     _loadBanks();
@@ -293,6 +299,28 @@ class PayBillState extends ConsumerState<PayBill> {
 
   static double _moneyRound(double x) => (x * 100).round() / 100.0;
 
+  bool get _isZeroPayable => _amountToPay <= 0.005;
+
+  double _previewPayableAfterPolicy(double base, DiscountPolicy policy) {
+    final mode = policy.mode.trim().toUpperCase();
+    if (mode == 'PERCENT') {
+      final pct = policy.value.clamp(0, 100);
+      return _moneyRound(base * (100 - pct) / 100);
+    }
+    if (mode == 'FIXED') {
+      return _moneyRound((base - policy.value).clamp(0, double.infinity));
+    }
+    return base;
+  }
+
+  DiscountPolicy? _discountPolicyById(String? id) {
+    if (id == null || id.isEmpty || id == '__none__') return null;
+    for (final p in _discountPolicies) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
+
   static bool _coverageStatusBlocksDiscountReversal(String status) {
     final s = status.trim().toUpperCase();
     return s == 'SETTLED' || s == 'REVERSED';
@@ -329,12 +357,16 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   /// Re-fetch after each reversal so remaining DISCOUNT rows are current.
-  Future<void> _reverseAllReversibleDiscountInvoiceCoverages(String invoiceId) async {
+  Future<void> _reverseAllReversibleDiscountInvoiceCoverages(
+    String invoiceId,
+  ) async {
     final staff = ref.read(authProvider).staff;
     if (!canReverseCoverage(staff)) return;
     while (mounted) {
       final detail = await _invoiceService.getBillingInvoice(invoiceId);
-      final next = detail.coverages.where(_isReversibleDiscountInvoiceCoverage).toList();
+      final next = detail.coverages
+          .where(_isReversibleDiscountInvoiceCoverage)
+          .toList();
       if (next.isEmpty) return;
       await _invoiceService.reverseCoverage(
         invoiceId: invoiceId,
@@ -346,8 +378,9 @@ class PayBillState extends ConsumerState<PayBill> {
 
   void _syncFromInvoiceDetail(BillingInvoiceDetail detail) {
     final displayId = detail.invoiceDisplayId?.trim();
-    _invoiceDisplayId =
-        displayId != null && displayId.isNotEmpty ? displayId : _invoiceDisplayId;
+    _invoiceDisplayId = displayId != null && displayId.isNotEmpty
+        ? displayId
+        : _invoiceDisplayId;
     final id = detail.patientHmoId?.trim();
     _invoicePatientHmoId = (id == null || id.isEmpty) ? null : id;
     final name = detail.patientHmoName?.trim();
@@ -377,7 +410,8 @@ class PayBillState extends ConsumerState<PayBill> {
     return canSplitWithHmo(staff);
   }
 
-  bool get _isHmoInvoiceFlow => widget.isInvoice && _hasInvoiceId && _isHmoStaff;
+  bool get _isHmoInvoiceFlow =>
+      widget.isInvoice && _hasInvoiceId && _isHmoStaff;
 
   bool get _hasPatientHmoOnInvoice {
     final hmoId = _invoicePatientHmoId?.trim();
@@ -385,7 +419,9 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   bool get _canShowCoverButton =>
-      _isHmoInvoiceFlow && _hasPatientHmoOnInvoice && !_hasActiveInvoiceHmoCoverage;
+      _isHmoInvoiceFlow &&
+      _hasPatientHmoOnInvoice &&
+      !_hasActiveInvoiceHmoCoverage;
 
   bool get _canShowPaymentMethods => !_isHmoStaff;
 
@@ -514,6 +550,7 @@ class PayBillState extends ConsumerState<PayBill> {
       final use = _payAmountFromDetail(detail);
 
       setState(() {
+        _basePayable = use;
         _originalAmount = use;
         _amountToPay = use;
         _syncFromInvoiceDetail(detail);
@@ -564,6 +601,7 @@ class PayBillState extends ConsumerState<PayBill> {
       if (!mounted) return;
       final use = _payAmountFromDetail(detail);
       setState(() {
+        _basePayable = use;
         _originalAmount = use;
         _amountToPay = use;
         _syncFromInvoiceDetail(detail);
@@ -572,9 +610,9 @@ class PayBillState extends ConsumerState<PayBill> {
         _selectedBankId = null;
         _isApplyingHmoCover = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('HMO coverage applied.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('HMO coverage applied.')));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
@@ -585,83 +623,88 @@ class PayBillState extends ConsumerState<PayBill> {
     }
   }
 
-  Future<void> _onInvoiceDiscountPolicySelected(String? value) async {
-    final invId = widget.invoiceId?.trim();
-    if (invId == null || invId.isEmpty) return;
-    final staff = ref.read(authProvider).staff;
-    if (!canApplyDiscount(staff)) return;
-
+  void _onInvoiceDiscountPolicySelected(String? value) {
     if (value == null || value == '__none__') {
-      setState(() => _applyingInvoiceDiscount = true);
-      try {
-        await _reverseAllReversibleDiscountInvoiceCoverages(invId);
-        final detail = await _invoiceService.getBillingInvoice(invId);
-        if (!mounted) return;
-        final use = _payAmountFromDetail(detail);
-        setState(() {
-          _selectedInvoicePolicyId = null;
-          _selectedDiscount = null;
-          _originalAmount = use;
-          _amountToPay = use;
-          _syncFromInvoiceDetail(detail);
-          _mixedAmounts.clear();
-          _applyingInvoiceDiscount = false;
-        });
-      } catch (e) {
-        if (!mounted) return;
-        setState(() => _applyingInvoiceDiscount = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+      setState(() {
+        _selectedInvoicePolicyId = null;
+        _selectedDiscount = null;
+        _amountToPay = _basePayable;
+        _mixedAmounts.clear();
+        _paymentMethod = null;
+        _selectedBankId = null;
+      });
       return;
     }
 
-    setState(() => _applyingInvoiceDiscount = true);
-    try {
-      await _reverseAllReversibleDiscountInvoiceCoverages(invId);
-      await _invoiceService.applyDiscountCoverage(
-        invoiceId: invId,
-        policyId: value,
-        scope: 'INVOICE',
-      );
-      final detail = await _invoiceService.getBillingInvoice(invId);
-      if (!mounted) return;
-      final use = _payAmountFromDetail(detail);
-      DiscountPolicy? policy;
-      for (final p in _discountPolicies) {
-        if (p.id == value) {
-          policy = p;
-          break;
-        }
-      }
-      setState(() {
-        _originalAmount = use;
-        _amountToPay = use;
-        _syncFromInvoiceDetail(detail);
-        _selectedInvoicePolicyId = value;
-        _selectedDiscount = policy?.name;
-        _applyingInvoiceDiscount = false;
-        _mixedAmounts.clear();
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              policy != null
-                  ? 'Discount "${policy.name}" applied'
-                  : 'Discount applied',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _applyingInvoiceDiscount = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    final policy = _discountPolicyById(value);
+    if (policy == null) return;
+
+    setState(() {
+      _selectedInvoicePolicyId = value;
+      _selectedDiscount = policy.name;
+      _amountToPay = _previewPayableAfterPolicy(_basePayable, policy);
+      _mixedAmounts.clear();
+      _paymentMethod = null;
+      _selectedBankId = null;
+    });
+  }
+
+  Future<void> _applyPendingDiscountOnServer() async {
+    final invId = widget.invoiceId?.trim();
+    final policyId = _selectedInvoicePolicyId;
+    if (invId == null || invId.isEmpty) return;
+    if (policyId == null || policyId == '__none__') return;
+
+    await _reverseAllReversibleDiscountInvoiceCoverages(invId);
+    await _invoiceService.applyDiscountCoverage(
+      invoiceId: invId,
+      policyId: policyId,
+      scope: 'INVOICE',
+    );
+    final detail = await _invoiceService.getBillingInvoice(invId);
+    if (!mounted) return;
+    _syncFromInvoiceDetail(detail);
+    // Only refresh payable when patient still owes — avoid overwriting a
+    // zero preview with gross outstanding before coverage settles in totals.
+    if (_amountToPay > 0.005) {
+      _amountToPay = _payAmountFromDetail(detail);
     }
+  }
+
+  void _completeCheckoutSuccess() {
+    if (!mounted) return;
+    setState(() {
+      _confirmed = true;
+      _isSubmitting = false;
+      _paidIncludesConsultation = _selectedItemsIncludeConsultation();
+    });
+    widget.onPaymentComplete?.call();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        elevation: 8,
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Payment Processed Successfully!',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   BankModel? _bankById(String? id) {
@@ -713,9 +756,9 @@ class PayBillState extends ConsumerState<PayBill> {
   /// Whether the current selection is valid to trigger payment.
   bool get _canPay {
     if (!_canShowPayButton) return false;
-    if (_paymentMethod == null) return false;
-
     if (_isHmoDeskInvoicePayBlocked) return false;
+    if (_isZeroPayable) return true;
+    if (_paymentMethod == null) return false;
 
     if (_paymentMethod == 'mixed') {
       final total = _mixedAmounts.values.fold(0.0, (a, b) => a + b);
@@ -949,6 +992,41 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Future<void> _makePayment() async {
+    if (_isSubmitting) return;
+    // Capture before apply — server refresh can leave a non-zero outstanding
+    // even when discount coverage fully waives patient share.
+    final freeCheckout = _isZeroPayable;
+    setState(() => _isSubmitting = true);
+    try {
+      await _applyPendingDiscountOnServer();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red.shade600,
+          content: Text('Failed to apply discount: $e'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    if (freeCheckout) {
+      _completeCheckoutSuccess();
+      return;
+    }
+    await _submitPayment();
+  }
+
+  Future<void> _submitPayment() async {
+    if (_isZeroPayable) {
+      _completeCheckoutSuccess();
+      return;
+    }
+
+    final paymentMethod = _paymentMethod ?? 'cash';
     final bank = _selectedBankForPayment();
     final bankName = bank?.name;
     final accountNumber = bank?.accountNumber.trim();
@@ -956,35 +1034,17 @@ class PayBillState extends ConsumerState<PayBill> {
         ? accountNumber
         : null;
 
-    // Build mixedBreakdown with bank info embedded if needed
-    Map<String, dynamic>? mixedBreakdownWithBanks;
-    if (_paymentMethod == 'mixed') {
-      mixedBreakdownWithBanks = {};
-      for (final m in _methods.where((m) => m != 'mixed')) {
-        final amount = _mixedAmounts[m] ?? 0;
-        if (amount > 0) {
-          final b = _bankById(_mixedBankIds[m]);
-          mixedBreakdownWithBanks[m] = {
-            'amount': amount,
-            if (b != null) 'bankName': b.name,
-            if (b != null && b.accountNumber.trim().isNotEmpty)
-              'bankAccountNumber': b.accountNumber.trim(),
-          };
-        }
-      }
-    }
-
     final dto = QuickTransactionDto(
       patientId: _patientId,
       staffId: _staffId,
       amountPaid: _amountToPay,
-      paymentMethod: _paymentMethod ?? 'cash',
+      paymentMethod: paymentMethod,
       discount: _amountToPay < _originalAmount
           ? _originalAmount - _amountToPay
           : 0,
       notes: _selectedDiscount,
       bankName: bankName,
-      mixedBreakdown: _paymentMethod == 'mixed'
+      mixedBreakdown: paymentMethod == 'mixed'
           ? Map<String, double>.from(
               _mixedAmounts.map((k, v) => MapEntry(k, v)),
             )
@@ -1001,8 +1061,6 @@ class PayBillState extends ConsumerState<PayBill> {
           )
           .toList(),
     );
-
-    setState(() => _isSubmitting = true);
 
     try {
       final invId = widget.invoiceId?.trim();
@@ -1042,7 +1100,7 @@ class PayBillState extends ConsumerState<PayBill> {
         await _invoiceService.recordInvoicePayment(
           invoiceId: invId,
           payload: RecordPaymentPayload(
-            amount: _amountToPay,
+            amount: _moneyRound(_amountToPay),
             source: _invoicePaymentSource(_paymentMethod),
             method: _allocateItemPaymentMethod(_paymentMethod),
             reference: _paymentMethod == 'mixed'
@@ -1054,42 +1112,7 @@ class PayBillState extends ConsumerState<PayBill> {
       } else {
         await transactionService.createQuickTransaction(dto);
       }
-      if (mounted) {
-        setState(() {
-          _confirmed = true;
-          _isSubmitting = false;
-          _paidIncludesConsultation = _selectedItemsIncludeConsultation();
-        });
-        widget.onPaymentComplete?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            elevation: 8,
-            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Payment Processed Successfully!',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      _completeCheckoutSuccess();
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -1116,39 +1139,43 @@ class PayBillState extends ConsumerState<PayBill> {
     final patientName =
         '${widget.firstName} ${widget.lastName}'.trim().isNotEmpty
         ? '${widget.firstName} ${widget.lastName}'.trim()
-        : (patient != null
-              ? patient.displayName.trim()
-              : 'Patient');
+        : (patient != null ? patient.displayName.trim() : 'Patient');
     final patientUuid = patient?.id ?? widget.patientId;
 
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Insufficient wallet balance'),
-        content: Text(message.replaceFirst('Exception: ', '')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+      builder: (ctx) {
+        final width = AppBreakpoints.of(ctx).dialogWidth(ctx, max: 480);
+        return SizedBox(
+          width: width,
+          child: AlertDialog(
+            title: const Text('Insufficient wallet balance'),
+            content: Text(message.replaceFirst('Exception: ', '')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  if (patientUuid.trim().isEmpty) return;
+                  await WalletDepositDialog.show(
+                    context,
+                    ref: ref,
+                    patientUuid: patientUuid,
+                    patientName: patientName,
+                    chartNumber: chartNumber,
+                    onSuccess: () =>
+                        invalidatePatientWalletHistory(ref, patientUuid),
+                  );
+                },
+                child: const Text('Fund wallet'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              if (patientUuid.trim().isEmpty) return;
-              await WalletDepositDialog.show(
-                context,
-                ref: ref,
-                patientUuid: patientUuid,
-                patientName: patientName,
-                chartNumber: chartNumber,
-                onSuccess: () =>
-                    invalidatePatientWalletHistory(ref, patientUuid),
-              );
-            },
-            child: const Text('Fund wallet'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1220,12 +1247,13 @@ class PayBillState extends ConsumerState<PayBill> {
                                 _buildHeader(),
                                 const SizedBox(height: 20),
                                 _buildInvoiceSection(),
-                                if (_canShowPaymentMethods) ...[
+                                if (_canShowPaymentMethods &&
+                                    !_isZeroPayable) ...[
                                   const SizedBox(height: 20),
                                   _buildPaymentSection(
                                     Theme.of(context).primaryColor,
                                   ),
-                                ] else ...[
+                                ] else if (!_canShowPaymentMethods) ...[
                                   const SizedBox(height: 12),
                                   Text(
                                     _isHmoStaff
@@ -1245,9 +1273,12 @@ class PayBillState extends ConsumerState<PayBill> {
                                   _buildCoverButton(
                                     Theme.of(context).colorScheme.secondary,
                                   ),
-                                if (_canShowCoverButton) const SizedBox(height: 12),
+                                if (_canShowCoverButton)
+                                  const SizedBox(height: 12),
                                 if (_canShowPayButton)
-                                  _buildPayButton(Theme.of(context).primaryColor),
+                                  _buildPayButton(
+                                    Theme.of(context).primaryColor,
+                                  ),
                                 if (_isHmoDeskInvoicePayBlocked) ...[
                                   const SizedBox(height: 8),
                                   Text(
@@ -1283,12 +1314,11 @@ class PayBillState extends ConsumerState<PayBill> {
   Widget _buildHeader() {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 24,
-          child: Text(
-            _patientName.substring(0, 1),
-            style: TextStyle(color: Colors.blue.shade800, fontSize: 20),
-          ),
+        PatientAvatar(
+          firstName: widget.firstName,
+          surname: widget.lastName,
+          size: 48,
+          foregroundColor: Colors.blue.shade800,
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -1400,21 +1430,10 @@ class PayBillState extends ConsumerState<PayBill> {
               value: _selectedInvoicePolicyId ?? '__none__',
               style: const TextStyle(color: Colors.black87, fontSize: 13),
               items: items,
-              onChanged: _applyingInvoiceDiscount
-                  ? null
-                  : (v) => _onInvoiceDiscountPolicySelected(v),
+              onChanged: (v) => _onInvoiceDiscountPolicySelected(v),
             ),
           ),
         ),
-        if (_applyingInvoiceDiscount)
-          const Padding(
-            padding: EdgeInsets.only(left: 8),
-            child: SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
       ],
     );
   }
@@ -1659,7 +1678,9 @@ class PayBillState extends ConsumerState<PayBill> {
             ? _makePayment
             : null,
         child: Text(
-          'Pay ${_amountToPay.toFinancial(isMoney: true)}',
+          _isZeroPayable
+              ? 'Free'
+              : 'Pay ${_amountToPay.toFinancial(isMoney: true)}',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),

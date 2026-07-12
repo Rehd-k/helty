@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import '../helper/date.formatter.dart';
 import '../helper/snack.bar.dart';
 import '../models/consulting_room_model.dart';
@@ -228,23 +229,16 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left: table
-                  Expanded(
-                    flex: 2,
-                    child: _buildRoomsTable(context),
-                  ),
-                  const SizedBox(width: 24),
-                  // Right: details + form
-                  Expanded(
-                    flex: 3,
-                    child: _buildDetailsPane(context),
-                  ),
-                ],
+          : ResponsiveBody(
+              builder: (context, bp) => ResponsiveRowColumn(
+                firstFlex: 2,
+                secondFlex: 3,
+                gap: bp.isMobile ? 16 : 24,
+                first: SizedBox(
+                  height: bp.isMobile ? 320 : null,
+                  child: _buildRoomsTable(context),
+                ),
+                second: _buildDetailsPane(context),
               ),
             ),
     );

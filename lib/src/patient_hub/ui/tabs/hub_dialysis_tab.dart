@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
@@ -36,7 +37,8 @@ class HubDialysisScreen extends ConsumerWidget {
             icon: Icons.bloodtype_outlined,
           );
         }
-        return ListView.separated(
+        return ResponsiveBody(
+          builder: (context, bp) => ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: sessions.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -57,6 +59,7 @@ class HubDialysisScreen extends ConsumerWidget {
               ),
             );
           },
+        ),
         );
       },
     );

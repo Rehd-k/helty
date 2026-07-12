@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../models/purchases_model.dart';
 import '../services/purchases_service.dart';
@@ -151,9 +152,7 @@ class _PurchasesAddSupplierScreenState
                   );
                 }
 
-                return SingleChildScrollView(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+                return ResponsiveDataTable(
                     child: DataTable(
                       columns: const [
                         DataColumn(label: Text('Item')),
@@ -184,8 +183,7 @@ class _PurchasesAddSupplierScreenState
                         );
                       }).toList(),
                     ),
-                  ),
-                );
+                  );
               },
             ),
           ),
@@ -238,23 +236,21 @@ class _PurchasesAddSupplierScreenState
                   keyboardType: TextInputType.phone,
                 ),
                 const Divider(height: 32),
-                Row(
+                ResponsiveWrapGrid(
+                  mobileColumns: 1,
+                  tabletColumns: 2,
+                  desktopColumns: 2,
                   children: [
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Credit Terms',
-                        hint: 'e.g., Net 30',
-                        controller: _creditTermsCtrl,
-                      ),
+                    ModernTextField(
+                      label: 'Credit Terms',
+                      hint: 'e.g., Net 30',
+                      controller: _creditTermsCtrl,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Lead Time (Days)',
-                        hint: 'e.g., 5',
-                        controller: _leadTimeCtrl,
-                        keyboardType: TextInputType.number,
-                      ),
+                    ModernTextField(
+                      label: 'Lead Time (Days)',
+                      hint: 'e.g., 5',
+                      controller: _leadTimeCtrl,
+                      keyboardType: TextInputType.number,
                     ),
                   ],
                 ),
@@ -305,40 +301,18 @@ class _PurchasesAddSupplierScreenState
       return const Center(child: Text('No suppliers found.'));
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const cardMinWidth = 260.0;
-        final crossAxisCount = (constraints.maxWidth / (cardMinWidth + 16))
-            .floor()
-            .clamp(1, 4);
+    return SingleChildScrollView(
+      controller: _suppliersScrollController,
+      child: ResponsiveWrapGrid(
+        mobileColumns: 1,
+        tabletColumns: 2,
+        desktopColumns: 3,
+        children: suppliers.map((s) {
+          final phone = _contactField(s, 'phone') ?? '-';
+          final email = _contactField(s, 'email') ?? '-';
+          final isBlacklisted = s.isBlacklisted;
 
-        final gridWidth =
-            (cardMinWidth + 16) * crossAxisCount.toDouble() + 16.0;
-
-        return Scrollbar(
-          controller: _suppliersScrollController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _suppliersScrollController,
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: gridWidth.clamp(constraints.maxWidth, double.infinity),
-              child: GridView.builder(
-                padding: const EdgeInsets.only(top: 8, right: 8, bottom: 8),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 3.4,
-                ),
-                itemCount: suppliers.length,
-                itemBuilder: (context, index) {
-                  final s = suppliers[index];
-                  final phone = _contactField(s, 'phone') ?? '-';
-                  final email = _contactField(s, 'email') ?? '-';
-                  final isBlacklisted = s.isBlacklisted;
-
-                  return Card(
+          return Card(
                     elevation: 1,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -471,13 +445,9 @@ class _PurchasesAddSupplierScreenState
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -516,73 +486,47 @@ class _PurchasesAddSupplierScreenState
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 900;
-
-          final formSection = _buildSupplierForm(context, theme);
-          final tableSection = Card(
-            elevation: 1,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Suppliers',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => ResponsiveRowColumn(
+          firstFlex: 2,
+          secondFlex: 3,
+          first: _buildSupplierForm(context, theme),
+          second: SizedBox(
+            height: bp.isMobile ? 400 : null,
+            child: Card(
+              elevation: 1,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Suppliers',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Refresh suppliers',
-                        onPressed: _isLoadingSuppliers ? null : _loadSuppliers,
-                        icon: const Icon(Icons.refresh),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(child: _buildSuppliersTableSection(context)),
-                ],
-              ),
-            ),
-          );
-
-          if (isNarrow) {
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  formSection,
-                  const SizedBox(height: 16),
-                  SizedBox(height: 400, child: tableSection),
-                ],
-              ),
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: formSection),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 3,
-                  child: SizedBox(
-                    height: constraints.maxHeight - 32,
-                    child: tableSection,
-                  ),
+                        IconButton(
+                          tooltip: 'Refresh suppliers',
+                          onPressed:
+                              _isLoadingSuppliers ? null : _loadSuppliers,
+                          icon: const Icon(Icons.refresh),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(child: _buildSuppliersTableSection(context)),
+                  ],
                 ),
-              ],
+              ),
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

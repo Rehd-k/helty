@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/store/models/store_models.dart';
 import 'package:helty/src/store/providers/store_providers.dart';
@@ -24,7 +25,8 @@ class StoreLocationsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: asyncLocations.when(
+      body: ResponsiveBody(
+        builder: (context, bp) => asyncLocations.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
           child: Padding(
@@ -140,6 +142,7 @@ class StoreLocationsScreen extends ConsumerWidget {
             },
           );
         },
+      ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateLocation(context, ref),

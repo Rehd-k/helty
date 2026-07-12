@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../models/pendding_transactions.model.dart';
 import '../../widgets/table/reusable_async_table.dart';
@@ -82,7 +83,8 @@ class PendingTransactionsScreenState extends State<PendingTransactionsScreen> {
           ),
         ],
       ),
-      body: ReusableAsyncTable<Transactions>(
+      body: ResponsiveBody(
+        builder: (context, bp) => ReusableAsyncTable<Transactions>(
         fetchData: fetchPendingTransactions,
         idGetter: (patient) =>
             patient.transactionId, // Used for selection logic
@@ -128,6 +130,7 @@ class PendingTransactionsScreenState extends State<PendingTransactionsScreen> {
             ),
           ];
         },
+      ),
       ),
     );
   }

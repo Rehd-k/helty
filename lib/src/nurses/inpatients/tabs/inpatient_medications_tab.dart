@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/medications/rx_schedule_utils.dart';
@@ -52,6 +53,9 @@ class _InpatientMedicationsScreenState
 
   /// Orders with expanded medication-request history panels.
   final Set<String> _expandedRequestHistoryOrderIds = {};
+
+  /// Expired/stopped orders section (collapsed by default).
+  bool _inactiveOrdersSectionExpanded = false;
 
   /// Tracks scope changes so we refetch when [encounterId] appears after load.
   String? _loadKey;
@@ -278,6 +282,15 @@ class _InpatientMedicationsScreenState
     );
   }
 
+  bool _isInactiveOrder(MedicationOrderModel order) {
+    if (order.administrationStatus == MedicationAdministrationStatus.stopped) {
+      return true;
+    }
+    final status = _effectiveSchedule(order).scheduleStatus;
+    return status == MedicationScheduleStatus.expired ||
+        status == MedicationScheduleStatus.stopped;
+  }
+
   List<MedicationOrderModel> get _dueOrders {
     final due = <MedicationOrderModel>[];
     for (final order in _orders) {
@@ -445,9 +458,10 @@ class _InpatientMedicationsScreenState
 
     final isDoctor = scope.isDoctor;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (!isDoctor && _dueOrders.isNotEmpty)
@@ -508,6 +522,7 @@ class _InpatientMedicationsScreenState
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -578,6 +593,96 @@ class _InpatientMedicationsScreenState
   }
 
 
+  Widget _buildOrderCard(
+    BuildContext context,
+    InpatientViewScope scope,
+    MedicationOrderModel order,
+  ) {
+    return _ActiveOrderCard(
+      order: order,
+      doseSchedule: _effectiveSchedule(order),
+      scope: scope,
+      currentNurseId: scope.staffId?.trim() ?? '',
+      expanded: _expandedRequestHistoryOrderIds.contains(order.id),
+      onToggleHistory: () {
+        setState(() {
+          if (_expandedRequestHistoryOrderIds.contains(order.id)) {
+            _expandedRequestHistoryOrderIds.remove(order.id);
+          } else {
+            _expandedRequestHistoryOrderIds.add(order.id);
+          }
+        });
+      },
+      onRequest: () => _openRequestDialog(context, scope, order),
+      onAdminister: () => _openAdministerDialog(
+        context,
+        scope,
+        order,
+        prefilledDueAt: _effectiveSchedule(order).nextDueAt,
+      ),
+      onCancelRequest: (requestId) => _cancelMedicationRequest(
+        context,
+        requestId,
+        requireNurseIdFromScope(context) ?? '',
+      ),
+    );
+  }
+
+  Widget _buildInactiveOrdersSection(
+    BuildContext context,
+    InpatientViewScope scope,
+    List<MedicationOrderModel> inactiveOrders,
+  ) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: () => setState(
+              () => _inactiveOrdersSectionExpanded =
+                  !_inactiveOrdersSectionExpanded,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Expired & discontinued (${inactiveOrders.length})',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _inactiveOrdersSectionExpanded
+                        ? Icons.expand_less
+                        : Icons.expand_more,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_inactiveOrdersSectionExpanded) ...[
+          const SizedBox(height: 8),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: inactiveOrders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) =>
+                _buildOrderCard(context, scope, inactiveOrders[index]),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildActiveOrdersTable(
     BuildContext context,
     InpatientViewScope scope,
@@ -596,42 +701,33 @@ class _InpatientMedicationsScreenState
       );
     }
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final order = _orders[index];
-        return _ActiveOrderCard(
-          order: order,
-          doseSchedule: _effectiveSchedule(order),
-          scope: scope,
-          currentNurseId: scope.staffId?.trim() ?? '',
-          expanded: _expandedRequestHistoryOrderIds.contains(order.id),
-          onToggleHistory: () {
-            setState(() {
-              if (_expandedRequestHistoryOrderIds.contains(order.id)) {
-                _expandedRequestHistoryOrderIds.remove(order.id);
-              } else {
-                _expandedRequestHistoryOrderIds.add(order.id);
-              }
-            });
-          },
-          onRequest: () => _openRequestDialog(context, scope, order),
-          onAdminister: () => _openAdministerDialog(
-            context,
-            scope,
-            order,
-            prefilledDueAt: _effectiveSchedule(order).nextDueAt,
+    final activeOrders =
+        _orders.where((o) => !_isInactiveOrder(o)).toList(growable: false);
+    final inactiveOrders =
+        _orders.where(_isInactiveOrder).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (activeOrders.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('No active medication orders for this admission.'),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: activeOrders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) =>
+                _buildOrderCard(context, scope, activeOrders[index]),
           ),
-          onCancelRequest: (requestId) => _cancelMedicationRequest(
-            context,
-            requestId,
-            requireNurseIdFromScope(context) ?? '',
-          ),
-        );
-      },
+        if (inactiveOrders.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _buildInactiveOrdersSection(context, scope, inactiveOrders),
+        ],
+      ],
     );
   }
 

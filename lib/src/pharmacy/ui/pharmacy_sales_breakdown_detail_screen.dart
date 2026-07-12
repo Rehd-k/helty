@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/auth_provider.dart';
@@ -138,19 +139,22 @@ class _PharmacySalesBreakdownDetailScreenState
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _loading && _page.rows.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null && _page.rows.isEmpty
-                ? Center(child: _errorText(_error!))
-                : _page.rows.isEmpty
-                ? const Center(child: Text('No sale lines found.'))
-                : _list(),
-          ),
-          _pager(),
-        ],
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
+          children: [
+            Expanded(
+              child: _loading && _page.rows.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null && _page.rows.isEmpty
+                  ? Center(child: _errorText(_error!))
+                  : _page.rows.isEmpty
+                  ? const Center(child: Text('No sale lines found.'))
+                  : _list(),
+            ),
+            _pager(bp),
+          ],
+        ),
       ),
     );
   }
@@ -290,45 +294,62 @@ class _PharmacySalesBreakdownDetailScreenState
     );
   }
 
-  Widget _pager() {
+  Widget _pager(AppBreakpoints bp) {
     final total = _page.total;
     final start = total == 0 ? 0 : _skip + 1;
     final end = (_skip + _page.rows.length).clamp(0, total);
     final canPrev = _skip > 0;
     final canNext = _skip + _pageSize < total;
+    final nav = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: canPrev && !_loading
+              ? () {
+                  setState(() => _skip -= _pageSize);
+                  _fetch();
+                }
+              : null,
+          icon: const Icon(Icons.chevron_left),
+        ),
+        IconButton(
+          onPressed: canNext && !_loading
+              ? () {
+                  setState(() => _skip += _pageSize);
+                  _fetch();
+                }
+              : null,
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ],
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
       ),
-      child: Row(
-        children: [
-          Text(
-            '$start–$end of ${_count.format(total)}',
-            style: const TextStyle(color: Color(0xFF64748B)),
-          ),
-          const Spacer(),
-          IconButton(
-            onPressed: canPrev && !_loading
-                ? () {
-                    setState(() => _skip -= _pageSize);
-                    _fetch();
-                  }
-                : null,
-            icon: const Icon(Icons.chevron_left),
-          ),
-          IconButton(
-            onPressed: canNext && !_loading
-                ? () {
-                    setState(() => _skip += _pageSize);
-                    _fetch();
-                  }
-                : null,
-            icon: const Icon(Icons.chevron_right),
-          ),
-        ],
-      ),
+      child: bp.stackPanels
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '$start–$end of ${_count.format(total)}',
+                  style: const TextStyle(color: Color(0xFF64748B)),
+                ),
+                Align(alignment: Alignment.centerRight, child: nav),
+              ],
+            )
+          : Row(
+              children: [
+                Text(
+                  '$start–$end of ${_count.format(total)}',
+                  style: const TextStyle(color: Color(0xFF64748B)),
+                ),
+                const Spacer(),
+                nav,
+              ],
+            ),
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/receivables_models.dart';
 import 'package:helty/src/services/receivables_service.dart';
 
@@ -337,39 +338,36 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
           IconButton(onPressed: _loadAll, icon: const Icon(Icons.refresh)),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickDateRange,
-                  icon: const Icon(Icons.date_range),
-                  label: Text('Current: ${_rangeLabel(_currentRange)}'),
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            ResponsiveRowColumn(
+              stackWhenWidthBelow: 500,
+              first: OutlinedButton.icon(
+                onPressed: _pickDateRange,
+                icon: const Icon(Icons.date_range),
+                label: Text('Current: ${_rangeLabel(_currentRange)}'),
+              ),
+              second: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey.withValues(alpha: 0.35),
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Previous: ${_rangeLabel(previous)}',
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.grey.withValues(alpha: 0.35),
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Previous: ${_rangeLabel(previous)}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+            SizedBox(height: bp.isMobile ? 12 : 16),
           const SizedBox(height: 16),
           _buildHmoSection(),
           const SizedBox(height: 16),
@@ -377,6 +375,7 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
           const SizedBox(height: 16),
           _buildRemittanceSection(),
         ],
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import '../helper/date.formatter.dart';
 import '../models/super_admin_department_preview.dart';
 import '../providers/auth_provider.dart';
@@ -470,9 +471,11 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
         onPressed: _refreshPatients,
         child: const Icon(Icons.refresh),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           if (_error != null)
             MaterialBanner(
               content: Text(
@@ -593,6 +596,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

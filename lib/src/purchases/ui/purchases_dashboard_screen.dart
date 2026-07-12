@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../models/purchases_dashboard_model.dart';
@@ -103,11 +104,12 @@ class _PurchasesDashboardScreenState extends State<PurchasesDashboardScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? Center(child: Text(_error!))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+          : ResponsiveBody(
+              expand: false,
+              builder: (context, bp) => SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   Wrap(
                     spacing: 8,
                     children: _DatePreset.values.map((p) {
@@ -151,9 +153,10 @@ class _PurchasesDashboardScreenState extends State<PurchasesDashboardScreen> {
                   ],
                   const SizedBox(height: 16),
                   if (summary != null)
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
+                    ResponsiveWrapGrid(
+                      mobileColumns: 1,
+                      tabletColumns: 2,
+                      desktopColumns: 3,
                       children: [
                         _kpiCard(
                           'Pending Requisitions',
@@ -210,16 +213,15 @@ class _PurchasesDashboardScreenState extends State<PurchasesDashboardScreen> {
                           ),
                         ),
                   ],
-                ],
+                  ],
+                ),
               ),
             ),
     );
   }
 
   Widget _kpiCard(String label, String value, Color color) {
-    return SizedBox(
-      width: 180,
-      child: Card(
+    return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -241,7 +243,6 @@ class _PurchasesDashboardScreenState extends State<PurchasesDashboardScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 }

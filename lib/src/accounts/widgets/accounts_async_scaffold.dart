@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/cmac/widgets/cmac_vibrant_backdrop.dart';
+import 'package:helty/src/core/layout/app_breakpoints.dart';
 
-import '../accounts_breakpoints.dart';
 import '../accounts_palette.dart';
 
 class AccountsAsyncScaffold<T> extends StatelessWidget {
@@ -64,7 +64,7 @@ class AccountsAsyncScaffold<T> extends StatelessWidget {
         colors: colors,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final bp = AccountsBreakpoints.fromWidth(constraints.maxWidth);
+            final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
             final pad = EdgeInsets.fromLTRB(
               bp.paddingH,
               bp.paddingV,

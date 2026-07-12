@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 @RoutePage()
 class DoctorPendingLabsScreen extends StatelessWidget {
@@ -10,9 +11,8 @@ class DoctorPendingLabsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Center(
+    return ResponsiveBody(
+      builder: (context, bp) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
@@ -177,8 +178,11 @@ class _ObstetricsPostnatalTabState extends ConsumerState<ObstetricsPostnatalTab>
       );
     }
 
-    return Column(
-      children: [
+    return ResponsiveBody(
+      center: false,
+      bottomPadding: 0,
+      builder: (context, bp) => Column(
+        children: [
         if (_error != null)
           Material(
             color: colorScheme.errorContainer,
@@ -197,15 +201,14 @@ class _ObstetricsPostnatalTabState extends ConsumerState<ObstetricsPostnatalTab>
           ),
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _visits.isEmpty
-                    ? 'No postnatal visits'
-                    : '${_visits.length} visit${_visits.length == 1 ? '' : 's'}',
-                style: theme.textTheme.titleSmall,
-              ),
+          child: ResponsiveToolbar(
+            leading: Text(
+              _visits.isEmpty
+                  ? 'No postnatal visits'
+                  : '${_visits.length} visit${_visits.length == 1 ? '' : 's'}',
+              style: theme.textTheme.titleSmall,
+            ),
+            actions: [
               if (_deliveries.isNotEmpty)
                 FilledButton.icon(
                   onPressed: _addVisit,
@@ -291,6 +294,7 @@ class _ObstetricsPostnatalTabState extends ConsumerState<ObstetricsPostnatalTab>
                         ),
         ),
       ],
+      ),
     );
   }
 }

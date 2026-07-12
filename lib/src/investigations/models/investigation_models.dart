@@ -1,4 +1,5 @@
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/core/utils/patient_initials.dart';
 
 class InvestigationBreakdownRow {
   const InvestigationBreakdownRow({
@@ -88,6 +89,7 @@ class InvestigationPatientRef {
     this.firstName,
     this.otherName,
     this.surname,
+    this.avatarUrl,
   });
 
   final String id;
@@ -96,6 +98,7 @@ class InvestigationPatientRef {
   final String? firstName;
   final String? otherName;
   final String? surname;
+  final String? avatarUrl;
 
   String get displayName => patientDisplayNameFromJson({
         'title': title,
@@ -112,6 +115,7 @@ class InvestigationPatientRef {
       firstName: json['firstName']?.toString(),
       otherName: json['otherName']?.toString(),
       surname: (json['surname'] ?? json['lastName'])?.toString(),
+      avatarUrl: avatarUrlFromJson(json),
     );
   }
 }

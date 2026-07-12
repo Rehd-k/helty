@@ -5,6 +5,7 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/staff_providers.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
 
@@ -260,10 +261,10 @@ class _TheatreScheduleFormScreenState
       appBar: AppBar(
         title: Text(_isEdit ? 'Reschedule surgery' : 'Schedule surgery'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
+      body: ResponsiveBody(
+        maxWidth: 560,
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

@@ -2,6 +2,8 @@ import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/models/admission_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 
+const _moneyEpsilon = 0.005;
+
 /// Invoice summary nested under admission `billing` (clearance queue / errors).
 class AdmissionBillingInvoiceSummary {
   const AdmissionBillingInvoiceSummary({
@@ -10,6 +12,7 @@ class AdmissionBillingInvoiceSummary {
     required this.status,
     required this.totalAmount,
     required this.amountPaid,
+    this.coveredAmount = 0,
     required this.balance,
   });
 
@@ -18,7 +21,21 @@ class AdmissionBillingInvoiceSummary {
   final String status;
   final double totalAmount;
   final double amountPaid;
+  final double coveredAmount;
   final double balance;
+
+  /// Doc-recommended settlement badge for a single invoice.
+  String get settlementLabel {
+    if (balance > _moneyEpsilon) {
+      return amountPaid > _moneyEpsilon ? 'Partial' : 'Unpaid';
+    }
+    if (amountPaid > _moneyEpsilon && coveredAmount > _moneyEpsilon) {
+      return 'Settled';
+    }
+    if (amountPaid > _moneyEpsilon) return 'Paid (cash)';
+    if (coveredAmount > _moneyEpsilon) return 'Settled (coverage)';
+    return 'Settled';
+  }
 
   factory AdmissionBillingInvoiceSummary.fromJson(Map<String, dynamic> json) {
     return AdmissionBillingInvoiceSummary(
@@ -27,6 +44,7 @@ class AdmissionBillingInvoiceSummary {
       status: json['status']?.toString() ?? '',
       totalAmount: parseApiDecimal(json['totalAmount']),
       amountPaid: parseApiDecimal(json['amountPaid']),
+      coveredAmount: parseApiDecimal(json['coveredAmount']),
       balance: parseApiDecimal(json['balance']),
     );
   }
@@ -43,6 +61,26 @@ class AdmissionBillingSummary {
   final List<AdmissionBillingInvoiceSummary> invoices;
   final double totalBalance;
   final bool allPaid;
+
+  double get totalAmount =>
+      invoices.fold(0.0, (sum, inv) => sum + inv.totalAmount);
+
+  double get totalAmountPaid =>
+      invoices.fold(0.0, (sum, inv) => sum + inv.amountPaid);
+
+  double get totalCoveredAmount =>
+      invoices.fold(0.0, (sum, inv) => sum + inv.coveredAmount);
+
+  bool get hasCoverage => invoices.any((inv) => inv.coveredAmount > _moneyEpsilon);
+
+  /// Row-level clearance status for the queue UI.
+  String get clearanceStatusLabel {
+    if (allPaid && totalBalance <= _moneyEpsilon) return 'Ready to clear';
+    if (totalBalance > _moneyEpsilon) {
+      return totalAmountPaid > _moneyEpsilon ? 'Partial payment' : 'Payment required';
+    }
+    return 'Payment required';
+  }
 
   factory AdmissionBillingSummary.fromJson(Map<String, dynamic> json) {
     final invoicesRaw = json['invoices'];
@@ -114,10 +152,22 @@ class PendingBillingClearanceAdmission {
   AdmissionBillingInvoiceSummary? get primaryInvoice {
     if (billing.invoices.isEmpty) return null;
     for (final inv in billing.invoices) {
-      if (inv.balance > 0) return inv;
+      if (inv.balance > _moneyEpsilon) return inv;
     }
     return billing.invoices.first;
   }
+
+  String get invoiceNumbersDisplay {
+    final numbers = billing.invoices
+        .map((inv) => inv.invoiceNumber?.trim())
+        .whereType<String>()
+        .where((n) => n.isNotEmpty)
+        .toList(growable: false);
+    if (numbers.isEmpty) return '—';
+    return numbers.join(', ');
+  }
+
+  bool get hasCoverage => billing.hasCoverage;
 
   factory PendingBillingClearanceAdmission.fromJson(Map<String, dynamic> json) {
     DateTime? parseDt(dynamic v) {

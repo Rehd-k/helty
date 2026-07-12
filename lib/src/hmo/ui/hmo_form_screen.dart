@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/app_router.gr.dart';
 
 import '../../models/hmo_models.dart';
@@ -376,38 +377,25 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
       appBar: AppBar(
         title: Text(widget.hmoId != null ? 'Edit HMO' : 'Add HMO'),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 840;
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
           final formScroll = SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(bp.paddingH),
             child: Form(
               key: _formKey,
               child: _buildFormCard(),
             ),
           );
 
-          if (wide) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  flex: 11,
-                  child: formScroll,
-                ),
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: theme.dividerColor.withValues(alpha: 0.35),
-                ),
-                Expanded(
-                  flex: 9,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 20, 20, 20),
-                    child: _buildListPanel(theme),
-                  ),
-                ),
-              ],
+          if (!bp.stackPanels) {
+            return ResponsiveRowColumn(
+              firstFlex: 11,
+              secondFlex: 9,
+              gap: bp.isMobile ? 16 : 24,
+              rowCrossAxisAlignment: CrossAxisAlignment.stretch,
+              first: formScroll,
+              second: _buildListPanel(theme),
             );
           }
 

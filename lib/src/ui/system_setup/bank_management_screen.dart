@@ -1,5 +1,6 @@
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/bank_model.dart';
@@ -147,7 +148,8 @@ class _BankManagementScreenState extends ConsumerState<BankManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Bank Management')),
-      body: _loading
+      body: ResponsiveBody(
+        builder: (context, bp) => _loading
           ? const Center(child: CircularProgressIndicator())
           : Row(
               children: [
@@ -271,6 +273,7 @@ class _BankManagementScreenState extends ConsumerState<BankManagementScreen> {
                 ),
               ],
             ),
+      ),
     );
   }
 }

@@ -13,6 +13,7 @@ import '../services/department_service.dart';
 import '../services/service_category_service.dart';
 import '../services/service_service.dart';
 import '../services/staff_service.dart';
+import 'package:helty/src/core/responsive.dart';
 import '../auth/hospital_service_permissions.dart';
 import '../providers/auth_provider.dart';
 import 'setup_widgets/setup_form_widgets.dart';
@@ -352,23 +353,21 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
       backgroundColor: cs.surface,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+          : ResponsiveBody(
+              center: false,
+              builder: (context, bp) => Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header + tab switcher
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'System Configuration',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: cs.onSurface,
-                        ),
+                  ResponsiveToolbar(
+                    leading: Text(
+                      'System Configuration',
+                      style: TextStyle(
+                        fontSize: bp.isMobile ? 20 : 24,
+                        fontWeight: FontWeight.bold,
+                        color: cs.onSurface,
                       ),
+                    ),
+                    actions: [
                       SegmentedButton<SetupTab>(
                         segments: const [
                           ButtonSegment(
@@ -399,43 +398,33 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
+                  SizedBox(height: bp.isMobile ? 16 : 24),
                   Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left form panel (1/3)
-                        Expanded(
-                          flex: 1,
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: cs.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: cs.outline.withValues(alpha: 0.2),
-                              ),
-                            ),
-                            child: _buildCurrentForm(canManageServices),
+                    child: ResponsiveRowColumn(
+                      firstFlex: 1,
+                      secondFlex: 2,
+                      gap: bp.isMobile ? 16 : 24,
+                      first: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: cs.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: cs.outline.withValues(alpha: 0.2),
                           ),
                         ),
-                        const SizedBox(width: 24),
-                        // Right table panel (2/3)
-                        Expanded(
-                          flex: 2,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: cs.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: cs.outline.withValues(alpha: 0.2),
-                              ),
-                            ),
-                            child: _buildCurrentTable(canManageServices),
+                        child: _buildCurrentForm(canManageServices),
+                      ),
+                      second: Container(
+                        decoration: BoxDecoration(
+                          color: cs.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: cs.outline.withValues(alpha: 0.2),
                           ),
                         ),
-                      ],
+                        child: _buildCurrentTable(canManageServices),
+                      ),
                     ),
                   ),
                 ],

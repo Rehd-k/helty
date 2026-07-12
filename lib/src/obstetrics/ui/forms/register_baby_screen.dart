@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
@@ -103,7 +104,13 @@ class _ObstetricsRegisterBabyScreenState
         icon: Icons.person_add_rounded,
       ),
       children: [
-        ObFormSectionCard(
+        ResponsiveBody(
+          center: false,
+          bottomPadding: 0,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ObFormSectionCard(
           title: 'Patient details',
           icon: Icons.person_add_rounded,
           children: [
@@ -144,6 +151,9 @@ class _ObstetricsRegisterBabyScreenState
               ),
             ),
           ],
+        ),
+            ],
+          ),
         ),
       ],
     );

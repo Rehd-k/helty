@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_side_panel.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/models/lab_order_model.dart';
@@ -29,6 +31,7 @@ class _DoctorEncounterInvestigationsTabState
   List<LabOrderModel> _orders = [];
   bool _loading = true;
   bool _loadScheduled = false;
+  bool _sidePanelExpanded = true;
 
   /// `false` = all lab requests for [EncounterScope.patientId] (default).
   /// `true` = only this [EncounterScope.encounterId].
@@ -193,75 +196,140 @@ class _DoctorEncounterInvestigationsTabState
 
     final readOnly = !scope.canEdit;
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment<bool>(
-                      value: false,
-                      label: Text('All patient'),
-                      icon: Icon(Icons.person_outline, size: 18),
-                    ),
-                    ButtonSegment<bool>(
-                      value: true,
-                      label: Text('This encounter'),
-                      icon: Icon(Icons.event_note_outlined, size: 18),
-                    ),
-                  ],
-                  selected: {_encounterOnly},
-                  onSelectionChanged: (s) {
-                    if (s.isEmpty) return;
-                    setState(() => _encounterOnly = s.first);
-                    _load();
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              if (!readOnly)
-                FilledButton.icon(
-                  onPressed: _openOrderModal,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Order Lab Test'),
-                ),
-            ],
+    final completedCount = _orders.where(_labOrderIsCompleted).length;
+    final pendingCount = _orders.where(_labOrderIsPending).length;
+    final scheme = theme.colorScheme;
+
+    final sidePanel = EncounterSidePanel(
+      title: 'Investigations',
+      expanded: _sidePanelExpanded,
+      onToggleExpanded: () =>
+          setState(() => _sidePanelExpanded = !_sidePanelExpanded),
+      subtitle: _orders.isEmpty
+          ? (_encounterOnly
+              ? 'No lab orders yet for this encounter'
+              : 'No lab history for this patient')
+          : '${_orders.length} order${_orders.length == 1 ? '' : 's'}'
+              '${_encounterOnly ? ' on this encounter' : ''}',
+      controls: SegmentedButton<bool>(
+        segments: const [
+          ButtonSegment<bool>(
+            value: false,
+            label: Text('All patient'),
+            icon: Icon(Icons.person_outline, size: 18),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _orders.isEmpty
-                ? _InvestigationsEmptyState(
-                    encounterOnly: _encounterOnly,
-                    theme: theme,
-                  )
-                : ListView.separated(
-                    itemCount: _orders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) {
-                      final o = _orders[i];
-                      final otherVisit =
-                          !_encounterOnly &&
-                          o.encounterId.isNotEmpty &&
-                          o.encounterId != scope.encounterId;
-                      return _InvestigationOrderCard(
-                        order: o,
-                        otherVisit: otherVisit,
-                        theme: theme,
-                        onTap: () =>
-                            _showLabOrderResults(context, o, theme, scope),
-                      );
-                    },
-                  ),
+          ButtonSegment<bool>(
+            value: true,
+            label: Text('This encounter'),
+            icon: Icon(Icons.event_note_outlined, size: 18),
           ),
         ],
+        selected: {_encounterOnly},
+        onSelectionChanged: (s) {
+          if (s.isEmpty) return;
+          setState(() => _encounterOnly = s.first);
+          _load();
+        },
+      ),
+      chips: [
+        if (_orders.isNotEmpty) ...[
+          EncounterSidePanelChip(
+            icon: Icons.science_outlined,
+            label: '${_orders.length} total',
+            color: scheme.primary,
+          ),
+          if (completedCount > 0)
+            EncounterSidePanelChip(
+              icon: Icons.check_circle_outline,
+              label: '$completedCount completed',
+              color: Colors.green.shade700,
+            ),
+          if (pendingCount > 0)
+            EncounterSidePanelChip(
+              icon: Icons.hourglass_top_outlined,
+              label: '$pendingCount pending',
+              color: scheme.tertiary,
+            ),
+        ],
+      ],
+      railBadges: [
+        EncounterSidePanelBadge(
+          icon: Icons.science_outlined,
+          value: '${_orders.length}',
+          color: scheme.primary,
+          tooltip: '${_orders.length} total',
+        ),
+        if (completedCount > 0)
+          EncounterSidePanelBadge(
+            icon: Icons.check_circle_outline,
+            value: '$completedCount',
+            color: Colors.green.shade700,
+            tooltip: '$completedCount completed',
+          ),
+        if (pendingCount > 0)
+          EncounterSidePanelBadge(
+            icon: Icons.hourglass_top_outlined,
+            value: '$pendingCount',
+            color: scheme.tertiary,
+            tooltip: '$pendingCount pending',
+          ),
+      ],
+      addLabel: 'Order Lab Test',
+      addTooltip: 'Order Lab Test',
+      onAdd: readOnly ? null : _openOrderModal,
+    );
+
+    final list = _orders.isEmpty
+        ? _InvestigationsEmptyState(
+            encounterOnly: _encounterOnly,
+            theme: theme,
+          )
+        : ListView.separated(
+            itemCount: _orders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) {
+              final o = _orders[i];
+              final otherVisit =
+                  !_encounterOnly &&
+                  o.encounterId.isNotEmpty &&
+                  o.encounterId != scope.encounterId;
+              return _InvestigationOrderCard(
+                order: o,
+                otherVisit: otherVisit,
+                theme: theme,
+                onTap: () => _showLabOrderResults(context, o, theme, scope),
+              );
+            },
+          );
+
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => EncounterTabLayout(
+        sidePanel: sidePanel,
+        child: list,
       ),
     );
   }
+}
+
+bool _labOrderHasResults(LabOrderModel order) {
+  final lines = order.resultLines;
+  return (lines != null && lines.isNotEmpty) ||
+      (order.resultValues != null && order.resultValues!.isNotEmpty);
+}
+
+bool _labOrderIsCompleted(LabOrderModel order) {
+  if (_labOrderHasResults(order)) return true;
+  final status = order.status.toLowerCase();
+  return status.contains('complete') ||
+      status.contains('verified') ||
+      status.contains('reported');
+}
+
+bool _labOrderIsPending(LabOrderModel order) {
+  final status = order.status.toLowerCase();
+  if (status.contains('cancel') || status.contains('reject')) return false;
+  return !_labOrderIsCompleted(order);
 }
 
 class _InvestigationsEmptyState extends StatelessWidget {
@@ -305,7 +373,7 @@ class _InvestigationsEmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               encounterOnly
-                  ? 'Order investigations for this encounter using the button above.'
+                  ? 'Order investigations for this encounter using the panel on the right.'
                   : 'This patient has no lab orders on file. Use "Order Lab Test" to request one.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:auto_route/auto_route.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
@@ -64,9 +65,10 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           LayoutBuilder(
@@ -164,6 +166,7 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/medication_order_model.dart';
@@ -31,6 +32,7 @@ class _DoctorEncounterPrescriptionTabState
   List<MedicationOrderModel> _orders = [];
   bool _loading = true;
   bool _loadScheduled = false;
+  bool _sidePanelExpanded = true;
   final Set<String> _updatingOrderIds = {};
   final Set<String> _expandedRequestHistoryOrderIds = {};
 
@@ -378,135 +380,363 @@ class _DoctorEncounterPrescriptionTabState
     final canEdit = scope.canEdit;
     final onAdd = canEdit ? _openAddModal : null;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _PrescriptionTabHeader(
-            totalCount: _orders.length,
-            activeCount: activeCount,
-            pendingCount: pendingCount,
-            onAdd: onAdd,
-          ),
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) {
+        final sidePanel = _PrescriptionSidePanel(
+          totalCount: _orders.length,
+          activeCount: activeCount,
+          pendingCount: pendingCount,
+          onAdd: onAdd,
+          expanded: _sidePanelExpanded,
+          onToggleExpanded: () =>
+              setState(() => _sidePanelExpanded = !_sidePanelExpanded),
+        );
 
-          const SizedBox(height: 16),
-          Expanded(
-            child: _orders.isEmpty
-                ? _PrescriptionEmptyState(onAdd: onAdd)
-                : ListView.separated(
-                    itemCount: _orders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) {
-                      final order = _orders[i];
-                      return _EncounterPrescriptionCard(
-                        order: order,
-                        expanded: _expandedRequestHistoryOrderIds.contains(
-                          order.id,
-                        ),
-                        isUpdating: _updatingOrderIds.contains(order.id),
-                        doctorId: scope.doctorId ?? '',
-                        canEdit: canEdit,
-                        onToggleAdministration: () =>
-                            _toggleAdministrationStatus(order),
-                        onToggleRequestHistory: () =>
-                            _toggleRequestHistory(order.id),
-                        onEditRequest: (req) =>
-                            _editMedicationRequest(req, scope.doctorId ?? ''),
-                        onCancelRequest: (req) =>
-                            _cancelMedicationRequest(req, scope.doctorId ?? ''),
-                        onAuthorizeBeyondDuration: () =>
-                            _authorizeBeyondDuration(order),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+        final list = _orders.isEmpty
+            ? _PrescriptionEmptyState(onAdd: onAdd)
+            : ListView.separated(
+                itemCount: _orders.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (_, i) {
+                  final order = _orders[i];
+                  return _EncounterPrescriptionCard(
+                    order: order,
+                    expanded: _expandedRequestHistoryOrderIds.contains(
+                      order.id,
+                    ),
+                    isUpdating: _updatingOrderIds.contains(order.id),
+                    doctorId: scope.doctorId ?? '',
+                    canEdit: canEdit,
+                    onToggleAdministration: () =>
+                        _toggleAdministrationStatus(order),
+                    onToggleRequestHistory: () =>
+                        _toggleRequestHistory(order.id),
+                    onEditRequest: (req) =>
+                        _editMedicationRequest(req, scope.doctorId ?? ''),
+                    onCancelRequest: (req) =>
+                        _cancelMedicationRequest(req, scope.doctorId ?? ''),
+                    onAuthorizeBeyondDuration: () =>
+                        _authorizeBeyondDuration(order),
+                  );
+                },
+              );
+
+        if (bp.isMobile) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              sidePanel,
+              const SizedBox(height: 12),
+              Expanded(child: list),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: list),
+            const SizedBox(width: 16),
+            sidePanel,
+          ],
+        );
+      },
     );
   }
 }
 
-class _PrescriptionTabHeader extends StatelessWidget {
-  const _PrescriptionTabHeader({
+class _PrescriptionSidePanel extends StatelessWidget {
+  const _PrescriptionSidePanel({
     required this.totalCount,
     required this.activeCount,
     required this.pendingCount,
     required this.onAdd,
+    required this.expanded,
+    required this.onToggleExpanded,
   });
 
   final int totalCount;
   final int activeCount;
   final int pendingCount;
   final VoidCallback? onAdd;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final bp = AppBreakpoints.of(context);
+    if (bp.isMobile) return _buildMobile(context);
+    return _buildSide(context);
+  }
+
+  /// Collapsible summary card stacked above the list on mobile.
+  Widget _buildMobile(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Material(
+      color: scheme.surfaceContainerLowest,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: onToggleExpanded,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Prescriptions',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (onAdd != null)
+                    IconButton(
+                      tooltip: 'Add prescription',
+                      onPressed: onAdd,
+                      icon: const Icon(Icons.add_rounded),
+                    ),
+                  Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            crossFadeState: expanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: _SummaryContent(
+                totalCount: totalCount,
+                activeCount: activeCount,
+                pendingCount: pendingCount,
+              ),
+            ),
+            secondChild: const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Expandable side rail on tablet/desktop.
+  Widget _buildSide(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      width: expanded ? 260 : 60,
+      child: Material(
+        color: scheme.surfaceContainerLowest,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: expanded
+            ? SingleChildScrollView(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Summary',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Collapse panel',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: onToggleExpanded,
+                          icon: const Icon(
+                            Icons.keyboard_double_arrow_right_rounded,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _SummaryContent(
+                      totalCount: totalCount,
+                      activeCount: activeCount,
+                      pendingCount: pendingCount,
+                    ),
+                    if (onAdd != null) ...[
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: onAdd,
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                        label: const Text('Add prescription'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              )
+            : Column(
+                children: [
+                  const SizedBox(height: 8),
+                  IconButton(
+                    tooltip: 'Expand summary',
+                    onPressed: onToggleExpanded,
+                    icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
+                  ),
+                  if (onAdd != null)
+                    IconButton(
+                      tooltip: 'Add prescription',
+                      onPressed: onAdd,
+                      icon: Icon(Icons.add_rounded, color: scheme.primary),
+                    ),
+                  const SizedBox(height: 12),
+                  _RailBadge(
+                    icon: Icons.medication_outlined,
+                    value: '$totalCount',
+                    color: scheme.primary,
+                    tooltip: '$totalCount total',
+                  ),
+                  if (activeCount > 0)
+                    _RailBadge(
+                      icon: Icons.play_circle_outline,
+                      value: '$activeCount',
+                      color: Colors.green.shade700,
+                      tooltip: '$activeCount active',
+                    ),
+                  if (pendingCount > 0)
+                    _RailBadge(
+                      icon: Icons.hourglass_top_outlined,
+                      value: '$pendingCount',
+                      color: scheme.tertiary,
+                      tooltip: '$pendingCount pending dispense',
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _SummaryContent extends StatelessWidget {
+  const _SummaryContent({
+    required this.totalCount,
+    required this.activeCount,
+    required this.pendingCount,
+  });
+
+  final int totalCount;
+  final int activeCount;
+  final int pendingCount;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Prescriptions',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                totalCount == 0
-                    ? 'No medications prescribed yet'
-                    : '$totalCount medication${totalCount == 1 ? '' : 's'} on this encounter',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.65),
-                ),
-              ),
-              if (totalCount > 0) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    _SummaryChip(
-                      icon: Icons.medication_outlined,
-                      label: '$totalCount total',
-                      color: scheme.primary,
-                    ),
-                    if (activeCount > 0)
-                      _SummaryChip(
-                        icon: Icons.play_circle_outline,
-                        label: '$activeCount active',
-                        color: Colors.green.shade700,
-                      ),
-                    if (pendingCount > 0)
-                      _SummaryChip(
-                        icon: Icons.hourglass_top_outlined,
-                        label: '$pendingCount pending dispense',
-                        color: scheme.tertiary,
-                      ),
-                  ],
-                ),
-              ],
-            ],
+        Text(
+          totalCount == 0
+              ? 'No medications prescribed yet'
+              : '$totalCount medication${totalCount == 1 ? '' : 's'} on this encounter',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurface.withValues(alpha: 0.65),
           ),
         ),
-        const SizedBox(width: 12),
-        if (onAdd != null)
-          FilledButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add_rounded, size: 20),
-            label: const Text('Add prescription'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            ),
+        if (totalCount > 0) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _SummaryChip(
+                icon: Icons.medication_outlined,
+                label: '$totalCount total',
+                color: scheme.primary,
+              ),
+              if (activeCount > 0)
+                _SummaryChip(
+                  icon: Icons.play_circle_outline,
+                  label: '$activeCount active',
+                  color: Colors.green.shade700,
+                ),
+              if (pendingCount > 0)
+                _SummaryChip(
+                  icon: Icons.hourglass_top_outlined,
+                  label: '$pendingCount pending dispense',
+                  color: scheme.tertiary,
+                ),
+            ],
           ),
+        ],
       ],
+    );
+  }
+}
+
+class _RailBadge extends StatelessWidget {
+  const _RailBadge({
+    required this.icon,
+    required this.value,
+    required this.color,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final String value;
+  final Color color;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

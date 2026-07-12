@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../models/staff_model.dart';
@@ -500,38 +501,29 @@ class _PurchasesStockTransferScreenState
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: Column(
-        children: [
-          // _buildLocationsCard(theme),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
+          children: [
+            Expanded(
               child: Form(
                 key: _formKey,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Left: locations + item selector
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLocationsCard(theme),
-
-                          Expanded(child: _buildItemsSelector(theme)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    // Right: summary
-                    Expanded(flex: 2, child: _buildSummaryPanel(theme)),
-                  ],
+                child: ResponsiveRowColumn(
+                  firstFlex: 3,
+                  secondFlex: 2,
+                  first: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLocationsCard(theme),
+                      Expanded(child: _buildItemsSelector(theme)),
+                    ],
+                  ),
+                  second: _buildSummaryPanel(theme),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

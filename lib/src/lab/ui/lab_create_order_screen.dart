@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
@@ -245,9 +246,10 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
           onPressed: () => _clearPaidLabContextAndPop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (isPaidLabEmptyLines)
@@ -846,6 +848,7 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
               ),
           ],
         ),
+      ),
       ),
     );
   }

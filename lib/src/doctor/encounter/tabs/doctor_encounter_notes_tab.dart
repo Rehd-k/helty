@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
@@ -186,8 +187,11 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
     final readOnly = !scope.canEdit;
     final fieldsReadOnly = locked || readOnly;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -239,10 +243,9 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
             ),
           ],
           const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (!locked && !readOnly) ...[
+          if (!locked && !readOnly)
+            ResponsiveToolbar(
+              actions: [
                 FilledButton.icon(
                   onPressed: _saving ? null : _saveDraft,
                   icon: _saving
@@ -254,17 +257,16 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
                       : const Icon(Icons.save_outlined, size: 18),
                   label: const Text('Save draft'),
                 ),
-                const SizedBox(width: 12),
                 OutlinedButton.icon(
                   onPressed: _saving ? null : _lockNote,
                   icon: const Icon(Icons.lock_outline, size: 18),
                   label: Text('Lock (after $_lockAfterMinutes min)'),
                 ),
               ],
-            ],
-          ),
+            ),
         ],
       ),
+    ),
     );
   }
 

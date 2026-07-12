@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 
 // -----------------------------------------------------------------------------
 // MODELS
@@ -123,12 +124,11 @@ class _PharmacyPOSState extends State<PharmacyPOSScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: LayoutBuilder(
+        child: ResponsiveBody(
+          center: false,
+          builder: (context, bp) => LayoutBuilder(
             builder: (context, constraints) {
-              // Responsive check
-              if (constraints.maxWidth > 900) {
+              if (!bp.stackPanels) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -142,30 +142,28 @@ class _PharmacyPOSState extends State<PharmacyPOSScreen> {
                     ),
                   ],
                 );
-              } else {
-                // For smaller screens (Tablets/Phones), stack them or use a TabBar
-                // Kept simple as a scrollable column for responsiveness
-                return SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: 500,
-                        child: _buildLeftPanel(colorScheme),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 400,
-                        child: _buildMiddlePanel(colorScheme),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 400,
-                        child: _buildRightPanel(colorScheme, theme),
-                      ),
-                    ],
-                  ),
-                );
               }
+
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 500,
+                      child: _buildLeftPanel(colorScheme),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 400,
+                      child: _buildMiddlePanel(colorScheme),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 400,
+                      child: _buildRightPanel(colorScheme, theme),
+                    ),
+                  ],
+                ),
+              );
             },
           ),
         ),

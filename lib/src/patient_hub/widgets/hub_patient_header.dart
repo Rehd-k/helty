@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/patient_avatar.dart';
 import '../../helper/date.formatter.dart';
 import '../../paitients/patient_model.dart';
 import '../../patient_chart/models/patient_chart_models.dart';
@@ -46,17 +47,14 @@ class HubPatientHeader extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 32,
+                PatientAvatar(
+                  avatarUrl: fullProfile?.avatarUrl ?? patient.avatarUrl,
+                  firstName: patient.firstName ?? fullProfile?.firstName,
+                  surname: patient.surname ?? fullProfile?.surname,
+                  updatedAt: fullProfile?.updatedAt ?? patient.updatedAt,
+                  size: 64,
                   backgroundColor: cs.primary,
-                  child: Text(
-                    _initials(),
-                    style: TextStyle(
-                      color: cs.onPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
+                  foregroundColor: cs.onPrimary,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -161,16 +159,6 @@ class HubPatientHeader extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _initials() {
-    final s = patient.surname?.trim();
-    final f = patient.firstName?.trim();
-    if (s != null && s.isNotEmpty && f != null && f.isNotEmpty) {
-      return '${s[0]}${f[0]}'.toUpperCase();
-    }
-    if (s != null && s.isNotEmpty) return s[0].toUpperCase();
-    return '?';
   }
 
   String _admissionLine() {

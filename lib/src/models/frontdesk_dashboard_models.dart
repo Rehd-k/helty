@@ -1,5 +1,7 @@
 // Models for GET /frontdesk/dashboard/summary and GET /frontdesk/dashboard/queue.
 
+import '../core/utils/patient_initials.dart';
+
 class FrontdeskDashboardSummary {
   const FrontdeskDashboardSummary({
     required this.asOf,
@@ -116,6 +118,9 @@ class FrontdeskQueueRow {
     this.assignedRoom,
     this.waitingPatientId,
     this.encounterId,
+    this.firstName,
+    this.surname,
+    this.avatarUrl,
   });
 
   final String id;
@@ -127,6 +132,9 @@ class FrontdeskQueueRow {
   final FrontdeskAssignedRoom? assignedRoom;
   final String? waitingPatientId;
   final String? encounterId;
+  final String? firstName;
+  final String? surname;
+  final String? avatarUrl;
 
   factory FrontdeskQueueRow.fromJson(Map<String, dynamic> json) {
     final doctorJson = json['doctor'];
@@ -145,6 +153,9 @@ class FrontdeskQueueRow {
           : null,
       waitingPatientId: json['waitingPatientId'] as String?,
       encounterId: json['encounterId'] as String?,
+      firstName: json['firstName'] as String?,
+      surname: json['surname'] as String?,
+      avatarUrl: avatarUrlFromJson(json),
     );
   }
 }

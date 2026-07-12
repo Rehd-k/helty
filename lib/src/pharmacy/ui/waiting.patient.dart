@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/medication_order_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
@@ -14,6 +15,7 @@ import 'package:helty/src/widgets/date.filter.dart';
 
 import '../models/pharmacy_queue_models.dart';
 import '../services/pharmacy_queue_service.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import '../widgets/medication_attribution_widgets.dart';
 import '../widgets/prescription_drug_form_dialog.dart';
 
@@ -909,54 +911,92 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Flexible(
-                    flex: 0,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minWidth: 200,
-                        maxWidth: 280,
-                      ),
-                      child: _buildQueueList(colorScheme),
-                    ),
-                  ),
-                  Expanded(
-                    child: _selectedOrder == null
-                        ? Center(
-                            child: Text(
-                              'Select an order',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: colorScheme.onSurfaceVariant,
+        child: ResponsiveBody(
+          center: false,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: bp.stackPanels
+                    ? Column(
+                        children: [
+                          SizedBox(
+                            height: 220,
+                            child: _buildQueueList(colorScheme),
+                          ),
+                          Expanded(
+                            child: _selectedOrder == null
+                                ? Center(
+                                    child: Text(
+                                      'Select an order',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  )
+                                : _buildPrescriptionDetails(
+                                    _selectedOrder!,
+                                    colorScheme,
+                                  ),
+                          ),
+                          if (_selectedOrder != null)
+                            SizedBox(
+                              height: 200,
+                              child: _buildPatientSidebar(
+                                _selectedOrder!,
+                                colorScheme,
                               ),
                             ),
-                          )
-                        : _buildPrescriptionDetails(
-                            _selectedOrder!,
-                            colorScheme,
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Flexible(
+                            flex: 0,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minWidth: 200,
+                                maxWidth: 280,
+                              ),
+                              child: _buildQueueList(colorScheme),
+                            ),
                           ),
-                  ),
-                  Flexible(
-                    flex: 0,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minWidth: 180,
-                        maxWidth: 260,
+                          Expanded(
+                            child: _selectedOrder == null
+                                ? Center(
+                                    child: Text(
+                                      'Select an order',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  )
+                                : _buildPrescriptionDetails(
+                                    _selectedOrder!,
+                                    colorScheme,
+                                  ),
+                          ),
+                          Flexible(
+                            flex: 0,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minWidth: 180,
+                                maxWidth: 260,
+                              ),
+                              child: _selectedOrder == null
+                                  ? const SizedBox.shrink()
+                                  : _buildPatientSidebar(
+                                      _selectedOrder!,
+                                      colorScheme,
+                                    ),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: _selectedOrder == null
-                          ? const SizedBox.shrink()
-                          : _buildPatientSidebar(_selectedOrder!, colorScheme),
-                    ),
-                  ),
-                ],
               ),
-            ),
             FromToDateFilter(
               doRefresh: () {},
               dateFilter: true,
@@ -971,6 +1011,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
               },
             ),
           ],
+        ),
         ),
       ),
     );
@@ -1805,6 +1846,21 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
 
   Widget _buildPatientSidebar(QueueOrder order, ColorScheme colorScheme) {
     final patient = _sidebarPatient(order);
+    final commaIndex = patient.name.indexOf(',');
+    final String? sidebarFirstName;
+    final String? sidebarSurname;
+    if (commaIndex > 0) {
+      sidebarSurname = patient.name.substring(0, commaIndex).trim();
+      sidebarFirstName = patient.name.substring(commaIndex + 1).trim();
+    } else {
+      final parts = patient.name
+          .trim()
+          .split(RegExp(r'\s+'))
+          .where((p) => p.isNotEmpty)
+          .toList();
+      sidebarFirstName = parts.isNotEmpty ? parts.first : null;
+      sidebarSurname = parts.length > 1 ? parts.last : null;
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -1847,14 +1903,12 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             borderRadius: BorderRadius.circular(8),
             child: Row(
             children: [
-              CircleAvatar(
-                radius: 18,
+              PatientAvatar(
+                firstName: sidebarFirstName,
+                surname: sidebarSurname,
+                size: 36,
                 backgroundColor: colorScheme.primaryContainer,
-                child: Icon(
-                  Icons.person,
-                  size: 18,
-                  color: colorScheme.onPrimaryContainer,
-                ),
+                foregroundColor: colorScheme.onPrimaryContainer,
               ),
               const SizedBox(width: 10),
               Expanded(

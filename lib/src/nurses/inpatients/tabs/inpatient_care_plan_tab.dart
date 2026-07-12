@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/care_plan_model.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
@@ -182,9 +183,10 @@ class _InpatientCarePlanScreenState extends State<InpatientCarePlanScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: SectionCard(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: SectionCard(
         title: 'Care Plan',
         subtitle: 'Nursing problems, goals and interventions',
         child: _plans.isEmpty
@@ -217,6 +219,7 @@ class _InpatientCarePlanScreenState extends State<InpatientCarePlanScreen> {
                     )
                     .toList(),
               ),
+        ),
       ),
     );
   }

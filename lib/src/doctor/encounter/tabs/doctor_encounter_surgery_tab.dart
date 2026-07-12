@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/auth/theatre_permissions.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
@@ -179,18 +180,19 @@ class _DoctorEncounterSurgeryTabState
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Column(
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Text(
-              'Surgery requests',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+        ResponsiveToolbar(
+          leading: Text(
+            'Surgery requests',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
-            const Spacer(),
+          ),
+          actions: [
             if (canBook && canEdit)
               FilledButton.icon(
                 onPressed: _submitting ? null : _openRequestDialog,
@@ -263,6 +265,7 @@ class _DoctorEncounterSurgeryTabState
             ),
           ),
       ],
+    ),
     );
   }
 }

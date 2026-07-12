@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../helper/date.formatter.dart';
@@ -20,7 +21,9 @@ class HubProfileScreen extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (patient) {
-        return SingleChildScrollView(
+        return ResponsiveBody(
+          expand: false,
+          builder: (context, bp) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -87,6 +90,7 @@ class HubProfileScreen extends ConsumerWidget {
                 ),
             ],
           ),
+        ),
         );
       },
     );

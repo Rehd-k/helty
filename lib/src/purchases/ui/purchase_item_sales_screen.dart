@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/billings/widgets/catalog_sales_widgets.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/invoice.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -433,13 +434,13 @@ class _PurchaseItemSalesScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Purchase items')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: CatalogSalesLayout(
-            leftPanel: _buildLeftPanel(colorScheme),
-            middlePanel: _buildMiddlePanel(colorScheme),
-            rightPanel: CatalogSalesSummaryPanel(
+      body: ResponsiveBody(
+        center: false,
+        bottomPadding: 16,
+        builder: (context, bp) => CatalogSalesLayout(
+          leftPanel: _buildLeftPanel(colorScheme),
+          middlePanel: _buildMiddlePanel(colorScheme),
+          rightPanel: CatalogSalesSummaryPanel(
               colorScheme: colorScheme,
               patientIdLabel: widget.patientId,
               patientName: widget.patientName,
@@ -460,7 +461,6 @@ class _PurchaseItemSalesScreenState
                   ? Icons.receipt_long_outlined
                   : Icons.send_and_archive_outlined,
             ),
-          ),
         ),
       ),
     );

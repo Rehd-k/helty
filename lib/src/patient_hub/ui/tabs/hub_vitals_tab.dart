@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:auto_route/auto_route.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/patient_hub_models.dart';
@@ -62,7 +63,8 @@ class _HubVitalsScreenState extends ConsumerState<HubVitalsScreen> {
           );
         }
 
-        return HubSectionScaffold(
+        return ResponsiveBody(
+          builder: (context, bp) => HubSectionScaffold(
           filterRow: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -119,6 +121,7 @@ class _HubVitalsScreenState extends ConsumerState<HubVitalsScreen> {
               ),
             ],
           ),
+        ),
         );
       },
     );

@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
@@ -128,7 +129,9 @@ class _ObstetricsAddBabyScreenState
     if (_loadingPregnancy && _motherId == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Add baby')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ResponsiveBody(
+          builder: (context, bp) => const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
     if (_error != null && _motherId == null) {
@@ -140,7 +143,9 @@ class _ObstetricsAddBabyScreenState
             onPressed: () => context.router.maybePop(),
           ),
         ),
-        body: Center(child: Text(_error!)),
+        body: ResponsiveBody(
+          builder: (context, bp) => Center(child: Text(_error!)),
+        ),
       );
     }
 
@@ -164,7 +169,13 @@ class _ObstetricsAddBabyScreenState
         onPressed: () => context.router.maybePop(),
       ),
       children: [
-        ObFormSectionCard(
+        ResponsiveBody(
+          center: false,
+          bottomPadding: 0,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ObFormSectionCard(
           title: 'Baby details',
           icon: Icons.child_care_rounded,
           children: [
@@ -235,6 +246,9 @@ class _ObstetricsAddBabyScreenState
               maxLines: 2,
             ),
           ],
+        ),
+            ],
+          ),
         ),
       ],
     );

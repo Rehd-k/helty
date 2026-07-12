@@ -1342,8 +1342,30 @@ class AccountsPeriodFilter {
         return 'This quarter';
       case 'year':
         return 'This year';
+      case 'custom':
+        return 'Custom range';
       default:
         return period;
     }
   }
+}
+
+/// Revenue report filter with preset periods or a custom date range.
+@immutable
+class AccountsRevenueFilter {
+  const AccountsRevenueFilter({
+    this.period = 'today',
+    this.asOf,
+    this.from,
+    this.to,
+  });
+
+  final String period;
+  final DateTime? asOf;
+  final DateTime? from;
+  final DateTime? to;
+
+  bool get usesCustomRange => period == 'custom' && from != null && to != null;
+
+  static const presetPeriods = AccountsPeriodFilter.periods;
 }

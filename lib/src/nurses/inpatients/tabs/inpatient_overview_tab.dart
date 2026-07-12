@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/admissions/widgets/admission_ward_location_section.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/admission_alert_model.dart';
@@ -193,9 +194,10 @@ class _InpatientOverviewScreenState extends State<InpatientOverviewScreen> {
         scope?.isAdmissionActive == true &&
         adm != null;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (showWardUpdate) ...[
@@ -295,6 +297,7 @@ class _InpatientOverviewScreenState extends State<InpatientOverviewScreen> {
                 ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
@@ -46,7 +47,8 @@ class _LabConfigScreenState extends ConsumerState<LabConfigScreen>
           ],
         ),
       ),
-      body: TabBarView(
+      body: ResponsiveBody(
+        builder: (context, bp) => TabBarView(
         controller: _tabController,
         children: [
           _CategoriesTab(),
@@ -56,6 +58,7 @@ class _LabConfigScreenState extends ConsumerState<LabConfigScreen>
           _AntibioticsTab(),
           _AstResultOptionsTab(),
         ],
+      ),
       ),
     );
   }

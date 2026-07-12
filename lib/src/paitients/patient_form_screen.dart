@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:states_and_capitals/states_and_capitals.dart' as sac;
 
+import 'package:helty/src/core/responsive.dart';
 import '../models/hmo_models.dart';
 import '../models/ward_models.dart';
 import '../services/hmo_service.dart';
@@ -726,16 +727,15 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1100),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+        child: ResponsiveBody(
+          maxWidth: 1100,
+          expand: false,
+          builder: (context, bp) => SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                     if (isEditing &&
                         (widget.patient?.patientId ?? '')
                             .trim()
@@ -991,7 +991,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 

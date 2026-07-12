@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/patient_avatar.dart';
 import '../../../helper/date.formatter.dart';
 import '../../models/patient_chart_models.dart';
 
@@ -28,28 +29,53 @@ class ChartPatientHeader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              patient.displayName,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 12,
-              runSpacing: 4,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (patient.patientId != null)
-                  _chip(context, 'Hosp. no.', patient.patientId!),
-                if (patient.gender != null) _chip(context, 'Gender', patient.gender!),
-                if (patient.dob != null)
-                  _chip(
-                    context,
-                    'DOB',
-                    DateFormatter.medicalDate(patient.dob!),
+                PatientAvatar(
+                  avatarUrl: patient.avatarUrl,
+                  firstName: patient.firstName,
+                  surname: patient.surname,
+                  updatedAt: patient.updatedAt,
+                  size: 56,
+                  backgroundColor: cs.primary,
+                  foregroundColor: cs.onPrimary,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        patient.displayName,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        children: [
+                          if (patient.patientId != null)
+                            _chip(context, 'Hosp. no.', patient.patientId!),
+                          if (patient.gender != null)
+                            _chip(context, 'Gender', patient.gender!),
+                          if (patient.dob != null)
+                            _chip(
+                              context,
+                              'DOB',
+                              DateFormatter.medicalDate(patient.dob!),
+                            ),
+                          if (patient.status != null)
+                            _chip(context, 'Status', patient.status!),
+                          if (patient.wardName != null)
+                            _chip(context, 'Ward', patient.wardName!),
+                        ],
+                      ),
+                    ],
                   ),
-                if (patient.status != null) _chip(context, 'Status', patient.status!),
-                if (patient.wardName != null) _chip(context, 'Ward', patient.wardName!),
+                ),
               ],
             ),
             const SizedBox(height: 12),

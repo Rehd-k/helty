@@ -10,6 +10,7 @@ import 'package:helty/src/models/hmo_models.dart';
 import 'package:helty/src/models/receivables_models.dart';
 import 'package:helty/src/receivables/ui/receivables_analytics_screen.dart';
 import 'package:helty/src/services/hmo_service.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/receivables_service.dart';
 
 enum _ReceivableKind { hmo, discount }
@@ -368,7 +369,7 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
       child: Column(
         children: [
           DropdownButtonFormField<String?>(
-            value: _selectedHmoId,
+            initialValue: _selectedHmoId,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'HMO',
@@ -629,8 +630,10 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? Center(child: Text(_error!))
-          : Column(
-              children: [
+          : ResponsiveBody(
+              center: false,
+              builder: (context, bp) => Column(
+                children: [
                 _buildHmoFilterBar(),
                 Padding(
                   padding: EdgeInsets.fromLTRB(12, _isHmo ? 8 : 12, 12, 8),
@@ -646,7 +649,6 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
                       IconButton(
                         tooltip: 'Clear date range',
                         onPressed: () async {
@@ -660,7 +662,12 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                  child: Row(
+                  child: ResponsiveWrapGrid(
+                    mobileColumns: 1,
+                    tabletColumns: 2,
+                    desktopColumns: 4,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       _summaryCard(
                         label: 'Records',
@@ -668,21 +675,18 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
                         icon: Icons.receipt_long,
                         color: Colors.blue,
                       ),
-                      const SizedBox(width: 8),
                       _summaryCard(
                         label: 'Outstanding',
                         value: totalOutstanding.toFinancial(isMoney: true),
                         icon: Icons.account_balance_wallet_outlined,
                         color: Colors.orange,
                       ),
-                      const SizedBox(width: 8),
                       _summaryCard(
                         label: 'Total Amount',
                         value: totalAmount.toFinancial(isMoney: true),
                         icon: Icons.summarize_outlined,
                         color: Colors.green,
                       ),
-                      const SizedBox(width: 8),
                       _summaryCard(
                         label: _isHmo ? 'Unique HMOs' : 'Unique Payers',
                         value: '$uniquePayers',
@@ -701,6 +705,7 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
                 ),
               ],
             ),
+          ),
       floatingActionButton: _items.isEmpty
           ? null
           : FloatingActionButton.extended(

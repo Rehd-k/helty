@@ -13,7 +13,8 @@ sealed class AppException implements Exception {
 final class NetworkException extends AppException {
   const NetworkException([
     super.message =
-        'Unable to connect to the server. Close and reopen the app to reconnect.',
+        'Helty could not connect to the hospital server. '
+        'This is usually a network or connectivity issue.',
   ]);
 }
 

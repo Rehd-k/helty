@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/patient_hub_models.dart';
@@ -62,7 +63,8 @@ class _HubMedsScreenState extends ConsumerState<HubMedsScreen> {
         items = _applyMedsFilter(items);
         items = hubSortRows(items, _sort);
 
-        return HubSectionScaffold(
+        return ResponsiveBody(
+          builder: (context, bp) => HubSectionScaffold(
           filterRow: Row(
             children: HubMedsFilter.values
                 .map(
@@ -115,6 +117,7 @@ class _HubMedsScreenState extends ConsumerState<HubMedsScreen> {
                     );
                   },
                 ),
+        ),
         );
       },
     );

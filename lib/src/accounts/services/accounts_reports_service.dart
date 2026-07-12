@@ -82,6 +82,8 @@ class AccountsReportsService extends AccountsBaseService {
   Future<List<AccountsServiceRevenueRow>> fetchRevenueByService({
     required String period,
     DateTime? asOf,
+    DateTime? from,
+    DateTime? to,
   }) async {
     try {
       final response = await dio.get<dynamic>(
@@ -89,6 +91,8 @@ class AccountsReportsService extends AccountsBaseService {
         queryParameters: {
           'period': period,
           if (asOf != null) 'asOf': asOf.toUtc().toIso8601String(),
+          if (from != null) 'from': from.toUtc().toIso8601String(),
+          if (to != null) 'to': to.toUtc().toIso8601String(),
         },
       );
       return asList(response.data, key: 'rows')
@@ -107,6 +111,8 @@ class AccountsReportsService extends AccountsBaseService {
   Future<AccountsRevenueByServiceDetailsResponse> fetchRevenueByServiceDetails({
     required String period,
     DateTime? asOf,
+    DateTime? from,
+    DateTime? to,
     required String serviceCategory,
     int skip = 0,
     int take = 50,
@@ -118,6 +124,8 @@ class AccountsReportsService extends AccountsBaseService {
         queryParameters: {
           'period': period,
           if (asOf != null) 'asOf': asOf.toUtc().toIso8601String(),
+          if (from != null) 'from': from.toUtc().toIso8601String(),
+          if (to != null) 'to': to.toUtc().toIso8601String(),
           'serviceCategory': serviceCategory,
           'skip': skip,
           'take': take,

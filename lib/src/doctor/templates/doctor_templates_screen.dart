@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/templates/encounter_template_fields.dart';
 import 'package:helty/src/doctor/templates/widgets/encounter_template_form_dialog.dart';
 import 'package:helty/src/models/encounter_template_model.dart';
@@ -137,33 +138,32 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
         icon: const Icon(Icons.add),
         label: const Text('New template'),
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Templates',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Reusable clinical prefills for your encounters',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
+      body: ResponsiveBody(
+        center: false,
+        bottomPadding: 88,
+        builder: (context, bp) => CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: ResponsiveToolbar(
+                leading: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Templates',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Reusable clinical prefills for your encounters',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
                   DropdownButton<String?>(
                     value: _typeFilter,
                     hint: const Text('All types'),
@@ -192,7 +192,6 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
                 ],
               ),
             ),
-          ),
           if (_loading && _templates.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
@@ -249,10 +248,8 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
               ),
             )
           else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 88),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final t = _templates[index];
                     final updated = t.updatedAt ?? t.createdAt;
@@ -333,9 +330,9 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
                   },
                   childCount: _templates.length,
                 ),
-              ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

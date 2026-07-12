@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
@@ -223,9 +224,10 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
           onPressed: () => context.router.maybePop(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_hasExistingResults && hasFields) ...[
@@ -401,6 +403,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../core/interceptors/refresh_token_interceptor.dart';
 
 /// Candidate API origins probed at startup; the fastest `/server-time` wins.
 const kApiCandidateBaseUrls = <String>[
+  'http://api.imsh.ng',
   'http://localhost:3000',
   'http://10.92.9.205:3000',
   'http://192.168.2.121:3000',

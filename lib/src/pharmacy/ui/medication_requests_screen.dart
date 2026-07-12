@@ -2,7 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/models/medication_request_model.dart';
 import 'package:helty/src/pharmacy/widgets/medication_attribution_widgets.dart';
 import 'package:helty/src/pharmacy/widgets/medication_request_edit_dialog.dart';
@@ -38,14 +40,16 @@ class _PatientRequestGroup {
     required this.key,
     required this.patientName,
     required this.hospitalNumber,
-    required this.patientInitials,
+    required this.firstName,
+    required this.surname,
     required this.requests,
   });
 
   final String key;
   final String patientName;
   final String? hospitalNumber;
-  final String patientInitials;
+  final String? firstName;
+  final String? surname;
   final List<MedicationRequestModel> requests;
 
   DateTime get newestRequestTime => _requestTime(requests.first);
@@ -77,7 +81,8 @@ List<MedicationRequestModel> _sortedRequests(
 
 List<_PatientRequestGroup> _groupRequestsByPatient(
   List<MedicationRequestModel> requests, {
-  required String Function(MedicationRequestModel) patientInitials,
+  required String? Function(MedicationRequestModel) firstName,
+  required String? Function(MedicationRequestModel) surname,
   required String Function(MedicationRequestModel) patientLabel,
   required String? Function(MedicationRequestModel) hospitalNumber,
 }) {
@@ -96,7 +101,8 @@ List<_PatientRequestGroup> _groupRequestsByPatient(
         key: entry.key,
         patientName: patientLabel(first),
         hospitalNumber: hospitalNumber(first),
-        patientInitials: patientInitials(first),
+        firstName: firstName(first),
+        surname: surname(first),
         requests: sorted,
       ),
     );
@@ -126,6 +132,7 @@ class _MedicationRequestsScreenState
 
   List<MedicationRequestModel> _requests = [];
   final Set<String> _selectedIds = {};
+  final Set<String> _expandedPatientGroupKeys = {};
   bool _loading = true;
   bool _loadingMore = false;
   bool _billing = false;
@@ -358,16 +365,15 @@ class _MedicationRequestsScreenState
     }
   }
 
-  String _patientInitials(MedicationRequestModel r) {
-    final p = r.patient;
-    if (p == null) return '?';
-    final first = p.firstName.trim();
-    final last = p.surname.trim();
-    final a = first.isNotEmpty ? first[0].toUpperCase() : '';
-    final b = last.isNotEmpty ? last[0].toUpperCase() : '';
-    final initials = '$a$b';
-    return initials.isEmpty ? '?' : initials;
-  }
+  String? _patientFirstName(MedicationRequestModel r) =>
+      r.patient?.firstName.trim().isNotEmpty == true
+      ? r.patient!.firstName.trim()
+      : null;
+
+  String? _patientSurname(MedicationRequestModel r) =>
+      r.patient?.surname.trim().isNotEmpty == true
+      ? r.patient!.surname.trim()
+      : null;
 
   String _patientLabel(MedicationRequestModel r) {
     final p = r.patient;
@@ -388,15 +394,18 @@ class _MedicationRequestsScreenState
 
     final groups = _groupRequestsByPatient(
       _requests,
-      patientInitials: _patientInitials,
+      firstName: _patientFirstName,
+      surname: _patientSurname,
       patientLabel: _patientLabel,
       hospitalNumber: _patientHospitalNumber,
     );
     final entries = <_RequestListEntry>[];
     for (final group in groups) {
       entries.add(_RequestListEntry.header(group));
-      for (final request in group.requests) {
-        entries.add(_RequestListEntry.row(request));
+      if (_expandedPatientGroupKeys.contains(group.key)) {
+        for (final request in group.requests) {
+          entries.add(_RequestListEntry.row(request));
+        }
       }
     }
     return entries;
@@ -457,10 +466,12 @@ class _MedicationRequestsScreenState
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildToolbar(theme, colorScheme, allSelected, someSelected),
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildToolbar(theme, colorScheme, allSelected, someSelected, bp),
           if (_error != null) _buildErrorBanner(colorScheme),
           Expanded(
             child: _loading
@@ -470,6 +481,7 @@ class _MedicationRequestsScreenState
                 : _buildRequestList(colorScheme, canLoadMore),
           ),
         ],
+        ),
       ),
     );
   }
@@ -479,6 +491,7 @@ class _MedicationRequestsScreenState
     ColorScheme colorScheme,
     bool allSelected,
     bool someSelected,
+    AppBreakpoints bp,
   ) {
     return Material(
       elevation: 0,
@@ -538,16 +551,22 @@ class _MedicationRequestsScreenState
                 selected: {_listMode},
                 onSelectionChanged: (selection) {
                   if (selection.isEmpty) return;
-                  setState(() => _listMode = selection.first);
+                  setState(() {
+                    _listMode = selection.first;
+                    if (selection.first == _RequestListMode.patient) {
+                      _expandedPatientGroupKeys.clear();
+                    }
+                  });
                 },
                 showSelectedIcon: false,
               ),
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
+            if (bp.stackPanels)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
                     controller: _patientFilterCtrl,
                     decoration: InputDecoration(
                       hintText: 'Search by patient hospital number…',
@@ -565,15 +584,48 @@ class _MedicationRequestsScreenState
                     ),
                     onSubmitted: (_) => _load(reset: true),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  tooltip: 'Search',
-                  onPressed: _loading ? null : () => _load(reset: true),
-                  icon: const Icon(Icons.arrow_forward, size: 20),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton.filledTonal(
+                      tooltip: 'Search',
+                      onPressed: _loading ? null : () => _load(reset: true),
+                      icon: const Icon(Icons.arrow_forward, size: 20),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _patientFilterCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Search by patient hospital number…',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        filled: true,
+                        fillColor: colorScheme.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        isDense: true,
+                      ),
+                      onSubmitted: (_) => _load(reset: true),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    tooltip: 'Search',
+                    onPressed: _loading ? null : () => _load(reset: true),
+                    icon: const Icon(Icons.arrow_forward, size: 20),
+                  ),
+                ],
+              ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 10,
@@ -743,12 +795,24 @@ class _MedicationRequestsScreenState
         final entry = entries[index];
         if (entry.kind == _RequestListEntryKind.header) {
           final group = entry.group!;
+          final isExpanded = _expandedPatientGroupKeys.contains(group.key);
           return _PatientGroupHeader(
-            patientInitials: group.patientInitials,
+            firstName: group.firstName,
+            surname: group.surname,
             patientName: group.patientName,
             hospitalNumber: group.hospitalNumber,
             requestCount: group.requests.length,
             colorScheme: colorScheme,
+            isExpanded: isExpanded,
+            onToggle: () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedPatientGroupKeys.remove(group.key);
+                } else {
+                  _expandedPatientGroupKeys.add(group.key);
+                }
+              });
+            },
           );
         }
 
@@ -757,7 +821,8 @@ class _MedicationRequestsScreenState
           request: request,
           selected: _selectedIds.contains(request.id),
           showPatientHeader: showPatientHeader,
-          patientInitials: _patientInitials(request),
+          firstName: _patientFirstName(request),
+          surname: _patientSurname(request),
           patientName: _patientLabel(request),
           hospitalNumber: _patientHospitalNumber(request),
           onToggleSelect: () => _toggleRow(request),
@@ -776,82 +841,95 @@ DateTime _endOfDay(DateTime d) =>
 
 class _PatientGroupHeader extends StatelessWidget {
   const _PatientGroupHeader({
-    required this.patientInitials,
+    required this.firstName,
+    required this.surname,
     required this.patientName,
     required this.hospitalNumber,
     required this.requestCount,
     required this.colorScheme,
+    required this.isExpanded,
+    required this.onToggle,
   });
 
-  final String patientInitials;
+  final String? firstName;
+  final String? surname;
   final String patientName;
   final String? hospitalNumber;
   final int requestCount;
   final ColorScheme colorScheme;
+  final bool isExpanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
+    return Material(
+      color: colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onToggle,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-        ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: colorScheme.primaryContainer,
-            child: Text(
-              patientInitials,
-              style: TextStyle(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+            ),
+          ),
+          child: Row(
+            children: [
+              PatientAvatar(
+                firstName: firstName,
+                surname: surname,
+                size: 32,
+                backgroundColor: colorScheme.primaryContainer,
+                foregroundColor: colorScheme.onPrimaryContainer,
                 fontWeight: FontWeight.w700,
-                color: colorScheme.onPrimaryContainer,
-                fontSize: 12,
               ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  patientName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    height: 1.2,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (hospitalNumber != null && hospitalNumber!.isNotEmpty)
-                  Text(
-                    hospitalNumber!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.onSurfaceVariant,
-                      height: 1.2,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      patientName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        height: 1.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                Text(
-                  '$requestCount request${requestCount == 1 ? '' : 's'}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.primary,
-                  ),
+                    if (hospitalNumber != null && hospitalNumber!.isNotEmpty)
+                      Text(
+                        hospitalNumber!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    Text(
+                      '$requestCount request${requestCount == 1 ? '' : 's'}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Icon(
+                isExpanded ? Icons.expand_less : Icons.expand_more,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -901,7 +979,8 @@ class _MedicationRequestCard extends StatelessWidget {
     required this.request,
     required this.selected,
     this.showPatientHeader = true,
-    required this.patientInitials,
+    required this.firstName,
+    required this.surname,
     required this.patientName,
     required this.hospitalNumber,
     required this.onToggleSelect,
@@ -912,7 +991,8 @@ class _MedicationRequestCard extends StatelessWidget {
   final MedicationRequestModel request;
   final bool selected;
   final bool showPatientHeader;
-  final String patientInitials;
+  final String? firstName;
+  final String? surname;
   final String patientName;
   final String? hospitalNumber;
   final VoidCallback onToggleSelect;
@@ -1114,17 +1194,13 @@ class _MedicationRequestCard extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
-          radius: 13,
+        PatientAvatar(
+          firstName: firstName,
+          surname: surname,
+          size: 26,
           backgroundColor: colorScheme.primaryContainer,
-          child: Text(
-            patientInitials,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: colorScheme.onPrimaryContainer,
-              fontSize: 11,
-            ),
-          ),
+          foregroundColor: colorScheme.onPrimaryContainer,
+          fontWeight: FontWeight.w700,
         ),
         const SizedBox(width: 8),
         Expanded(

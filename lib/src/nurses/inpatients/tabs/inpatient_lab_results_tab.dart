@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/models/lab_order_model.dart';
@@ -87,9 +88,10 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
       if (isDoctor) 'Doctor actions',
     ];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: SectionCard(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: SectionCard(
         title: 'Lab Results',
         subtitle: 'Read-only view of investigations',
         child: Column(
@@ -178,6 +180,7 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
               ),
           ],
         ),
+      ),
       ),
     );
   }

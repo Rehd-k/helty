@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../core/errors/user_facing_error.dart';
 import '../helper/app_timezone.dart';
 import '../helper/date.formatter.dart';
 import '../helper/theme.dart';
@@ -69,7 +70,7 @@ class _ClockSyncGateState extends State<ClockSyncGate> {
       if (!mounted) return;
       setState(() {
         _phase = _GatePhase.error;
-        _message = 'Could not verify the time with the server: $e';
+        _message = userFacingErrorMessage(e);
       });
     }
   }
@@ -114,7 +115,6 @@ class _ClockSyncGateState extends State<ClockSyncGate> {
           ),
         );
       case _GatePhase.clockMismatch:
-      case _GatePhase.error:
         final server = _serverTime;
         final theme = AppTheme.lightTheme;
         return MaterialApp(
@@ -131,17 +131,13 @@ class _ClockSyncGateState extends State<ClockSyncGate> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Icon(
-                        _phase == _GatePhase.clockMismatch
-                            ? Icons.schedule
-                            : Icons.cloud_off,
+                        Icons.schedule,
                         size: 56,
                         color: theme.colorScheme.primary,
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        _phase == _GatePhase.clockMismatch
-                            ? 'System time is incorrect'
-                            : 'Time check failed',
+                        'System time is incorrect',
                         style: theme.textTheme.headlineSmall,
                         textAlign: TextAlign.center,
                       ),
@@ -165,6 +161,78 @@ class _ClockSyncGateState extends State<ClockSyncGate> {
                           textAlign: TextAlign.center,
                         ),
                       ],
+                      const SizedBox(height: 32),
+                      FilledButton(
+                        onPressed: _runCheck,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      case _GatePhase.error:
+        final theme = AppTheme.lightTheme;
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: theme,
+          home: Scaffold(
+            body: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Icon(
+                        Icons.cloud_off,
+                        size: 56,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        networkErrorTitle,
+                        style: theme.textTheme.headlineSmall,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _message ?? networkErrorMessage,
+                        style: theme.textTheme.bodyLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'What you can try:',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      for (final tip in networkErrorTips)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '• ',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                              Expanded(
+                                child: Text(
+                                  tip,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       const SizedBox(height: 32),
                       FilledButton(
                         onPressed: _runCheck,

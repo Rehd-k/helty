@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:auto_route/auto_route.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
@@ -381,7 +382,9 @@ class _RadiologyRequestDetailScreenState
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -528,6 +531,7 @@ class _RadiologyRequestDetailScreenState
           ),
         ],
         ),
+      ),
       ),
     );
   }

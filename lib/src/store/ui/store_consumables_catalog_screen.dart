@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
@@ -180,7 +181,8 @@ class _StoreConsumablesCatalogScreenState
         icon: const Icon(Icons.add),
         label: const Text('Add consumable'),
       ),
-      body: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -256,6 +258,7 @@ class _StoreConsumablesCatalogScreenState
                       ),
           ),
         ],
+      ),
       ),
     );
   }

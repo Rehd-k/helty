@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/monitoring_chart_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
@@ -247,9 +248,10 @@ class _InpatientMonitoringScreenState extends State<InpatientMonitoringScreen> {
         return tb.compareTo(ta);
       });
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: SectionCard(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: SectionCard(
         title: 'Monitoring',
         subtitle: 'Structured charts (GCS, neuro, cardiac, seizure)',
         actions: [
@@ -394,6 +396,7 @@ class _InpatientMonitoringScreenState extends State<InpatientMonitoringScreen> {
                   ),
           ],
         ),
+      ),
       ),
     );
   }

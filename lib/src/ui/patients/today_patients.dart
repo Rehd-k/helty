@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
@@ -234,7 +235,9 @@ class _TodayPatientsScreenState extends ConsumerState<TodayPatientsScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: RefreshIndicator(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => RefreshIndicator(
         onRefresh: _reloadList,
         child: _total == 0 && _searchQuery.isEmpty
             ? ListView(
@@ -310,6 +313,7 @@ class _TodayPatientsScreenState extends ConsumerState<TodayPatientsScreen> {
                   ),
                 ),
               ),
+      ),
       ),
     );
   }

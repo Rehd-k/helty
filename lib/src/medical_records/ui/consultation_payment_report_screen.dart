@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/medical_records/models/consultation_payment_report_row.dart';
 import 'package:helty/src/medical_records/services/consultation_payment_report_service.dart';
 import 'package:helty/src/widgets/date.filter.dart';
@@ -134,43 +135,39 @@ class _ConsultationPaymentReportScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+            child: ResponsiveBody(
+              center: false,
+              builder: (context, bp) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Paid consultation report',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Patients who paid for consultation in the selected period. '
-                              'Diagnosis is shown when a completed encounter exists.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.7,
-                                ),
-                              ),
-                            ),
-                          ],
+                  ResponsiveToolbar(
+                    leading: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Paid consultation report',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Patients who paid for consultation in the selected period. '
+                          'Diagnosis is shown when a completed encounter exists.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
                       FilledButton.tonalIcon(
                         onPressed: _loading ? null : _copyAsCsv,
                         icon: const Icon(Icons.copy_outlined, size: 18),
                         label: const Text('Copy CSV'),
                       ),
-                      const SizedBox(width: 8),
                       FilledButton.icon(
                         onPressed: _loading ? null : _load,
                         icon: _loading
@@ -187,7 +184,7 @@ class _ConsultationPaymentReportScreenState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: bp.isMobile ? 12 : 20),
                   TextField(
                     controller: _searchCtrl,
                     decoration: InputDecoration(
@@ -291,12 +288,11 @@ class _ConsultationPaymentReportScreenState
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              padding: EdgeInsets.zero,
               sliver: SliverToBoxAdapter(
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+                child: ResponsiveBody(
+                  center: false,
+                  builder: (context, bp) => ResponsiveDataTable(
                     child: DataTable(
                       headingRowColor: WidgetStatePropertyAll(
                         colorScheme.surfaceContainerHighest.withValues(

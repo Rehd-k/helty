@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/helper/quill_content_helper.dart';
@@ -330,9 +331,10 @@ class _InpatientNotesScreenState extends State<InpatientNotesScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionCard(
@@ -500,6 +502,7 @@ class _InpatientNotesScreenState extends State<InpatientNotesScreen> {
                           ),
           ),
         ],
+      ),
       ),
     );
   }

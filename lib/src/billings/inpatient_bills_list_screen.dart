@@ -8,6 +8,7 @@ import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/widgets/date.filter.dart';
 import 'package:intl/intl.dart';
@@ -153,14 +154,13 @@ class _InpatientBillsListScreenState
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ResponsiveToolbar(
+              actions: [
                 FilledButton.icon(
                   onPressed: (_isLoading || _creatingBill)
                       ? null
@@ -177,22 +177,16 @@ class _InpatientBillsListScreenState
                       : const Icon(Icons.receipt_long_outlined, size: 20),
                   label: Text(_creatingBill ? 'Opening…' : 'Add bill'),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Opens the services list so you can add lines to this '
-                    "patient's invoice (a bill is created if needed).",
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.72),
-                    ),
-                  ),
-                ),
               ],
+              leading: Text(
+                'Opens the services list so you can add lines to this '
+                "patient's invoice (a bill is created if needed).",
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.72),
+                ),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: FromToDateFilter(
+            FromToDateFilter(
               doRefresh: _loadInvoices,
               dateFilter: true,
               onFilterChanged:
@@ -209,10 +203,10 @@ class _InpatientBillsListScreenState
                     _loadInvoices();
                   },
             ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(child: _buildBody(selectedPatient, colorScheme)),
-        ],
+            const SizedBox(height: 8),
+            Expanded(child: _buildBody(selectedPatient, colorScheme)),
+          ],
+        ),
       ),
     );
   }

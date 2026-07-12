@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
@@ -321,10 +322,12 @@ class _DoctorEncounterProceduresTabState
             _resolvedProcedureType!.isNotEmpty) &&
         _consentConfirmed;
 
-    return AbsorbPointer(
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => AbsorbPointer(
       absorbing: readOnly,
       child: SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -406,6 +409,7 @@ class _DoctorEncounterProceduresTabState
           ],
         ],
       ),
+    ),
     ),
     );
   }

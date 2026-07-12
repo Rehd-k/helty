@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 
+import '../core/widgets/patient_avatar.dart';
 import '../paitients/patient_model.dart';
 
 /// 🎨 Modern List Tile for Patients
@@ -24,16 +24,7 @@ class PatientTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: Colors.blue.shade50,
-              child: Text(
-                patient.firstName.substring(0, 1).toUpperCase(),
-                style: TextStyle(
-                  color: Colors.blue.shade700,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            PatientAvatar.fromPatient(patient, size: 40),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

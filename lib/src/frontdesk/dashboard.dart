@@ -5,10 +5,14 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
+import '../core/errors/user_facing_error.dart';
+import '../core/widgets/patient_avatar.dart';
 import '../helper/app_timezone.dart';
 import '../helper/date.formatter.dart';
 import '../models/appointment_model.dart';
 import '../models/frontdesk_dashboard_models.dart';
+import '../models/frontdesk_feedback_models.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
 import '../paitients/patient_service.dart';
@@ -40,13 +44,17 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
 
   FrontdeskDashboardSummary? _summary;
   List<FrontdeskQueueRow> _queue = [];
+  List<FrontdeskFeedbackItem> _feedback = [];
 
   bool _loadingSummary = true;
   bool _loadingQueue = true;
+  bool _loadingFeedback = true;
   bool _loadingRegistrationsToday = true;
+  String? _updatingFeedbackId;
   int? _registrationsToday;
   String? _summaryError;
   String? _queueError;
+  String? _feedbackError;
 
   @override
   void initState() {
@@ -55,6 +63,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSummary();
       _loadQueue();
+      _loadFeedback();
       _loadRegistrationsToday();
       _ensureCalendarCountsForMonth(_focusedDay);
     });
@@ -74,14 +83,15 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      final msg = userFacingErrorMessage(e);
       setState(() {
-        _summaryError = e.toString();
+        _summaryError = msg;
         _loadingSummary = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(_summaryError!)));
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -100,15 +110,41 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      final msg = userFacingErrorMessage(e);
       setState(() {
-        _queueError = e.toString();
+        _queueError = msg;
         _loadingQueue = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(_queueError!)));
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
+    }
+  }
+
+  Future<void> _loadFeedback() async {
+    setState(() {
+      _feedbackError = null;
+      if (_feedback.isEmpty) _loadingFeedback = true;
+    });
+    try {
+      final response = await _api.getFeedback(limit: 10);
+      if (!mounted) return;
+      setState(() {
+        _feedback = response.data;
+        _loadingFeedback = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final msg = userFacingErrorMessage(e);
+      setState(() {
+        _feedbackError = msg;
+        _loadingFeedback = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -136,8 +172,41 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     await Future.wait([
       _loadSummary(),
       _loadQueue(),
+      _loadFeedback(),
       _loadRegistrationsToday(),
     ]);
+  }
+
+  Future<void> _updateFeedback(
+    FrontdeskFeedbackItem item, {
+    required FrontdeskFeedbackStatus status,
+    required String response,
+  }) async {
+    setState(() => _updatingFeedbackId = item.id);
+    try {
+      final updated = await _api.updateFeedback(
+        item.id,
+        status: status,
+        staffResponse: response.trim().isEmpty ? null : response.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _feedback = [
+          for (final existing in _feedback)
+            if (existing.id == updated.id) updated else existing,
+        ];
+        _updatingFeedbackId = null;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Feedback updated.')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _updatingFeedbackId = null);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userFacingErrorMessage(e))));
+    }
   }
 
   static DateTime _calendarDateKey(DateTime d) =>
@@ -343,20 +412,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     }
   }
 
-  String _initials(String name) {
-    final parts = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) {
-      final s = parts[0];
-      return s.length >= 2 ? s.substring(0, 2).toUpperCase() : s.toUpperCase();
-    }
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-
   Color _avatarColor(String seed, ColorScheme scheme) {
     final i = seed.hashCode.abs();
     final palette = <Color>[
@@ -420,6 +475,322 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     });
   }
 
+  (Color bg, Color fg) _feedbackStatusColors(
+    FrontdeskFeedbackStatus status,
+    ColorScheme scheme,
+  ) {
+    return switch (status) {
+      FrontdeskFeedbackStatus.open => (
+        Colors.blue.withValues(alpha: 0.12),
+        Colors.blue.shade800,
+      ),
+      FrontdeskFeedbackStatus.inReview => (
+        Colors.orange.withValues(alpha: 0.12),
+        Colors.orange.shade800,
+      ),
+      FrontdeskFeedbackStatus.resolved => (
+        Colors.green.withValues(alpha: 0.12),
+        Colors.green.shade800,
+      ),
+      FrontdeskFeedbackStatus.closed => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+      ),
+    };
+  }
+
+  (Color bg, Color fg) _feedbackKindColors(
+    FrontdeskFeedbackKind kind,
+    ColorScheme scheme,
+  ) {
+    return switch (kind) {
+      FrontdeskFeedbackKind.complaint => (
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+      ),
+      FrontdeskFeedbackKind.suggestion => (
+        Colors.teal.withValues(alpha: 0.12),
+        Colors.teal.shade800,
+      ),
+      FrontdeskFeedbackKind.general => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+      ),
+    };
+  }
+
+  Widget _feedbackPill(String label, (Color bg, Color fg) colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.$1,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: colors.$2,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackPanel(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Patient Feedback',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Refresh feedback',
+                onPressed: _loadingFeedback ? null : _loadFeedback,
+                icon: _loadingFeedback
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorScheme.primary,
+                        ),
+                      )
+                    : const Icon(Icons.refresh, size: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_loadingFeedback && _feedback.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_feedback.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                _feedbackError != null
+                    ? 'Could not load feedback.'
+                    : 'No patient feedback yet.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            )
+          else
+            ..._feedback.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _showFeedbackDialog(context, item),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: colorScheme.outline.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.patient.patientName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.subject,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _feedbackPill(
+                              item.kind.label,
+                              _feedbackKindColors(item.kind, colorScheme),
+                            ),
+                            _feedbackPill(
+                              item.status.label,
+                              _feedbackStatusColors(item.status, colorScheme),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showFeedbackDialog(
+    BuildContext context,
+    FrontdeskFeedbackItem item,
+  ) async {
+    var selectedStatus = item.status;
+    final responseController = TextEditingController(
+      text: item.staffResponse ?? '',
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final colorScheme = Theme.of(context).colorScheme;
+            final updating = _updatingFeedbackId == item.id;
+
+            return AlertDialog(
+              title: Text(item.subject),
+              content: SizedBox(
+                width: 520,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item.patient.patientName,
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          _feedbackPill(
+                            item.kind.label,
+                            _feedbackKindColors(item.kind, colorScheme),
+                          ),
+                          _feedbackPill(
+                            item.status.label,
+                            _feedbackStatusColors(item.status, colorScheme),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(item.message),
+                      if (item.createdAt != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'Submitted ${DateFormat.yMMMd().add_jm().format(item.createdAt!.toLocal())}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      DropdownButtonFormField<FrontdeskFeedbackStatus>(
+                        initialValue: selectedStatus,
+                        decoration: const InputDecoration(labelText: 'Status'),
+                        items: [
+                          for (final status in FrontdeskFeedbackStatus.values)
+                            DropdownMenuItem(
+                              value: status,
+                              child: Text(status.label),
+                            ),
+                        ],
+                        onChanged: updating
+                            ? null
+                            : (value) {
+                                if (value != null) {
+                                  setDialogState(() => selectedStatus = value);
+                                }
+                              },
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: responseController,
+                        enabled: !updating,
+                        minLines: 3,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          labelText: 'Response to patient',
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: updating
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: updating
+                      ? null
+                      : () async {
+                          await _updateFeedback(
+                            item,
+                            status: selectedStatus,
+                            response: responseController.text,
+                          );
+                          if (!dialogContext.mounted) return;
+                          Navigator.of(dialogContext).pop();
+                        },
+                  icon: updating
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    responseController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -431,27 +802,32 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 7,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back, $welcome. Here is the overview for today.',
-                    style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontSize: 13,
-                    ),
+      body: ResponsiveBody(
+        center: false,
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
+          child: ResponsiveRowColumn(
+            stackFill: false,
+            firstFlex: 7,
+            secondFlex: 3,
+            gap: bp.isMobile ? 16 : 24,
+            first: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back, $welcome. Here is the overview for today.',
+                  style: TextStyle(
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 13,
                   ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      _buildStatCard(
+                ),
+                SizedBox(height: bp.isMobile ? 16 : 24),
+                ResponsiveWrapGrid(
+                  mobileColumns: 1,
+                  tabletColumns: 2,
+                  desktopColumns: 3,
+                  children: [
+                    _buildStatCard(
                         context,
                         "Today's Appointments",
                         _loadingSummary
@@ -466,7 +842,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                             ? _appointmentDeltaNegative(apptChange)
                             : false,
                       ),
-                      const SizedBox(width: 16),
                       _buildStatCard(
                         context,
                         'Checked-In',
@@ -477,7 +852,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                         Icons.check_circle_outline,
                         Colors.green,
                       ),
-                      const SizedBox(width: 16),
                       _buildStatCard(
                         context,
                         'Waiting Room',
@@ -488,7 +862,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                         Icons.hourglass_empty,
                         Colors.orange,
                       ),
-                      const SizedBox(width: 16),
                       _buildStatCard(
                         context,
                         'Discharged',
@@ -499,7 +872,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                         Icons.logout,
                         Colors.purple,
                       ),
-                      const SizedBox(width: 16),
                       _buildStatCard(
                         context,
                         'Registered today',
@@ -512,8 +884,8 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                         onTap: () =>
                             context.router.push(const TodayPatientsRoute()),
                       ),
-                    ],
-                  ),
+                  ],
+                ),
                   if (_summaryError != null) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -522,30 +894,30 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                     ),
                   ],
                   const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
+                  ResponsiveToolbar(
+                    leading: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Live Patient Queue',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Live Patient Queue',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
+                    actions: [
                       OutlinedButton.icon(
                         onPressed: _loadingQueue ? null : _refreshAll,
                         icon: _loadingQueue
@@ -573,7 +945,8 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Container(
+                  ResponsiveDataTable(
+                    child: Container(
                     decoration: BoxDecoration(
                       color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
@@ -707,18 +1080,15 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                                           flex: 3,
                                           child: Row(
                                             children: [
-                                              CircleAvatar(
-                                                radius: 16,
+                                              PatientAvatar(
+                                                avatarUrl: row.avatarUrl,
+                                                firstName: row.firstName,
+                                                surname: row.surname,
+                                                size: 32,
                                                 backgroundColor: avatarColor
                                                     .withValues(alpha: 0.15),
-                                                child: Text(
-                                                  _initials(row.patientName),
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: avatarColor,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
+                                                foregroundColor: avatarColor,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                               const SizedBox(width: 12),
                                               Text(
@@ -847,14 +1217,13 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                       ],
                     ),
                   ),
+                ),
                 ],
               ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              flex: 3,
-              child: Column(
+            second: Column(
                 children: [
+                  _buildFeedbackPanel(context),
+                  const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -1065,8 +1434,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                   ),
                 ],
               ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1145,18 +1513,16 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
         ],
       ),
     );
-    return Expanded(
-      child: onTap == null
-          ? card
-          : Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(12),
-                child: card,
-              ),
+    return onTap == null
+        ? card
+        : Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: card,
             ),
-    );
+          );
   }
 
   TextStyle _headerStyle(ColorScheme colorScheme) {

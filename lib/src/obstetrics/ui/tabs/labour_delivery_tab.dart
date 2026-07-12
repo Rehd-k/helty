@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/pregnancy_view_screen.dart';
@@ -128,8 +129,11 @@ class _ObstetricsLabourDeliveryTabState
       );
     }
 
-    return Column(
-      children: [
+    return ResponsiveBody(
+      center: false,
+      bottomPadding: 0,
+      builder: (context, bp) => Column(
+        children: [
         if (_error != null)
           Material(
             color: colorScheme.errorContainer,
@@ -148,15 +152,14 @@ class _ObstetricsLabourDeliveryTabState
           ),
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _deliveries.isEmpty
-                    ? 'No deliveries recorded'
-                    : '${_deliveries.length} delivery${_deliveries.length == 1 ? '' : 's'}',
-                style: theme.textTheme.titleSmall,
-              ),
+          child: ResponsiveToolbar(
+            leading: Text(
+              _deliveries.isEmpty
+                  ? 'No deliveries recorded'
+                  : '${_deliveries.length} delivery${_deliveries.length == 1 ? '' : 's'}',
+              style: theme.textTheme.titleSmall,
+            ),
+            actions: [
               FilledButton.icon(
                 onPressed: _addDelivery,
                 icon: const Icon(Icons.add, size: 20),
@@ -223,6 +226,7 @@ class _ObstetricsLabourDeliveryTabState
                     ),
         ),
       ],
+      ),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -329,7 +330,9 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(currentStaffDetailProvider(widget.staffId));
           await ref.read(currentStaffDetailProvider(widget.staffId).future);
@@ -592,6 +595,7 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

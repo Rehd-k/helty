@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 
+import 'package:helty/src/core/responsive.dart';
+
 import 'transaction_details_pane.dart';
 import 'transaction_filters_panel.dart';
 import 'transaction_models.dart';
@@ -387,16 +389,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       backgroundColor: colorScheme.surface,
       body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
+          ResponsiveBody(
+            center: false,
+            builder: (context, bp) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header: search bar + Filters button
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
+                ResponsiveToolbar(
+                  actions: [
+                    SizedBox(
+                      width: bp.isMobile ? double.infinity : 480,
                       child: TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
@@ -428,7 +429,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         onSubmitted: _onSearchSubmitted,
                       ),
                     ),
-                    const SizedBox(width: 12),
                     OutlinedButton.icon(
                       onPressed: () => setState(() => _isFiltersOpen = true),
                       icon: const Icon(Icons.filter_list, size: 18),
@@ -445,7 +445,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: bp.isMobile ? 16 : 24),
 
                 // Summary cards (clickable to filter by payment method)
                 TransactionSummarySection(
@@ -494,12 +494,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   )
                 else
                   Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: ReusableAsyncTable<TransactionMap>(
+                    child: ResponsiveRowColumn(
+                      firstFlex: 2,
+                      secondFlex: 1,
+                      gap: bp.isMobile ? 12 : 24,
+                      first: ResponsiveDataTable(
+                        child: ReusableAsyncTable<TransactionMap>(
                             key: ValueKey(
                               '$_searchQuery$_dateFrom$_dateTo$_status$_selectedPaymentMethod$_initiatedById$_tableDataGeneration',
                             ),
@@ -528,22 +528,39 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               DataCell(
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(() {
-                                      final n =
-                                          txn['patientName']
-                                              ?.toString()
-                                              .trim() ??
-                                          '';
-                                      return n.isEmpty ? '—' : n;
-                                    }()),
                                     Text(
-                                      // _patientIdCell(txn['patientId']),
-                                      '--',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
+                                      () {
+                                        final n =
+                                            txn['patientName']
+                                                ?.toString()
+                                                .trim() ??
+                                            '';
+                                        return n.isEmpty ? '—' : n;
+                                      }(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                    Text(
+                                      _patientIdCell(txn['patientId']),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            fontSize: 11,
+                                            height: 1.1,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -648,11 +665,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                             ],
                             onContextMenuSelected: (txn, action) =>
                                 _handleContextMenuAction(action as String, txn),
-                          ),
                         ),
-                        const SizedBox(width: 24),
-                        Expanded(
-                          child: TransactionDetailsPane(
+                      ),
+                      second: TransactionDetailsPane(
                             transaction: _selectedTransaction,
                             showChangeDate: canPrivilegedBilling,
                             showRefund: canRefund,
@@ -678,9 +693,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                     _selectedTransaction!,
                                   )
                                 : () {},
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
               ],

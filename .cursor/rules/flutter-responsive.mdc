@@ -1,0 +1,86 @@
+---
+description: Flutter responsive layout conventions for all screens in lib/
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# Flutter Responsive UI Standards
+
+All screens and new UI in `lib/` must work on **mobile (<600px)**, **tablet (600–1099px)**, and **desktop (≥1100px)**.
+
+## Required imports
+
+```dart
+import 'package:helty/src/core/responsive.dart';
+```
+
+## Breakpoints — use AppBreakpoints only
+
+```dart
+LayoutBuilder(
+  builder: (context, constraints) {
+    final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
+    // ...
+  },
+)
+```
+
+Never use magic numbers (`width >= 800`, `SizedBox(width: 250)` on toolbars).
+
+Thresholds: mobile `< 600`, tablet `600–1099`, desktop `≥ 1100`, max content `1280`.
+
+## Page body pattern
+
+Wrap page content in `ResponsiveBody`:
+
+```dart
+// Fill viewport — lists, split panels, Column + Expanded (default)
+body: ResponsiveBody(
+  builder: (context, bp) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [ /* content */ ],
+  ),
+),
+
+// Scrollable forms / detail pages
+body: ResponsiveBody(
+  expand: false,
+  builder: (context, bp) => SingleChildScrollView(
+    child: /* form fields */,
+  ),
+),
+```
+
+## Flex layout rules
+
+- Page bodies with `Column` + `Expanded` use `ResponsiveBody` (default `expand: true`)
+- Scrollable forms use `ResponsiveBody(expand: false)` + `SingleChildScrollView`
+- Panel widgets with internal `Expanded` (`SelectUser`, chat/help lists) must be wrapped in `Expanded` or `FlexPanel` — never as a non-flex sibling in a `Column`
+- `ResponsiveRowColumn` inside scroll views: set `stackFill: false`
+- Reusable flex panels: wrap with `FlexPanel` when embedding outside a bounded scaffold body
+
+## Layout rules
+
+| Pattern | Widget |
+|---------|--------|
+| Side-by-side panels | `ResponsiveRowColumn` |
+| KPI / form grids | `ResponsiveWrapGrid` (1 / 2 / 3 cols) |
+| Toolbar actions | `ResponsiveToolbar` or `Wrap` |
+| DataTable / wide tables | `ResponsiveDataTable` |
+| App shell with nav | `ResponsiveScaffold` (sidebar ≥1100) |
+
+## Mobile requirements
+
+- Stack multi-column `Row` layouts when `bp.isMobile`
+- Search fields and inputs: full width (`Expanded`), not fixed `SizedBox(width: …)`
+- Tables: horizontal scroll via `ResponsiveDataTable`, min width 720 on mobile
+- Dialogs: `width: min(560, screenWidth - 32)`
+
+## Deprecated — do not create new usages
+
+- `AccountsBreakpoints`, `CmdBreakpoints`, `BillingBreakpoints` — use `AppBreakpoints`
+- Inline `width >= 700/800/1100` checks — use `AppBreakpoints`
+
+## Before merging
+
+Verify no `RenderFlex overflow` at viewport widths: **360px**, **768px**, **1280px**.

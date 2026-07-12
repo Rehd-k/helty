@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/emergency/models/emergency_visit_model.dart';
 import 'package:helty/src/emergency/services/emergency_service.dart';
@@ -424,10 +425,8 @@ class _DoctorEncounterAdmissionTabState
   }
 
   Widget _buildWardBedRow(ThemeData theme, ColorScheme cs) {
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<String>(
+    return ResponsiveRowColumn(
+      first: DropdownButtonFormField<String>(
             initialValue: _selectedWard?.id,
             isExpanded: true,
             decoration: InputDecoration(
@@ -456,10 +455,7 @@ class _DoctorEncounterAdmissionTabState
                     _loadBedsForWard(ward.id, includeBedId: keepBedId);
                   },
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: DropdownButtonFormField<String>(
+      second: DropdownButtonFormField<String>(
             initialValue: _selectedBed?.id,
             isExpanded: true,
             decoration: InputDecoration(
@@ -485,8 +481,6 @@ class _DoctorEncounterAdmissionTabState
                     });
                   },
           ),
-        ),
-      ],
     );
   }
 
@@ -544,10 +538,12 @@ class _DoctorEncounterAdmissionTabState
     ColorScheme cs, {
     bool readOnly = false,
   }) {
-    return AbsorbPointer(
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => AbsorbPointer(
       absorbing: readOnly,
       child: SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.zero,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -672,6 +668,7 @@ class _DoctorEncounterAdmissionTabState
         ),
       ),
     ),
+    ),
     );
   }
 
@@ -701,10 +698,12 @@ class _DoctorEncounterAdmissionTabState
       return _buildTransferForm(theme, cs, readOnly: admissionReadOnly);
     }
 
-    return AbsorbPointer(
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => AbsorbPointer(
       absorbing: admissionReadOnly,
       child: SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.zero,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -822,6 +821,7 @@ class _DoctorEncounterAdmissionTabState
           ],
         ),
       ),
+    ),
     ),
     );
   }

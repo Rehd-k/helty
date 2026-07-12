@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
@@ -99,7 +100,8 @@ class _HubEncountersScreenState extends ConsumerState<HubEncountersScreen> {
         items = _applyEncounterFilter(items);
         items = hubSortRows(items, _sort);
 
-        return HubSectionScaffold(
+        return ResponsiveBody(
+          builder: (context, bp) => HubSectionScaffold(
           filterRow: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -161,6 +163,7 @@ class _HubEncountersScreenState extends ConsumerState<HubEncountersScreen> {
                     );
                   },
                 ),
+        ),
         );
       },
     );

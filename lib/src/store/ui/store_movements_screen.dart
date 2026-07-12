@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/services/department_service.dart';
 import 'package:helty/src/store/models/store_models.dart';
@@ -205,9 +206,10 @@ class _IssueTabState extends ConsumerState<_IssueTab> {
     if (_loadingOptions) {
       return const Center(child: CircularProgressIndicator());
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
@@ -376,6 +378,7 @@ class _IssueTabState extends ConsumerState<_IssueTab> {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -535,9 +538,10 @@ class _ReceiveTabState extends ConsumerState<_ReceiveTab> {
     if (_loadingOptions) {
       return const Center(child: CircularProgressIndicator());
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
@@ -720,6 +724,7 @@ class _ReceiveTabState extends ConsumerState<_ReceiveTab> {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -861,9 +866,10 @@ class _TransferTabState extends ConsumerState<_TransferTab> {
     if (_loadingOptions) {
       return const Center(child: CircularProgressIndicator());
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
@@ -1004,6 +1010,7 @@ class _TransferTabState extends ConsumerState<_TransferTab> {
           ),
         ],
       ),
+    ),
     );
   }
 }

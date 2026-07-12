@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/store/models/store_models.dart';
 import 'package:helty/src/store/providers/store_providers.dart';
@@ -92,7 +93,8 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: ResponsiveBody(
+        builder: (context, bp) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
@@ -182,6 +184,7 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
             child: _buildBody(theme),
           ),
         ],
+      ),
       ),
     );
   }

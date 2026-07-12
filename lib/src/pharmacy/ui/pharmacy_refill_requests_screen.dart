@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_refill_models.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_refill_service.dart';
@@ -301,10 +302,12 @@ class _PharmacyRefillRequestsScreenState
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildToolbar(theme, colorScheme),
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildToolbar(theme, colorScheme, bp),
           if (_error != null) _buildErrorBanner(colorScheme),
           Expanded(
             child: _loading
@@ -314,11 +317,16 @@ class _PharmacyRefillRequestsScreenState
                     : _buildRequestList(colorScheme, canLoadMore),
           ),
         ],
+        ),
       ),
     );
   }
 
-  Widget _buildToolbar(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildToolbar(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    AppBreakpoints bp,
+  ) {
     return Material(
       elevation: 0,
       color: colorScheme.surfaceContainerLow,
@@ -393,10 +401,11 @@ class _PharmacyRefillRequestsScreenState
               ],
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
+            if (bp.stackPanels)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
                     controller: _patientFilterCtrl,
                     decoration: InputDecoration(
                       hintText: 'Search by patient hospital number…',
@@ -414,15 +423,48 @@ class _PharmacyRefillRequestsScreenState
                     ),
                     onSubmitted: (_) => _load(reset: true),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  tooltip: 'Search',
-                  onPressed: _loading ? null : () => _load(reset: true),
-                  icon: const Icon(Icons.arrow_forward, size: 20),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton.filledTonal(
+                      tooltip: 'Search',
+                      onPressed: _loading ? null : () => _load(reset: true),
+                      icon: const Icon(Icons.arrow_forward, size: 20),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _patientFilterCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Search by patient hospital number…',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        filled: true,
+                        fillColor: colorScheme.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        isDense: true,
+                      ),
+                      onSubmitted: (_) => _load(reset: true),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    tooltip: 'Search',
+                    onPressed: _loading ? null : () => _load(reset: true),
+                    icon: const Icon(Icons.arrow_forward, size: 20),
+                  ),
+                ],
+              ),
             const SizedBox(height: 10),
             Align(
               alignment: Alignment.centerLeft,

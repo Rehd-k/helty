@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_side_panel.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
@@ -27,6 +29,7 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
   List<RadiologyOrder> _orders = [];
   bool _loading = true;
   bool _loadScheduled = false;
+  bool _sidePanelExpanded = true;
 
   /// `false` = all radiology orders for [EncounterScope.patientId] (default).
   /// `true` = only this [EncounterScope.encounterId].
@@ -220,98 +223,196 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
 
     final readOnly = !scope.canEdit;
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment<bool>(
-                      value: false,
-                      label: Text('All patient'),
-                      icon: Icon(Icons.person_outline, size: 18),
-                    ),
-                    ButtonSegment<bool>(
-                      value: true,
-                      label: Text('This encounter'),
-                      icon: Icon(Icons.event_note_outlined, size: 18),
-                    ),
-                  ],
-                  selected: {_encounterOnly},
-                  onSelectionChanged: (s) {
-                    if (s.isEmpty) return;
-                    setState(() => _encounterOnly = s.first);
-                    _load();
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              if (!readOnly)
-                FilledButton.icon(
-                  onPressed: _openOrderModal,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Order Imaging'),
-                ),
-            ],
+    final completedCount = _orders
+        .where((o) => o.status == RadiologyOrderStatus.COMPLETED)
+        .length;
+    final pendingCount = _orders
+        .where(
+          (o) =>
+              o.status == RadiologyOrderStatus.PENDING ||
+              o.status == RadiologyOrderStatus.ACTIVE,
+        )
+        .length;
+    final scheme = theme.colorScheme;
+
+    final sidePanel = EncounterSidePanel(
+      title: 'Imaging',
+      expanded: _sidePanelExpanded,
+      onToggleExpanded: () =>
+          setState(() => _sidePanelExpanded = !_sidePanelExpanded),
+      subtitle: _orders.isEmpty
+          ? (_encounterOnly
+              ? 'No imaging orders yet for this encounter'
+              : 'No imaging history for this patient')
+          : '${_orders.length} order${_orders.length == 1 ? '' : 's'}'
+              '${_encounterOnly ? ' on this encounter' : ''}',
+      controls: SegmentedButton<bool>(
+        segments: const [
+          ButtonSegment<bool>(
+            value: false,
+            label: Text('All patient'),
+            icon: Icon(Icons.person_outline, size: 18),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _orders.isEmpty
-                ? Center(
-                    child: Text(
-                      _encounterOnly
-                          ? 'No imaging orders for this encounter. Tap "Order Imaging" to add.'
-                          : 'No imaging orders on file for this patient. Tap "Order Imaging" to add.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.6,
-                        ),
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _orders.length,
-                    itemBuilder: (_, i) {
-                      final o = _orders[i];
-                      final otherVisit =
-                          !_encounterOnly &&
-                          o.encounterId != null &&
-                          o.encounterId!.isNotEmpty &&
-                          o.encounterId != scope.encounterId;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          title: Text(
-                            o.items.isNotEmpty
-                                ? _itemStudyLabel(o.items.first)
-                                : 'Order with no items',
-                          ),
-                          subtitle: Text(
-                            '${otherVisit ? 'Other visit • ' : ''}'
-                            '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.items.length} item(s) • ${o.status.name}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                          trailing: Chip(
-                            label: Text(o.status.name),
-                            backgroundColor: theme.colorScheme.primaryContainer,
-                          ),
-                          onTap: () => _showImagingOrderResults(
-                            context,
-                            o,
-                            theme,
-                            scope,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+          ButtonSegment<bool>(
+            value: true,
+            label: Text('This encounter'),
+            icon: Icon(Icons.event_note_outlined, size: 18),
           ),
         ],
+        selected: {_encounterOnly},
+        onSelectionChanged: (s) {
+          if (s.isEmpty) return;
+          setState(() => _encounterOnly = s.first);
+          _load();
+        },
+      ),
+      chips: [
+        if (_orders.isNotEmpty) ...[
+          EncounterSidePanelChip(
+            icon: Icons.medical_services_outlined,
+            label: '${_orders.length} total',
+            color: scheme.primary,
+          ),
+          if (completedCount > 0)
+            EncounterSidePanelChip(
+              icon: Icons.check_circle_outline,
+              label: '$completedCount completed',
+              color: Colors.green.shade700,
+            ),
+          if (pendingCount > 0)
+            EncounterSidePanelChip(
+              icon: Icons.hourglass_top_outlined,
+              label: '$pendingCount pending',
+              color: scheme.tertiary,
+            ),
+        ],
+      ],
+      railBadges: [
+        EncounterSidePanelBadge(
+          icon: Icons.medical_services_outlined,
+          value: '${_orders.length}',
+          color: scheme.primary,
+          tooltip: '${_orders.length} total',
+        ),
+        if (completedCount > 0)
+          EncounterSidePanelBadge(
+            icon: Icons.check_circle_outline,
+            value: '$completedCount',
+            color: Colors.green.shade700,
+            tooltip: '$completedCount completed',
+          ),
+        if (pendingCount > 0)
+          EncounterSidePanelBadge(
+            icon: Icons.hourglass_top_outlined,
+            value: '$pendingCount',
+            color: scheme.tertiary,
+            tooltip: '$pendingCount pending',
+          ),
+      ],
+      addLabel: 'Order Imaging',
+      addTooltip: 'Order Imaging',
+      onAdd: readOnly ? null : _openOrderModal,
+    );
+
+    final list = _orders.isEmpty
+        ? _ImagingEmptyState(encounterOnly: _encounterOnly, theme: theme)
+        : ListView.builder(
+            itemCount: _orders.length,
+            itemBuilder: (_, i) {
+              final o = _orders[i];
+              final otherVisit =
+                  !_encounterOnly &&
+                  o.encounterId != null &&
+                  o.encounterId!.isNotEmpty &&
+                  o.encounterId != scope.encounterId;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  title: Text(
+                    o.items.isNotEmpty
+                        ? _itemStudyLabel(o.items.first)
+                        : 'Order with no items',
+                  ),
+                  subtitle: Text(
+                    '${otherVisit ? 'Other visit • ' : ''}'
+                    '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.items.length} item(s) • ${o.status.name}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  trailing: Chip(
+                    label: Text(o.status.name),
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                  ),
+                  onTap: () => _showImagingOrderResults(
+                    context,
+                    o,
+                    theme,
+                    scope,
+                  ),
+                ),
+              );
+            },
+          );
+
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => EncounterTabLayout(
+        sidePanel: sidePanel,
+        child: list,
+      ),
+    );
+  }
+}
+
+class _ImagingEmptyState extends StatelessWidget {
+  const _ImagingEmptyState({
+    required this.encounterOnly,
+    required this.theme,
+  });
+
+  final bool encounterOnly;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.45),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.medical_services_outlined,
+                size: 32,
+                color: cs.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              encounterOnly ? 'No imaging orders yet' : 'No imaging history',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              encounterOnly
+                  ? 'Order imaging for this encounter using the panel on the right.'
+                  : 'This patient has no imaging orders on file. Use "Order Imaging" to request one.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

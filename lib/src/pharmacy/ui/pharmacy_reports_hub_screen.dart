@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/super_admin_preview_provider.dart';
@@ -72,58 +73,55 @@ class PharmacyReportsHubScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         title: const Text('Pharmacy reports'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(
-            'Sales, profit and inventory reports for the head of pharmacy.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      body: ResponsiveBody(
+        builder: (context, bp) => ListView(
+          children: [
+            Text(
+              'Sales, profit and inventory reports for the head of pharmacy.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 1.4,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: reports.length,
-            itemBuilder: (context, i) {
-              final r = reports[i];
-              return Card(
-                elevation: 0,
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: theme.colorScheme.outlineVariant),
-                ),
-                child: InkWell(
-                  onTap: () => context.router.push(r.route),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Icon(r.icon, color: theme.colorScheme.primary),
-                        Text(
-                          r.label,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+            const SizedBox(height: 20),
+            ResponsiveWrapGrid(
+              mobileColumns: 1,
+              tabletColumns: 2,
+              desktopColumns: 3,
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                for (final r in reports)
+                  Card(
+                    elevation: 0,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: theme.colorScheme.outlineVariant),
+                    ),
+                    child: InkWell(
+                      onTap: () => context.router.push(r.route),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Icon(r.icon, color: theme.colorScheme.primary),
+                            Text(
+                              r.label,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
@@ -153,14 +155,15 @@ class _DoctorOngoingEncountersScreenState
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return RefreshIndicator(
-      onRefresh: _loadEncounters,
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      bottomPadding: 24,
+      builder: (context, bp) => RefreshIndicator(
+        onRefresh: _loadEncounters,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -198,14 +201,18 @@ class _DoctorOngoingEncountersScreenState
                 ],
               ),
             ),
-          ),
-          _buildListSliver(theme, colorScheme),
-        ],
+            _buildListSliver(theme, colorScheme, bp),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildListSliver(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildListSliver(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    AppBreakpoints bp,
+  ) {
     if (_loading && _encounters.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
@@ -285,7 +292,7 @@ class _DoctorOngoingEncountersScreenState
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: EdgeInsets.only(top: 16),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -303,16 +310,21 @@ class _DoctorOngoingEncountersScreenState
                   horizontal: 20,
                   vertical: 12,
                 ),
-                leading: CircleAvatar(
-                  backgroundColor: colorScheme.primaryContainer,
-                  child: Text(
-                    name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?',
-                    style: TextStyle(
-                      color: colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                leading: patient != null
+                    ? PatientAvatar.fromPatient(
+                        patient,
+                        size: 40,
+                        backgroundColor: colorScheme.primaryContainer,
+                        foregroundColor: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      )
+                    : PatientAvatar(
+                        firstName: name.trim(),
+                        size: 40,
+                        backgroundColor: colorScheme.primaryContainer,
+                        foregroundColor: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
                 title: Text(
                   name.trim(),
                   style: const TextStyle(fontWeight: FontWeight.w600),
@@ -340,33 +352,61 @@ class _DoctorOngoingEncountersScreenState
                     ),
                   ],
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                trailing: bp.isMobile
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              _statusLabel(e.status),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: statusColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              _statusLabel(e.status),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: statusColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.chevron_right,
+                            color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ],
                       ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        _statusLabel(e.status),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: statusColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.chevron_right,
-                      color: colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ],
-                ),
                 onTap: () => _openEncounter(e),
               ),
             );

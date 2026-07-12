@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
@@ -23,9 +24,10 @@ class SuperAdminHubScreen extends ConsumerWidget {
         title: const Text('Super Admin hub'),
         automaticallyImplyLeading: false,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Center(
+      body: ResponsiveBody(
+        expand: false,
+        builder: (context, bp) => SingleChildScrollView(
+          child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 960),
             child: Column(
@@ -104,6 +106,7 @@ class SuperAdminHubScreen extends ConsumerWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

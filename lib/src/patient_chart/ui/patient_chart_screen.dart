@@ -13,6 +13,7 @@ import 'widgets/archived_encounter_tile.dart';
 import 'widgets/archived_encounter_upload_sheet.dart';
 import 'widgets/chart_patient_header.dart';
 import 'widgets/chart_section_list.dart';
+import 'package:helty/src/core/responsive.dart';
 
 @RoutePage()
 class PatientChartScreen extends ConsumerStatefulWidget {
@@ -197,8 +198,9 @@ class _PatientChartScreenState extends ConsumerState<PatientChartScreen>
         if (_tabController == null || _tabs.isEmpty) {
           return Scaffold(
             appBar: AppBar(title: Text(header.patient.displayName)),
-            body: Column(
-              children: [
+            body: ResponsiveBody(
+              builder: (context, bp) => Column(
+                children: [
                 ChartPatientHeader(
                   patient: header.patient,
                   summary: header.summary,
@@ -207,6 +209,7 @@ class _PatientChartScreenState extends ConsumerState<PatientChartScreen>
                   child: Center(child: Text('No chart sections available.')),
                 ),
               ],
+              ),
             ),
           );
         }
@@ -250,8 +253,9 @@ class _PatientChartScreenState extends ConsumerState<PatientChartScreen>
                   label: const Text('Upload scan'),
                 )
               : null,
-          body: Column(
-            children: [
+          body: ResponsiveBody(
+            builder: (context, bp) => Column(
+              children: [
               ChartPatientHeader(
                 patient: header.patient,
                 summary: header.summary,
@@ -263,6 +267,7 @@ class _PatientChartScreenState extends ConsumerState<PatientChartScreen>
                 ),
               ),
             ],
+            ),
           ),
         );
       },

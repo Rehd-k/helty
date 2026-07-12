@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/iv_fluid_order_model.dart';
@@ -1025,9 +1026,10 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
     final isNurse = scope?.isNurse ?? false;
     final admissionActive = scope?.isAdmissionActive ?? false;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: InpatientResponsiveRowOrColumn(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: InpatientResponsiveRowOrColumn(
         first: SectionCard(
           title: 'IV Fluid Orders',
           subtitle:
@@ -1061,6 +1063,7 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
           subtitle: 'Chronological record of IV line checks and updates',
           child: _buildHistoryTable(context),
         ),
+      ),
       ),
     );
   }

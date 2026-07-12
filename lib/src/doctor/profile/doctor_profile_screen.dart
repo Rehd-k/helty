@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
 @RoutePage()
@@ -13,9 +14,8 @@ class DoctorProfileScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Center(
+    return ResponsiveBody(
+      builder: (context, bp) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

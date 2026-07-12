@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
 import 'package:helty/src/radiology/ui/widgets/radiology_order_results_dialog.dart';
@@ -87,9 +88,10 @@ class _InpatientImagingResultsScreenState
       if (isDoctor) 'Doctor actions',
     ];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: SectionCard(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: SectionCard(
         title: 'Imaging & Radiology',
         subtitle: 'Read-only view of imaging studies',
         child: Column(
@@ -180,6 +182,7 @@ class _InpatientImagingResultsScreenState
               ),
           ],
         ),
+      ),
       ),
     );
   }

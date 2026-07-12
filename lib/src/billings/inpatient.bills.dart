@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/billings/inpatient_charge_models.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/discount_policy_models.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/billings/pay.bill.dart';
 import 'package:helty/src/printing/core/display_id.dart';
 import 'package:helty/src/printing/pdf/inpatient_invoice_pdf.dart';
@@ -1863,9 +1864,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           ],
         ),
       ),
-      body: Column(
-        children: [
-          _buildFinancialSummary(
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Column(
+          children: [
+            _buildFinancialSummary(
             colorScheme,
             balanceDue: balanceDue,
             totalCharges: totalCharges,
@@ -1888,6 +1891,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             ),
           ),
         ],
+        ),
       ),
       bottomNavigationBar: SafeArea(
         top: false,

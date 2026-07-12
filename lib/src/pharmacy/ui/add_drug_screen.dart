@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import '../../models/ward_models.dart';
 import '../../services/ward_service.dart';
 import '../models/pharmacy_model.dart';
@@ -249,85 +250,67 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
           child: Container(color: Colors.grey.shade200, height: 1),
         ),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(24.0),
-              children: [
-                _buildSectionHeader('Basic Information', Icons.info_outline),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Brand Name',
-                        hint: 'e.g., Tylenol',
-                        controller: _brandNameCtrl,
-                        validator: (v) => v!.isEmpty ? 'Required' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Generic Name',
-                        hint: 'e.g., Paracetamol',
-                        controller: _genericNameCtrl,
-                        validator: (v) => v!.isEmpty ? 'Required' : null,
-                      ),
-                    ),
-                  ],
+      body: ResponsiveBody(
+        builder: (context, bp) => Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              _buildSectionHeader('Basic Information', Icons.info_outline),
+              ResponsiveRowColumn(
+                gap: 16,
+                first: ModernTextField(
+                  label: 'Brand Name',
+                  hint: 'e.g., Tylenol',
+                  controller: _brandNameCtrl,
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Strength',
-                        hint: 'e.g., 500mg',
-                        controller: _strengthCtrl,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Dosage Form',
-                        hint: 'e.g., Tablet, Syrup',
-                        controller: _dosageFormCtrl,
-                      ),
-                    ),
-                  ],
+                second: ModernTextField(
+                  label: 'Generic Name',
+                  hint: 'e.g., Paracetamol',
+                  controller: _genericNameCtrl,
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
                 ),
+              ),
+              ResponsiveRowColumn(
+                gap: 16,
+                first: ModernTextField(
+                  label: 'Strength',
+                  hint: 'e.g., 500mg',
+                  controller: _strengthCtrl,
+                ),
+                second: ModernTextField(
+                  label: 'Dosage Form',
+                  hint: 'e.g., Tablet, Syrup',
+                  controller: _dosageFormCtrl,
+                ),
+              ),
 
                 const SizedBox(height: 16),
                 _buildSectionHeader(
                   'Clinical Details',
                   Icons.medical_services_outlined,
                 ),
-                Row(
+                ResponsiveWrapGrid(
+                  mobileColumns: 1,
+                  tabletColumns: 2,
+                  desktopColumns: 3,
+                  spacing: 16,
+                  runSpacing: 16,
                   children: [
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Route of Admin.',
-                        hint: 'e.g., Oral, IV',
-                        controller: _routeCtrl,
-                      ),
+                    ModernTextField(
+                      label: 'Route of Admin.',
+                      hint: 'e.g., Oral, IV',
+                      controller: _routeCtrl,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Therapeutic Class',
-                        hint: 'e.g., Analgesic',
-                        controller: _therapeuticClassCtrl,
-                      ),
+                    ModernTextField(
+                      label: 'Therapeutic Class',
+                      hint: 'e.g., Analgesic',
+                      controller: _therapeuticClassCtrl,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'ATC Code',
-                        hint: 'e.g., N02BE01',
-                        controller: _atcCodeCtrl,
-                      ),
+                    ModernTextField(
+                      label: 'ATC Code',
+                      hint: 'e.g., N02BE01',
+                      controller: _atcCodeCtrl,
                     ),
                   ],
                 ),
@@ -343,67 +326,59 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
                   'Stock & Rules',
                   Icons.inventory_2_outlined,
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Reorder Level',
-                        hint: 'Trigger alert below this stock',
-                        controller: _reorderLevelCtrl,
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Reorder Quantity',
-                        hint: 'Default restock amount',
-                        controller: _reorderQtyCtrl,
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
+                ResponsiveRowColumn(
+                  gap: 16,
+                  first: ModernTextField(
+                    label: 'Reorder Level',
+                    hint: 'Trigger alert below this stock',
+                    controller: _reorderLevelCtrl,
+                    keyboardType: TextInputType.number,
+                  ),
+                  second: ModernTextField(
+                    label: 'Reorder Quantity',
+                    hint: 'Default restock amount',
+                    controller: _reorderQtyCtrl,
+                    keyboardType: TextInputType.number,
+                  ),
                 ),
 
                 const SizedBox(height: 16),
                 _buildSectionHeader('Ward Pricing', Icons.price_change),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedWardId,
-                        hint: const Text('Select Ward'),
-                        onChanged: (value) =>
-                            setState(() => _selectedWardId = value),
-                        items: _availableWards
-                            .map(
-                              (ward) => DropdownMenuItem<String>(
-                                value: ward.id,
-                                child: Text(ward.name),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 2,
-                      child: ModernTextField(
-                        label: 'Price',
-                        hint: 'Ward-specific price',
-                        controller: _wardPriceController,
-                        keyboardType: TextInputType.numberWithOptions(
-                          decimal: true,
+                ResponsiveRowColumn(
+                  gap: 16,
+                  first: DropdownButtonFormField<String>(
+                    initialValue: _selectedWardId,
+                    hint: const Text('Select Ward'),
+                    onChanged: (value) =>
+                        setState(() => _selectedWardId = value),
+                    items: _availableWards
+                        .map(
+                          (ward) => DropdownMenuItem<String>(
+                            value: ward.id,
+                            child: Text(ward.name),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  second: Row(
+                    children: [
+                      Expanded(
+                        child: ModernTextField(
+                          label: 'Price',
+                          hint: 'Ward-specific price',
+                          controller: _wardPriceController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    ElevatedButton(
-                      onPressed: _addWardPrice,
-                      child: const Text('Add'),
-                    ),
-                  ],
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: _addWardPrice,
+                        child: const Text('Add'),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 if (_priceRows.isNotEmpty)
@@ -488,7 +463,6 @@ class _AddDrugScreenState extends State<AddDrugScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 

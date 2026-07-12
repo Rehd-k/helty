@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
@@ -181,7 +182,13 @@ class _ObstetricsAddLabourDeliveryScreenState
         onPressed: () => context.router.maybePop(),
       ),
       children: [
-        ObFormSectionCard(
+        ResponsiveBody(
+          center: false,
+          bottomPadding: 0,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ObFormSectionCard(
           title: 'Delivery details',
           icon: Icons.local_hospital_rounded,
           children: [
@@ -297,6 +304,9 @@ class _ObstetricsAddLabourDeliveryScreenState
               maxLines: 2,
             ),
           ],
+        ),
+            ],
+          ),
         ),
       ],
     );

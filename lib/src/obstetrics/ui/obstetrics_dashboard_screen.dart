@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/obstetrics_patient_select_screen.dart';
@@ -142,50 +143,42 @@ class _ObstetricsDashboardScreenState
                   ),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isWide = constraints.maxWidth > 600;
-                        return GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: isWide ? 2 : 1,
-                          mainAxisSpacing: 20,
-                          crossAxisSpacing: 20,
-                          childAspectRatio: isWide ? 1.15 : 1.35,
-                          children: [
-                            _DashboardCard(
-                              title: 'Pregnancies',
-                              bullets: const [
-                                'Antenatal visits & vitals',
-                                'Labour, delivery & babies',
-                                'Postnatal follow-up',
-                              ],
-                              icon: Icons.pregnant_woman_rounded,
-                              accent: colorScheme.primary,
-                              onTap: () => context.router.push(
-                                ObstetricsPatientSelectRoute(
-                                  target: ObstetricsSelectTarget.pregnancies,
-                                ),
-                              ),
-                            ),
-                            _DashboardCard(
-                              title: 'Gynaecology',
-                              bullets: const [
-                                'Procedures & findings',
-                                'Complications tracking',
-                                'Patient-scoped records',
-                              ],
-                              icon: Icons.medical_services_rounded,
-                              accent: colorScheme.tertiary,
-                              onTap: () => context.router.push(
-                                ObstetricsPatientSelectRoute(
-                                  target: ObstetricsSelectTarget.gynae,
-                                ),
-                              ),
-                            ),
+                    child: ResponsiveWrapGrid(
+                      mobileColumns: 1,
+                      tabletColumns: 2,
+                      desktopColumns: 2,
+                      children: [
+                        _DashboardCard(
+                          title: 'Pregnancies',
+                          bullets: const [
+                            'Antenatal visits & vitals',
+                            'Labour, delivery & babies',
+                            'Postnatal follow-up',
                           ],
-                        );
-                      },
+                          icon: Icons.pregnant_woman_rounded,
+                          accent: colorScheme.primary,
+                          onTap: () => context.router.push(
+                            ObstetricsPatientSelectRoute(
+                              target: ObstetricsSelectTarget.pregnancies,
+                            ),
+                          ),
+                        ),
+                        _DashboardCard(
+                          title: 'Gynaecology',
+                          bullets: const [
+                            'Procedures & findings',
+                            'Complications tracking',
+                            'Patient-scoped records',
+                          ],
+                          icon: Icons.medical_services_rounded,
+                          accent: colorScheme.tertiary,
+                          onTap: () => context.router.push(
+                            ObstetricsPatientSelectRoute(
+                              target: ObstetricsSelectTarget.gynae,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -216,32 +209,24 @@ class _ObstetricsDashboardScreenState
         ? 'Pregnancies (patient)'
         : 'Pregnancies (select patient)';
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossCount = constraints.maxWidth > 500 ? 2 : 1;
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossCount,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 2.2,
-          children: [
-            ObKpiStatCard(
-              icon: Icons.pregnant_woman_rounded,
-              value: pregValue,
-              label: pregLabel,
-              color: colorScheme.primary,
-            ),
-            ObKpiStatCard(
-              icon: Icons.medical_services_rounded,
-              value: '${_gynaeTotal ?? '—'}',
-              label: 'Gynae procedures (all)',
-              color: colorScheme.tertiary,
-            ),
-          ],
-        );
-      },
+    return ResponsiveWrapGrid(
+      mobileColumns: 1,
+      tabletColumns: 2,
+      desktopColumns: 2,
+      children: [
+        ObKpiStatCard(
+          icon: Icons.pregnant_woman_rounded,
+          value: pregValue,
+          label: pregLabel,
+          color: colorScheme.primary,
+        ),
+        ObKpiStatCard(
+          icon: Icons.medical_services_rounded,
+          value: '${_gynaeTotal ?? '—'}',
+          label: 'Gynae procedures (all)',
+          color: colorScheme.tertiary,
+        ),
+      ],
     );
   }
 }

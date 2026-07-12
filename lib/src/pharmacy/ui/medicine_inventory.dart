@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -330,285 +331,277 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left Main Section
-              Expanded(
-                flex: 7,
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(theme),
-                      const SizedBox(height: 24),
-
-                      // Main Table Area with Horizontal and Vertical Scrolling
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: theme.cardColor,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.1),
-                            ),
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) => Stack(
+          children: [
+            if (bp.stackPanels)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _buildMainSection(theme, bp)),
+                  if (_selectedDrug != null)
+                    SizedBox(
+                      height: 360,
+                      child: _buildDetailsPanel(theme, _selectedDrug!),
+                    ),
+                ],
+              )
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 7,
+                    child: _buildMainSection(theme, bp),
+                  ),
+                  SizedBox(
+                    width: 380,
+                    child: _selectedDrug == null
+                        ? const Center(
+                            child: Text('Select a medicine to view details'),
+                          )
+                        : _buildDetailsPanel(theme, _selectedDrug!),
+                  ),
+                ],
+              ),
+            if (_isFiltersOpen)
+              Positioned(
+                top: 0,
+                right: 0,
+                bottom: 0,
+                child: Material(
+                  elevation: 8,
+                  child: Container(
+                    width: bp.isMobile ? bp.maxWidth : 360,
+                    color: theme.scaffoldBackgroundColor,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Expanded(
-                                child: _isLoading
-                                    ? const Center(
-                                        child: CircularProgressIndicator(),
-                                      )
-                                    : _errorMessage.isNotEmpty
-                                    ? Center(
-                                        child: Text(
-                                          _errorMessage,
-                                          style: TextStyle(
-                                            color: theme.colorScheme.error,
-                                          ),
-                                        ),
-                                      )
-                                    : _buildTable(theme),
+                              Text(
+                                'Filters',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              _buildPagination(theme),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                tooltip: 'Close filters',
+                                onPressed: () =>
+                                    setState(() => _isFiltersOpen = false),
+                              ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Right Side Panel (Details)
-              Container(
-                width: 380,
-                decoration: BoxDecoration(
-                  color: theme.cardColor,
-                  border: Border(
-                    left: BorderSide(
-                      color: theme.dividerColor.withValues(alpha: 0.2),
+                        const Divider(height: 1),
+                        Expanded(
+                          child: MedicineFiltersPanel(
+                            theme: theme,
+                            searchController: _searchController,
+                            searchFieldType: _searchFieldType,
+                            onSearchFieldTypeChanged: (v) {
+                              setState(() => _searchFieldType = v);
+                            },
+                            onPerformSearch: () {
+                              setState(() => _currentPage = 1);
+                              _fetchData();
+                            },
+                            filterPill: _filterPill,
+                            onFilterPillChanged: (pill) {
+                              setState(() {
+                                _filterPill = pill;
+                                _currentPage = 1;
+                              });
+                              _fetchData();
+                            },
+                            manufacturers: _manufacturers,
+                            suppliers: _suppliers,
+                            selectedManufacturerId: _manufacturerId,
+                            onManufacturerChanged: (v) {
+                              setState(() {
+                                _manufacturerId = v;
+                                _currentPage = 1;
+                              });
+                              _fetchData();
+                            },
+                            selectedSupplierId: _supplierId,
+                            onSupplierChanged: (v) {
+                              setState(() {
+                                _supplierId = v;
+                                _currentPage = 1;
+                              });
+                              _fetchData();
+                            },
+                            isControlledFilter: _isControlledFilter,
+                            onControlledFilterChanged: (v) {
+                              setState(() {
+                                _isControlledFilter = v;
+                                _currentPage = 1;
+                              });
+                              _fetchData();
+                            },
+                            manufacturingDateFrom: _manufacturingDateFrom,
+                            manufacturingDateTo: _manufacturingDateTo,
+                            onManufacturingDateFromChanged: (d) {
+                              setState(() {
+                                _manufacturingDateFrom = d;
+                                _currentPage = 1;
+                              });
+                              _fetchData();
+                            },
+                            onManufacturingDateToChanged: (d) {
+                              setState(() {
+                                _manufacturingDateTo = d;
+                                _currentPage = 1;
+                              });
+                              _fetchData();
+                            },
+                            expiryDateFrom: _expiryDateFrom,
+                            expiryDateTo: _expiryDateTo,
+                            onExpiryDateFromChanged: (d) {
+                              setState(() {
+                                _expiryDateFrom = d;
+                                _currentPage = 1;
+                              });
+                              _fetchData();
+                            },
+                            onExpiryDateToChanged: (d) {
+                              setState(() {
+                                _expiryDateTo = d;
+                                _currentPage = 1;
+                              });
+                              _fetchData();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                child: _selectedDrug == null
-                    ? const Center(
-                        child: Text("Select a medicine to view details"),
-                      )
-                    : _buildDetailsPanel(theme, _selectedDrug!),
               ),
-            ],
-          ),
-
-          if (_isFiltersOpen)
-            Positioned(
-              top: 0,
-              right: 0,
-              bottom: 0,
-              child: Material(
-                elevation: 8,
-                child: Container(
-                  width: 360,
-                  color: theme.scaffoldBackgroundColor,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Filters',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close),
-                              tooltip: 'Close filters',
-                              onPressed: () =>
-                                  setState(() => _isFiltersOpen = false),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: MedicineFiltersPanel(
-                          theme: theme,
-                          searchController: _searchController,
-                          searchFieldType: _searchFieldType,
-                          onSearchFieldTypeChanged: (v) {
-                            setState(() => _searchFieldType = v);
-                          },
-                          onPerformSearch: () {
-                            setState(() => _currentPage = 1);
-                            _fetchData();
-                          },
-                          filterPill: _filterPill,
-                          onFilterPillChanged: (pill) {
-                            setState(() {
-                              _filterPill = pill;
-                              _currentPage = 1;
-                            });
-                            _fetchData();
-                          },
-                          manufacturers: _manufacturers,
-                          suppliers: _suppliers,
-                          selectedManufacturerId: _manufacturerId,
-                          onManufacturerChanged: (v) {
-                            setState(() {
-                              _manufacturerId = v;
-                              _currentPage = 1;
-                            });
-                            _fetchData();
-                          },
-                          selectedSupplierId: _supplierId,
-                          onSupplierChanged: (v) {
-                            setState(() {
-                              _supplierId = v;
-                              _currentPage = 1;
-                            });
-                            _fetchData();
-                          },
-                          isControlledFilter: _isControlledFilter,
-                          onControlledFilterChanged: (v) {
-                            setState(() {
-                              _isControlledFilter = v;
-                              _currentPage = 1;
-                            });
-                            _fetchData();
-                          },
-                          manufacturingDateFrom: _manufacturingDateFrom,
-                          manufacturingDateTo: _manufacturingDateTo,
-                          onManufacturingDateFromChanged: (d) {
-                            setState(() {
-                              _manufacturingDateFrom = d;
-                              _currentPage = 1;
-                            });
-                            _fetchData();
-                          },
-                          onManufacturingDateToChanged: (d) {
-                            setState(() {
-                              _manufacturingDateTo = d;
-                              _currentPage = 1;
-                            });
-                            _fetchData();
-                          },
-                          expiryDateFrom: _expiryDateFrom,
-                          expiryDateTo: _expiryDateTo,
-                          onExpiryDateFromChanged: (d) {
-                            setState(() {
-                              _expiryDateFrom = d;
-                              _currentPage = 1;
-                            });
-                            _fetchData();
-                          },
-                          onExpiryDateToChanged: (d) {
-                            setState(() {
-                              _expiryDateTo = d;
-                              _currentPage = 1;
-                            });
-                            _fetchData();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildMainSection(ThemeData theme, AppBreakpoints bp) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Medicine Inventory',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+        _buildHeader(theme, bp),
+        const SizedBox(height: 24),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: theme.dividerColor.withValues(alpha: 0.1),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Manage stock, track expiries, and update details',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _errorMessage.isNotEmpty
+                      ? Center(
+                          child: Text(
+                            _errorMessage,
+                            style: TextStyle(color: theme.colorScheme.error),
+                          ),
+                        )
+                      : _buildTable(theme),
+                ),
+                _buildPagination(theme, bp),
+              ],
             ),
-          ],
-        ),
-        Row(
-          children: [
-            OutlinedButton.icon(
-              onPressed: () {
-                setState(() => _isFiltersOpen = true);
-              },
-              icon: const Icon(Icons.filter_list, size: 18),
-              label: const Text('Filters'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                side: BorderSide(
-                  color: theme.dividerColor.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () => _showAddMedicineModal(context, theme),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Medicine'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ],
     );
   }
 
+  Widget _buildHeader(ThemeData theme, AppBreakpoints bp) {
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () {
+            setState(() => _isFiltersOpen = true);
+          },
+          icon: const Icon(Icons.filter_list, size: 18),
+          label: const Text('Filters'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
+          ),
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton.icon(
+          onPressed: () => _showAddMedicineModal(context, theme),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Add Medicine'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+      ],
+    );
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Medicine Inventory',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Manage stock, track expiries, and update details',
+          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+        ),
+      ],
+    );
+    if (bp.stackPanels) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          title,
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: actions.children),
+        ],
+      );
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [title, actions],
+    );
+  }
+
   Widget _buildTable(ThemeData theme) {
-    return Scrollbar(
-      controller: _verticalScrollController,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
+    return ResponsiveDataTable(
+      child: Scrollbar(
         controller: _verticalScrollController,
-        scrollDirection: Axis.vertical,
-        child: Scrollbar(
-          controller: _horizontalScrollController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _horizontalScrollController,
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _verticalScrollController,
+          scrollDirection: Axis.vertical,
+          child: DataTable(
               sortColumnIndex: _sortColumnIndex,
               sortAscending: _isAscending,
               headingRowColor: WidgetStateProperty.all(
@@ -839,7 +832,6 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                   ],
                 );
               }).toList(),
-            ),
           ),
         ),
       ),
@@ -889,75 +881,85 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     );
   }
 
-  Widget _buildPagination(ThemeData theme) {
+  Widget _buildPagination(ThemeData theme, AppBreakpoints bp) {
     int totalPages = (_totalItems / _pageSize).ceil();
     if (totalPages == 0) totalPages = 1;
     final start = (_currentPage - 1) * _pageSize + 1;
     final end = (_currentPage * _pageSize).clamp(0, _totalItems);
 
+    final pageInfo = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Page $_currentPage of $totalPages',
+          style: const TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.chevron_left),
+          onPressed: _currentPage > 1
+              ? () => _onPageChanged(_currentPage - 1)
+              : null,
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right),
+          onPressed: _currentPage < totalPages
+              ? () => _onPageChanged(_currentPage + 1)
+              : null,
+        ),
+      ],
+    );
+
+    final showing = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Showing ${_totalItems == 0 ? 0 : start}–$end of $_totalItems',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        ),
+        const SizedBox(width: 16),
+        Text(
+          'Per page:',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        ),
+        const SizedBox(width: 8),
+        DropdownButton<int>(
+          value: _pageSize,
+          underline: const SizedBox(),
+          items: const [
+            DropdownMenuItem(value: 10, child: Text('10')),
+            DropdownMenuItem(value: 25, child: Text('25')),
+            DropdownMenuItem(value: 50, child: Text('50')),
+            DropdownMenuItem(value: 100, child: Text('100')),
+          ],
+          onChanged: (v) {
+            if (v != null) {
+              setState(() {
+                _pageSize = v;
+                _currentPage = 1;
+              });
+              _fetchData();
+            }
+          },
+        ),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Showing ${_totalItems == 0 ? 0 : start}–$end of $_totalItems',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                'Per page:',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
-              ),
-              const SizedBox(width: 8),
-              DropdownButton<int>(
-                value: _pageSize,
-                underline: const SizedBox(),
-                items: const [
-                  DropdownMenuItem(value: 10, child: Text('10')),
-                  DropdownMenuItem(value: 25, child: Text('25')),
-                  DropdownMenuItem(value: 50, child: Text('50')),
-                  DropdownMenuItem(value: 100, child: Text('100')),
-                ],
-                onChanged: (v) {
-                  if (v != null) {
-                    setState(() {
-                      _pageSize = v;
-                      _currentPage = 1;
-                    });
-                    _fetchData();
-                  }
-                },
-              ),
-            ],
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Page $_currentPage of $totalPages',
-                style: const TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: _currentPage > 1
-                    ? () => _onPageChanged(_currentPage - 1)
-                    : null,
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: _currentPage < totalPages
-                    ? () => _onPageChanged(_currentPage + 1)
-                    : null,
-              ),
-            ],
-          ),
-        ],
-      ),
+      child: bp.stackPanels
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                showing,
+                const SizedBox(height: 8),
+                pageInfo,
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [showing, pageInfo],
+            ),
     );
   }
 

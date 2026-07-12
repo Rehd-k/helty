@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
 import 'package:helty/src/models/encounter_model.dart';
 
@@ -57,8 +58,11 @@ class CompletedEncounterFollowUpTab extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return ResponsiveBody(
+      center: false,
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -89,6 +93,7 @@ class CompletedEncounterFollowUpTab extends StatelessWidget {
           ],
         ],
       ),
+    ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/patient_avatar.dart';
 import 'inpatient_layout_constants.dart';
 
 class PatientHeaderCard extends StatelessWidget {
@@ -19,6 +20,9 @@ class PatientHeaderCard extends StatelessWidget {
   final List<String> allergies;
   final String codeStatus; // e.g. Full Code / DNR
   final List<String> riskFlags; // e.g. Fall Risk, Isolation
+  final String? avatarUrl;
+  final String? firstName;
+  final String? surname;
 
   const PatientHeaderCard({
     super.key,
@@ -34,6 +38,9 @@ class PatientHeaderCard extends StatelessWidget {
     required this.allergies,
     required this.codeStatus,
     required this.riskFlags,
+    this.avatarUrl,
+    this.firstName,
+    this.surname,
   });
 
   Color _codeStatusColor(ColorScheme scheme) {
@@ -145,16 +152,13 @@ class PatientHeaderCard extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 26,
+            PatientAvatar(
+              avatarUrl: avatarUrl,
+              firstName: firstName,
+              surname: surname,
+              size: 52,
               backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-              child: Text(
-                _initials(patientName),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                ),
-              ),
+              foregroundColor: colorScheme.primary,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -234,16 +238,13 @@ class PatientHeaderCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 26,
+              PatientAvatar(
+                avatarUrl: avatarUrl,
+                firstName: firstName,
+                surname: surname,
+                size: 52,
                 backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-                child: Text(
-                  _initials(patientName),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
+                foregroundColor: colorScheme.primary,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -445,14 +446,6 @@ class PatientHeaderCard extends StatelessWidget {
     );
 
     return column;
-  }
-
-  String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-        .toUpperCase();
   }
 
   Widget _metaChip(

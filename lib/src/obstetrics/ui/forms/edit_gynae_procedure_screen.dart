@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_form_scaffold.dart';
@@ -105,7 +106,9 @@ class _ObstetricsEditGynaeProcedureScreenState
     if (_loading && _findingsCtrl.text.isEmpty && _error == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit procedure')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: ResponsiveBody(
+          builder: (context, bp) => const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
     return ObstetricsFormScaffold(
@@ -128,7 +131,13 @@ class _ObstetricsEditGynaeProcedureScreenState
         icon: Icons.medical_services_rounded,
       ),
       children: [
-        ObFormSectionCard(
+        ResponsiveBody(
+          center: false,
+          bottomPadding: 0,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ObFormSectionCard(
           title: 'Procedure notes',
           icon: Icons.medical_services_rounded,
           children: [
@@ -159,6 +168,9 @@ class _ObstetricsEditGynaeProcedureScreenState
               maxLines: 2,
             ),
           ],
+        ),
+            ],
+          ),
         ),
       ],
     );

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/capitalizer.extention.dart';
@@ -154,9 +155,10 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
     final colorScheme = theme.colorScheme;
     final admissionId = InpatientViewScope.of(context)?.admissionId;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (admissionId == null || admissionId.isEmpty)
@@ -191,6 +193,7 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

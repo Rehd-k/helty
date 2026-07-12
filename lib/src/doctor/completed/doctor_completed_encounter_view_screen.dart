@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/edit_history/encounter_edit_history_sheet.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
 import 'package:helty/src/helper/date.formatter.dart';
@@ -12,8 +13,6 @@ import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/staff_service.dart';
-
-const double _contentMaxWidth = 1440;
 
 @RoutePage()
 class DoctorCompletedEncounterViewScreen extends StatefulWidget {
@@ -223,47 +222,45 @@ class _DoctorCompletedEncounterViewScreenState
               ],
             ),
             body: SafeArea(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        DoctorEncounterPatientHeader(
-                          patientName: name.trim(),
-                          ageGender: ageGender,
-                          hospitalNumber: hospitalNumber,
-                          allergies: const [],
-                          chronicConditions: const [],
-                          pastAdmissionsCount: 0,
-                          insurance: patient?.hmo,
-                        ),
-                        if (encounter.editMeta != null) ...[
-                          const SizedBox(height: 12),
-                          _buildEditMetaBanner(context, encounter.editMeta!),
-                        ],
-                        const SizedBox(height: 16),
-                        _buildTabsStrip(context, tabsRouter, theme, colorScheme),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4),
-                                child: child,
-                              ),
-                            ),
+              child: ResponsiveBody(
+                maxWidth: 1440,
+                builder: (context, bp) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DoctorEncounterPatientHeader(
+                      patientName: name.trim(),
+                      ageGender: ageGender,
+                      hospitalNumber: hospitalNumber,
+                      allergies: const [],
+                      chronicConditions: const [],
+                      pastAdmissionsCount: 0,
+                      insurance: patient?.hmo,
+                      avatarUrl: patient?.avatarUrl,
+                      firstName: patient?.firstName,
+                      surname: patient?.surname,
+                    ),
+                    if (encounter.editMeta != null) ...[
+                      const SizedBox(height: 12),
+                      _buildEditMetaBanner(context, encounter.editMeta!),
+                    ],
+                    const SizedBox(height: 16),
+                    _buildTabsStrip(context, tabsRouter, theme, colorScheme),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: child,
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),

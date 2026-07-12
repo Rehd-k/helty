@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 
 import '../models/pharmacy_model.dart';
 import '../services/pharmacy_service.dart';
@@ -147,41 +148,38 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
                   );
                 }
 
-                return SingleChildScrollView(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Drug')),
-                        DataColumn(label: Text('Batch')),
-                        DataColumn(label: Text('Qty')),
-                        DataColumn(label: Text('Unit Cost')),
-                        DataColumn(label: Text('Expiry')),
-                        DataColumn(label: Text('Received At')),
-                      ],
-                      rows: batches.map((b) {
-                        final drug = b.drug;
-                        final drugName = (drug?.brandName.isNotEmpty == true)
-                            ? drug!.brandName
-                            : (drug?.genericName ?? '');
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(drugName.isEmpty ? '-' : drugName)),
-                            DataCell(Text(b.batchNumber ?? '-')),
-                            DataCell(Text(b.quantityReceived.toString())),
-                            DataCell(
-                              Text(
-                                b.costPrice != null
-                                    ? b.costPrice!.toStringAsFixed(2)
-                                    : '-',
-                              ),
+                return ResponsiveDataTable(
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Drug')),
+                      DataColumn(label: Text('Batch')),
+                      DataColumn(label: Text('Qty')),
+                      DataColumn(label: Text('Unit Cost')),
+                      DataColumn(label: Text('Expiry')),
+                      DataColumn(label: Text('Received At')),
+                    ],
+                    rows: batches.map((b) {
+                      final drug = b.drug;
+                      final drugName = (drug?.brandName.isNotEmpty == true)
+                          ? drug!.brandName
+                          : (drug?.genericName ?? '');
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(drugName.isEmpty ? '-' : drugName)),
+                          DataCell(Text(b.batchNumber ?? '-')),
+                          DataCell(Text(b.quantityReceived.toString())),
+                          DataCell(
+                            Text(
+                              b.costPrice != null
+                                  ? b.costPrice!.toStringAsFixed(2)
+                                  : '-',
                             ),
-                            DataCell(Text(_formatDate(b.expiryDate))),
-                            DataCell(Text(_formatDate(b.createdAt))),
-                          ],
-                        );
-                      }).toList(),
-                    ),
+                          ),
+                          DataCell(Text(_formatDate(b.expiryDate))),
+                          DataCell(Text(_formatDate(b.createdAt))),
+                        ],
+                      );
+                    }).toList(),
                   ),
                 );
               },
@@ -514,10 +512,9 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 900;
-
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
           final formSection = _buildSupplierForm(context, theme);
           final tableSection = Card(
             elevation: 1,
@@ -550,34 +547,24 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
             ),
           );
 
-          if (isNarrow) {
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  formSection,
-                  const SizedBox(height: 16),
-                  SizedBox(height: 400, child: tableSection),
-                ],
-              ),
+          if (bp.stackPanels) {
+            return Column(
+              children: [
+                formSection,
+                const SizedBox(height: 16),
+                SizedBox(height: 400, child: tableSection),
+              ],
             );
           }
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: formSection),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 3,
-                  child: SizedBox(
-                    height: constraints.maxHeight - 32,
-                    child: tableSection,
-                  ),
-                ),
-              ],
+          return ResponsiveRowColumn(
+            gap: 16,
+            firstFlex: 2,
+            secondFlex: 3,
+            first: formSection,
+            second: SizedBox(
+              height: MediaQuery.sizeOf(context).height - 80,
+              child: tableSection,
             ),
           );
         },

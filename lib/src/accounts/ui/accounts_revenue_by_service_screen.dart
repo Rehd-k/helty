@@ -10,7 +10,7 @@ import 'package:helty/src/accounts/widgets/accounts_access_denied.dart';
 import 'package:helty/src/accounts/widgets/accounts_async_scaffold.dart';
 import 'package:helty/src/accounts/widgets/accounts_data_table_box.dart';
 import 'package:helty/src/accounts/widgets/accounts_money_format.dart';
-import 'package:helty/src/accounts/widgets/accounts_period_selector.dart';
+import 'package:helty/src/accounts/widgets/accounts_revenue_filter_bar.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
 @RoutePage()
@@ -23,14 +23,14 @@ class AccountsRevenueByServiceScreen extends ConsumerWidget {
       return const AccountsAccessDenied(title: 'Revenue by service');
     }
     final async = ref.watch(accountsRevenueByServiceProvider);
-    final period = ref.watch(accountsPeriodProvider);
+    final filter = ref.watch(accountsRevenueFilterProvider);
     final fmt = accountsNairaFormat();
 
     return AccountsAsyncScaffold(
       title: 'Revenue by service category',
       colors: AccountsPalette.reports,
       asyncValue: async,
-      header: const AccountsPeriodSelector(),
+      header: const AccountsRevenueFilterBar(),
       onRetry: () => ref.invalidate(accountsRevenueByServiceProvider),
       builder: (context, rows) {
         if (rows.isEmpty) {
@@ -54,8 +54,10 @@ class AccountsRevenueByServiceScreen extends ConsumerWidget {
                   onTap: () => context.router.push(
                     AccountsRevenueByServiceDetailRoute(
                       serviceCategory: r.serviceCategory,
-                      period: period.period,
-                      asOf: period.asOf,
+                      period: filter.period,
+                      asOf: filter.asOf,
+                      from: filter.from,
+                      to: filter.to,
                     ),
                   ),
                   cells: [

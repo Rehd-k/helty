@@ -1,6 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/core/utils/patient_initials.dart';
 
 /// Pregnancy status (exact API strings).
 enum PregnancyStatus {
@@ -124,6 +125,7 @@ class ObstetricsPatientRef {
     this.firstName,
     this.otherName,
     this.surname,
+    this.avatarUrl,
   });
 
   final String id;
@@ -131,6 +133,7 @@ class ObstetricsPatientRef {
   final String? firstName;
   final String? otherName;
   final String? surname;
+  final String? avatarUrl;
 
   String get displayName => patientDisplayNameFromJson({
         'title': title,
@@ -146,6 +149,7 @@ class ObstetricsPatientRef {
       firstName: json['firstName'] as String?,
       otherName: json['otherName'] as String?,
       surname: (json['surname'] ?? json['lastName']) as String?,
+      avatarUrl: avatarUrlFromJson(json),
     );
   }
 

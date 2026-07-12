@@ -2,8 +2,10 @@ import 'dart:typed_data';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
@@ -131,9 +133,8 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
         slivers: [
           _buildAppBar(context, theme, isLabManager),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: ordersAsync.when(
+            child: ResponsiveBody(
+              builder: (context, bp) => ordersAsync.when(
                 loading: () => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -247,34 +248,11 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 720;
-        if (isNarrow) {
-          return SizedBox(
-            height: 130,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: cards.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) =>
-                  SizedBox(width: 200, child: cards[index]),
-            ),
-          );
-        }
-        return Row(
-          children: cards
-              .map(
-                (c) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: c,
-                  ),
-                ),
-              )
-              .toList(),
-        );
-      },
+    return ResponsiveWrapGrid(
+      mobileColumns: 1,
+      tabletColumns: 2,
+      desktopColumns: 4,
+      children: cards,
     );
   }
 
@@ -820,15 +798,14 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
           tilePadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
           childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
           onExpansionChanged: _onExpansionChanged,
-          leading: CircleAvatar(
+          leading: PatientAvatar(
+            avatarUrl: group.patient?.avatarUrl,
+            firstName: group.patient?.firstName,
+            surname: group.patient?.surname,
+            size: 40,
             backgroundColor: theme.colorScheme.primaryContainer,
-            child: Text(
-              _patientInitials(group.displayName),
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            foregroundColor: theme.colorScheme.onPrimaryContainer,
+            fontWeight: FontWeight.w700,
           ),
           title: Text(
             group.displayName,
@@ -951,14 +928,6 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
         ),
       ),
     );
-  }
-
-  static String _patientInitials(String name) {
-    final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    final list = parts.toList();
-    if (list.isEmpty) return '?';
-    if (list.length == 1) return list[0][0].toUpperCase();
-    return '${list[0][0]}${list[1][0]}'.toUpperCase();
   }
 }
 

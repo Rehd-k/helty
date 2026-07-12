@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
@@ -177,7 +178,13 @@ class _ObstetricsAddAntenatalVisitScreenState
         icon: Icons.medical_services_rounded,
       ),
       children: [
-        AntenatalVisitVitalsFields(
+        ResponsiveBody(
+          center: false,
+          bottomPadding: 0,
+          builder: (context, bp) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AntenatalVisitVitalsFields(
           visitDateController: _visitDateCtrl,
           gestationWeeksController: _gestationWeeksCtrl,
           gestationDaysController: _gestationDaysCtrl,
@@ -203,6 +210,9 @@ class _ObstetricsAddAntenatalVisitScreenState
           pcvController: _pcvCtrl,
           notesController: _notesCtrl,
           ultrasoundController: _ultrasoundCtrl,
+        ),
+            ],
+          ),
         ),
       ],
     );
