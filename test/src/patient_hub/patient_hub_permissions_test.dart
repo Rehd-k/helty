@@ -8,10 +8,7 @@ import 'package:helty/src/patient_hub/models/patient_hub_models.dart';
 import 'package:helty/src/patient_hub/permissions/patient_hub_permissions.dart';
 
 void main() {
-  Staff staff({
-    required String role,
-    AccountType? accountType,
-  }) {
+  Staff staff({required String role, AccountType? accountType}) {
     return Staff(
       id: 's1',
       staffId: 'ST-1',
@@ -39,15 +36,12 @@ void main() {
 
     test('patientHubClinicalSections excludes billing keys', () {
       for (final key in patientHubClinicalSections) {
-        expect(
-          {
-            PatientChartSectionKeys.invoices,
-            PatientChartSectionKeys.payments,
-            PatientChartSectionKeys.wallet,
-            PatientChartSectionKeys.appointments,
-          },
-          isNot(contains(key)),
-        );
+        expect({
+          PatientChartSectionKeys.invoices,
+          PatientChartSectionKeys.payments,
+          PatientChartSectionKeys.wallet,
+          PatientChartSectionKeys.appointments,
+        }, isNot(contains(key)));
       }
     });
   });
@@ -65,7 +59,10 @@ void main() {
     });
 
     test('allows laboratory', () {
-      final lab = staff(role: 'lab_scientist', accountType: AccountType.laboratory);
+      final lab = staff(
+        role: 'lab_scientist',
+        accountType: AccountType.laboratory,
+      );
       expect(canAccessPatientHub(lab), isTrue);
     });
 
@@ -105,8 +102,16 @@ void main() {
       expect(canAccessPatientHub(cmac), isTrue);
     });
 
+    test('allows CMD account', () {
+      final cmd = staff(role: 'CMD', accountType: AccountType.cmd);
+      expect(canAccessPatientHub(cmd), isTrue);
+    });
+
     test('denies billing staff', () {
-      final billing = staff(role: 'billing_staff', accountType: AccountType.billing);
+      final billing = staff(
+        role: 'billing_staff',
+        accountType: AccountType.billing,
+      );
       expect(canAccessPatientHub(billing), isFalse);
     });
 
@@ -122,7 +127,10 @@ void main() {
     });
 
     test('returns empty for denied staff', () {
-      final billing = staff(role: 'billing_staff', accountType: AccountType.billing);
+      final billing = staff(
+        role: 'billing_staff',
+        accountType: AccountType.billing,
+      );
       expect(patientHubTabsForStaff(billing), isEmpty);
     });
   });
@@ -139,7 +147,10 @@ void main() {
     });
 
     test('allows laboratory', () {
-      final lab = staff(role: 'lab_scientist', accountType: AccountType.laboratory);
+      final lab = staff(
+        role: 'lab_scientist',
+        accountType: AccountType.laboratory,
+      );
       expect(canUploadDocumentsInPatientHub(lab), isTrue);
     });
 
@@ -152,7 +163,10 @@ void main() {
     });
 
     test('denies billing staff', () {
-      final billing = staff(role: 'billing_staff', accountType: AccountType.billing);
+      final billing = staff(
+        role: 'billing_staff',
+        accountType: AccountType.billing,
+      );
       expect(canUploadDocumentsInPatientHub(billing), isFalse);
     });
 

@@ -71,6 +71,7 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
     case 'cmac':
       return const CmacOverviewRoute();
     case 'cmd':
+      return const CmacOverviewRoute();
     case 'super_admin':
       return const CMDDashboardRoute();
     case 'admin':

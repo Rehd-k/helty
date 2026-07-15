@@ -60,11 +60,15 @@ class EncounterScope extends InheritedWidget {
     this.isOutpatient = false,
     this.activeAdmissionId,
     this.patientWard,
+    this.onEncounterUpdated,
     required super.child,
   });
 
   final String encounterId;
   final String patientId;
+
+  /// Refetch parent encounter after a clinical save (e.g. diagnosis).
+  final Future<void> Function()? onEncounterUpdated;
 
   /// Acting physician id for orders and clinical writes (when [canEdit]).
   final String? doctorId;
@@ -505,6 +509,7 @@ class _DoctorEncounterViewScreenState
           isOutpatient: _isOutpatient,
           activeAdmissionId: _activeAdmissionId,
           patientWard: _patientWard,
+          onEncounterUpdated: _loadEncounter,
           child: Scaffold(
             backgroundColor: colorScheme.surface,
             body: SafeArea(
@@ -558,6 +563,9 @@ class _DoctorEncounterViewScreenState
   }
 
   Future<void> _openDisposition() async {
+    await _loadEncounter();
+    if (!mounted) return;
+
     final enc = _encounter;
     if (enc == null) return;
 

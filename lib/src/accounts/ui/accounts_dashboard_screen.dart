@@ -27,7 +27,7 @@ class AccountsDashboardScreen extends ConsumerWidget {
       return const AccountsAccessDenied(title: 'Accounts & Audit');
     }
 
-    final isHead = isAccountHead(staff);
+    final isHead = canViewAccountsHeadData(staff);
     final async = ref.watch(accountsDashboardProvider);
 
     return AccountsAsyncScaffold<AccountsDashboardBundle>(
@@ -47,27 +47,28 @@ class AccountsDashboardScreen extends ConsumerWidget {
 
         return SingleChildScrollView(
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AccountsKpiGrid(tiles: tiles),
-            const SizedBox(height: 28),
-            AccountsSectionHeader(
-              icon: Icons.bolt_rounded,
-              title: 'Quick actions',
-              subtitle: 'Jump to collections, receivables, reports, and audit',
-            ),
-            const SizedBox(height: 16),
-            _QuickActionsGrid(isHead: isHead),
-            const SizedBox(height: 28),
-            AccountsSectionHeader(
-              icon: Icons.history_rounded,
-              title: 'Recent activity',
-              subtitle: 'Latest financial events',
-            ),
-            const SizedBox(height: 12),
-            _ActivityFeed(items: data.activityFeed, fmt: fmt),
-          ],
-        ),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AccountsKpiGrid(tiles: tiles),
+              const SizedBox(height: 28),
+              AccountsSectionHeader(
+                icon: Icons.bolt_rounded,
+                title: 'Quick actions',
+                subtitle:
+                    'Jump to collections, receivables, reports, and audit',
+              ),
+              const SizedBox(height: 16),
+              _QuickActionsGrid(isHead: isHead),
+              const SizedBox(height: 28),
+              AccountsSectionHeader(
+                icon: Icons.history_rounded,
+                title: 'Recent activity',
+                subtitle: 'Latest financial events',
+              ),
+              const SizedBox(height: 12),
+              _ActivityFeed(items: data.activityFeed, fmt: fmt),
+            ],
+          ),
         );
       },
     );
@@ -180,27 +181,99 @@ class _QuickActionsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <_Action>[
-      _Action('Collections ledger', Icons.list_alt_rounded, const TransactionsRoute()),
-      _Action('HMO receivables', Icons.health_and_safety_outlined, const ReceivablesHmoRoute()),
-      _Action('Discount receivables', Icons.sell_outlined, const ReceivablesDiscountRoute()),
-      _Action('Daily collections', Icons.calendar_today_rounded, const AccountsDailyCollectionsRoute()),
-      _Action('AR aging', Icons.hourglass_bottom_rounded, const AccountsAgingReportRoute()),
-      _Action('Financial reports', Icons.assessment_rounded, const AccountsFinancialReportsHubRoute()),
+      _Action(
+        'Collections ledger',
+        Icons.list_alt_rounded,
+        const TransactionsRoute(),
+      ),
+      _Action(
+        'HMO receivables',
+        Icons.health_and_safety_outlined,
+        const ReceivablesHmoRoute(),
+      ),
+      _Action(
+        'Discount receivables',
+        Icons.sell_outlined,
+        const ReceivablesDiscountRoute(),
+      ),
+      _Action(
+        'Daily collections',
+        Icons.calendar_today_rounded,
+        const AccountsDailyCollectionsRoute(),
+      ),
+      _Action(
+        'AR aging',
+        Icons.hourglass_bottom_rounded,
+        const AccountsAgingReportRoute(),
+      ),
+      _Action(
+        'Financial reports',
+        Icons.assessment_rounded,
+        const AccountsFinancialReportsHubRoute(),
+      ),
       _Action('Audit log', Icons.policy_rounded, const AccountsAuditLogRoute()),
-      _Action('Compliance', Icons.verified_user_outlined, const AccountsComplianceRoute()),
-      _Action('Consultation report', Icons.receipt_long_outlined, const ConsultationPaymentReportRoute()),
-      _Action('Bank accounts', Icons.account_balance_outlined, const AccountsBanksRoute()),
-      _Action('Patient wallets', Icons.wallet_rounded, const AccountsWalletsOverviewRoute()),
-      _Action('Cash reconciliation', Icons.calculate_rounded, const AccountsDailyCashReconRoute()),
+      _Action(
+        'Compliance',
+        Icons.verified_user_outlined,
+        const AccountsComplianceRoute(),
+      ),
+      _Action(
+        'Consultation report',
+        Icons.receipt_long_outlined,
+        const ConsultationPaymentReportRoute(),
+      ),
+      _Action(
+        'Bank accounts',
+        Icons.account_balance_outlined,
+        const AccountsBanksRoute(),
+      ),
+      _Action(
+        'Patient wallets',
+        Icons.wallet_rounded,
+        const AccountsWalletsOverviewRoute(),
+      ),
+      _Action(
+        'Cash reconciliation',
+        Icons.calculate_rounded,
+        const AccountsDailyCashReconRoute(),
+      ),
       if (isHead) ...[
-        _Action('Revenue analytics', Icons.bar_chart_rounded, const BillingDashboardRoute()),
-        _Action('Approvals', Icons.fact_check_outlined, const AccountsApprovalsRoute()),
-        _Action('Period close', Icons.lock_clock_rounded, const AccountsPeriodCloseRoute()),
-        _Action('Journal entries', Icons.menu_book_rounded, const AccountsJournalEntriesRoute()),
-        _Action('Chart of accounts', Icons.account_tree_rounded, const AccountsChartOfAccountsRoute()),
-        _Action('Leak detection', Icons.shield_outlined, const AccountsLeakDetectionRoute()),
+        _Action(
+          'Revenue analytics',
+          Icons.bar_chart_rounded,
+          const BillingDashboardRoute(),
+        ),
+        _Action(
+          'Approvals',
+          Icons.fact_check_outlined,
+          const AccountsApprovalsRoute(),
+        ),
+        _Action(
+          'Period close',
+          Icons.lock_clock_rounded,
+          const AccountsPeriodCloseRoute(),
+        ),
+        _Action(
+          'Journal entries',
+          Icons.menu_book_rounded,
+          const AccountsJournalEntriesRoute(),
+        ),
+        _Action(
+          'Chart of accounts',
+          Icons.account_tree_rounded,
+          const AccountsChartOfAccountsRoute(),
+        ),
+        _Action(
+          'Leak detection',
+          Icons.shield_outlined,
+          const AccountsLeakDetectionRoute(),
+        ),
       ] else
-        _Action('Revenue summary', Icons.insights_outlined, const AccountsRevenueSummaryRoute()),
+        _Action(
+          'Revenue summary',
+          Icons.insights_outlined,
+          const AccountsRevenueSummaryRoute(),
+        ),
     ];
 
     return Wrap(
@@ -265,8 +338,7 @@ class _ActivityFeed extends StatelessWidget {
           final item = items[i];
           return ListTile(
             leading: CircleAvatar(
-              backgroundColor:
-                  AccountsPalette.primary.withValues(alpha: 0.12),
+              backgroundColor: AccountsPalette.primary.withValues(alpha: 0.12),
               child: Icon(
                 _iconFor(item.category),
                 color: AccountsPalette.primary,

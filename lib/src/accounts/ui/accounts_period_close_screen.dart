@@ -19,33 +19,43 @@ class AccountsPeriodCloseScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!canClosePeriod(ref.watch(authProvider).staff)) {
+    final staff = ref.watch(authProvider).staff;
+    if (!canViewPeriodClose(staff)) {
       return const AccountsAccessDenied(
         title: 'Fiscal period close',
-        message: 'Only the Account Head can close fiscal periods.',
+        message: 'You do not have access to fiscal periods.',
       );
     }
+    final canAct = canClosePeriod(staff);
     final async = ref.watch(accountsFiscalPeriodsProvider);
     final svc = AccountsReportsService();
 
     return AccountsAsyncScaffold<List<AccountsFiscalPeriod>>(
       title: 'Fiscal period close',
-      subtitle: 'Lock periods after month-end close',
+      subtitle: canAct
+          ? 'Lock periods after month-end close'
+          : 'View-only · Fiscal period status',
       colors: AccountsPalette.audit,
       asyncValue: async,
       onRetry: () => ref.invalidate(accountsFiscalPeriodsProvider),
       builder: (context, periods) {
         if (periods.isEmpty) {
-          return const AccountsEmptyState(title: 'No Fiscal periods', subtitle: 'No records for the selected filters.');
+          return const AccountsEmptyState(
+            title: 'No Fiscal periods',
+            subtitle: 'No records for the selected filters.',
+          );
         }
         return AccountsDataTableBox(
           child: DataTable2(
-            columns: const [
-              DataColumn2(label: Text('Period'), size: ColumnSize.M),
-              DataColumn2(label: Text('Start'), size: ColumnSize.S),
-              DataColumn2(label: Text('End'), size: ColumnSize.S),
-              DataColumn2(label: Text('Status'), size: ColumnSize.S),
-              DataColumn2(label: Text('Action'), size: ColumnSize.S),
+            columns: [
+              const DataColumn2(label: Text('Period'), size: ColumnSize.M),
+              const DataColumn2(label: Text('Start'), size: ColumnSize.S),
+              const DataColumn2(label: Text('End'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Status'), size: ColumnSize.S),
+              DataColumn2(
+                label: Text(canAct ? 'Action' : 'Closed by'),
+                size: ColumnSize.S,
+              ),
             ],
             rows: [
               for (final p in periods)
@@ -56,7 +66,7 @@ class AccountsPeriodCloseScreen extends ConsumerWidget {
                     DataCell(Text(DateFormatter.shortDate(p.endDate))),
                     DataCell(Text(p.status)),
                     DataCell(
-                      p.status.toLowerCase() == 'open'
+                      canAct && p.status.toLowerCase() == 'open'
                           ? TextButton(
                               onPressed: () async {
                                 final ok = await showDialog<bool>(

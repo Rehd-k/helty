@@ -143,6 +143,13 @@ const cmacExecutiveMenuItems = <MenuItem>[
   ),
 ];
 
+/// CMD sidebar: full CMAC + Accounts & Audit menus flattened into one list
+/// (head breadth, view-only actions).
+final cmdUnifiedMenuItems = <MenuItem>[
+  ...cmacExecutiveMenuItems,
+  ...accountsHeadMenu,
+];
+
 /// CMD (chief medical director) executive sidebar — top-level for CMD logins;
 /// also nested under "CMD Panel" for full admins.
 const cmdExecutiveMenuItems = <MenuItem>[
@@ -357,7 +364,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final isCmdAccount = at == 'cmd' || r == 'cmd';
     if (isCmdAccount) {
-      common.addAll(cmdExecutiveMenuItems);
+      common.addAll(cmdUnifiedMenuItems);
       return common;
     }
 

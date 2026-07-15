@@ -63,16 +63,16 @@ class _ReceivablesAccessDenied extends StatelessWidget {
   }
 }
 
-class _ReceivablesScreen extends StatefulWidget {
+class _ReceivablesScreen extends ConsumerStatefulWidget {
   const _ReceivablesScreen({required this.kind});
 
   final _ReceivableKind kind;
 
   @override
-  State<_ReceivablesScreen> createState() => _ReceivablesScreenState();
+  ConsumerState<_ReceivablesScreen> createState() => _ReceivablesScreenState();
 }
 
-class _ReceivablesScreenState extends State<_ReceivablesScreen> {
+class _ReceivablesScreenState extends ConsumerState<_ReceivablesScreen> {
   final _service = ReceivablesService();
   final _hmoService = HmoService();
   final _hmoNameSearchCtrl = TextEditingController();
@@ -472,6 +472,7 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
   }
 
   Future<void> _recordRemittance(List<ReceivableItem> items) async {
+    if (!canRecordRemittance(ref.read(authProvider).staff)) return;
     final selected = <String, bool>{
       for (final e in items.take(10)) e.coverageId: false,
     };
@@ -634,79 +635,80 @@ class _ReceivablesScreenState extends State<_ReceivablesScreen> {
               center: false,
               builder: (context, bp) => Column(
                 children: [
-                _buildHmoFilterBar(),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(12, _isHmo ? 8 : 12, 12, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _pickDateRange,
-                          icon: const Icon(Icons.date_range),
-                          label: Text(
-                            _rangeLabel(_selectedRange),
-                            overflow: TextOverflow.ellipsis,
+                  _buildHmoFilterBar(),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(12, _isHmo ? 8 : 12, 12, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _pickDateRange,
+                            icon: const Icon(Icons.date_range),
+                            label: Text(
+                              _rangeLabel(_selectedRange),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Clear date range',
-                        onPressed: () async {
-                          setState(() => _selectedRange = null);
-                          await _load();
-                        },
-                        icon: const Icon(Icons.clear),
-                      ),
-                    ],
+                        IconButton(
+                          tooltip: 'Clear date range',
+                          onPressed: () async {
+                            setState(() => _selectedRange = null);
+                            await _load();
+                          },
+                          icon: const Icon(Icons.clear),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                  child: ResponsiveWrapGrid(
-                    mobileColumns: 1,
-                    tabletColumns: 2,
-                    desktopColumns: 4,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _summaryCard(
-                        label: 'Records',
-                        value: '${_items.length}',
-                        icon: Icons.receipt_long,
-                        color: Colors.blue,
-                      ),
-                      _summaryCard(
-                        label: 'Outstanding',
-                        value: totalOutstanding.toFinancial(isMoney: true),
-                        icon: Icons.account_balance_wallet_outlined,
-                        color: Colors.orange,
-                      ),
-                      _summaryCard(
-                        label: 'Total Amount',
-                        value: totalAmount.toFinancial(isMoney: true),
-                        icon: Icons.summarize_outlined,
-                        color: Colors.green,
-                      ),
-                      _summaryCard(
-                        label: _isHmo ? 'Unique HMOs' : 'Unique Payers',
-                        value: '$uniquePayers',
-                        icon: Icons.groups_outlined,
-                        color: Colors.purple,
-                      ),
-                    ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                    child: ResponsiveWrapGrid(
+                      mobileColumns: 1,
+                      tabletColumns: 2,
+                      desktopColumns: 4,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _summaryCard(
+                          label: 'Records',
+                          value: '${_items.length}',
+                          icon: Icons.receipt_long,
+                          color: Colors.blue,
+                        ),
+                        _summaryCard(
+                          label: 'Outstanding',
+                          value: totalOutstanding.toFinancial(isMoney: true),
+                          icon: Icons.account_balance_wallet_outlined,
+                          color: Colors.orange,
+                        ),
+                        _summaryCard(
+                          label: 'Total Amount',
+                          value: totalAmount.toFinancial(isMoney: true),
+                          icon: Icons.summarize_outlined,
+                          color: Colors.green,
+                        ),
+                        _summaryCard(
+                          label: _isHmo ? 'Unique HMOs' : 'Unique Payers',
+                          value: '$uniquePayers',
+                          icon: Icons.groups_outlined,
+                          color: Colors.purple,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: _ReceivablesList(
-                    items: _items,
-                    isHmo: _isHmo,
-                    onOpenDetail: _openInvoiceDetail,
+                  Expanded(
+                    child: _ReceivablesList(
+                      items: _items,
+                      isHmo: _isHmo,
+                      onOpenDetail: _openInvoiceDetail,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-      floatingActionButton: _items.isEmpty
+      floatingActionButton:
+          _items.isEmpty || !canRecordRemittance(ref.watch(authProvider).staff)
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _recordRemittance(_items),

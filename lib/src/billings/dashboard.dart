@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/accounts/auth/accounting_permissions.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/billing_analytics_models.dart';
-import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/api_service.dart';
 import 'package:helty/src/core/widgets/patient_avatar.dart';
@@ -54,7 +54,7 @@ class _BillingDashboardScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (!staffCanAccessPrivilegedBilling(ref.read(authProvider).staff)) {
+      if (!canViewBillingAnalyticsDashboard(ref.read(authProvider).staff)) {
         context.router.replace(const PendingBillsRoute());
         return;
       }
@@ -254,7 +254,7 @@ class _BillingDashboardScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (!staffCanAccessPrivilegedBilling(ref.watch(authProvider).staff)) {
+    if (!canViewBillingAnalyticsDashboard(ref.watch(authProvider).staff)) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -1161,10 +1161,7 @@ class _BillingDashboardScreenState
           if (bp.isMobile)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: bp.tableMinWidth,
-                child: tableContent,
-              ),
+              child: SizedBox(width: bp.tableMinWidth, child: tableContent),
             )
           else
             tableContent,

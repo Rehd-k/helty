@@ -10,11 +10,8 @@ import '../services/purchases_service.dart';
 import 'add_item_screen.dart';
 import 'item_filters_panel.dart';
 
-/// Search field type for the search bar dropdown.
-enum SearchFieldType { itemName }
-
-/// Filter pill type for status/category filtering.
-enum FilterPillType { all, lowStock, expiringSoon }
+/// Filter pill type for status filtering.
+enum FilterPillType { all, inStock, lowStock, expiringSoon }
 
 @RoutePage()
 class PurchasesInventoryScreen extends StatefulWidget {
@@ -43,13 +40,11 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
   PurchaseItem? _selectedDrug;
   bool _isFiltersOpen = false;
   final TextEditingController _searchController = TextEditingController();
-  final SearchFieldType _searchFieldType = SearchFieldType.itemName;
   FilterPillType _filterPill = FilterPillType.all;
 
   // Additional filters
   String? _manufacturerId;
   String? _supplierId;
-  bool? _isControlledFilter; // null = all, true = yes, false = no
   DateTime? _manufacturingDateFrom;
   DateTime? _manufacturingDateTo;
   DateTime? _expiryDateFrom;
@@ -103,9 +98,13 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
 
   SearchPurchaseItemParams _buildSearchParams() {
     final query = _searchController.text.trim();
+    bool? inStock;
     bool? lowStock;
     bool? expiringSoon;
     switch (_filterPill) {
+      case FilterPillType.inStock:
+        inStock = true;
+        break;
       case FilterPillType.lowStock:
         lowStock = true;
         break;
@@ -124,6 +123,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
       manufacturingDateTo: _manufacturingDateTo,
       expiryDateFrom: _expiryDateFrom,
       expiryDateTo: _expiryDateTo,
+      inStock: inStock,
       lowStock: lowStock,
       expiringSoon: expiringSoon,
       limit: _pageSize,
@@ -340,18 +340,79 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                       const Divider(height: 1),
                       Expanded(
                         child: ItemFiltersPanel(
-                          params: _buildSearchParams(),
+                          theme: theme,
+                          searchController: _searchController,
+                          onPerformSearch: () {
+                            setState(() => _currentPage = 1);
+                            _fetchData();
+                          },
+                          filterPill: _filterPill,
+                          onFilterPillChanged: (pill) {
+                            setState(() {
+                              _filterPill = pill;
+                              _currentPage = 1;
+                            });
+                            _fetchData();
+                          },
                           manufacturers: _manufacturers,
                           suppliers: _suppliers,
-                          onChanged: (_) {},
-                          onApply: () {
-                            setState(() => _currentPage = 1);
+                          selectedManufacturerId: _manufacturerId,
+                          onManufacturerChanged: (v) {
+                            setState(() {
+                              _manufacturerId = v;
+                              _currentPage = 1;
+                            });
+                            _fetchData();
+                          },
+                          selectedSupplierId: _supplierId,
+                          onSupplierChanged: (v) {
+                            setState(() {
+                              _supplierId = v;
+                              _currentPage = 1;
+                            });
+                            _fetchData();
+                          },
+                          manufacturingDateFrom: _manufacturingDateFrom,
+                          manufacturingDateTo: _manufacturingDateTo,
+                          onManufacturingDateFromChanged: (d) {
+                            setState(() {
+                              _manufacturingDateFrom = d;
+                              _currentPage = 1;
+                            });
+                            _fetchData();
+                          },
+                          onManufacturingDateToChanged: (d) {
+                            setState(() {
+                              _manufacturingDateTo = d;
+                              _currentPage = 1;
+                            });
+                            _fetchData();
+                          },
+                          expiryDateFrom: _expiryDateFrom,
+                          expiryDateTo: _expiryDateTo,
+                          onExpiryDateFromChanged: (d) {
+                            setState(() {
+                              _expiryDateFrom = d;
+                              _currentPage = 1;
+                            });
+                            _fetchData();
+                          },
+                          onExpiryDateToChanged: (d) {
+                            setState(() {
+                              _expiryDateTo = d;
+                              _currentPage = 1;
+                            });
                             _fetchData();
                           },
                           onClear: () {
                             setState(() {
+                              _searchController.clear();
                               _manufacturerId = null;
                               _supplierId = null;
+                              _manufacturingDateFrom = null;
+                              _manufacturingDateTo = null;
+                              _expiryDateFrom = null;
+                              _expiryDateTo = null;
                               _filterPill = FilterPillType.all;
                               _currentPage = 1;
                             });
@@ -433,14 +494,21 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
   }
 
   Widget _buildTable(ThemeData theme) {
-    return Scrollbar(
-      controller: _verticalScrollController,
-      thumbVisibility: true,
-      child: ResponsiveDataTable(
+    return ResponsiveDataTable(
+      child: Scrollbar(
+        controller: _horizontalScrollController,
+        thumbVisibility: true,
+        notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
         child: SingleChildScrollView(
-          controller: _verticalScrollController,
-          scrollDirection: Axis.vertical,
-          child: DataTable(
+          controller: _horizontalScrollController,
+          scrollDirection: Axis.horizontal,
+          child: Scrollbar(
+            controller: _verticalScrollController,
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              controller: _verticalScrollController,
+              scrollDirection: Axis.vertical,
+              child: DataTable(
               sortColumnIndex: _sortColumnIndex,
               sortAscending: _isAscending,
               headingRowColor: WidgetStateProperty.all(
@@ -650,9 +718,11 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                   ],
                 );
               }).toList(),
+              ),
             ),
           ),
         ),
+      ),
     );
   }
 

@@ -55,30 +55,34 @@ class _AccountsJournalEntriesScreenState
       );
       ref.invalidate(accountsJournalEntriesProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Journal entry posted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Journal entry posted')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!canPostJournalEntries(ref.watch(authProvider).staff)) {
+    final staff = ref.watch(authProvider).staff;
+    if (!canViewJournalEntries(staff)) {
       return const AccountsAccessDenied(title: 'Journal entries');
     }
+    final canPost = canPostJournalEntries(staff);
     final async = ref.watch(accountsJournalEntriesProvider);
     final fmt = accountsNairaFormat();
 
     return AccountsAsyncScaffold(
       title: 'Journal entries',
-      subtitle: 'General ledger postings',
+      subtitle: canPost
+          ? 'General ledger postings'
+          : 'View-only · General ledger postings',
       colors: AccountsPalette.reports,
       asyncValue: async,
       onRetry: () => ref.invalidate(accountsJournalEntriesProvider),
@@ -86,75 +90,76 @@ class _AccountsJournalEntriesScreenState
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'New journal entry',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _refCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Reference',
-                        border: OutlineInputBorder(),
+            if (canPost)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'New journal entry',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _descCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _refCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Reference',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _debitCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Debit account',
-                              border: OutlineInputBorder(),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _descCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _debitCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Debit account',
+                                border: OutlineInputBorder(),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: _creditCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Credit account',
-                              border: OutlineInputBorder(),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: _creditCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Credit account',
+                                border: OutlineInputBorder(),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _amountCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Amount (₦)',
-                        border: OutlineInputBorder(),
+                        ],
                       ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: _post,
-                      child: const Text('Post entry'),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _amountCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Amount (₦)',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _post,
+                        child: const Text('Post entry'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+            if (canPost) const SizedBox(height: 24),
             if (entries.isEmpty)
               const Expanded(
                 child: AccountsEmptyState(
@@ -166,32 +171,32 @@ class _AccountsJournalEntriesScreenState
               Expanded(
                 child: AccountsDataTableBox(
                   child: DataTable2(
-                  minWidth: 1000,
-                  columns: const [
-                    DataColumn2(label: Text('Date'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Ref'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Debit'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Credit'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Amount'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Status'), size: ColumnSize.S),
-                  ],
-                  rows: [
-                    for (final e in entries)
-                      DataRow2(
-                        cells: [
-                          DataCell(
-                            Text(DateFormatter.shortDate(e.entryDate)),
-                          ),
-                          DataCell(Text(e.reference)),
-                          DataCell(Text(e.debitAccount)),
-                          DataCell(Text(e.creditAccount)),
-                          DataCell(Text(fmt.format(e.amount))),
-                          DataCell(Text(e.status)),
-                        ],
-                      ),
-                  ],
+                    minWidth: 1000,
+                    columns: const [
+                      DataColumn2(label: Text('Date'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Ref'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Debit'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Credit'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Amount'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Status'), size: ColumnSize.S),
+                    ],
+                    rows: [
+                      for (final e in entries)
+                        DataRow2(
+                          cells: [
+                            DataCell(
+                              Text(DateFormatter.shortDate(e.entryDate)),
+                            ),
+                            DataCell(Text(e.reference)),
+                            DataCell(Text(e.debitAccount)),
+                            DataCell(Text(e.creditAccount)),
+                            DataCell(Text(fmt.format(e.amount))),
+                            DataCell(Text(e.status)),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
-              ),
               ),
           ],
         );

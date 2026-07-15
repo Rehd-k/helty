@@ -17,34 +17,78 @@ class AccountsFinancialReportsHubScreen extends ConsumerWidget {
     if (!canAccessAccountsModule(staff)) {
       return const AccountsAccessDenied(title: 'Financial reports');
     }
-    final isHead = isAccountHead(staff);
+    final isHead = canViewAccountsHeadData(staff);
     final theme = Theme.of(context);
 
     final reports = <_ReportTile>[
-      _ReportTile('Daily collections', Icons.calendar_today_rounded,
-          const AccountsDailyCollectionsRoute(), true),
-      _ReportTile('AR aging', Icons.hourglass_bottom_rounded,
-          const AccountsAgingReportRoute(), true),
-      _ReportTile('Collection efficiency', Icons.speed_rounded,
-          const AccountsCollectionEfficiencyRoute(), true),
-      _ReportTile('Revenue by department', Icons.pie_chart_outline_rounded,
-          const BillingDashboardRoute(), true),
+      _ReportTile(
+        'Daily collections',
+        Icons.calendar_today_rounded,
+        const AccountsDailyCollectionsRoute(),
+        true,
+      ),
+      _ReportTile(
+        'AR aging',
+        Icons.hourglass_bottom_rounded,
+        const AccountsAgingReportRoute(),
+        true,
+      ),
+      _ReportTile(
+        'Collection efficiency',
+        Icons.speed_rounded,
+        const AccountsCollectionEfficiencyRoute(),
+        true,
+      ),
+      _ReportTile(
+        'Revenue by department',
+        Icons.pie_chart_outline_rounded,
+        const BillingDashboardRoute(),
+        true,
+      ),
       if (isHead) ...[
-        _ReportTile('Profit & loss', Icons.assessment_rounded,
-            const AccountsProfitLossRoute(), true),
-        _ReportTile('Cash flow', Icons.waterfall_chart_rounded,
-            const AccountsCashFlowRoute(), true),
-        _ReportTile('Revenue by service', Icons.category_rounded,
-            const AccountsRevenueByServiceRoute(), true),
-        _ReportTile('Expense vs budget', Icons.compare_arrows_rounded,
-            const AccountsExpenseVsBudgetRoute(), true),
-        _ReportTile('Period comparison', Icons.show_chart_rounded,
-            const AccountsPeriodComparisonRoute(), true),
-        _ReportTile('Payment method mix', Icons.account_balance_wallet_outlined,
-            const AccountsPaymentMixRoute(), true),
+        _ReportTile(
+          'Profit & loss',
+          Icons.assessment_rounded,
+          const AccountsProfitLossRoute(),
+          true,
+        ),
+        _ReportTile(
+          'Cash flow',
+          Icons.waterfall_chart_rounded,
+          const AccountsCashFlowRoute(),
+          true,
+        ),
+        _ReportTile(
+          'Revenue by service',
+          Icons.category_rounded,
+          const AccountsRevenueByServiceRoute(),
+          true,
+        ),
+        _ReportTile(
+          'Expense vs budget',
+          Icons.compare_arrows_rounded,
+          const AccountsExpenseVsBudgetRoute(),
+          true,
+        ),
+        _ReportTile(
+          'Period comparison',
+          Icons.show_chart_rounded,
+          const AccountsPeriodComparisonRoute(),
+          true,
+        ),
+        _ReportTile(
+          'Payment method mix',
+          Icons.account_balance_wallet_outlined,
+          const AccountsPaymentMixRoute(),
+          true,
+        ),
       ],
-      _ReportTile('Consultation payments', Icons.receipt_long_outlined,
-          const ConsultationPaymentReportRoute(), true),
+      _ReportTile(
+        'Consultation payments',
+        Icons.receipt_long_outlined,
+        const ConsultationPaymentReportRoute(),
+        true,
+      ),
     ];
 
     return Scaffold(

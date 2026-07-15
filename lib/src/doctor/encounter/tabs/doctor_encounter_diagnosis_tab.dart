@@ -198,6 +198,7 @@ class _DoctorEncounterDiagnosisTabState
         },
         editReason: amendEditReason(scope),
       );
+      await scope.onEncounterUpdated?.call();
       if (!mounted) return;
       showEncounterSaveSnackBar(
         context,

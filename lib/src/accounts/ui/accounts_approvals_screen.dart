@@ -20,37 +20,44 @@ class AccountsApprovalsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!canApproveFinancialActions(ref.watch(authProvider).staff)) {
+    final staff = ref.watch(authProvider).staff;
+    if (!canViewFinancialApprovals(staff)) {
       return const AccountsAccessDenied(
         title: 'Financial approvals',
-        message: 'Only the Account Head can approve financial actions.',
+        message: 'You do not have access to the financial approvals queue.',
       );
     }
+    final canAct = canApproveFinancialActions(staff);
     final async = ref.watch(accountsPendingApprovalsProvider);
     final fmt = accountsNairaFormat();
     final svc = AccountsReportsService();
 
     return AccountsAsyncScaffold<List<AccountsApprovalRequest>>(
       title: 'Pending financial approvals',
-      subtitle: 'Write-offs and coverage reversals (not line-item refunds)',
+      subtitle: canAct
+          ? 'Write-offs and coverage reversals (not line-item refunds)'
+          : 'View-only · Write-offs and coverage reversals awaiting Account Head action',
       colors: AccountsPalette.audit,
       asyncValue: async,
       onRetry: () => ref.invalidate(accountsPendingApprovalsProvider),
       builder: (context, items) {
         if (items.isEmpty) {
-          return const AccountsEmptyState(title: 'No Financial approvals queue', subtitle: 'No records for the selected filters.',
+          return const AccountsEmptyState(
+            title: 'No Financial approvals queue',
+            subtitle: 'No records for the selected filters.',
           );
         }
         return AccountsDataTableBox(
           child: DataTable2(
             minWidth: 1000,
-            columns: const [
-              DataColumn2(label: Text('Type'), size: ColumnSize.S),
-              DataColumn2(label: Text('Amount'), size: ColumnSize.S),
-              DataColumn2(label: Text('Requester'), size: ColumnSize.S),
-              DataColumn2(label: Text('Submitted'), size: ColumnSize.S),
-              DataColumn2(label: Text('Detail'), size: ColumnSize.L),
-              DataColumn2(label: Text('Actions'), size: ColumnSize.S),
+            columns: [
+              const DataColumn2(label: Text('Type'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Amount'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Requester'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Submitted'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Detail'), size: ColumnSize.L),
+              if (canAct)
+                const DataColumn2(label: Text('Actions'), size: ColumnSize.S),
             ],
             rows: [
               for (final a in items)
@@ -63,32 +70,37 @@ class AccountsApprovalsScreen extends ConsumerWidget {
                       Text(DateFormatter.dateTimeWithSeconds(a.submittedAt)),
                     ),
                     DataCell(Text(a.detail)),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.check_circle_outline),
-                            tooltip: 'Approve',
-                            onPressed: () async {
-                              await svc.approveRequest(a.id);
-                              ref.invalidate(accountsPendingApprovalsProvider);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.cancel_outlined),
-                            tooltip: 'Reject',
-                            onPressed: () async {
-                              await svc.rejectRequest(
-                                a.id,
-                                reason: 'Rejected by account head',
-                              );
-                              ref.invalidate(accountsPendingApprovalsProvider);
-                            },
-                          ),
-                        ],
+                    if (canAct)
+                      DataCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.check_circle_outline),
+                              tooltip: 'Approve',
+                              onPressed: () async {
+                                await svc.approveRequest(a.id);
+                                ref.invalidate(
+                                  accountsPendingApprovalsProvider,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cancel_outlined),
+                              tooltip: 'Reject',
+                              onPressed: () async {
+                                await svc.rejectRequest(
+                                  a.id,
+                                  reason: 'Rejected by account head',
+                                );
+                                ref.invalidate(
+                                  accountsPendingApprovalsProvider,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
             ],

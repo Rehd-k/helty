@@ -296,18 +296,16 @@ class _EdDispositionDialogState extends State<EdDispositionDialog>
           'Record in-hospital death. Encounter will be completed with '
           'workflow status DECEASED.',
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withValues(
-                  alpha: 0.75,
-                ),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.75),
           ),
         ),
         const SizedBox(height: 12),
         _buildNotesFields(),
         const SizedBox(height: 16),
         FilledButton(
-          onPressed: _submitting
-              ? null
-              : () => _submit(EdDisposition.deceased),
+          onPressed: _submitting ? null : () => _submit(EdDisposition.deceased),
           child: Text(_submitting ? 'Submitting…' : 'Record death'),
         ),
       ],

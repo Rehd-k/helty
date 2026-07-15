@@ -96,7 +96,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       case 'ict':
         return const DashboardRoute();
       case 'cmd':
+        return const CmacOverviewRoute();
       case 'cmac':
+        return const CmacOverviewRoute();
       case 'super_admin':
         return const CMDDashboardRoute();
       default:
@@ -182,351 +184,355 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
       body: ResponsiveBody(
         builder: (context, bp) => Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(
-                    Icons.person_add_outlined,
-                    size: 48,
-                    color: colors.primary,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Create Your Account',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(
+                      Icons.person_add_outlined,
+                      size: 48,
+                      color: colors.primary,
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Fill in your staff details below',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  _SectionLabel(
-                    label: 'Staff Identity',
-                    icon: Icons.badge_outlined,
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: _staffIdCtrl,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Staff ID *',
-                      prefixIcon: Icon(Icons.numbers_outlined),
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Staff ID is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 14),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _firstNameCtrl,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'First Name *',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Required'
-                              : null,
-                        ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Create Your Account',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _lastNameCtrl,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Last Name *',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Required'
-                              : null,
-                        ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Fill in your staff details below',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurfaceVariant,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  DropdownButtonFormField<AccountType>(
-                    key: ObjectKey(_selectedAccountType),
-                    initialValue: _selectedAccountType,
-                    decoration: const InputDecoration(
-                      labelText: 'Account Type *',
-                      prefixIcon: Icon(Icons.manage_accounts_outlined),
                     ),
-                    items: AccountType.departmentTypes
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t,
-                            child: Text('${t.label} (${t.apiValue})'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (t) {
-                      if (t == null) return;
-                      final roles = rolesForAccountType(t);
-                      setState(() {
-                        _selectedAccountType = t;
-                        _selectedRoleOption = roles.first;
-                        _wardId = null;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 32),
 
-                  DropdownButtonFormField<StaffRoleOption>(
-                    key: ObjectKey(_selectedRoleOption),
-                    initialValue: _selectedRoleOption,
-                    decoration: const InputDecoration(
-                      labelText: 'Role *',
-                      prefixIcon: Icon(Icons.work_outline),
+                    _SectionLabel(
+                      label: 'Staff Identity',
+                      icon: Icons.badge_outlined,
                     ),
-                    items: rolesForAccountType(_selectedAccountType)
-                        .map(
-                          (r) =>
-                              DropdownMenuItem(value: r, child: Text(r.label)),
-                        )
-                        .toList(),
-                    onChanged: (r) => setState(() {
-                      _selectedRoleOption = r ?? _selectedRoleOption;
-                      _wardId = null;
-                    }),
-                    validator: (v) => v == null ? 'Select a role' : null,
-                  ),
-                  if (_isChargeNurse) ...[
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _staffIdCtrl,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Staff ID *',
+                        prefixIcon: Icon(Icons.numbers_outlined),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Staff ID is required'
+                          : null,
+                    ),
                     const SizedBox(height: 14),
-                    asyncWards.when(
-                      data: (allWards) {
-                        final wards = selectableWardsForChargeNurseRole(
-                          _selectedRoleOption.staffRole,
-                          allWards,
-                          currentWardId: _wardId,
-                        );
-                        if (wards.isEmpty) {
-                          return Text(
-                            'No wards found. Add wards in ward management first.',
-                            style: TextStyle(color: colors.onSurfaceVariant),
-                          );
-                        }
-                        final wardIds = wards.map((w) => w.id).toSet();
-                        final selectedWardId =
-                            _wardId != null && wardIds.contains(_wardId)
-                            ? _wardId
-                            : null;
-                        return DropdownButtonFormField<String?>(
-                          key: ValueKey(
-                            'register-ward-$selectedWardId-${_selectedRoleOption.staffRole}',
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _firstNameCtrl,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'First Name *',
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
                           ),
-                          initialValue: selectedWardId,
-                          decoration: const InputDecoration(
-                            labelText: 'Home ward *',
-                            prefixIcon: Icon(Icons.local_hospital_outlined),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _lastNameCtrl,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Last Name *',
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
                           ),
-                          items: wards
-                              .map(
-                                (w) => DropdownMenuItem<String?>(
-                                  value: w.id,
-                                  child: Text(w.name),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => _wardId = v),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Select a ward for this charge nurse role';
-                            }
-                            return null;
-                          },
-                        );
-                      },
-                      loading: () => const LinearProgressIndicator(),
-                      error: (e, _) => Text(
-                        'Could not load wards: $e',
-                        style: TextStyle(color: colors.error),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 28),
-
-                  _SectionLabel(
-                    label: 'Contact Information',
-                    icon: Icons.contact_mail_outlined,
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Email address',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return null;
-                      }
-                      final emailReg = RegExp(
-                        r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
-                      );
-                      if (!emailReg.hasMatch(v.trim())) {
-                        return 'Enter a valid email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
-
-                  TextFormField(
-                    controller: _phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone number *',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Phone number is required';
-                      }
-                      final digits = v.replaceAll(RegExp(r'\D'), '');
-                      if (digits.length < 7) {
-                        return 'Enter a valid phone number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 28),
-
-                  _SectionLabel(label: 'Security', icon: Icons.lock_outline),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'Password *',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
                         ),
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                      ),
+                      ],
                     ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Password is required';
-                      if (v.length < 8) return 'Minimum 8 characters';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-                  TextFormField(
-                    controller: _confirmPasswordCtrl,
-                    obscureText: _obscureConfirm,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _submit(),
-                    decoration: InputDecoration(
-                      labelText: 'Confirm Password *',
-                      prefixIcon: const Icon(Icons.lock_person_outlined),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirm
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                        onPressed: () =>
-                            setState(() => _obscureConfirm = !_obscureConfirm),
+                    DropdownButtonFormField<AccountType>(
+                      key: ObjectKey(_selectedAccountType),
+                      initialValue: _selectedAccountType,
+                      decoration: const InputDecoration(
+                        labelText: 'Account Type *',
+                        prefixIcon: Icon(Icons.manage_accounts_outlined),
                       ),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return 'Confirm your password';
-                      }
-                      if (v != _passwordCtrl.text) {
-                        return 'Passwords do not match';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 32),
-
-                  FilledButton(
-                    onPressed: auth.isLoading ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: auth.isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                      items: AccountType.departmentTypes
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text('${t.label} (${t.apiValue})'),
                             ),
                           )
-                        : const Text(
-                            'Create Account',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(height: 20),
+                          .toList(),
+                      onChanged: (t) {
+                        if (t == null) return;
+                        final roles = rolesForAccountType(t);
+                        setState(() {
+                          _selectedAccountType = t;
+                          _selectedRoleOption = roles.first;
+                          _wardId = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 14),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Already have an account? ',
-                        style: TextStyle(color: colors.onSurfaceVariant),
+                    DropdownButtonFormField<StaffRoleOption>(
+                      key: ObjectKey(_selectedRoleOption),
+                      initialValue: _selectedRoleOption,
+                      decoration: const InputDecoration(
+                        labelText: 'Role *',
+                        prefixIcon: Icon(Icons.work_outline),
                       ),
-                      TextButton(
-                        onPressed: () => context.router.maybePop(),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      items: rolesForAccountType(_selectedAccountType)
+                          .map(
+                            (r) => DropdownMenuItem(
+                              value: r,
+                              child: Text(r.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (r) => setState(() {
+                        _selectedRoleOption = r ?? _selectedRoleOption;
+                        _wardId = null;
+                      }),
+                      validator: (v) => v == null ? 'Select a role' : null,
+                    ),
+                    if (_isChargeNurse) ...[
+                      const SizedBox(height: 14),
+                      asyncWards.when(
+                        data: (allWards) {
+                          final wards = selectableWardsForChargeNurseRole(
+                            _selectedRoleOption.staffRole,
+                            allWards,
+                            currentWardId: _wardId,
+                          );
+                          if (wards.isEmpty) {
+                            return Text(
+                              'No wards found. Add wards in ward management first.',
+                              style: TextStyle(color: colors.onSurfaceVariant),
+                            );
+                          }
+                          final wardIds = wards.map((w) => w.id).toSet();
+                          final selectedWardId =
+                              _wardId != null && wardIds.contains(_wardId)
+                              ? _wardId
+                              : null;
+                          return DropdownButtonFormField<String?>(
+                            key: ValueKey(
+                              'register-ward-$selectedWardId-${_selectedRoleOption.staffRole}',
+                            ),
+                            initialValue: selectedWardId,
+                            decoration: const InputDecoration(
+                              labelText: 'Home ward *',
+                              prefixIcon: Icon(Icons.local_hospital_outlined),
+                            ),
+                            items: wards
+                                .map(
+                                  (w) => DropdownMenuItem<String?>(
+                                    value: w.id,
+                                    child: Text(w.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) => setState(() => _wardId = v),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Select a ward for this charge nurse role';
+                              }
+                              return null;
+                            },
+                          );
+                        },
+                        loading: () => const LinearProgressIndicator(),
+                        error: (e, _) => Text(
+                          'Could not load wards: $e',
+                          style: TextStyle(color: colors.error),
                         ),
-                        child: const Text('Sign In'),
                       ),
                     ],
-                  ),
-                ],
+                    const SizedBox(height: 28),
+
+                    _SectionLabel(
+                      label: 'Contact Information',
+                      icon: Icons.contact_mail_outlined,
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Email address',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return null;
+                        }
+                        final emailReg = RegExp(
+                          r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
+                        );
+                        if (!emailReg.hasMatch(v.trim())) {
+                          return 'Enter a valid email';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextFormField(
+                      controller: _phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone number *',
+                        prefixIcon: Icon(Icons.phone_outlined),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Phone number is required';
+                        }
+                        final digits = v.replaceAll(RegExp(r'\D'), '');
+                        if (digits.length < 7) {
+                          return 'Enter a valid phone number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 28),
+
+                    _SectionLabel(label: 'Security', icon: Icons.lock_outline),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _passwordCtrl,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: 'Password *',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty)
+                          return 'Password is required';
+                        if (v.length < 8) return 'Minimum 8 characters';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextFormField(
+                      controller: _confirmPasswordCtrl,
+                      obscureText: _obscureConfirm,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _submit(),
+                      decoration: InputDecoration(
+                        labelText: 'Confirm Password *',
+                        prefixIcon: const Icon(Icons.lock_person_outlined),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirm
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscureConfirm = !_obscureConfirm,
+                          ),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Confirm your password';
+                        }
+                        if (v != _passwordCtrl.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+
+                    FilledButton(
+                      onPressed: auth.isLoading ? null : _submit,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: auth.isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Create Account',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Already have an account? ',
+                          style: TextStyle(color: colors.onSurfaceVariant),
+                        ),
+                        TextButton(
+                          onPressed: () => context.router.maybePop(),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('Sign In'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

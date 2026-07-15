@@ -35,6 +35,7 @@ class _AccountsDailyCashReconScreenState
   }
 
   Future<void> _submit() async {
+    if (!canSubmitDailyCashRecon(ref.read(authProvider).staff)) return;
     final counted = double.tryParse(_countedController.text.trim());
     if (counted == null) return;
     try {
@@ -53,23 +54,26 @@ class _AccountsDailyCashReconScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!canAccessAccountsModule(ref.watch(authProvider).staff)) {
+    final staff = ref.watch(authProvider).staff;
+    if (!canAccessAccountsModule(staff)) {
       return const AccountsAccessDenied(title: 'Daily cash reconciliation');
     }
+    final canSubmit = canSubmitDailyCashRecon(staff);
     final async = ref.watch(accountsDailyCashReconProvider);
     final fmt = accountsNairaFormat();
 
     return AccountsAsyncScaffold(
       title: 'Daily cash reconciliation',
+      subtitle: canSubmit ? null : 'View-only',
       colors: AccountsPalette.dashboard,
       asyncValue: async,
       onRetry: () => ref.invalidate(accountsDailyCashReconProvider),
@@ -77,44 +81,45 @@ class _AccountsDailyCashReconScreenState
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Submit today\'s cash count',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _countedController,
-                      decoration: const InputDecoration(
-                        labelText: 'Counted cash (₦)',
-                        border: OutlineInputBorder(),
+            if (canSubmit)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Submit today\'s cash count',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Notes (optional)',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _countedController,
+                        decoration: const InputDecoration(
+                          labelText: 'Counted cash (₦)',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
                       ),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: _submit,
-                      child: const Text('Submit reconciliation'),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _notesController,
+                        decoration: const InputDecoration(
+                          labelText: 'Notes (optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _submit,
+                        child: const Text('Submit reconciliation'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+            if (canSubmit) const SizedBox(height: 24),
             if (rows.isEmpty)
               const Expanded(
                 child: AccountsEmptyState(
@@ -126,27 +131,27 @@ class _AccountsDailyCashReconScreenState
               Expanded(
                 child: AccountsDataTableBox(
                   child: DataTable2(
-                  columns: const [
-                    DataColumn2(label: Text('Date'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Expected'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Counted'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Variance'), size: ColumnSize.S),
-                    DataColumn2(label: Text('Status'), size: ColumnSize.S),
-                  ],
-                  rows: [
-                    for (final r in rows)
-                      DataRow2(
-                        cells: [
-                          DataCell(Text(DateFormatter.shortDate(r.date))),
-                          DataCell(Text(fmt.format(r.expectedCash))),
-                          DataCell(Text(fmt.format(r.countedCash))),
-                          DataCell(Text(fmt.format(r.variance))),
-                          DataCell(Text(r.status)),
-                        ],
-                      ),
-                  ],
+                    columns: const [
+                      DataColumn2(label: Text('Date'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Expected'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Counted'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Variance'), size: ColumnSize.S),
+                      DataColumn2(label: Text('Status'), size: ColumnSize.S),
+                    ],
+                    rows: [
+                      for (final r in rows)
+                        DataRow2(
+                          cells: [
+                            DataCell(Text(DateFormatter.shortDate(r.date))),
+                            DataCell(Text(fmt.format(r.expectedCash))),
+                            DataCell(Text(fmt.format(r.countedCash))),
+                            DataCell(Text(fmt.format(r.variance))),
+                            DataCell(Text(r.status)),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
-              ),
               ),
           ],
         );

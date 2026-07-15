@@ -23,21 +23,23 @@ class AccountsRefundRequestsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!canApproveItemRefundRequests(ref.watch(authProvider).staff)) {
+    final staff = ref.watch(authProvider).staff;
+    if (!canViewItemRefundRequests(staff)) {
       return const AccountsAccessDenied(
         title: 'Item refund requests',
-        message:
-            'Only the Account Head or Billing Head can approve item refund requests.',
+        message: 'You do not have access to the item refund requests queue.',
       );
     }
+    final canAct = canApproveItemRefundRequests(staff);
     final async = ref.watch(accountsPendingRefundRequestsProvider);
     final fmt = accountsNairaFormat();
     final svc = AccountsRefundRequestsService();
 
     return AccountsAsyncScaffold<List<AccountsPendingRefundRequest>>(
       title: 'Item refund requests',
-      subtitle:
-          'Pending line-item refunds awaiting account or billing head approval',
+      subtitle: canAct
+          ? 'Pending line-item refunds awaiting account or billing head approval'
+          : 'View-only · Pending line-item refunds',
       colors: AccountsPalette.audit,
       asyncValue: async,
       onRetry: () => ref.invalidate(accountsPendingRefundRequestsProvider),
@@ -52,16 +54,19 @@ class AccountsRefundRequestsScreen extends ConsumerWidget {
         return AccountsDataTableBox(
           child: DataTable2(
             minWidth: 1200,
-            columns: const [
-              DataColumn2(label: Text('Invoice'), size: ColumnSize.S),
-              DataColumn2(label: Text('Patient'), size: ColumnSize.S),
-              DataColumn2(label: Text('Line'), size: ColumnSize.L),
-              DataColumn2(label: Text('Line total'), size: ColumnSize.S),
-              DataColumn2(label: Text('Paid'), size: ColumnSize.S),
-              DataColumn2(label: Text('Reason'), size: ColumnSize.L),
-              DataColumn2(label: Text('Requester'), size: ColumnSize.S),
-              DataColumn2(label: Text('Submitted'), size: ColumnSize.S),
-              DataColumn2(label: Text('Actions'), size: ColumnSize.M),
+            columns: [
+              const DataColumn2(label: Text('Invoice'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Patient'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Line'), size: ColumnSize.L),
+              const DataColumn2(label: Text('Line total'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Paid'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Reason'), size: ColumnSize.L),
+              const DataColumn2(label: Text('Requester'), size: ColumnSize.S),
+              const DataColumn2(label: Text('Submitted'), size: ColumnSize.S),
+              DataColumn2(
+                label: Text(canAct ? 'Actions' : 'Invoice'),
+                size: ColumnSize.M,
+              ),
             ],
             rows: [
               for (final r in items)
@@ -101,64 +106,67 @@ class AccountsRefundRequestsScreen extends ConsumerWidget {
                                     );
                                   },
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.check_circle_outline),
-                            tooltip: 'Approve',
-                            onPressed: () async {
-                              final note =
-                                  await showRefundApproveNoteDialog(context);
-                              if (!context.mounted) return;
-                              if (note == null) return;
-                              try {
-                                final result = await svc.approve(
-                                  r.id,
-                                  note: note.isEmpty ? null : note,
+                          if (canAct) ...[
+                            IconButton(
+                              icon: const Icon(Icons.check_circle_outline),
+                              tooltip: 'Approve',
+                              onPressed: () async {
+                                final note = await showRefundApproveNoteDialog(
+                                  context,
                                 );
                                 if (!context.mounted) return;
-                                ref.invalidate(
-                                  accountsPendingRefundRequestsProvider,
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Refund approved. ${result.refundedAmount.toFinancial(isMoney: true)} reversed.',
+                                if (note == null) return;
+                                try {
+                                  final result = await svc.approve(
+                                    r.id,
+                                    note: note.isEmpty ? null : note,
+                                  );
+                                  if (!context.mounted) return;
+                                  ref.invalidate(
+                                    accountsPendingRefundRequestsProvider,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Refund approved. ${result.refundedAmount.toFinancial(isMoney: true)} reversed.',
+                                      ),
                                     ),
-                                  ),
-                                );
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('$e')),
-                                );
-                              }
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.cancel_outlined),
-                            tooltip: 'Reject',
-                            onPressed: () async {
-                              final reason =
-                                  await showRefundRejectReasonDialog(context);
-                              if (reason == null || !context.mounted) return;
-                              try {
-                                await svc.reject(r.id, reason: reason);
-                                if (!context.mounted) return;
-                                ref.invalidate(
-                                  accountsPendingRefundRequestsProvider,
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Refund request rejected.'),
-                                  ),
-                                );
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('$e')),
-                                );
-                              }
-                            },
-                          ),
+                                  );
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(
+                                    context,
+                                  ).showSnackBar(SnackBar(content: Text('$e')));
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cancel_outlined),
+                              tooltip: 'Reject',
+                              onPressed: () async {
+                                final reason =
+                                    await showRefundRejectReasonDialog(context);
+                                if (reason == null || !context.mounted) return;
+                                try {
+                                  await svc.reject(r.id, reason: reason);
+                                  if (!context.mounted) return;
+                                  ref.invalidate(
+                                    accountsPendingRefundRequestsProvider,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Refund request rejected.'),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(
+                                    context,
+                                  ).showSnackBar(SnackBar(content: Text('$e')));
+                                }
+                              },
+                            ),
+                          ],
                         ],
                       ),
                     ),

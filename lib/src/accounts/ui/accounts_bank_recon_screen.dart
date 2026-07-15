@@ -18,10 +18,10 @@ class AccountsBankReconScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!canPerformBankReconciliation(ref.watch(authProvider).staff)) {
+    if (!canViewBankReconciliation(ref.watch(authProvider).staff)) {
       return const AccountsAccessDenied(
         title: 'Bank reconciliation',
-        message: 'Only the Account Head can perform bank reconciliation.',
+        message: 'You do not have access to bank reconciliation.',
       );
     }
     final async = ref.watch(accountsBankReconProvider);
@@ -34,7 +34,10 @@ class AccountsBankReconScreen extends ConsumerWidget {
       onRetry: () => ref.invalidate(accountsBankReconProvider),
       builder: (context, rows) {
         if (rows.isEmpty) {
-          return const AccountsEmptyState(title: 'No Bank reconciliation', subtitle: 'No records for the selected filters.');
+          return const AccountsEmptyState(
+            title: 'No Bank reconciliation',
+            subtitle: 'No records for the selected filters.',
+          );
         }
         return AccountsDataTableBox(
           child: DataTable2(

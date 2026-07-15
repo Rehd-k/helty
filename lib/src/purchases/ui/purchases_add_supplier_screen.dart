@@ -396,7 +396,7 @@ class _PurchasesAddSupplierScreenState
                                 ),
                               ],
                             ),
-                            const Spacer(),
+                            const SizedBox(height: 12),
                             Row(
                               children: [
                                 Expanded(
