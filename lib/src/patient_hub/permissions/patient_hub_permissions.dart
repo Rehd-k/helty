@@ -87,8 +87,10 @@ bool canAccessPatientHub(Staff? staff) {
   if (canAccessTheatreModule(staff)) return true;
   if (staff.accountType == AccountType.cmac) return true;
   if (staff.accountType == AccountType.cmd) return true;
+  if (staff.accountType == AccountType.hmo) return true;
   final r = staff.staffRole.toLowerCase();
   if (r == 'cmac' || r == 'cmd') return true;
+  if (r == 'hmo_staff' || r == 'hmo_desk') return true;
 
   return false;
 }

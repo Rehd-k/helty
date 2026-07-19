@@ -107,6 +107,11 @@ void main() {
       expect(canAccessPatientHub(cmd), isTrue);
     });
 
+    test('allows HMO desk staff', () {
+      final hmo = staff(role: 'hmo_staff', accountType: AccountType.hmo);
+      expect(canAccessPatientHub(hmo), isTrue);
+    });
+
     test('denies billing staff', () {
       final billing = staff(
         role: 'billing_staff',

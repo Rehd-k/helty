@@ -49,6 +49,16 @@ final frontDesk = <MenuItem>[
     icon: Icons.add_alarm_outlined,
     route: AppointmentListRoute(),
   ),
+  MenuItem(
+    label: 'Device approvals',
+    icon: Icons.phonelink_lock_outlined,
+    route: PendingDeviceApprovalsRoute(),
+  ),
+  MenuItem(
+    label: 'Family links',
+    icon: Icons.family_restroom,
+    route: FamilyLinksRoute(),
+  ),
 ];
 
 /// Same entries as [frontDesk] plus completed encounters (medical records only).
@@ -135,6 +145,7 @@ final billingHeadExtraMenu = <MenuItem>[
 
 /// HMO desk — same enlist → render-service workflow as billing (narrower than [bills]).
 final hmoDeskMenu = <MenuItem>[
+  patientHubMenuItem,
   MenuItem(
     label: 'HMO plans',
     icon: Icons.health_and_safety_outlined,

@@ -77,6 +77,12 @@ const cmacExecutiveMenuItems = <MenuItem>[
     route: CmacPatientActivityRoute(),
     accent: MenuAccent.secondary,
   ),
+  MenuItem(
+    label: 'Patient notifications',
+    icon: Icons.notifications_active_outlined,
+    route: CustomPatientPushRoute(),
+    accent: MenuAccent.tertiary,
+  ),
   patientHubMenuItem,
   MenuItem(
     label: 'Clinical',
@@ -202,6 +208,11 @@ const cmdExecutiveMenuItems = <MenuItem>[
     label: 'Communication',
     icon: Icons.campaign_outlined,
     route: CMDCommunicationCenterRoute(),
+  ),
+  MenuItem(
+    label: 'Patient notifications',
+    icon: Icons.notifications_active_outlined,
+    route: CustomPatientPushRoute(),
   ),
   MenuItem(
     label: 'Patient experience',
