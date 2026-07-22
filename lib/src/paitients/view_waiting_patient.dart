@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/responsive.dart';
 
 import '../core/widgets/patient_avatar.dart';
+import '../core/utils/patient_initials.dart';
 import '../helper/date.formatter.dart';
 import '../models/patient_vitals_model.dart';
 import '../models/consultation_credit_model.dart';
@@ -512,8 +513,10 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                                   child: Row(
                                     children: [
                                       PatientAvatar(
+                                        avatarUrl: patient.avatarUrl,
                                         firstName: patient.firstName,
                                         surname: patient.surname,
+                                        displayName: patient.fullName,
                                         size: 36,
                                         backgroundColor: colorScheme.primary
                                             .withValues(alpha: 0.08),
@@ -766,8 +769,10 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
             child: Row(
               children: [
                 PatientAvatar(
+                  avatarUrl: patient.avatarUrl,
                   firstName: patient.firstName,
                   surname: patient.surname,
+                  displayName: patient.fullName,
                   size: 56,
                   backgroundColor: colorScheme.primary.withValues(alpha: 0.15),
                   foregroundColor: colorScheme.primary,
@@ -1209,6 +1214,7 @@ class _UnregisteredPatientTxn {
     this.invoiceUuid = '',
     this.hasVitals = false,
     this.invoiceStaffId,
+    this.avatarUrl,
   });
 
   /// Invoice id (UUID or bill code) — also sent as [Patient.unregisteredTransactionId] for linkage.
@@ -1253,6 +1259,7 @@ class _UnregisteredPatientTxn {
 
   /// Patient UUID from the API row (`patientId`) — prefer over nested `patient.id`.
   final String? patientId;
+  final String? avatarUrl;
   bool get hasPatientId => (patientId ?? '').trim().isNotEmpty;
 
   String get rowKey {
@@ -1312,6 +1319,7 @@ class _UnregisteredPatientTxn {
       serviceLines: const [],
       consultationServices: row.consultationServices,
       invoiceStaffId: null,
+      avatarUrl: patient?.avatarUrl,
     );
   }
 
@@ -1622,6 +1630,7 @@ class _UnregisteredPatientTxn {
       invoiceUuid: invoiceUuid,
       hasVitals: root['vitalsId'] != null || root['vitals'] != null,
       invoiceStaffId: invoiceStaffId,
+      avatarUrl: avatarUrlFromJson(patient) ?? avatarUrlFromJson(json),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/dialysis/models/dialysis_models.dart';
 import 'package:helty/src/dialysis/providers/dialysis_providers.dart';
@@ -436,6 +437,13 @@ class _SessionsList extends ConsumerWidget {
             final serviceName = s.service?.name ?? 'Dialysis session';
             return Card(
               child: ListTile(
+                leading: PatientAvatar(
+                  avatarUrl: s.patient?.avatarUrl,
+                  firstName: s.patient?.firstName,
+                  surname: s.patient?.surname,
+                  displayName: patientName,
+                  size: 40,
+                ),
                 title: Text(patientName),
                 subtitle: Text('$serviceName · ${s.status.displayLabel}'),
                 trailing: const Icon(Icons.chevron_right_rounded),

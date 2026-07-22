@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
@@ -560,7 +561,24 @@ class _OrderHeader extends StatelessWidget {
           children: [
             const Text('Order details'),
             const SizedBox(height: 8),
-            _ValueRow('Patient', order.patient?.displayName ?? order.patientId),
+            Row(
+              children: [
+                PatientAvatar(
+                  avatarUrl: order.patient?.avatarUrl,
+                  firstName: order.patient?.firstName,
+                  surname: order.patient?.surname,
+                  displayName: order.patient?.displayName,
+                  size: 36,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ValueRow(
+                    'Patient',
+                    order.patient?.displayName ?? order.patientId,
+                  ),
+                ),
+              ],
+            ),
             _ValueRow('Requested by', requestedByLabel),
             _ValueRow('Status', orderStatusLabel(order.status)),
             _ValueRow('Items', '${order.items.length}'),

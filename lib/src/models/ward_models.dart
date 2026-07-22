@@ -1,4 +1,5 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/core/utils/patient_initials.dart';
 
 enum WardType { general, private, icu, maternity, paediatric, surgical }
 
@@ -151,6 +152,7 @@ class InpatientCensus {
     required this.diagnosis,
     required this.daysAdmitted,
     this.encounterId,
+    this.avatarUrl,
   });
 
   final String id;
@@ -164,6 +166,7 @@ class InpatientCensus {
 
   /// Linked encounter for this admission, when returned by the ward API.
   final String? encounterId;
+  final String? avatarUrl;
 
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -243,6 +246,7 @@ class InpatientCensus {
       diagnosis: diagnosis.toString(),
       daysAdmitted: days,
       encounterId: encounterId,
+      avatarUrl: avatarUrlFromJson(patient) ?? avatarUrlFromJson(json),
     );
   }
 }

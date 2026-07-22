@@ -2,6 +2,7 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/extensions/number.extention.dart';
+import '../../core/widgets/patient_avatar.dart';
 import '../../helper/date.formatter.dart';
 import '../models/investigation_models.dart';
 import '../models/investigation_query_params.dart';
@@ -492,7 +493,26 @@ class InvestigationListTable extends StatelessWidget {
               for (final row in rows)
                 DataRow2(
                   cells: [
-                    DataCell(Text(row.resolvedPatientName)),
+                    DataCell(
+                      Row(
+                        children: [
+                          PatientAvatar(
+                            avatarUrl: row.patient?.avatarUrl,
+                            firstName: row.patient?.firstName,
+                            surname: row.patient?.surname,
+                            displayName: row.resolvedPatientName,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              row.resolvedPatientName,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     DataCell(Text(row.testName)),
                     DataCell(Text(row.status)),
                     DataCell(Text(row.amount.toFinancial(isMoney: true))),

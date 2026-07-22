@@ -38,4 +38,48 @@ void main() {
       );
     });
   });
+
+  group('resolvePatientAvatarUrl', () {
+    const base = 'http://localhost:3000';
+
+    test('returns null for missing or empty', () {
+      expect(resolvePatientAvatarUrl(null, baseUrl: base), isNull);
+      expect(resolvePatientAvatarUrl('', baseUrl: base), isNull);
+      expect(resolvePatientAvatarUrl('  ', baseUrl: base), isNull);
+    });
+
+    test('leaves absolute http(s) urls unchanged', () {
+      expect(
+        resolvePatientAvatarUrl(
+          'https://api.example.com/uploads/patients/x/avatar.jpg',
+          baseUrl: base,
+        ),
+        'https://api.example.com/uploads/patients/x/avatar.jpg',
+      );
+      expect(
+        resolvePatientAvatarUrl(
+          'http://api.example.com/avatar.jpg',
+          baseUrl: base,
+        ),
+        'http://api.example.com/avatar.jpg',
+      );
+    });
+
+    test('joins relative paths with api base', () {
+      expect(
+        resolvePatientAvatarUrl(
+          '/uploads/patients/3245054a/avatar.jpg',
+          baseUrl: base,
+        ),
+        'http://localhost:3000/uploads/patients/3245054a/avatar.jpg',
+      );
+      expect(
+        resolvePatientAvatarUrl(
+          'uploads/patients/3245054a/avatar.jpg',
+          baseUrl: '$base/',
+        ),
+        'http://localhost:3000/uploads/patients/3245054a/avatar.jpg',
+      );
+    });
+  });
 }

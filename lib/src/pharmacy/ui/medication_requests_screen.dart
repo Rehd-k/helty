@@ -42,6 +42,7 @@ class _PatientRequestGroup {
     required this.hospitalNumber,
     required this.firstName,
     required this.surname,
+    required this.avatarUrl,
     required this.requests,
   });
 
@@ -50,6 +51,7 @@ class _PatientRequestGroup {
   final String? hospitalNumber;
   final String? firstName;
   final String? surname;
+  final String? avatarUrl;
   final List<MedicationRequestModel> requests;
 
   DateTime get newestRequestTime => _requestTime(requests.first);
@@ -103,6 +105,7 @@ List<_PatientRequestGroup> _groupRequestsByPatient(
         hospitalNumber: hospitalNumber(first),
         firstName: firstName(first),
         surname: surname(first),
+        avatarUrl: first.patient?.avatarUrl,
         requests: sorted,
       ),
     );
@@ -799,6 +802,7 @@ class _MedicationRequestsScreenState
           return _PatientGroupHeader(
             firstName: group.firstName,
             surname: group.surname,
+            avatarUrl: group.avatarUrl,
             patientName: group.patientName,
             hospitalNumber: group.hospitalNumber,
             requestCount: group.requests.length,
@@ -823,6 +827,7 @@ class _MedicationRequestsScreenState
           showPatientHeader: showPatientHeader,
           firstName: _patientFirstName(request),
           surname: _patientSurname(request),
+          avatarUrl: request.patient?.avatarUrl,
           patientName: _patientLabel(request),
           hospitalNumber: _patientHospitalNumber(request),
           onToggleSelect: () => _toggleRow(request),
@@ -843,6 +848,7 @@ class _PatientGroupHeader extends StatelessWidget {
   const _PatientGroupHeader({
     required this.firstName,
     required this.surname,
+    this.avatarUrl,
     required this.patientName,
     required this.hospitalNumber,
     required this.requestCount,
@@ -853,6 +859,7 @@ class _PatientGroupHeader extends StatelessWidget {
 
   final String? firstName;
   final String? surname;
+  final String? avatarUrl;
   final String patientName;
   final String? hospitalNumber;
   final int requestCount;
@@ -879,8 +886,10 @@ class _PatientGroupHeader extends StatelessWidget {
           child: Row(
             children: [
               PatientAvatar(
+                avatarUrl: avatarUrl,
                 firstName: firstName,
                 surname: surname,
+                displayName: patientName,
                 size: 32,
                 backgroundColor: colorScheme.primaryContainer,
                 foregroundColor: colorScheme.onPrimaryContainer,
@@ -981,6 +990,7 @@ class _MedicationRequestCard extends StatelessWidget {
     this.showPatientHeader = true,
     required this.firstName,
     required this.surname,
+    this.avatarUrl,
     required this.patientName,
     required this.hospitalNumber,
     required this.onToggleSelect,
@@ -993,6 +1003,7 @@ class _MedicationRequestCard extends StatelessWidget {
   final bool showPatientHeader;
   final String? firstName;
   final String? surname;
+  final String? avatarUrl;
   final String patientName;
   final String? hospitalNumber;
   final VoidCallback onToggleSelect;
@@ -1195,8 +1206,10 @@ class _MedicationRequestCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PatientAvatar(
+          avatarUrl: avatarUrl,
           firstName: firstName,
           surname: surname,
+          displayName: patientName,
           size: 26,
           backgroundColor: colorScheme.primaryContainer,
           foregroundColor: colorScheme.onPrimaryContainer,

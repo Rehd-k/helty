@@ -807,10 +807,12 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         PatientAvatar(
+                          avatarUrl: a.avatarUrl,
                           firstName: nameParts.isNotEmpty
                               ? nameParts.first
                               : null,
                           surname: nameParts.length > 1 ? nameParts.last : null,
+                          displayName: patientTitle,
                           size: 36,
                           backgroundColor: colorScheme.secondaryContainer,
                           foregroundColor: colorScheme.onSecondaryContainer,

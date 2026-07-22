@@ -1903,13 +1903,16 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             borderRadius: BorderRadius.circular(8),
             child: Row(
             children: [
-              PatientAvatar(
-                firstName: sidebarFirstName,
-                surname: sidebarSurname,
-                size: 36,
-                backgroundColor: colorScheme.primaryContainer,
-                foregroundColor: colorScheme.onPrimaryContainer,
-              ),
+              _detailPatient != null
+                  ? PatientAvatar.fromPatient(_detailPatient!, size: 36)
+                  : PatientAvatar(
+                      firstName: sidebarFirstName,
+                      surname: sidebarSurname,
+                      displayName: patient.name,
+                      size: 36,
+                      backgroundColor: colorScheme.primaryContainer,
+                      foregroundColor: colorScheme.onPrimaryContainer,
+                    ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

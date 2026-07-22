@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
 import 'package:helty/src/theatre/widgets/theatre_status_chip.dart';
@@ -274,6 +275,13 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
               final procedure = request?.service?.name ?? 'Surgery';
               return Card(
                 child: ListTile(
+                  leading: PatientAvatar(
+                    avatarUrl: request?.patient?.avatarUrl,
+                    firstName: request?.patient?.firstName,
+                    surname: request?.patient?.surname,
+                    displayName: patientName,
+                    size: 40,
+                  ),
                   title: Text(procedure),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,6 +329,13 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
+        leading: PatientAvatar(
+          avatarUrl: request.patient?.avatarUrl,
+          firstName: request.patient?.firstName,
+          surname: request.patient?.surname,
+          displayName: request.patient?.displayName ?? request.patientId,
+          size: 40,
+        ),
         title: Text(request.service?.name ?? 'Surgery request'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

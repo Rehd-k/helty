@@ -1312,12 +1312,16 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Widget _buildHeader() {
+    final selected = ref.watch(patientProvider).selectedPatient;
     return Row(
       children: [
         PatientAvatar(
+          avatarUrl: selected?.avatarUrl,
           firstName: widget.firstName,
           surname: widget.lastName,
+          displayName: selected?.displayName,
           size: 48,
+          updatedAt: selected?.updatedAt,
           foregroundColor: Colors.blue.shade800,
         ),
         const SizedBox(width: 16),

@@ -443,9 +443,11 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                   child: Row(
                     children: [
                       PatientAvatar(
+                        avatarUrl: row.avatarUrl,
                         firstName:
                             nameParts.isNotEmpty ? nameParts.first : null,
                         surname: nameParts.length > 1 ? nameParts.last : null,
+                        displayName: row.name,
                         size: 32,
                         backgroundColor: colorScheme.primary.withValues(
                           alpha: 0.12,
@@ -613,9 +615,11 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       PatientAvatar(
+                        avatarUrl: row.avatarUrl,
                         firstName:
                             nameParts.isNotEmpty ? nameParts.first : null,
                         surname: nameParts.length > 1 ? nameParts.last : null,
+                        displayName: row.name,
                         size: 36,
                         backgroundColor: colorScheme.primary.withValues(
                           alpha: 0.12,

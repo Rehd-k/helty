@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/auth/dialysis_permissions.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/dialysis/models/dialysis_models.dart';
 import 'package:helty/src/dialysis/providers/dialysis_providers.dart';
 import 'package:helty/src/dialysis/widgets/dialysis_add_consumable_sheet.dart';
@@ -215,11 +216,25 @@ class _DialysisSessionDetailScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      patientName,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        PatientAvatar(
+                          avatarUrl: session.patient?.avatarUrl,
+                          firstName: session.patient?.firstName,
+                          surname: session.patient?.surname,
+                          displayName: patientName,
+                          size: 48,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            patientName,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(serviceName),

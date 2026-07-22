@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import '../utils/patient_initials.dart';
 import '../../paitients/patient_model.dart';
 
-/// Circular patient profile photo with initials fallback (see docs/patient-avatar-frontend.md).
+/// Circular patient profile photo with initials fallback (see docs/frontend-patient-avatar.md).
 class PatientAvatar extends StatelessWidget {
   const PatientAvatar({
     super.key,
     this.avatarUrl,
     this.firstName,
     this.surname,
+    this.displayName,
     required this.size,
     this.updatedAt,
     this.backgroundColor,
@@ -30,6 +31,7 @@ class PatientAvatar extends StatelessWidget {
       avatarUrl: patient.avatarUrl,
       firstName: patient.firstName,
       surname: patient.surname,
+      displayName: patient.displayName,
       size: size,
       updatedAt: patient.updatedAt,
       backgroundColor: backgroundColor,
@@ -41,20 +43,29 @@ class PatientAvatar extends StatelessWidget {
   final String? avatarUrl;
   final String? firstName;
   final String? surname;
+  final String? displayName;
   final double size;
   final DateTime? updatedAt;
   final Color? backgroundColor;
   final Color? foregroundColor;
   final FontWeight? fontWeight;
 
-  String get _initials =>
-      patientInitials(firstName: firstName, surname: surname);
+  String get _initials => patientInitials(
+        firstName: firstName,
+        surname: surname,
+        displayName: displayName,
+      );
+
+  Color _bg(BuildContext context) =>
+      backgroundColor ??
+      Theme.of(context).colorScheme.primary.withValues(alpha: 0.12);
 
   String? get _imageUrl {
-    if (avatarUrl == null || avatarUrl!.isEmpty) return null;
-    if (updatedAt == null) return avatarUrl;
-    final sep = avatarUrl!.contains('?') ? '&' : '?';
-    return '$avatarUrl${sep}v=${updatedAt!.millisecondsSinceEpoch}';
+    final resolved = resolvePatientAvatarUrl(avatarUrl);
+    if (resolved == null) return null;
+    if (updatedAt == null) return resolved;
+    final sep = resolved.contains('?') ? '&' : '?';
+    return '$resolved${sep}v=${updatedAt!.millisecondsSinceEpoch}';
   }
 
   @override
@@ -70,7 +81,7 @@ class PatientAvatar extends StatelessWidget {
           errorBuilder: (_, __, ___) => _initialsFallback(context),
           loadingBuilder: (context, child, progress) {
             if (progress == null) return child;
-            return _initialsFallback(context);
+            return _loadingPlaceholder(context);
           },
         ),
       );
@@ -78,16 +89,27 @@ class PatientAvatar extends StatelessWidget {
     return _initialsFallback(context);
   }
 
+  Widget _loadingPlaceholder(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _bg(context),
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+
   Widget _initialsFallback(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final bg = backgroundColor ?? cs.primary.withValues(alpha: 0.12);
-    final fg = foregroundColor ?? cs.primary;
+    final fg = foregroundColor ?? Theme.of(context).colorScheme.primary;
 
     return Semantics(
       label: _initials,
       child: CircleAvatar(
         radius: size / 2,
-        backgroundColor: bg,
+        backgroundColor: _bg(context),
         child: Text(
           _initials,
           style: TextStyle(

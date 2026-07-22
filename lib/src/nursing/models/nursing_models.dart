@@ -1,5 +1,6 @@
 // Models for nursing roles API (see docs/nursing-roles-frontend-guide.md).
 
+import '../../core/utils/patient_initials.dart';
 import '../../models/nurse_dashboard_models.dart';
 
 // ── Enums ────────────────────────────────────────────────────────────────────
@@ -270,6 +271,7 @@ class NursingAssignedAdmission {
     required this.admissionId,
     this.patientName = '',
     this.patientNumber,
+    this.avatarUrl,
     this.wardName,
     this.bedLabel,
     this.shiftType,
@@ -280,6 +282,7 @@ class NursingAssignedAdmission {
   final String admissionId;
   final String patientName;
   final String? patientNumber;
+  final String? avatarUrl;
   final String? wardName;
   final String? bedLabel;
   final String? shiftType;
@@ -291,13 +294,16 @@ class NursingAssignedAdmission {
 
     String? patientName;
     String? patientNumber;
+    String? avatarUrl;
     if (patient is Map) {
       final m = Map<String, dynamic>.from(patient);
       patientName = _nestedPersonName(m);
       patientNumber = m['patientId']?.toString();
+      avatarUrl = avatarUrlFromJson(m);
     }
     patientName ??= json['patientName'] as String?;
     patientNumber ??= json['patientNumber'] as String?;
+    avatarUrl ??= avatarUrlFromJson(json);
 
     String? wardName;
     if (ward is Map) {
@@ -312,6 +318,7 @@ class NursingAssignedAdmission {
       admissionId: json['admissionId']?.toString() ?? '',
       patientName: patientName ?? '',
       patientNumber: patientNumber,
+      avatarUrl: avatarUrl,
       wardName: wardName,
       bedLabel: json['bedLabel'] as String?,
       shiftType: json['shiftType'] as String?,
@@ -564,6 +571,7 @@ class InpatientNurseAssignment {
     this.nurseName,
     this.patientName,
     this.patientNumber,
+    this.avatarUrl,
     this.admissionStatus,
     this.nursingUnit,
     this.wardName,
@@ -580,6 +588,7 @@ class InpatientNurseAssignment {
   final String? nurseName;
   final String? patientName;
   final String? patientNumber;
+  final String? avatarUrl;
   final String? admissionStatus;
   final String? nursingUnit;
   final String? wardName;
@@ -606,12 +615,15 @@ class InpatientNurseAssignment {
 
     String? patientName;
     String? patientNumber;
+    String? avatarUrl;
     if (patientMap != null) {
       patientName = _nestedPersonName(patientMap);
       patientNumber = patientMap['patientId']?.toString();
+      avatarUrl = avatarUrlFromJson(patientMap);
     }
     patientName ??= json['patientName'] as String?;
     patientNumber ??= json['patientNumber'] as String?;
+    avatarUrl ??= avatarUrlFromJson(json);
 
     String? nurseName;
     if (nurse is Map) {
@@ -662,6 +674,7 @@ class InpatientNurseAssignment {
       nurseName: nurseName,
       patientName: patientName,
       patientNumber: patientNumber,
+      avatarUrl: avatarUrl,
       admissionStatus: admissionStatus,
       nursingUnit: json['nursingUnit'] as String?,
       wardName: wardName,

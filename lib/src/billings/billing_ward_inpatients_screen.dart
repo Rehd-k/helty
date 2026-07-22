@@ -654,8 +654,10 @@ class _BillingWardInpatientsScreenState
         .where((p) => p.isNotEmpty)
         .toList();
     return PatientAvatar(
+      avatarUrl: row.avatarUrl,
       firstName: nameParts.isNotEmpty ? nameParts.first : null,
       surname: nameParts.length > 1 ? nameParts.last : null,
+      displayName: row.name,
       size: 32,
       backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
       foregroundColor: colorScheme.primary,

@@ -8,6 +8,7 @@ import 'package:helty/src/models/ward_models.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_service.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
 import 'package:helty/src/theatre/widgets/theatre_add_consumable_sheet.dart';
@@ -352,11 +353,25 @@ class _TheatreCaseDetailScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      patientName,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        PatientAvatar(
+                          avatarUrl: request.patient?.avatarUrl,
+                          firstName: request.patient?.firstName,
+                          surname: request.patient?.surname,
+                          displayName: patientName,
+                          size: 48,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            patientName,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(procedureName),

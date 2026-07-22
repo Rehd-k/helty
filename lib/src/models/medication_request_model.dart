@@ -1,5 +1,6 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/core/utils/patient_initials.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 
 enum MedicationRequestStatus {
@@ -158,6 +159,7 @@ class MedicationRequestPatientRef {
     this.otherName,
     this.hospitalNumber,
     this.apiDisplayName,
+    this.avatarUrl,
   });
 
   final String id;
@@ -167,6 +169,7 @@ class MedicationRequestPatientRef {
   final String surname;
   final String? hospitalNumber;
   final String? apiDisplayName;
+  final String? avatarUrl;
 
   String get displayName =>
       preferPatientFormattedName(displayName: apiDisplayName) ??
@@ -199,6 +202,7 @@ class MedicationRequestPatientRef {
         name: json['name']?.toString(),
         displayName: json['displayName']?.toString(),
       ),
+      avatarUrl: avatarUrlFromJson(json),
     );
   }
 }

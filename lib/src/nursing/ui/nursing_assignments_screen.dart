@@ -480,8 +480,10 @@ class _NursingAssignmentsScreenState
     return ListTile(
       isThreeLine: true,
       leading: PatientAvatar(
+        avatarUrl: a.avatarUrl,
         firstName: nameParts.isNotEmpty ? nameParts.first : null,
         surname: nameParts.length > 1 ? nameParts.last : null,
+        displayName: patientTitle,
         size: 40,
         backgroundColor: theme.colorScheme.primaryContainer,
         foregroundColor: theme.colorScheme.onPrimaryContainer,
