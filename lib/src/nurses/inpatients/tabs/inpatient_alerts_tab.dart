@@ -165,7 +165,7 @@ class _InpatientAlertsScreenState extends State<InpatientAlertsScreen> {
             ? Text(
                 'No alerts recorded for this admission.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.7),
+                      color: scheme.onSurfaceVariant,
                     ),
               )
             : Column(
@@ -263,7 +263,7 @@ class _AlertTile extends StatelessWidget {
                 Text(
                   alert.title!,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.65),
+                        color: scheme.onSurfaceVariant,
                       ),
                 ),
               ],
@@ -272,7 +272,7 @@ class _AlertTile extends StatelessWidget {
                 Text(
                   message,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.85),
+                        color: scheme.onSurface,
                       ),
                 ),
               ],
@@ -295,7 +295,7 @@ class _AlertTile extends StatelessWidget {
                   Text(
                     alert.isResolved ? 'Resolved' : relativeTime,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurface.withValues(alpha: 0.6),
+                          color: scheme.onSurfaceVariant,
                         ),
                   ),
                   if (!alert.isResolved && onGoToMar != null)

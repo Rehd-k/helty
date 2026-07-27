@@ -1,18 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../app/product_environment.dart';
 import '../core/interceptors/auth_interceptor.dart';
 import '../core/interceptors/decimal_normalize_interceptor.dart';
 import '../core/interceptors/error_interceptor.dart';
 import '../core/interceptors/refresh_token_interceptor.dart';
 
-/// Candidate API origins probed at startup; the fastest `/server-time` wins.
-const kApiCandidateBaseUrls = <String>[
-  'http://localhost:3000',
-  'http://192.168.2.121:3000',
-  'http://192.168.2.120:3000',
-  'http://api.imsh.ng',
-];
+export '../app/api_candidates.dart' show kApiCandidateBaseUrls;
 
 /// Singleton Dio client, pre-configured with auth + refresh + error interceptors.
 class ApiService {
@@ -28,9 +23,10 @@ class ApiService {
   String get apiBaseUrl => dio.options.baseUrl;
 
   ApiService._internal() {
+    final initialBase = ProductEnvironment.apiCandidateBaseUrls().first;
     dio = Dio(
       BaseOptions(
-        baseUrl: kApiCandidateBaseUrls.first,
+        baseUrl: initialBase,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
         sendTimeout: const Duration(seconds: 15),

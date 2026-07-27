@@ -368,7 +368,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                 scopeSubtitle,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -488,7 +488,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                                     Text(
                                       'Loading batches…',
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         fontSize: 14,
                                       ),
                                     ),
@@ -565,7 +565,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                   title,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey.shade600,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -812,6 +812,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
   }
 
   Widget _buildScrollableTable(ThemeData theme) {
+    final cs = theme.colorScheme;
     if (_rows.isEmpty) {
       final msg = _selectedDrug != null
           ? 'No batches found for this drug in the selected period.\nTry widening the date range or clearing other filters.'
@@ -825,14 +826,14 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
               Icon(
                 Icons.search_off_rounded,
                 size: 48,
-                color: Colors.grey.shade400,
+                color: cs.onSurfaceVariant,
               ),
               const SizedBox(height: 16),
               Text(
                 msg,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.grey.shade700,
+                  color: cs.onSurfaceVariant,
                   fontSize: 15,
                   height: 1.45,
                 ),
@@ -900,9 +901,9 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                     DataCell(
                       Text(
                         batch.batchNumber ?? (batch.id ?? '—'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -923,7 +924,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                     DataCell(
                       Text(
                         _formatDate(row.receiveDate),
-                        style: const TextStyle(color: Colors.black54),
+                        style: TextStyle(color: cs.onSurfaceVariant),
                       ),
                     ),
                     DataCell(
@@ -931,9 +932,9 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                         constraints: const BoxConstraints(maxWidth: 160),
                         child: Text(
                           supplierText,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: Colors.black87,
+                            color: cs.onSurfaceVariant,
                           ),
                           softWrap: true,
                         ),
@@ -945,7 +946,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                         constraints: const BoxConstraints(maxWidth: 100),
                         child: Text(
                           _formatQuantity(row),
-                          style: const TextStyle(color: Colors.black54),
+                          style: TextStyle(color: cs.onSurfaceVariant),
                           softWrap: true,
                         ),
                       ),
@@ -953,9 +954,9 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                     DataCell(
                       Text(
                         _formatTotalCost(row),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -988,6 +989,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
   }
 
   Widget _buildStatusChip(String status) {
+    final cs = Theme.of(context).colorScheme;
     Color bgColor;
     Color textColor;
 
@@ -998,8 +1000,8 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
       bgColor = const Color(0xFFFFF3CD);
       textColor = const Color(0xFFD39E00);
     } else {
-      bgColor = Colors.grey.shade100;
-      textColor = Colors.grey.shade700;
+      bgColor = cs.surfaceContainer;
+      textColor = cs.onSurfaceVariant;
     }
 
     return Container(
@@ -1020,6 +1022,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
   }
 
   Widget _buildPagination(ThemeData theme) {
+    final cs = theme.colorScheme;
     int totalPages = (_totalItems / _pageSize).ceil();
     if (totalPages == 0) totalPages = 1;
     final start = (_currentPage - 1) * _pageSize + 1;
@@ -1040,12 +1043,12 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
             children: [
               Text(
                 'Showing ${_totalItems == 0 ? 0 : start}–$end of $_totalItems',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
               ),
               const SizedBox(width: 16),
               Text(
                 'Per page:',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
               ),
               const SizedBox(width: 8),
               DropdownButton<int>(
@@ -1073,7 +1076,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
             children: [
               Text(
                 'Page $_currentPage of $totalPages',
-                style: const TextStyle(color: Colors.grey),
+                style: TextStyle(color: cs.onSurfaceVariant),
               ),
               const SizedBox(width: 8),
               IconButton(
@@ -1245,7 +1248,7 @@ class _SupplyHistoryDrugSheetState extends State<_SupplyHistoryDrugSheet> {
                             'No drugs match this search. Try another name.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               fontSize: 15,
                             ),
                           ),

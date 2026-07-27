@@ -33,7 +33,7 @@ class DoctorPendingImagingScreen extends StatelessWidget {
             Text(
               'Imaging reports awaiting review will appear here.',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
+                color: colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),

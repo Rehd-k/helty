@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'package:helty/src/helper/theme.dart';
 import '../../../core/widgets/patient_avatar.dart';
 import 'inpatient_layout_constants.dart';
 
@@ -103,23 +104,11 @@ class PatientHeaderCard extends StatelessWidget {
             ),
         ];
 
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: colorScheme.outline.withValues(alpha: 0.15),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: compact
+        return Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spaceLg),
+            child: compact
               ? _buildCompactLayout(
                   context,
                   colorScheme,
@@ -134,6 +123,7 @@ class PatientHeaderCard extends StatelessWidget {
                   infoChildren,
                   maxW,
                 ),
+          ),
         );
       },
     );
@@ -496,7 +486,7 @@ class PatientHeaderCard extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
+              color: colorScheme.onSurfaceVariant,
               letterSpacing: 0.3,
             ),
           ),

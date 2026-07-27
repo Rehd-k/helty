@@ -112,9 +112,9 @@ class ItemFiltersPanel extends StatelessWidget {
       controller: searchController,
       decoration: InputDecoration(
         hintText: 'Search items...',
-        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+        prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
         filled: true,
-        fillColor: theme.cardColor,
+        fillColor: theme.colorScheme.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
@@ -231,14 +231,19 @@ class ItemFiltersPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 4),
           DropdownButtonFormField<T>(
             initialValue: value,
             isExpanded: true,
             decoration: InputDecoration(
               filled: true,
-              fillColor: theme.cardColor,
+              fillColor: theme.colorScheme.surface,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 8,
@@ -275,7 +280,9 @@ class ItemFiltersPanel extends StatelessWidget {
             children: [
               Text(
                 labelFrom,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 4),
               InkWell(
@@ -291,7 +298,7 @@ class ItemFiltersPanel extends StatelessWidget {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: theme.cardColor,
+                    fillColor: theme.colorScheme.surface,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 12,
@@ -305,7 +312,7 @@ class ItemFiltersPanel extends StatelessWidget {
                         ? DateFormat('yyyy-MM-dd').format(from)
                         : 'Select',
                     style: TextStyle(
-                      color: from != null ? null : Colors.grey[600],
+                      color: from != null ? null : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -322,7 +329,9 @@ class ItemFiltersPanel extends StatelessWidget {
             children: [
               Text(
                 labelTo,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 4),
               InkWell(
@@ -338,7 +347,7 @@ class ItemFiltersPanel extends StatelessWidget {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: theme.cardColor,
+                    fillColor: theme.colorScheme.surface,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 12,
@@ -350,7 +359,7 @@ class ItemFiltersPanel extends StatelessWidget {
                   child: Text(
                     to != null ? DateFormat('yyyy-MM-dd').format(to) : 'Select',
                     style: TextStyle(
-                      color: to != null ? null : Colors.grey[600],
+                      color: to != null ? null : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -372,7 +381,7 @@ class ItemFiltersPanel extends StatelessWidget {
       label: Text(
         label,
         style: TextStyle(
-          color: isSelected ? theme.colorScheme.primary : Colors.grey[700],
+          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
         ),
       ),
       selected: isSelected,

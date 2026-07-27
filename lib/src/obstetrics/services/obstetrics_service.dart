@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/errors/app_exception.dart';
 import '../../services/api_service.dart';
 import '../models/obstetrics_models.dart';
+import '../models/pregnancy_clinical_models.dart';
 
 /// Obstetrics & Gynaecology API service. Base path: /obstetrics.
 /// All errors are rethrown as [AppException] (via ErrorInterceptor or _handleError).
@@ -79,6 +80,40 @@ class ObstetricsService {
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
       return Pregnancy.fromJson(data);
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
+  Future<PregnancyClinicalOrdersBundle> getClinicalOrders(
+    String pregnancyId,
+  ) async {
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/pregnancies/$pregnancyId/clinical-orders',
+      );
+      final data = resp.data;
+      if (data == null) {
+        return const PregnancyClinicalOrdersBundle();
+      }
+      return PregnancyClinicalOrdersBundle.fromJson(data);
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
+  Future<PregnancyClinicalResultsBundle> getClinicalResults(
+    String pregnancyId,
+  ) async {
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/pregnancies/$pregnancyId/clinical-results',
+      );
+      final data = resp.data;
+      if (data == null) {
+        return const PregnancyClinicalResultsBundle();
+      }
+      return PregnancyClinicalResultsBundle.fromJson(data);
     } on DioException catch (e) {
       _handleError(e);
     }

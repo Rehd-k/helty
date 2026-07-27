@@ -1262,7 +1262,7 @@ class _AdministerMedicationDialogState
                 child: Text(
                   'Recording the first dose starts the administration schedule.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurface.withValues(alpha: 0.7),
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1562,7 +1562,7 @@ class _HistoryDrugGroupSection extends StatelessWidget {
                           Text(
                             '+${items.length - 1} earlier',
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurface.withValues(alpha: 0.55),
+                              color: scheme.onSurfaceVariant,
                             ),
                           ),
                       ],
@@ -1582,7 +1582,7 @@ class _HistoryDrugGroupSection extends StatelessWidget {
                         Text(
                           '${items.length} administrations Â· $statusSummary',
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.65),
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -1636,7 +1636,7 @@ class _HistoryDrugGroupSection extends StatelessWidget {
                           : (latest.reasonIfNotGiven ?? ''),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: expanded
-                            ? scheme.onSurface.withValues(alpha: 0.45)
+                            ? scheme.onSurfaceVariant
                             : null,
                         fontStyle: expanded ? FontStyle.italic : null,
                       ),
@@ -1854,7 +1854,7 @@ class _ActiveOrderCard extends StatelessWidget {
                 Text(
                   'No pharmacy requests yet.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 )
               else

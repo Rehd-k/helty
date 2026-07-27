@@ -136,7 +136,6 @@ class _StoreDashboardScreenState extends ConsumerState<StoreDashboardScreen> {
     }
     if (_summaryError != null) {
       return Card(
-        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
@@ -206,7 +205,6 @@ class _StoreDashboardScreenState extends ConsumerState<StoreDashboardScreen> {
 
   Widget _buildQuickActions(BuildContext context, ThemeData theme) {
     return Card(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
@@ -308,7 +306,6 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
         side: BorderSide(

@@ -11,6 +11,7 @@ import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/services/medication_order_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/widgets/date.filter.dart';
 
 import '../models/pharmacy_queue_models.dart';
@@ -858,8 +859,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
           icon: const Icon(Icons.vaccines, size: 20),
           tooltip: 'Dispense',
           style: IconButton.styleFrom(
-            backgroundColor: Colors.greenAccent.shade400,
-            foregroundColor: Colors.black87,
+            backgroundColor: DepartmentColors.pharmacy,
+            foregroundColor: Colors.white,
             visualDensity: VisualDensity.compact,
           ),
         ),

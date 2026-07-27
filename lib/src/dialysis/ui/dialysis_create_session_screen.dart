@@ -532,7 +532,6 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

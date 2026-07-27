@@ -15,6 +15,7 @@ import 'package:helty/src/accounts/widgets/accounts_period_selector.dart';
 import 'package:helty/src/accounts/widgets/accounts_section_header.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/shared/department_colors.dart';
 
 @RoutePage()
 class AccountsDashboardScreen extends ConsumerWidget {
@@ -103,7 +104,7 @@ class AccountsDashboardScreen extends ConsumerWidget {
         label: 'Overdue',
         value: fmt.format(data.overdueAmount),
         icon: Icons.warning_amber_rounded,
-        accent: Colors.orange.shade700,
+        accent: DepartmentColors.billing,
       ),
       AccountsKpiTile(
         label: 'HMO receivables',
@@ -134,7 +135,7 @@ class AccountsDashboardScreen extends ConsumerWidget {
           label: 'Leak alerts',
           value: data.leakAlertsCount.toString(),
           icon: Icons.shield_outlined,
-          accent: Colors.orange.shade800,
+          accent: DepartmentColors.billing,
           onTap: () => context.router.push(const AccountsLeakDetectionRoute()),
         ),
     ];
@@ -322,13 +323,6 @@ class _ActivityFeed extends StatelessWidget {
     }
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),

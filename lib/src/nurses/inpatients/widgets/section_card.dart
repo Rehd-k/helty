@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:helty/src/helper/theme.dart';
+
 /// Below this width, [SectionCard] stacks title and action buttons.
 const double _kSectionCardStackActionsMaxWidth = 560;
 
@@ -16,7 +18,7 @@ class SectionCard extends StatelessWidget {
     required this.child,
     this.subtitle,
     this.actions,
-    this.padding = const EdgeInsets.all(20),
+    this.padding = const EdgeInsets.all(AppTheme.spaceLg),
   });
 
   @override
@@ -24,21 +26,7 @@ class SectionCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.15),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+    return Card(
       child: Padding(
         padding: padding,
         child: Column(
@@ -52,17 +40,16 @@ class SectionCard extends StatelessWidget {
                     Text(
                       title,
                       style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: colorScheme.onSurface,
                       ),
                     ),
                     if (subtitle != null) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppTheme.spaceSm / 2),
                       Text(
                         subtitle!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color:
-                              colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -87,8 +74,8 @@ class SectionCard extends StatelessWidget {
                       Align(
                         alignment: Alignment.centerRight,
                         child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                          spacing: AppTheme.spaceSm,
+                          runSpacing: AppTheme.spaceSm,
                           alignment: WrapAlignment.end,
                           children: list,
                         ),
@@ -107,7 +94,7 @@ class SectionCard extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppTheme.spaceMd),
             child,
           ],
         ),

@@ -98,7 +98,7 @@ class _CompletedEncounterAppointmentsTabState
           child: Text(
             'No appointments linked to this encounter.',
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
+              color: colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
@@ -237,7 +237,7 @@ class _Row extends StatelessWidget {
               label,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w500,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),

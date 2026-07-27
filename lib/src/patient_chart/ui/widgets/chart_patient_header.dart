@@ -19,7 +19,6 @@ class ChartPatientHeader extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: cs.outlineVariant),

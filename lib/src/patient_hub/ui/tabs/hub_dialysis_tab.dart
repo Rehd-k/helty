@@ -45,7 +45,6 @@ class HubDialysisScreen extends ConsumerWidget {
           itemBuilder: (context, index) {
             final s = sessions[index];
             return Card(
-              elevation: 0,
               child: ListTile(
                 leading: const Icon(Icons.bloodtype_outlined),
                 title: Text('Session ${s.id.substring(0, 8)}…'),

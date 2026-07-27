@@ -169,38 +169,38 @@ class CMDDashboardScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildHeroStrip(context, narrow: bp.isMobile),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         _buildSectionTitle(
                           context,
                           'Alerts & risk panel',
                           Icons.shield_moon_rounded,
                           CmacPalette.quality.first,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         _buildAlertsSection(context, bundle.alerts),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         _buildSectionTitle(
                           context,
                           'Live activity feed',
                           Icons.bolt_rounded,
                           CmacPalette.overview.first,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         _buildActivityFeed(context, bundle.activityFeed),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         _buildSectionTitle(
                           context,
                           'Executive summary',
                           Icons.insights_rounded,
                           CmacPalette.insights.first,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         _buildExecutiveSummary(
                           context,
                           bp,
                           bundle.kpis,
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         if (isDesktop)
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,7 +228,7 @@ class CMDDashboardScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         if (isDesktop)
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +259,7 @@ class CMDDashboardScreen extends ConsumerWidget {
                               _buildStaffOverview(context, bundle.staff),
                             ],
                           ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         _buildPharmacyAndLabSection(
                           context,
                           isDesktop,
@@ -345,13 +345,6 @@ class CMDDashboardScreen extends ConsumerWidget {
             end: Alignment.bottomRight,
             colors: [cs.primary, cs.secondary],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: cs.primary.withValues(alpha: 0.28),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
@@ -388,22 +381,8 @@ class CMDDashboardScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                accent.withValues(alpha: 0.2),
-                accent.withValues(alpha: 0.08),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withValues(alpha: 0.2),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            color: accent.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: accent, size: 22),
         ),
@@ -442,109 +421,71 @@ class CMDDashboardScreen extends ConsumerWidget {
     List<CmdActivityFeedItem> items,
   ) {
     final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     final cs = theme.colorScheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        color: dark ? cs.surfaceContainerHigh : cs.surface,
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: cs.primary.withValues(alpha: dark ? 0.1 : 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Column(
-          children: [
-            for (var i = 0; i < items.length; i++) ...[
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 6,
-                ),
-                leading: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: i.isEven
-                          ? [cs.primary, cs.primary.withValues(alpha: 0.75)]
-                          : [
-                              cs.secondary,
-                              cs.secondary.withValues(alpha: 0.75),
-                            ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (i.isEven ? cs.primary : cs.secondary)
-                            .withValues(alpha: 0.28),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.transparent,
-                    child: Text(
-                      items[i].category.isNotEmpty
-                          ? items[i].category.substring(0, 1).toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        color: i.isEven ? cs.onPrimary : cs.onSecondary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-                title: Text(
-                  items[i].message,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      _FeedChip(
-                        icon: Icons.schedule_rounded,
-                        label: DateFormatter.timeOnly(items[i].at),
-                        color: cs.primary,
-                      ),
-                      _FeedChip(
-                        icon: Icons.person_outline_rounded,
-                        label: items[i].actorLabel,
-                        color: cs.secondary,
-                      ),
-                      _FeedChip(
-                        icon: Icons.label_outline_rounded,
-                        label: items[i].category,
-                        color: cs.primary,
-                      ),
-                    ],
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              leading: CircleAvatar(
+                radius: 22,
+                backgroundColor: i.isEven ? cs.primary : cs.secondary,
+                child: Text(
+                  items[i].category.isNotEmpty
+                      ? items[i].category.substring(0, 1).toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    color: i.isEven ? cs.onPrimary : cs.onSecondary,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-              if (i < items.length - 1)
-                Divider(
-                  height: 1,
-                  indent: 72,
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.45,
-                  ),
+              title: Text(
+                items[i].message,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
                 ),
-            ],
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _FeedChip(
+                      icon: Icons.schedule_rounded,
+                      label: DateFormatter.timeOnly(items[i].at),
+                      color: cs.primary,
+                    ),
+                    _FeedChip(
+                      icon: Icons.person_outline_rounded,
+                      label: items[i].actorLabel,
+                      color: cs.secondary,
+                    ),
+                    _FeedChip(
+                      icon: Icons.label_outline_rounded,
+                      label: items[i].category,
+                      color: cs.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (i < items.length - 1)
+              Divider(
+                height: 1,
+                indent: 72,
+                color: cs.outlineVariant.withValues(alpha: 0.45),
+              ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -575,122 +516,45 @@ class CMDDashboardScreen extends ConsumerWidget {
 
   Widget _buildAlertsSection(BuildContext context, List<CmdAlertChip> alerts) {
     final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     final cs = theme.colorScheme;
 
     return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+      spacing: 16,
+      runSpacing: 16,
       children: alerts.map((alert) {
         final isCrit = alert.level == 'critical';
-        if (isCrit) {
-          return Container(
-            constraints: const BoxConstraints(maxWidth: 520),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  cs.error.withValues(alpha: dark ? 0.42 : 0.28),
-                  cs.errorContainer.withValues(alpha: dark ? 0.35 : 0.55),
-                ],
-              ),
-              border: Border.all(
-                color: cs.error.withValues(alpha: 0.65),
-                width: 1.4,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: cs.error.withValues(alpha: dark ? 0.28 : 0.22),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: cs.onErrorContainer.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Card(
+            color: isCrit
+                ? cs.errorContainer.withValues(alpha: 0.45)
+                : cs.surfaceContainer,
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    isCrit
+                        ? Icons.warning_amber_rounded
+                        : Icons.info_outline_rounded,
+                    color: isCrit ? cs.error : cs.primary,
+                    size: 24,
                   ),
-                  child: Icon(
-                    Icons.warning_amber_rounded,
-                    color: cs.error,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    alert.message,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      height: 1.35,
-                      color: cs.onErrorContainer,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      alert.message,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                        color: isCrit ? cs.onErrorContainer : cs.onSurface,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }
-        return Container(
-          constraints: const BoxConstraints(maxWidth: 520),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                cs.primary.withValues(alpha: dark ? 0.32 : 0.18),
-                cs.secondary.withValues(alpha: dark ? 0.22 : 0.12),
-              ],
-            ),
-            border: Border.all(
-              color: cs.primary.withValues(alpha: 0.45),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: cs.primary.withValues(alpha: dark ? 0.14 : 0.1),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer.withValues(alpha: 0.65),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.info_outline_rounded,
-                  color: cs.primary,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  alert.message,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                    color: cs.onSurface,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       }).toList(),
@@ -1225,106 +1089,78 @@ class _KPICard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     final cs = theme.colorScheme;
     final trendColor = switch (kpi.direction) {
-      CmdTrendDirection.up => cs.primary,
-      CmdTrendDirection.down => cs.secondary,
+      CmdTrendDirection.up => CmacPalette.trendColor(isPositive: true),
+      CmdTrendDirection.down => CmacPalette.trendColor(isPositive: false),
       CmdTrendDirection.flat => cs.onSurfaceVariant,
     };
-    final hi = index.isEven ? cs.primary : cs.secondary;
-    final lo = index.isEven ? cs.secondary : cs.primary;
+    final accent = index.isEven ? cs.primary : cs.secondary;
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            (index.isEven ? cs.primaryContainer : cs.secondaryContainer)
-                .withValues(alpha: dark ? 0.55 : 0.85),
-            dark ? cs.surfaceContainerHigh : cs.surface,
-          ],
-        ),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: hi.withValues(alpha: dark ? 0.16 : 0.14),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [hi, lo]),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: hi.withValues(alpha: 0.28),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+            ColoredBox(color: accent, child: const SizedBox(width: 4)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(
+                          _cmdIconFromKey(kpi.iconKey),
+                          color: accent,
+                          size: 24,
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: trendColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            kpi.trendLabel,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: trendColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      kpi.value,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: cs.onSurface,
                       ),
-                    ],
-                  ),
-                  child: Icon(
-                    _cmdIconFromKey(kpi.iconKey),
-                    color: index.isEven ? cs.onPrimary : cs.onSecondary,
-                    size: 22,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: trendColor.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: trendColor.withValues(alpha: 0.35),
                     ),
-                  ),
-                  child: Text(
-                    kpi.trendLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: trendColor,
-                      fontWeight: FontWeight.w800,
+                    const SizedBox(height: 8),
+                    Text(
+                      kpi.label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              kpi.value,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-                color: theme.colorScheme.onSurface,
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              kpi.label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                height: 1.25,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -1349,84 +1185,51 @@ class _DashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: dark
-              ? [
-                  theme.colorScheme.surfaceContainerHigh,
-                  theme.colorScheme.surfaceContainer,
-                ]
-              : [Colors.white, accent.withValues(alpha: 0.06)],
-        ),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: dark ? 0.12 : 0.14),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ColoredBox(
+            color: accent,
+            child: const SizedBox(height: 4, width: double.infinity),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              height: 4,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [accent, accent.withValues(alpha: 0.45)],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              accent.withValues(alpha: 0.22),
-                              accent.withValues(alpha: 0.08),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
                         child: Icon(icon, color: accent, size: 22),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  child,
-                ],
-              ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                child,
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1557,50 +1360,32 @@ class _StaffMetricBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     return Expanded(
-      child: Container(
+      child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              a.withValues(alpha: dark ? 0.38 : 0.5),
-              b.withValues(alpha: dark ? 0.2 : 0.22),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: b, size: 26),
+              const SizedBox(height: 16),
+              Text(
+                count,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              Text(
+                title,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
-          border: Border.all(color: b.withValues(alpha: 0.45)),
-          boxShadow: [
-            BoxShadow(
-              color: a.withValues(alpha: 0.18),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: b, size: 26),
-            const SizedBox(height: 12),
-            Text(
-              count,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            Text(
-              title,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -1622,41 +1407,31 @@ class _LabStat extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Expanded(
-      child: Container(
+      child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color.withValues(alpha: 0.18),
-              color.withValues(alpha: 0.06),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          child: Column(
+            children: [
+              Text(
+                value,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
-          border: Border.all(color: color.withValues(alpha: 0.35)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
         ),
       ),
     );

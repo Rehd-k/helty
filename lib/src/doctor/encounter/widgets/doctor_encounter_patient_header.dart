@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/theme.dart';
 
 import '../../../core/widgets/patient_avatar.dart';
 
@@ -41,21 +42,11 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spaceLg),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -193,6 +184,7 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
               ),
             ),
         ],
+        ),
       ),
     );
   }
@@ -242,7 +234,7 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
+              color: colorScheme.onSurfaceVariant,
               letterSpacing: 0.3,
             ),
           ),

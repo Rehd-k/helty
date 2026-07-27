@@ -158,7 +158,7 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
                     Text(
                       'Reusable clinical prefills for your encounters',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.7),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -240,7 +240,7 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
                     Text(
                       'Create a template or save one from an encounter.',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.7),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -302,7 +302,7 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
                               Text(
                                 'Updated ${DateFormat.yMMMd().add_jm().format(updated.toLocal())}',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurface.withValues(alpha: 0.6),
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],

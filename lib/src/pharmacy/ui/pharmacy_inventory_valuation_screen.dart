@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/shared/module_surface_styles.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/super_admin_preview_provider.dart';
@@ -188,6 +190,8 @@ class _PharmacyInventoryValuationScreenState
   }
 
   Widget _expiryBar() {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Wrap(
       spacing: 8,
       children: _expiryFilters
@@ -195,11 +199,9 @@ class _PharmacyInventoryValuationScreenState
             (f) => ChoiceChip(
               label: Text(f.label),
               selected: _expiry.label == f.label,
-              selectedColor: const Color(0xFF4338CA),
+              selectedColor: DepartmentColors.pharmacy,
               labelStyle: TextStyle(
-                color: _expiry.label == f.label
-                    ? Colors.white
-                    : const Color(0xFF1E293B),
+                color: _expiry.label == f.label ? cs.onPrimary : cs.onSurface,
                 fontWeight: FontWeight.w600,
               ),
               onSelected: (_) {
@@ -218,11 +220,15 @@ class _PharmacyInventoryValuationScreenState
 
   Widget _totalsCard(ThemeData theme) {
     final t = _valuation.totals;
+    final onGradient = theme.colorScheme.onPrimary;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+        gradient: LinearGradient(
+          colors: [
+            DepartmentColors.pharmacy,
+            DepartmentColors.pharmacy.withValues(alpha: 0.75),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -231,23 +237,26 @@ class _PharmacyInventoryValuationScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Total inventory worth',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: onGradient.withValues(alpha: 0.85),
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             _money.format(t.valueAtCost),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 28,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: onGradient,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'at cost · ${_money.format(t.valueAtSellingPrice)} at selling price',
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: onGradient.withValues(alpha: 0.85),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -530,38 +539,37 @@ class _PharmacyInventoryValuationScreenState
   }
 
   Widget _emptyCard(String message) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      padding: const EdgeInsets.all(20),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 16),
       child: Center(
         child: Text(
           message,
-          style: const TextStyle(color: Color(0xFF64748B)),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
   }
 
   Widget _errorCard(String message) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFECACA)),
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: ModuleSurfaceStyles.errorBanner(theme),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 18),
+          Icon(Icons.error_outline, color: cs.error, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Color(0xFF991B1B)),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onErrorContainer,
+              ),
             ),
           ),
         ],

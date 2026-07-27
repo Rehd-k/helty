@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:helty/src/medications/rx_schedule_utils.dart';
 import 'package:helty/src/models/medication_order_model.dart';
+import 'package:helty/src/obstetrics/ui/widgets/antenatal_package_scope.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_queue_models.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
@@ -333,8 +334,15 @@ class _PrescriptionDrugFormDialogState extends State<_PrescriptionDrugFormDialog
                 ..._results.map(
                   (e) => ListTile(
                     dense: true,
-                    title: Text(
-                      '${e.brandName} ${e.strength ?? ""} ${e.dosageForm ?? ""}',
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${e.brandName} ${e.strength ?? ""} ${e.dosageForm ?? ""}',
+                          ),
+                        ),
+                        antenatalPackageBadge(context, drugId: e.id),
+                      ],
                     ),
                     subtitle: e.genericName != e.brandName
                         ? Text(e.genericName)

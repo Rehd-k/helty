@@ -252,7 +252,7 @@ class _DoctorOngoingEncountersScreenState
                         ? 'All open OPD encounters. Tap a row to continue.'
                         : 'Your open OPD encounters. Tap a row to continue.',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   if (showPhysicianScopeToggle) ...[
@@ -327,7 +327,7 @@ class _DoctorOngoingEncountersScreenState
               Text(
                 'Loading ongoing encounters…',
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -383,7 +383,7 @@ class _DoctorOngoingEncountersScreenState
               Text(
                 'No ongoing encounters.',
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -439,7 +439,7 @@ class _DoctorOngoingEncountersScreenState
                         ? e.chiefComplaint!
                         : 'No chief complaint recorded',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.8),
+                      color: colorScheme.onSurface,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -449,7 +449,7 @@ class _DoctorOngoingEncountersScreenState
                     Text(
                       _doctorLabel(e),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.65),
+                        color: colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -458,7 +458,7 @@ class _DoctorOngoingEncountersScreenState
                   Text(
                     '${DateFormat.yMMMd().add_jm().format(e.startedAt)} • ${e.visitType ?? 'OPD'}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -487,7 +487,7 @@ class _DoctorOngoingEncountersScreenState
                         ),
                         Icon(
                           Icons.chevron_right,
-                          color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ],
                     )
@@ -514,7 +514,7 @@ class _DoctorOngoingEncountersScreenState
                         const SizedBox(width: 8),
                         Icon(
                           Icons.chevron_right,
-                          color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ],
                     ),

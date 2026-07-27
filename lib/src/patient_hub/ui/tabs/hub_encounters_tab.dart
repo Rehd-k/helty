@@ -215,7 +215,6 @@ class _EncounterTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isAdmission = sectionKey == PatientChartSectionKeys.admissions;
     return Card(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: cs.outlineVariant),

@@ -8,6 +8,7 @@ import 'package:helty/src/frontdesk/patient_access/patient_access_models.dart';
 import 'package:helty/src/frontdesk/patient_access/patient_access_providers.dart';
 import 'package:helty/src/frontdesk/patient_access_permissions.dart';
 import 'package:helty/src/paitients/patient_model.dart';
+import 'package:helty/src/widgets/empty.widget.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
 @RoutePage()
@@ -415,11 +416,11 @@ class _FamilyLinksScreenState extends ConsumerState<FamilyLinksScreen> {
                 style: TextStyle(color: theme.colorScheme.error),
               )
             else if (_children.isEmpty)
-              Text(
-                'No children linked yet.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              const EmptyStateWidget(
+                icon: Icons.family_restroom_outlined,
+                title: 'No children linked yet',
+                message:
+                    'Search and add child patients to grant family app access.',
               )
             else
               ..._children.map((child) {

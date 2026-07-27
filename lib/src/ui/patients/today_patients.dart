@@ -10,9 +10,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app_router.gr.dart';
 import '../../helper/app_timezone.dart';
 import '../../helper/date.formatter.dart';
+import '../../shared/department_colors.dart';
 import '../../paitients/patient_model.dart';
 import '../../paitients/patient_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/helty_surface.dart';
 import '../../widgets/table/reusable_async_table.dart';
 
 @RoutePage()
@@ -147,37 +149,35 @@ class _TodayPatientsScreenState extends ConsumerState<TodayPatientsScreen> {
 
   Widget _statusBadge(String? status) {
     final label = status?.trim().isNotEmpty == true ? status! : '—';
-    Color color;
+    final cs = Theme.of(context).colorScheme;
+    final Color color;
     switch (label.toUpperCase()) {
       case 'ADMITED':
       case 'ADMITTED':
-        color = Colors.blue;
+        color = cs.primary;
       case 'DECEASED':
-        color = Colors.grey;
+        color = cs.outline;
       default:
-        color = Colors.teal;
+        color = DepartmentColors.frontDesk;
     }
-    return Chip(
-      label: Text(label, style: const TextStyle(fontSize: 11)),
-      backgroundColor: color.withValues(alpha: 0.12),
-      side: BorderSide(color: color.withValues(alpha: 0.4)),
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-    );
+    return HeltyStatusChip(label: label, color: color);
   }
 
   Widget _hospitalIdCell(Patient patient) {
+    final cs = Theme.of(context).colorScheme;
     if (patient.patientId.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.amber.withValues(alpha: 0.2),
+          color: cs.tertiaryContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.amber.shade700),
+          border: Border.all(color: cs.tertiary.withValues(alpha: 0.5)),
         ),
-        child: const Text(
+        child: Text(
           'No ID',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       );
     }
@@ -186,7 +186,8 @@ class _TodayPatientsScreenState extends ConsumerState<TodayPatientsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final showMrExtras = _isMedicalRecords;
 
     final columns = <DataColumn2>[
@@ -257,11 +258,8 @@ class _TodayPatientsScreenState extends ConsumerState<TodayPatientsScreen> {
                           const SizedBox(height: 12),
                           Text(
                             'No registrations today',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -295,7 +293,9 @@ class _TodayPatientsScreenState extends ConsumerState<TodayPatientsScreen> {
                         }
                         return DataCell(
                           Container(
-                            color: Colors.amber.withValues(alpha: 0.08),
+                            color: colorScheme.tertiaryContainer.withValues(
+                              alpha: 0.25,
+                            ),
                             child: child,
                           ),
                         );

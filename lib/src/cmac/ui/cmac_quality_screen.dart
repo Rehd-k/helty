@@ -30,7 +30,7 @@ class CmacQualityScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CmacKpiGrid(kpis: data.kpis, accent: CmacPalette.quality.first),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           CmacBarChartCard(
             title: 'Incidents by type',
             points: data.incidentsByType,
@@ -40,7 +40,7 @@ class CmacQualityScreen extends ConsumerWidget {
             title: 'Complaints by category',
             points: data.complaintsByCategory,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             'Audit flags',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(

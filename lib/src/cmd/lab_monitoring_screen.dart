@@ -124,10 +124,8 @@ class _PendingTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: CmdDataTableBox(
-        child: DataTable2(
+    return CmdDataTableBox(
+      child: DataTable2(
           columnSpacing: 12,
           horizontalMargin: 12,
           minWidth: 520,
@@ -147,7 +145,6 @@ class _PendingTable extends StatelessWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }
@@ -159,12 +156,10 @@ class _MachineTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: CmdDataTableBox(
-        heightFactor: 0.34,
-        minHeight: 220,
-        child: DataTable2(
+    return CmdDataTableBox(
+      heightFactor: 0.34,
+      minHeight: 220,
+      child: DataTable2(
           columnSpacing: 12,
           horizontalMargin: 12,
           minWidth: 560,
@@ -184,7 +179,6 @@ class _MachineTable extends StatelessWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }

@@ -228,6 +228,7 @@ class _DoctorEncounterPrescriptionTabState
         staffId: scope.doctorId!,
         encounterId: scope.encounterId,
         patientId: scope.patientId,
+        pregnancyId: scope.pregnancyId,
         drugId: drugId,
         drugName: form.drug.brandName,
         dose: form.dose,
@@ -359,7 +360,7 @@ class _DoctorEncounterPrescriptionTabState
             Text(
               'Loading prescriptions…',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurface.withValues(alpha: 0.6),
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -477,7 +478,6 @@ class _PrescriptionSidePanel extends StatelessWidget {
 
     return Material(
       color: scheme.surfaceContainerLowest,
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
@@ -547,7 +547,6 @@ class _PrescriptionSidePanel extends StatelessWidget {
       width: expanded ? 260 : 60,
       child: Material(
         color: scheme.surfaceContainerLowest,
-        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
@@ -669,7 +668,7 @@ class _SummaryContent extends StatelessWidget {
               ? 'No medications prescribed yet'
               : '$totalCount medication${totalCount == 1 ? '' : 's'} on this encounter',
           style: theme.textTheme.bodySmall?.copyWith(
-            color: scheme.onSurface.withValues(alpha: 0.65),
+            color: scheme.onSurfaceVariant,
           ),
         ),
         if (totalCount > 0) ...[
@@ -821,7 +820,7 @@ class _PrescriptionEmptyState extends StatelessWidget {
               'Add medications for this encounter. Inpatient orders await nurse requests; outpatient orders go straight to pharmacy.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurface.withValues(alpha: 0.6),
+                color: scheme.onSurfaceVariant,
                 height: 1.45,
               ),
             ),
@@ -889,7 +888,6 @@ class _EncounterPrescriptionCard extends StatelessWidget {
 
     return Material(
       color: scheme.surfaceContainerLowest,
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
@@ -1041,13 +1039,13 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                             Icon(
                               Icons.date_range_outlined,
                               size: 14,
-                              color: scheme.onSurface.withValues(alpha: 0.5),
+                              color: scheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               _formatDateRange(order),
                               style: theme.textTheme.labelSmall?.copyWith(
-                                color: scheme.onSurface.withValues(alpha: 0.65),
+                                color: scheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -1103,7 +1101,7 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                           Text(
                             'No pharmacy requests yet',
                             style: theme.textTheme.labelMedium?.copyWith(
-                              color: scheme.onSurface.withValues(alpha: 0.5),
+                              color: scheme.onSurfaceVariant,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -1260,7 +1258,7 @@ class _SigChipRow extends StatelessWidget {
       return Text(
         'No dosing details recorded',
         style: theme.textTheme.bodySmall?.copyWith(
-          color: scheme.onSurface.withValues(alpha: 0.5),
+          color: scheme.onSurfaceVariant,
           fontStyle: FontStyle.italic,
         ),
       );
@@ -1314,13 +1312,13 @@ class _SigChip extends StatelessWidget {
           Icon(
             data.icon,
             size: 14,
-            color: scheme.onSurface.withValues(alpha: 0.55),
+            color: scheme.onSurfaceVariant,
           ),
           const SizedBox(width: 6),
           Text(
             '${data.label}: ',
             style: theme.textTheme.labelSmall?.copyWith(
-              color: scheme.onSurface.withValues(alpha: 0.55),
+              color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -1373,7 +1371,7 @@ class _InstructionCallout extends StatelessWidget {
                   label,
                   style: theme.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: scheme.onSurface.withValues(alpha: 0.7),
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1467,7 +1465,7 @@ class _PharmacyRequestTile extends StatelessWidget {
                     child: Text(
                       DateFormatter.dateTime(request.createdAt!),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.5),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ),

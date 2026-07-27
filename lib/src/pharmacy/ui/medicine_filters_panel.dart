@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/pharmacy_model.dart';
-import 'medicine_inventory.dart' show SearchFieldType, FilterPillType;
+
+/// Search field type for the pharmacy inventory search bar.
+enum SearchFieldType { genericName, brandName }
+
+/// Filter pill type for status/category filtering.
+enum FilterPillType { all, lowStock, expiringSoon, antibiotics, painkillers }
 
 class MedicineFiltersPanel extends StatelessWidget {
   const MedicineFiltersPanel({
@@ -67,31 +72,31 @@ class MedicineFiltersPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 16),
-          _buildSearchRow(context),
           const SizedBox(height: 8),
+          _buildSearchRow(context),
+          const SizedBox(height: 12),
           SizedBox(
-            width: MediaQuery.of(context).size.width * 0.5,
+            width: double.infinity,
             child: FilledButton.icon(
               onPressed: onPerformSearch,
               icon: const Icon(Icons.search, size: 18),
               label: const Text('Search'),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
+                  horizontal: 16,
+                  vertical: 12,
                 ),
               ),
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildPillsRow(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildDropdownsAndDates(context),
         ],
       ),
@@ -106,7 +111,7 @@ class MedicineFiltersPanel extends StatelessWidget {
             initialValue: searchFieldType,
             decoration: InputDecoration(
               filled: true,
-              fillColor: theme.cardColor,
+              fillColor: theme.colorScheme.surfaceContainer,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 12,
@@ -139,9 +144,9 @@ class MedicineFiltersPanel extends StatelessWidget {
             controller: searchController,
             decoration: InputDecoration(
               hintText: 'Search medicines...',
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
               filled: true,
-              fillColor: theme.cardColor,
+              fillColor: theme.colorScheme.surfaceContainer,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(
@@ -276,14 +281,14 @@ class MedicineFiltersPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Text(label, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 4),
           DropdownButtonFormField<T>(
             initialValue: value,
             isExpanded: true,
             decoration: InputDecoration(
               filled: true,
-              fillColor: theme.cardColor,
+              fillColor: theme.colorScheme.surfaceContainer,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 8,
@@ -320,7 +325,7 @@ class MedicineFiltersPanel extends StatelessWidget {
             children: [
               Text(
                 labelFrom,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 4),
               InkWell(
@@ -336,7 +341,7 @@ class MedicineFiltersPanel extends StatelessWidget {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: theme.cardColor,
+                    fillColor: theme.colorScheme.surfaceContainer,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 12,
@@ -350,7 +355,7 @@ class MedicineFiltersPanel extends StatelessWidget {
                         ? DateFormat('yyyy-MM-dd').format(from)
                         : 'Select',
                     style: TextStyle(
-                      color: from != null ? null : Colors.grey[600],
+                      color: from != null ? null : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -367,7 +372,7 @@ class MedicineFiltersPanel extends StatelessWidget {
             children: [
               Text(
                 labelTo,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 4),
               InkWell(
@@ -383,7 +388,7 @@ class MedicineFiltersPanel extends StatelessWidget {
                 child: InputDecorator(
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: theme.cardColor,
+                    fillColor: theme.colorScheme.surfaceContainer,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 12,
@@ -395,7 +400,7 @@ class MedicineFiltersPanel extends StatelessWidget {
                   child: Text(
                     to != null ? DateFormat('yyyy-MM-dd').format(to) : 'Select',
                     style: TextStyle(
-                      color: to != null ? null : Colors.grey[600],
+                      color: to != null ? null : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -417,7 +422,7 @@ class MedicineFiltersPanel extends StatelessWidget {
       label: Text(
         label,
         style: TextStyle(
-          color: isSelected ? theme.colorScheme.primary : Colors.grey[700],
+          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
         ),
       ),
       selected: isSelected,

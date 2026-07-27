@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/accounts/accounts_palette.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 import 'package:helty/src/accounts/auth/accounting_permissions.dart';
 import 'package:helty/src/accounts/models/accounts_models.dart';
 import 'package:helty/src/accounts/providers/accounts_providers.dart';
@@ -54,8 +55,12 @@ class AccountsComplianceScreen extends ConsumerWidget {
                                 ? Icons.check_circle_rounded
                                 : Icons.warning_amber_rounded,
                             color: c.status.toLowerCase().contains('compliant')
-                                ? Colors.green
-                                : Colors.orange,
+                                ? FinanceStatusColors.success(
+                                    Theme.of(context).colorScheme,
+                                  )
+                                : FinanceStatusColors.warning(
+                                    Theme.of(context).colorScheme,
+                                  ),
                           ),
                           const SizedBox(width: 8),
                           Text(

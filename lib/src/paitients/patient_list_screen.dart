@@ -11,6 +11,9 @@ import 'patient_model.dart';
 import 'patient_providers.dart';
 import 'patient_service.dart';
 import '../widgets/filter.patients.dart';
+import '../widgets/empty.widget.dart';
+import '../shared/department_colors.dart';
+import '../widgets/helty_surface.dart';
 
 @RoutePage()
 class PatientListScreen extends ConsumerStatefulWidget {
@@ -358,7 +361,6 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
     final isSuperAdmin = staffIsSuperAdmin(ref.watch(currentStaffProvider));
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: colorScheme.outlineVariant),
@@ -395,12 +397,11 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                 Wrap(
                   spacing: 6,
                   children: [
-                    Chip(
-                      label: Text(patient.status ?? 'UNKNOWN'),
-                      avatar: Icon(
-                        admitted ? Icons.bed : Icons.local_hospital_outlined,
-                        size: 16,
-                      ),
+                    HeltyStatusChip(
+                      label: patient.status ?? 'UNKNOWN',
+                      color: admitted
+                          ? DepartmentColors.icu
+                          : DepartmentColors.outpatientClinic,
                     ),
                     IconButton.filledTonal(
                       tooltip: 'View patient',
@@ -533,16 +534,16 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Material(
-                color: colorScheme.surface,
-                elevation: 0,
-                borderRadius: BorderRadius.circular(12),
-                clipBehavior: Clip.antiAlias,
+              child: Card(
+                margin: EdgeInsets.zero,
                 child: _initialLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _patients.isEmpty
-                    ? const Center(
-                        child: Text('No patient record found for this filter.'),
+                    ? const EmptyStateWidget(
+                        icon: Icons.people_outline,
+                        title: 'No patients found',
+                        message:
+                            'Try adjusting your search or filter criteria.',
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(vertical: 6),

@@ -365,7 +365,7 @@ class _EncounterSpecialtyGateState
                             ? 'Tap cards to select. You can skip and use only the standard chart tabs.'
                             : 'Toggle the structured forms you need. Deep-link items open other modules.',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurface.withValues(alpha: 0.75),
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                       const Gap(16),

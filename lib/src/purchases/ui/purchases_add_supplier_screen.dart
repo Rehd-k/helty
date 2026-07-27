@@ -200,7 +200,6 @@ class _PurchasesAddSupplierScreenState
 
   Widget _buildSupplierForm(BuildContext context, ThemeData theme) {
     return Card(
-      elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -313,7 +312,6 @@ class _PurchasesAddSupplierScreenState
           final isBlacklisted = s.isBlacklisted;
 
           return Card(
-                    elevation: 1,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -408,7 +406,7 @@ class _PurchasesAddSupplierScreenState
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey[700],
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ),
@@ -495,7 +493,6 @@ class _PurchasesAddSupplierScreenState
           second: SizedBox(
             height: bp.isMobile ? 400 : null,
             child: Card(
-              elevation: 1,
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(

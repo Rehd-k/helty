@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/ed_enums.dart';
+import 'package:helty/src/shared/department_colors.dart';
 
 class EdStatusChip extends StatelessWidget {
   const EdStatusChip({
@@ -58,14 +59,14 @@ class EdStatusChip extends StatelessWidget {
         );
       case EdWorkflowStatus.admitted:
         return (
-          Colors.green.withValues(alpha: 0.15),
-          Colors.green.shade800,
+          DepartmentColors.pharmacy.withValues(alpha: 0.16),
+          DepartmentColors.pharmacy,
         );
       case EdWorkflowStatus.discharged:
       case EdWorkflowStatus.transferred:
         return (
           scheme.surfaceContainerHighest,
-          scheme.onSurface.withValues(alpha: 0.7),
+          scheme.onSurfaceVariant,
         );
       case EdWorkflowStatus.lwbs:
       case EdWorkflowStatus.cancelled:
@@ -75,8 +76,8 @@ class EdStatusChip extends StatelessWidget {
         );
       case EdWorkflowStatus.deceased:
         return (
-          Colors.grey.withValues(alpha: 0.2),
-          Colors.grey.shade800,
+          scheme.surfaceContainerHighest,
+          scheme.onSurfaceVariant,
         );
     }
   }

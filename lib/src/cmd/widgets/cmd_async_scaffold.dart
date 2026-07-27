@@ -69,7 +69,7 @@ class CmdAsyncScaffold<T> extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
                       bp.paddingH,
-                      bp.paddingV,
+                      8,
                       bp.paddingH,
                       bp.paddingV,
                     ),

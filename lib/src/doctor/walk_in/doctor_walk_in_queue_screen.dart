@@ -259,7 +259,7 @@ class _DoctorWalkInQueueScreenState
                   Text(
                     'Select your consulting room. Double-tap a patient to open their file.',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -304,7 +304,7 @@ class _DoctorWalkInQueueScreenState
                   prefixIcon: Icon(
                     Icons.search,
                     size: 20,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
@@ -339,7 +339,7 @@ class _DoctorWalkInQueueScreenState
                   labelText: 'Consulting room',
                   labelStyle: TextStyle(
                     fontSize: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   filled: true,
                   fillColor: colorScheme.surfaceContainerHighest.withValues(
@@ -559,7 +559,7 @@ class _DoctorWalkInQueueScreenState
                           'Showing ${_patients.length} of $_total • Double-tap a row to open patient file',
                           style: TextStyle(
                             fontSize: 12,
-                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -643,7 +643,7 @@ class _DoctorWalkInQueueScreenState
             consultation,
             style: TextStyle(
               fontSize: 13,
-              color: colorScheme.onSurface.withValues(alpha: 0.7),
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           if (w.primaryConsultationCredit != null &&
@@ -659,7 +659,7 @@ class _DoctorWalkInQueueScreenState
             time,
             style: TextStyle(
               fontSize: 13,
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -725,7 +725,7 @@ class _DoctorWalkInQueueScreenState
                   consultation,
                   style: TextStyle(
                     fontSize: 13,
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
                 if (w.primaryConsultationCredit != null &&
@@ -745,7 +745,7 @@ class _DoctorWalkInQueueScreenState
               time,
               style: TextStyle(
                 fontSize: 13,
-                color: colorScheme.onSurface.withValues(alpha: 0.6),
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),

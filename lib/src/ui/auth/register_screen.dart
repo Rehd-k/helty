@@ -185,7 +185,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       body: ResponsiveBody(
         builder: (context, bp) => Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: Form(
@@ -485,26 +485,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                     FilledButton(
                       onPressed: auth.isLoading ? null : _submit,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       child: auth.isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: colors.onPrimary,
                               ),
                             )
-                          : const Text(
+                          : Text(
                               'Create Account',
-                              style: TextStyle(
-                                fontSize: 16,
+                              style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
+                                color: colors.onPrimary,
                               ),
                             ),
                     ),

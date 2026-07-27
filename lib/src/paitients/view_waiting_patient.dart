@@ -12,6 +12,7 @@ import '../models/consultation_credit_model.dart';
 import '../models/waiting_patient_model.dart';
 import '../providers/module_request_flow_provider.dart';
 import '../widgets/consultation_credit_chip.dart';
+import '../widgets/empty.widget.dart';
 import '../services/api_service.dart';
 import '../services/waiting_patient_service.dart';
 import 'patient_model.dart';
@@ -408,12 +409,9 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
   // --- PATIENT TABLE WIDGET (2/3 Width) ---
   Widget _buildPatientTable(ColorScheme colorScheme) {
     return ResponsiveDataTable(
-      child: Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-      ),
+      child: Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -706,54 +704,22 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
 
   Widget _buildDetailsPane(ColorScheme colorScheme) {
     if (_selectedPatient == null) {
-      return Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: colorScheme.outline.withValues(alpha: 0.2),
-            style: BorderStyle.none,
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.person_search,
-                size: 48,
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Select a patient from the table\nto view their detailed file.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colorScheme.onSurface.withValues(alpha: .5),
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
+      return Card(
+        margin: EdgeInsets.zero,
+        child: const EmptyStateWidget(
+          icon: Icons.person_search_outlined,
+          title: 'Select a patient',
+          message:
+              'Choose a row from the table to view their detailed file.',
         ),
       );
     }
 
     final patient = _selectedPatient!;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

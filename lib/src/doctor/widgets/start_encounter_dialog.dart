@@ -56,7 +56,7 @@ class _StartEncounterDialogState extends State<StartEncounterDialog> {
             Text(
               'Open this patient\'s file to start the encounter?',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.8),
+                color: colorScheme.onSurface,
               ),
             ),
             if (hasConsumableCredit) ...[

@@ -20,6 +20,7 @@ import 'package:helty/src/printing/escpos/receipt_printer_picker_sheet.dart';
 import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 import 'package:helty/src/wallet/wallet_providers.dart';
 import 'package:helty/src/core/widgets/patient_avatar.dart';
+import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/core/layout/app_breakpoints.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -682,7 +683,6 @@ class PayBillState extends ConsumerState<PayBill> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        elevation: 8,
         margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -844,10 +844,12 @@ class PayBillState extends ConsumerState<PayBill> {
             final total = _mixedAmounts.values.fold(0.0, (a, b) => a + b);
             final remaining = _amountToPay - total;
             final isComplete = (total - _amountToPay).abs() < 0.001 && _canPay;
+            final colorScheme = Theme.of(context).colorScheme;
 
             return Container(
-              decoration: const BoxDecoration(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               padding: EdgeInsets.only(
                 left: 20,
@@ -909,7 +911,7 @@ class PayBillState extends ConsumerState<PayBill> {
                                 disabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(
-                                    color: Colors.grey.shade200,
+                                    color: colorScheme.outlineVariant,
                                   ),
                                 ),
                               ),
@@ -944,8 +946,8 @@ class PayBillState extends ConsumerState<PayBill> {
                           'Remaining: ${remaining > 0 ? remaining.toFinancial(isMoney: true) : "0.00"}',
                           style: TextStyle(
                             color: remaining > 0.001
-                                ? Colors.red
-                                : Colors.green,
+                                ? colorScheme.error
+                                : DepartmentColors.pharmacy,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -958,9 +960,11 @@ class PayBillState extends ConsumerState<PayBill> {
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           backgroundColor: isComplete
-                              ? Colors.green
-                              : Colors.grey,
-                          foregroundColor: Colors.white,
+                              ? DepartmentColors.pharmacy
+                              : colorScheme.surfaceContainerHighest,
+                          foregroundColor: isComplete
+                              ? Colors.white
+                              : colorScheme.onSurfaceVariant,
                         ),
                         onPressed: isComplete
                             ? () => Navigator.pop(context)
@@ -1005,7 +1009,7 @@ class PayBillState extends ConsumerState<PayBill> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red.shade600,
+          backgroundColor: Theme.of(context).colorScheme.error,
           content: Text('Failed to apply discount: $e'),
           duration: const Duration(seconds: 4),
         ),
@@ -1124,7 +1128,7 @@ class PayBillState extends ConsumerState<PayBill> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: Theme.of(context).colorScheme.error,
             content: Text('Payment failed: $e'),
             duration: const Duration(seconds: 4),
           ),
@@ -1196,7 +1200,7 @@ class PayBillState extends ConsumerState<PayBill> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: Theme.of(context).colorScheme.error,
             content: Text('Failed to discard invoice: $e'),
             duration: const Duration(seconds: 4),
           ),
@@ -1227,10 +1231,6 @@ class PayBillState extends ConsumerState<PayBill> {
               onTap: () {}, // Swallow the click
               child: Card(
                 margin: const EdgeInsets.all(16),
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
                 child: Stack(
                   children: [
                     _isLoading
@@ -1263,7 +1263,7 @@ class PayBillState extends ConsumerState<PayBill> {
                                               : 'Apply HMO cover to continue.'),
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.orange.shade800,
+                                      color: DepartmentColors.billing,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -1285,7 +1285,7 @@ class PayBillState extends ConsumerState<PayBill> {
                                     'Patient has no HMO on file.',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.orange.shade800,
+                                      color: DepartmentColors.billing,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -1297,7 +1297,10 @@ class PayBillState extends ConsumerState<PayBill> {
                       right: 8,
                       top: 8,
                       child: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.grey),
+                        icon: Icon(
+                          Icons.close,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         onPressed: _handleCloseModal,
                       ),
                     ),
@@ -1312,6 +1315,7 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Widget _buildHeader() {
+    final scheme = Theme.of(context).colorScheme;
     final selected = ref.watch(patientProvider).selectedPatient;
     return Row(
       children: [
@@ -1322,7 +1326,7 @@ class PayBillState extends ConsumerState<PayBill> {
           displayName: selected?.displayName,
           size: 48,
           updatedAt: selected?.updatedAt,
-          foregroundColor: Colors.blue.shade800,
+          foregroundColor: DepartmentColors.outpatientClinic,
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -1338,12 +1342,12 @@ class PayBillState extends ConsumerState<PayBill> {
               ),
               Text(
                 'ID: $_patientId',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
               ),
 
               Text(
                 "ID: No ID",
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
               ),
             ],
           ),
@@ -1351,13 +1355,13 @@ class PayBillState extends ConsumerState<PayBill> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: DepartmentColors.outpatientClinic.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             _isHmoStaff ? 'HMO' : 'BILLING',
             style: TextStyle(
-              color: Colors.blue,
+              color: DepartmentColors.outpatientClinic,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -1368,6 +1372,7 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Widget _buildInvoiceDiscountRow() {
+    final scheme = Theme.of(context).colorScheme;
     final staff = ref.watch(authProvider).staff;
     final allowed = canApplyDiscount(staff);
     if (!allowed) {
@@ -1375,7 +1380,7 @@ class PayBillState extends ConsumerState<PayBill> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text(
           'Discount policies can be applied by billing, CMD, CMAC, or admin.',
-          style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
         ),
       );
     }
@@ -1396,7 +1401,7 @@ class PayBillState extends ConsumerState<PayBill> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text(
           'No active discount policies. Create one under Discount Policies.',
-          style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
         ),
       );
     }
@@ -1423,7 +1428,7 @@ class PayBillState extends ConsumerState<PayBill> {
     ];
     return Row(
       children: [
-        const Icon(Icons.discount_outlined, size: 18, color: Colors.orange),
+        Icon(Icons.discount_outlined, size: 18, color: DepartmentColors.billing),
         const SizedBox(width: 8),
         Expanded(
           child: DropdownButtonHideUnderline(
@@ -1432,7 +1437,7 @@ class PayBillState extends ConsumerState<PayBill> {
               isExpanded: true,
               hint: const Text('Apply discount policy'),
               value: _selectedInvoicePolicyId ?? '__none__',
-              style: const TextStyle(color: Colors.black87, fontSize: 13),
+              style: TextStyle(color: scheme.onSurface, fontSize: 13),
               items: items,
               onChanged: (v) => _onInvoiceDiscountPolicySelected(v),
             ),
@@ -1443,14 +1448,15 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Widget _buildInvoiceSection() {
+    final scheme = Theme.of(context).colorScheme;
     final hasInsurance = _insurance != null && _insurance != 'None';
     final hmoPercent = _invoiceHmoCoveragePercent;
     final patientShare = _moneyRound(_amountToPay);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: scheme.outlineVariant),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1493,7 +1499,7 @@ class PayBillState extends ConsumerState<PayBill> {
                 const Icon(
                   Icons.discount_outlined,
                   size: 18,
-                  color: Colors.orange,
+                  color: DepartmentColors.billing,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1503,8 +1509,8 @@ class PayBillState extends ConsumerState<PayBill> {
                       isExpanded: true,
                       hint: const Text('Select Discount'),
                       value: _selectedDiscount ?? 'None',
-                      style: const TextStyle(
-                        color: Colors.black87,
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontSize: 14,
                       ),
                       items: _discounts
@@ -1522,19 +1528,19 @@ class PayBillState extends ConsumerState<PayBill> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'TOTAL DUE',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black54,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
               Text(
                 _amountToPay.toFinancial(isMoney: true),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+                  color: scheme.onSurface,
                 ),
               ),
             ],
@@ -1545,6 +1551,7 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Widget _invoiceRow(String label, String value, {bool isBold = false}) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -1559,7 +1566,7 @@ class PayBillState extends ConsumerState<PayBill> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.grey[700],
+                  color: muted,
                   fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
@@ -1578,6 +1585,7 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Widget _buildPaymentSection(Color primaryColor) {
+    final scheme = Theme.of(context).colorScheme;
     final needsBank =
         _paymentMethod != null && _bankRequiredMethods.contains(_paymentMethod);
 
@@ -1612,9 +1620,9 @@ class PayBillState extends ConsumerState<PayBill> {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? primaryColor.withValues(alpha: 0.1)
-                      : Colors.white,
+                      : scheme.surface,
                   border: Border.all(
-                    color: isSelected ? primaryColor : Colors.grey.shade300,
+                    color: isSelected ? primaryColor : scheme.outlineVariant,
                     width: 1.5,
                   ),
                   borderRadius: BorderRadius.circular(10),
@@ -1624,7 +1632,7 @@ class PayBillState extends ConsumerState<PayBill> {
                   children: [
                     Icon(
                       _methodIcons[m],
-                      color: isSelected ? primaryColor : Colors.grey,
+                      color: isSelected ? primaryColor : scheme.onSurfaceVariant,
                       size: 22,
                     ),
                     const SizedBox(height: 4),
@@ -1633,7 +1641,7 @@ class PayBillState extends ConsumerState<PayBill> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? primaryColor : Colors.grey[600],
+                        color: isSelected ? primaryColor : scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1657,7 +1665,7 @@ class PayBillState extends ConsumerState<PayBill> {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 'Please select a bank to continue',
-                style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                style: TextStyle(fontSize: 11, color: DepartmentColors.billing),
               ),
             ),
         ],
@@ -1668,15 +1676,13 @@ class PayBillState extends ConsumerState<PayBill> {
   Widget _buildPayButton(Color primaryColor) {
     return SizedBox(
       height: 50,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
+      child: FilledButton(
+        style: FilledButton.styleFrom(
           backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey.shade300,
+          disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          elevation: 2,
         ),
         onPressed: _canPay && !_confirmed && !_isSubmitting
             ? _makePayment
@@ -1694,15 +1700,13 @@ class PayBillState extends ConsumerState<PayBill> {
   Widget _buildCoverButton(Color buttonColor) {
     return SizedBox(
       height: 50,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
+      child: FilledButton(
+        style: FilledButton.styleFrom(
           backgroundColor: buttonColor,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey.shade300,
+          disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          elevation: 2,
         ),
         onPressed: _isApplyingHmoCover || _isSubmitting ? null : _applyHmoCover,
         child: _isApplyingHmoCover
@@ -1723,6 +1727,7 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   Widget _buildSuccessView() {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
@@ -1736,7 +1741,7 @@ class PayBillState extends ConsumerState<PayBill> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                Icon(Icons.check_circle, color: DepartmentColors.pharmacy, size: 64),
                 const SizedBox(height: 20),
                 const Text(
                   'Payment Confirmed',
@@ -1745,7 +1750,7 @@ class PayBillState extends ConsumerState<PayBill> {
                 const SizedBox(height: 10),
                 Text(
                   'Receipt sent to $_patientName',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: scheme.onSurfaceVariant),
                 ),
                 if (_paidIncludesConsultation) ...[
                   const SizedBox(height: 16),
@@ -1755,7 +1760,7 @@ class PayBillState extends ConsumerState<PayBill> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey[700],
+                      color: scheme.onSurfaceVariant,
                       height: 1.35,
                     ),
                   ),

@@ -87,6 +87,7 @@ class _PurchasesDashboardScreenState extends State<PurchasesDashboardScreen> {
   Widget build(BuildContext context) {
     final currency = NumberFormat.simpleCurrency();
     final summary = _data?.summary;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -161,32 +162,38 @@ class _PurchasesDashboardScreenState extends State<PurchasesDashboardScreen> {
                         _kpiCard(
                           'Pending Requisitions',
                           summary.pendingRequisitions.toString(),
-                          Colors.orange,
+                          scheme.tertiary,
+                          scheme,
                         ),
                         _kpiCard(
                           'Open POs',
                           summary.openPurchaseOrders.toString(),
-                          Colors.blue,
+                          scheme.primary,
+                          scheme,
                         ),
                         _kpiCard(
                           'Purchase Value',
                           currency.format(summary.totalPurchaseValue),
-                          Colors.green,
+                          scheme.primary,
+                          scheme,
                         ),
                         _kpiCard(
                           'Inventory Value',
                           currency.format(summary.inventoryValue),
-                          Colors.purple,
+                          scheme.secondary,
+                          scheme,
                         ),
                         _kpiCard(
                           'Low Stock',
                           summary.lowStockCount.toString(),
-                          Colors.amber,
+                          scheme.tertiary,
+                          scheme,
                         ),
                         _kpiCard(
                           'Near Expiry',
                           summary.nearExpiryCount.toString(),
-                          Colors.red,
+                          scheme.error,
+                          scheme,
                         ),
                       ],
                     ),
@@ -220,7 +227,7 @@ class _PurchasesDashboardScreenState extends State<PurchasesDashboardScreen> {
     );
   }
 
-  Widget _kpiCard(String label, String value, Color color) {
+  Widget _kpiCard(String label, String value, Color color, ColorScheme scheme) {
     return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -229,13 +236,14 @@ class _PurchasesDashboardScreenState extends State<PurchasesDashboardScreen> {
             children: [
               Text(
                 label,
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 value,
-                style: TextStyle(
-                  fontSize: 22,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),

@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/cmac/cmac_palette.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 
 import 'cmd_providers.dart';
@@ -10,13 +11,13 @@ import 'widgets/cmd_async_scaffold.dart';
 Color _cmdIncidentSeverityColor(CmdIncidentSeverity s) {
   switch (s) {
     case CmdIncidentSeverity.critical:
-      return Colors.red.shade900;
+      return CmacPalette.severityColor('critical');
     case CmdIncidentSeverity.high:
-      return Colors.deepOrange.shade700;
+      return CmacPalette.severityColor('high');
     case CmdIncidentSeverity.medium:
-      return Colors.amber.shade800;
+      return CmacPalette.severityColor('medium');
     case CmdIncidentSeverity.low:
-      return Colors.blueGrey;
+      return CmacPalette.severityColor('low');
   }
 }
 
@@ -27,6 +28,7 @@ class CMDAlertsIncidentsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(cmdIncidentsProvider);
+    final theme = Theme.of(context);
     return CmdAsyncScaffold<List<CmdIncident>>(
       title: 'Alerts & incidents',
       subtitle: 'Problem radar — clinical, ops, and experience',
@@ -35,31 +37,39 @@ class CMDAlertsIncidentsScreen extends ConsumerWidget {
         return ListView.separated(
           padding: const EdgeInsets.only(bottom: 24),
           itemCount: data.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, i) {
             final e = data[i];
+            final severity = _cmdIncidentSeverityColor(e.severity);
             return Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: _cmdIncidentSeverityColor(e.severity).withValues(alpha: 0.5)),
-              ),
+              clipBehavior: Clip.antiAlias,
               child: ExpansionTile(
-                leading: Icon(Icons.flag, color: _cmdIncidentSeverityColor(e.severity)),
-                title: Text(e.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text('${e.category} · ${DateFormatter.dateTime(e.createdAt)}'),
+                leading: Icon(Icons.flag_outlined, color: severity),
+                title: Text(
+                  e.title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  '${e.category} · ${DateFormatter.dateTime(e.createdAt)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(e.detail),
-                        const SizedBox(height: 12),
-                        Row(
+                        Text(e.detail, style: theme.textTheme.bodyMedium),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             Chip(label: Text('Owner: ${e.owner}')),
-                            const SizedBox(width: 8),
                             Chip(label: Text('Status: ${e.status}')),
                           ],
                         ),

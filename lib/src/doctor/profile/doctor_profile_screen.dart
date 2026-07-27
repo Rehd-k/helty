@@ -45,7 +45,7 @@ class DoctorProfileScreen extends ConsumerWidget {
               Text(
                 staff!.departmentName!,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

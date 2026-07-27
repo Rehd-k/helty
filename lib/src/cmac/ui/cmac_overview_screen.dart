@@ -39,6 +39,7 @@ class CmacOverviewScreen extends ConsumerWidget {
                     'CMAC Oversight',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
+                      color: CmacPalette.overview.first,
                     ),
                   ),
                   Text(
@@ -103,7 +104,7 @@ class _OverviewBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         CmacKpiGrid(kpis: data.headlineKpis, accent: CmacPalette.overview.first),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         Text(
           'Alerts',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -112,7 +113,7 @@ class _OverviewBody extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         CmacAlertBanner(alerts: data.alerts),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         Text(
           'Insights',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -147,8 +148,8 @@ class _OverviewBody extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: cols,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
                 childAspectRatio: 1.15,
               ),
               itemCount: tiles.length,

@@ -16,6 +16,7 @@ import '../nursing/models/nursing_models.dart';
 import '../nursing/providers/nursing_providers.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
+import '../shared/department_colors.dart';
 
 @RoutePage()
 class NursesDashboardScreen extends ConsumerStatefulWidget {
@@ -54,7 +55,8 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
       final service = ref.read(nursingApiServiceProvider);
       final staff = ref.read(authProvider).staff;
       final bootstrap = ref.read(nursingBootstrapDataProvider);
-      final role = bootstrap?.normalizedStaffRole ??
+      final role =
+          bootstrap?.normalizedStaffRole ??
           normalizeNursingStaffRole(staff?.staffRole);
       final overview = await service.getOverviewForRole(
         staffRole: role.isNotEmpty ? role : 'INPATIENT_NURSE',
@@ -74,9 +76,9 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
         _error = msg;
         _loading = false;
       });
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(msg)),
-      );
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -96,18 +98,18 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   Color _statusToneColor(String? tone, ColorScheme scheme) {
     switch ((tone ?? 'neutral').toLowerCase()) {
       case 'success':
-        return Colors.green;
+        return DepartmentColors.pharmacy;
       case 'warning':
-        return Colors.orange;
+        return DepartmentColors.billing;
       case 'danger':
-        return Colors.red;
+        return DepartmentColors.emergency;
       case 'busy':
         return scheme.primary;
       case 'break':
-        return Colors.orange;
+        return DepartmentColors.accountingFinance;
       case 'neutral':
       default:
-        return scheme.onSurface.withValues(alpha: 0.6);
+        return scheme.onSurfaceVariant;
     }
   }
 
@@ -115,10 +117,10 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
     switch (severity.toLowerCase()) {
       case 'critical':
       case 'error':
-        return Colors.red;
+        return DepartmentColors.emergency;
       case 'warning':
       default:
-        return Colors.orange;
+        return DepartmentColors.billing;
     }
   }
 
@@ -337,95 +339,100 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
       body: ResponsiveBody(
         center: false,
         builder: (context, bp) => Column(
-        children: [
-          if (_loading) const LinearProgressIndicator(minHeight: 2),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
-                final admitH = bp.isMobile
-                    ? 280.0
-                    : bp.isTablet
-                    ? 340.0
-                    : 400.0;
-                final deptH = bp.isMobile
-                    ? 230.0
-                    : bp.isTablet
-                    ? 270.0
-                    : 300.0;
-                final chartPad = bp.isMobile ? 16.0 : 24.0;
-                final pad = EdgeInsets.symmetric(
-                  horizontal: bp.paddingH,
-                  vertical: bp.paddingV,
-                );
+          children: [
+            if (_loading) const LinearProgressIndicator(minHeight: 2),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
+                  final admitH = bp.isMobile
+                      ? 280.0
+                      : bp.isTablet
+                      ? 340.0
+                      : 400.0;
+                  final deptH = bp.isMobile
+                      ? 230.0
+                      : bp.isTablet
+                      ? 270.0
+                      : 300.0;
+                  final chartPad = bp.isMobile ? 16.0 : 24.0;
+                  final pad = EdgeInsets.symmetric(
+                    horizontal: bp.paddingH,
+                    vertical: bp.paddingV,
+                  );
 
-                return RefreshIndicator(
-                  onRefresh: _load,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: pad,
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: math.min(
-                            constraints.maxWidth,
-                            AppBreakpoints.maxContentWidth,
+                  return RefreshIndicator(
+                    onRefresh: _load,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: pad,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: math.min(
+                              constraints.maxWidth,
+                              AppBreakpoints.maxContentWidth,
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _nurseDashboardHeader(
-                              bp: bp,
-                              header: header,
-                              colorScheme: colorScheme,
-                              nursingUnit: data.nursingUnit ??
-                                  bootstrap?.nursingUnit,
-                              unitDisplayName: isChargeNurse(staff)
-                                  ? (bootstrap?.ward?.name ??
-                                      bootstrap?.department?.name)
-                                  : bootstrap?.department?.name,
-                            ),
-                            SizedBox(height: bp.isMobile ? 24 : 32),
-                            _roleSpecificSections(
-                              data: data,
-                              staff: staff,
-                              bootstrap: bootstrap,
-                              colorScheme: colorScheme,
-                              bp: bp,
-                            ),
-                            if (!data.isLineDashboard) ...[
-                              _nurseKpiGrid(bp, kpis, colorScheme),
-                              const SizedBox(height: 24),
-                              _nurseChartsAndSidebar(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _nurseDashboardHeader(
                                 bp: bp,
-                                data: base,
+                                header: header,
                                 colorScheme: colorScheme,
-                                admissionsHeight: admitH,
-                                departmentHeight: deptH,
-                                chartInnerPadding: chartPad,
-                                stackChartTitleRow: !bp.isDesktop,
-                                canManageRoster: canManageShiftRoster(
-                                  staff,
-                                  bootstrap,
-                                ),
+                                nursingUnit:
+                                    data.nursingUnit ?? bootstrap?.nursingUnit,
+                                unitDisplayName: isChargeNurse(staff)
+                                    ? (bootstrap?.ward?.name ??
+                                          bootstrap?.department?.name)
+                                    : bootstrap?.department?.name,
                               ),
-                            ] else if (base.criticalAlerts.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              _lineCriticalAlerts(base.criticalAlerts, colorScheme),
+                              SizedBox(height: bp.isMobile ? 24 : 32),
+                              _roleSpecificSections(
+                                data: data,
+                                staff: staff,
+                                bootstrap: bootstrap,
+                                colorScheme: colorScheme,
+                                bp: bp,
+                              ),
+                              if (!data.isLineDashboard) ...[
+                                _nurseKpiGrid(bp, kpis, colorScheme),
+                                const SizedBox(height: 24),
+                                _nurseChartsAndSidebar(
+                                  context: context,
+                                  bp: bp,
+                                  data: base,
+                                  colorScheme: colorScheme,
+                                  admissionsHeight: admitH,
+                                  departmentHeight: deptH,
+                                  chartInnerPadding: chartPad,
+                                  stackChartTitleRow: !bp.isDesktop,
+                                  canManageRoster: canManageShiftRoster(
+                                    staff,
+                                    bootstrap,
+                                  ),
+                                ),
+                              ] else if (base.criticalAlerts.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                _lineCriticalAlerts(
+                                  context,
+                                  base.criticalAlerts,
+                                  colorScheme,
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -449,9 +456,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
 
     if (canViewUnitDashboard(staff, bootstrap) &&
         data.shiftBreakdown.isNotEmpty) {
-      children.add(
-        _shiftBreakdownSection(data.shiftBreakdown, colorScheme),
-      );
+      children.add(_shiftBreakdownSection(data.shiftBreakdown, colorScheme));
       children.add(const SizedBox(height: 16));
       if (data.opdQueueDepth != null) {
         children.add(
@@ -476,9 +481,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
 
     if (canViewLineDashboard(staff, bootstrap) || data.isLineDashboard) {
       if (data.myRosterShifts.isNotEmpty) {
-        children.add(
-          _myRosterSection(data.myRosterShifts, colorScheme),
-        );
+        children.add(_myRosterSection(data.myRosterShifts, colorScheme));
         children.add(const SizedBox(height: 16));
       }
       if (data.assignedAdmissions.isNotEmpty) {
@@ -551,7 +554,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                       if (u.assignmentGap > 0)
                         Text(
                           'Assignment gap: ${u.assignmentGap}',
-                          style: TextStyle(color: Colors.orange.shade800),
+                          style: TextStyle(color: DepartmentColors.billing),
                         ),
                     ],
                   ),
@@ -662,8 +665,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
               final unitLabel =
                   NursingUnit.fromString(s.nursingUnit)?.label ??
                   _formatLabel(s.nursingUnit);
-              final shiftDate =
-                  DateFormatter.medicalDate(s.shiftDate);
+              final shiftDate = DateFormatter.medicalDate(s.shiftDate);
               final wardParts = <String>[
                 if (s.wardName?.isNotEmpty == true) s.wardName!,
                 if (s.wardType?.isNotEmpty == true) _formatLabel(s.wardType),
@@ -697,10 +699,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                           if (wardParts.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                wardParts.join(' · '),
-                                style: muted,
-                              ),
+                              child: Text(wardParts.join(' · '), style: muted),
                             ),
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
@@ -721,9 +720,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                                 [
                                   'Scheduled by ${s.assignedByName}',
                                   if (s.createdAt != null)
-                                    DateFormatter.dateTime(
-                                      s.createdAt!,
-                                    ),
+                                    DateFormatter.dateTime(s.createdAt!),
                                 ].join(' · '),
                                 style: muted,
                               ),
@@ -778,7 +775,8 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                   .split(RegExp(r'\s+'))
                   .where((p) => p.isNotEmpty)
                   .toList();
-              final shiftLabel = ShiftType.fromString(a.shiftType)?.label ??
+              final shiftLabel =
+                  ShiftType.fromString(a.shiftType)?.label ??
                   _formatLabel(a.shiftType);
               final locationParts = <String>[
                 if (a.wardName?.isNotEmpty == true) a.wardName!,
@@ -795,9 +793,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                 child: InkWell(
                   onTap: a.admissionId.isNotEmpty
                       ? () => context.router.push(
-                          InpatientPatientViewRoute(
-                            admissionId: a.admissionId,
-                          ),
+                          InpatientPatientViewRoute(admissionId: a.admissionId),
                         )
                       : null,
                   borderRadius: BorderRadius.circular(8),
@@ -961,7 +957,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
     );
     final subtitleStyle = TextStyle(
       fontSize: bp.isMobile ? 13 : 14,
-      color: colorScheme.onSurface.withValues(alpha: 0.6),
+      color: colorScheme.onSurfaceVariant,
     );
     final timeDropdown = _timeRangeDropdown(colorScheme);
     final avatar = CircleAvatar(
@@ -1058,7 +1054,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
           kpis.totalPatients.valueFormatted,
           kpis.totalPatients.delta.label,
           Icons.people_alt,
-          Colors.blue,
+          DepartmentColors.outpatientClinic,
           colorScheme,
           trendPositive: kpis.totalPatients.delta.isPositive,
           trendDirection: kpis.totalPatients.delta.direction,
@@ -1069,7 +1065,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
           kpis.bedOccupancy.valueFormatted,
           kpis.bedOccupancy.delta.label,
           Icons.bed,
-          Colors.orange,
+          DepartmentColors.billing,
           colorScheme,
           isProgress: true,
           progressValue: kpis.bedOccupancy.ratio.clamp(0.0, 1.0),
@@ -1082,7 +1078,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
           kpis.activeStaff.valueFormatted,
           kpis.activeStaff.delta.label,
           Icons.medical_information,
-          Colors.green,
+          DepartmentColors.pharmacy,
           colorScheme,
           trendPositive: kpis.activeStaff.delta.isPositive,
           trendDirection: kpis.activeStaff.delta.direction,
@@ -1093,7 +1089,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
           kpis.averageWaitTime.valueFormatted,
           kpis.averageWaitTime.delta.label,
           Icons.timer,
-          Colors.purple,
+          DepartmentColors.laboratory,
           colorScheme,
           trendPositive: kpis.averageWaitTime.delta.isPositive,
           trendDirection: kpis.averageWaitTime.delta.direction,
@@ -1128,8 +1124,8 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                 spacing: 16,
                 runSpacing: 8,
                 children: [
-                  _buildLegendIndicator(colorScheme.primary, 'Admissions'),
-                  _buildLegendIndicator(Colors.orange, 'Discharges'),
+                  _buildLegendIndicator(colorScheme, colorScheme.primary, 'Admissions'),
+                  _buildLegendIndicator(colorScheme, DepartmentColors.billing, 'Discharges'),
                 ],
               ),
             ],
@@ -1147,9 +1143,9 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
               ),
               Row(
                 children: [
-                  _buildLegendIndicator(colorScheme.primary, 'Admissions'),
+                  _buildLegendIndicator(colorScheme, colorScheme.primary, 'Admissions'),
                   const SizedBox(width: 16),
-                  _buildLegendIndicator(Colors.orange, 'Discharges'),
+                  _buildLegendIndicator(colorScheme, DepartmentColors.billing, 'Discharges'),
                 ],
               ),
             ],
@@ -1218,11 +1214,13 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   }
 
   Widget _nurseSidebarColumn({
+    required BuildContext context,
     required NurseDashboardOverview data,
     required ColorScheme colorScheme,
     required double chartInnerPadding,
     required bool canManageRoster,
   }) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Container(
@@ -1265,7 +1263,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                   child: Text(
                     'No staff on duty',
                     style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 )
@@ -1295,23 +1293,26 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
         Container(
           padding: EdgeInsets.all(chartInnerPadding),
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.05),
+            color: colorScheme.errorContainer.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+            border: Border.all(color: colorScheme.error.withValues(alpha: 0.25)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.warning_rounded, color: Colors.red[700], size: 20),
+                  Icon(
+                    Icons.warning_rounded,
+                    color: colorScheme.error,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Critical Alerts',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red[700],
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.error,
                     ),
                   ),
                 ],
@@ -1320,13 +1321,12 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
               if (data.criticalAlerts.isEmpty)
                 Text(
                   'No critical alerts',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.red[700]?.withValues(alpha: 0.8),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onErrorContainer,
                   ),
                 )
               else
-                ..._alertTiles(data.criticalAlerts),
+                ..._alertTiles(context, data.criticalAlerts),
             ],
           ),
         ),
@@ -1335,6 +1335,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   }
 
   Widget _nurseChartsAndSidebar({
+    required BuildContext context,
     required AppBreakpoints bp,
     required NurseDashboardOverview data,
     required ColorScheme colorScheme,
@@ -1353,6 +1354,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
       stackChartTitleRow: stackChartTitleRow,
     );
     final aside = _nurseSidebarColumn(
+      context: context,
       data: data,
       colorScheme: colorScheme,
       chartInnerPadding: chartInnerPadding,
@@ -1417,7 +1419,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                 staff.role,
                 style: TextStyle(
                   fontSize: 11,
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -1443,47 +1445,49 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   }
 
   Widget _lineCriticalAlerts(
+    BuildContext context,
     List<NurseCriticalAlert> alerts,
     ColorScheme colorScheme,
   ) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.05),
+        color: colorScheme.errorContainer.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+        border: Border.all(color: colorScheme.error.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.warning_rounded, color: Colors.red[700], size: 20),
+              Icon(Icons.warning_rounded, color: colorScheme.error, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Critical Alerts',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red[700],
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.error,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          ..._alertTiles(alerts),
+          ..._alertTiles(context, alerts),
         ],
       ),
     );
   }
 
-  List<Widget> _alertTiles(List<NurseCriticalAlert> alerts) {
+  List<Widget> _alertTiles(BuildContext context, List<NurseCriticalAlert> alerts) {
     final widgets = <Widget>[];
     for (var i = 0; i < alerts.length; i++) {
       final a = alerts[i];
       final accent = _alertAccent(a.severity);
       widgets.add(
         _buildAlertItem(
+          context,
           a.location,
           a.message,
           a.relativeLabel ?? _formatAlertTime(a.occurredAt),
@@ -1525,7 +1529,8 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
     String? trendDirection,
     bool showTrendArrow = true,
   }) {
-    final trendColor = trendPositive ? Colors.green : Colors.red;
+    final trendColor =
+        trendPositive ? DepartmentColors.pharmacy : DepartmentColors.emergency;
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -1625,7 +1630,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
             title,
             style: TextStyle(
               fontSize: 13,
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -1634,7 +1639,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
     );
   }
 
-  Widget _buildLegendIndicator(Color color, String text) {
+  Widget _buildLegendIndicator(ColorScheme colorScheme, Color color, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1649,9 +1654,8 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
         const SizedBox(width: 8),
         Text(
           text,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1660,11 +1664,14 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   }
 
   Widget _buildAlertItem(
+    BuildContext context,
     String location,
     String message,
     String time,
     Color color,
   ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1684,16 +1691,14 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                 children: [
                   Text(
                     location,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
                     time,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.red[700]?.withValues(alpha: 0.6),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1701,9 +1706,8 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
               const SizedBox(height: 2),
               Text(
                 message,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.red[700]?.withValues(alpha: 0.8),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -1722,7 +1726,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
       return Center(
         child: Text(
           'No admissions or discharge data for this period',
-          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -1773,7 +1777,10 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                   meta: meta,
                   child: Text(
                     label,
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1793,7 +1800,10 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                 if (value > maxY) return const SizedBox.shrink();
                 return Text(
                   '${value.toInt()}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
                 );
               },
             ),
@@ -1820,7 +1830,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
           LineChartBarData(
             spots: dischargeSpots,
             isCurved: true,
-            color: Colors.orange,
+            color: DepartmentColors.billing,
             barWidth: 3,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
@@ -1831,13 +1841,13 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   }
 
   static const _barPalette = <Color>[
-    Colors.blue,
-    Colors.teal,
-    Colors.red,
-    Colors.deepOrange,
-    Colors.purple,
-    Colors.indigo,
-    Colors.cyan,
+    DepartmentColors.outpatientClinic,
+    DepartmentColors.frontDesk,
+    DepartmentColors.emergency,
+    DepartmentColors.billing,
+    DepartmentColors.laboratory,
+    DepartmentColors.radiology,
+    DepartmentColors.theatre,
   ];
 
   Widget _buildDepartmentBarChart(
@@ -1851,7 +1861,7 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
       return Center(
         child: Text(
           'No department load data',
-          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -1875,8 +1885,8 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
                   meta: meta,
                   child: Text(
                     bars[i].shortLabel,
-                    style: const TextStyle(
-                      color: Colors.grey,
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
                     ),

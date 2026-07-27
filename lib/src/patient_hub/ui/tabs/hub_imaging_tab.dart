@@ -96,7 +96,6 @@ class _HubImagingScreenState extends ConsumerState<HubImagingScreen> {
                     final section = item['_section']?.toString() ?? 'imaging';
                     final cs = Theme.of(context).colorScheme;
                     return Card(
-                      elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(color: cs.outlineVariant),

@@ -15,6 +15,8 @@ import '../models/pharmacy_reports_model.dart';
 import '../services/pharmacy_head_dashboard_service.dart';
 import '../services/pharmacy_reports_service.dart';
 import '../services/pharmacy_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/shared/module_surface_styles.dart';
 
 @RoutePage()
 class PharmacyHeadDashboardScreen extends ConsumerStatefulWidget {
@@ -132,7 +134,10 @@ class _PharmacyHeadDashboardScreenState
 
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: ModuleSurfaceStyles.departmentScaffoldBackground(
+        theme,
+        DepartmentColors.pharmacy,
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _reload,
@@ -195,16 +200,12 @@ class _PharmacyHeadDashboardScreenState
 
   Widget _buildHeader(ThemeData theme, AppBreakpoints bp) {
     final updated = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme),
       child: Text(
         'Updated ${DateFormat.Hm().format(_lastUpdated)}',
         style: theme.textTheme.labelLarge?.copyWith(
-          color: const Color(0xFF475569),
+          color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -222,7 +223,7 @@ class _PharmacyHeadDashboardScreenState
         Text(
           'Sales, profit and inventory worth across all stores.',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFF64748B),
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -263,15 +264,10 @@ class _PharmacyHeadDashboardScreenState
         ),
         const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFEEF2FF), Color(0xFFF8FAFC)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFDDE6FF)),
+          padding: const EdgeInsets.all(12),
+          decoration: ModuleSurfaceStyles.departmentFilterPanel(
+            theme,
+            DepartmentColors.pharmacy,
           ),
           child: Wrap(
             runSpacing: 10,
@@ -303,11 +299,7 @@ class _PharmacyHeadDashboardScreenState
     ];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      decoration: ModuleSurfaceStyles.compactDropdown(theme),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
           value: _selectedStoreId,
@@ -326,13 +318,10 @@ class _PharmacyHeadDashboardScreenState
     required List<String> items,
     required ValueChanged<String> onChanged,
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      decoration: ModuleSurfaceStyles.compactDropdown(theme),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
@@ -385,28 +374,28 @@ class _PharmacyHeadDashboardScreenState
       title,
       style: theme.textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.w800,
-        color: const Color(0xFF1E293B),
+        color: theme.colorScheme.onSurface,
       ),
     );
   }
 
   Widget _profitUnknownNotice(int count) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFED7AA)),
-      ),
+      decoration: ModuleSurfaceStyles.infoBanner(theme),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: Color(0xFFC2410C), size: 18),
+          Icon(Icons.info_outline, color: cs.onTertiaryContainer, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               '${_count.format(count)} historical sale line(s) predate batch-cost '
               'tracking and are excluded from profit figures.',
-              style: const TextStyle(color: Color(0xFF9A3412), fontSize: 12.5),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onTertiaryContainer,
+              ),
             ),
           ),
         ],
@@ -423,81 +412,81 @@ class _PharmacyHeadDashboardScreenState
       _HeadKpi(
         'Total Sales',
         _money.format(s.totalSales),
-        const Color(0xFF8B5CF6),
+        DepartmentColors.laboratory,
         Icons.point_of_sale_rounded,
         onTap: () => _openSales(PharmacySalesGroupBy.drug),
       ),
       _HeadKpi(
         'Quantity Sold',
         _count.format(s.totalQuantitySold),
-        const Color(0xFF3B82F6),
+        DepartmentColors.outpatientClinic,
         Icons.inventory_rounded,
         onTap: () => _openSales(PharmacySalesGroupBy.drug),
       ),
       _HeadKpi(
         'Gross Profit',
         _money.format(s.grossProfit),
-        const Color(0xFF10B981),
+        DepartmentColors.pharmacy,
         Icons.trending_up_rounded,
         onTap: () => _openSales(PharmacySalesGroupBy.drug),
       ),
       _HeadKpi(
         'Gross Margin',
         '${s.grossMarginPercent.toStringAsFixed(1)}%',
-        const Color(0xFF059669),
+        DepartmentColors.physiotherapy,
         Icons.percent_rounded,
       ),
       _HeadKpi(
         'Cost of Goods Sold',
         _money.format(s.totalCogs),
-        const Color(0xFFF97316),
+        DepartmentColors.billing,
         Icons.local_shipping_rounded,
       ),
       _HeadKpi(
         'Net Collections',
         _money.format(s.netCollections),
-        const Color(0xFF6366F1),
+        DepartmentColors.radiology,
         Icons.payments_rounded,
         onTap: () => context.router.push(DispenseHistoryRoute()),
       ),
       _HeadKpi(
         'Transactions',
         _count.format(s.transactionCount),
-        const Color(0xFF0EA5E9),
+        DepartmentColors.pediatrics,
         Icons.receipt_long_rounded,
         onTap: () => context.router.push(DispenseHistoryRoute()),
       ),
       _HeadKpi(
         'Avg Profit / Txn',
         _money.format(s.avgProfitPerTransaction),
-        const Color(0xFF14B8A6),
+        DepartmentColors.frontDesk,
         Icons.calculate_rounded,
       ),
       _HeadKpi(
         'Inventory at Cost',
         _money.format(s.inventoryValueAtCost),
-        const Color(0xFF4F46E5),
+        DepartmentColors.itDepartment,
         Icons.warehouse_rounded,
         onTap: () => context.router.push(PharmacyInventoryValuationRoute()),
       ),
       _HeadKpi(
         'Inventory at Selling',
         _money.format(s.inventoryValueAtSellingPrice),
-        const Color(0xFF7C3AED),
+        DepartmentColors.eyeClinic,
         Icons.sell_rounded,
         onTap: () => context.router.push(PharmacyInventoryValuationRoute()),
       ),
       _HeadKpi(
         'Near-Expiry Value',
         _money.format(s.nearExpiryValueAtCost),
-        const Color(0xFFF59E0B),
+        DepartmentColors.accountingFinance,
         Icons.timelapse_rounded,
         onTap: () => context.router.push(PharmacyInventoryValuationRoute()),
       ),
       _HeadKpi(
         'Low / Out of Stock',
         '${_count.format(s.lowStockCount)} / ${_count.format(s.outOfStockCount)}',
-        const Color(0xFFEF4444),
+        DepartmentColors.emergency,
         Icons.warning_amber_rounded,
         onTap: () => context.router.push(const MedicineInventoryRoute()),
       ),
@@ -515,12 +504,8 @@ class _PharmacyHeadDashboardScreenState
 
   Widget _kpiCard(ThemeData theme, _HeadKpi kpi) {
     final card = Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -537,10 +522,10 @@ class _PharmacyHeadDashboardScreenState
               ),
               const Spacer(),
               if (kpi.onTap != null)
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
-                  color: Color(0xFF94A3B8),
+                  color: theme.colorScheme.outline,
                 ),
             ],
           ),
@@ -550,13 +535,13 @@ class _PharmacyHeadDashboardScreenState
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
+              color: theme.colorScheme.onSurface,
             ),
           ),
           Text(
             kpi.label,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF64748B),
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -601,22 +586,18 @@ class _PharmacyHeadDashboardScreenState
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _legendDot(const Color(0xFF8B5CF6), 'Sales'),
+              _legendDot(theme, DepartmentColors.laboratory, 'Sales'),
               const SizedBox(width: 16),
-              _legendDot(const Color(0xFFF97316), 'COGS'),
+              _legendDot(theme, DepartmentColors.billing, 'COGS'),
               const SizedBox(width: 16),
-              _legendDot(const Color(0xFF10B981), 'Profit'),
+              _legendDot(theme, DepartmentColors.pharmacy, 'Profit'),
             ],
           ),
           const SizedBox(height: 16),
@@ -661,9 +642,9 @@ class _PharmacyHeadDashboardScreenState
                   rightTitles: const AxisTitles(),
                 ),
                 lineBarsData: [
-                  line((p) => p.grossSales, const Color(0xFF8B5CF6)),
-                  line((p) => p.cogs, const Color(0xFFF97316)),
-                  line((p) => p.grossProfit, const Color(0xFF10B981)),
+                  line((p) => p.grossSales, DepartmentColors.laboratory),
+                  line((p) => p.cogs, DepartmentColors.billing),
+                  line((p) => p.grossProfit, DepartmentColors.pharmacy),
                 ],
               ),
             ),
@@ -673,7 +654,7 @@ class _PharmacyHeadDashboardScreenState
     );
   }
 
-  Widget _legendDot(Color color, String label) {
+  Widget _legendDot(ThemeData theme, Color color, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -683,7 +664,7 @@ class _PharmacyHeadDashboardScreenState
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        Text(label, style: theme.textTheme.labelSmall),
       ],
     );
   }
@@ -706,12 +687,8 @@ class _PharmacyHeadDashboardScreenState
                 PharmacyInventoryValuationRoute(locationId: store.locationId),
               ),
               child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
+                padding: const EdgeInsets.all(12),
+                decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -720,7 +697,7 @@ class _PharmacyHeadDashboardScreenState
                         const Icon(
                           Icons.store_rounded,
                           size: 18,
-                          color: Color(0xFF4F46E5),
+                          color: DepartmentColors.pharmacy,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -731,9 +708,9 @@ class _PharmacyHeadDashboardScreenState
                             ),
                           ),
                         ),
-                        const Icon(
+                        Icon(
                           Icons.chevron_right_rounded,
-                          color: Color(0xFF94A3B8),
+                          color: theme.colorScheme.outline,
                         ),
                       ],
                     ),
@@ -745,27 +722,27 @@ class _PharmacyHeadDashboardScreenState
                         _valueChip(
                           'At cost',
                           _money.format(store.valueAtCost),
-                          const Color(0xFF4F46E5),
+                          DepartmentColors.itDepartment,
                         ),
                         _valueChip(
                           'At selling',
                           _money.format(store.valueAtSellingPrice),
-                          const Color(0xFF7C3AED),
+                          DepartmentColors.laboratory,
                         ),
                         _valueChip(
                           'Batches',
                           _count.format(store.batchCount),
-                          const Color(0xFF0EA5E9),
+                          DepartmentColors.pediatrics,
                         ),
                         _valueChip(
                           'Units',
                           _count.format(store.totalQuantity),
-                          const Color(0xFF3B82F6),
+                          DepartmentColors.outpatientClinic,
                         ),
                         _valueChip(
                           'Near-expiry',
                           _money.format(store.nearExpiryValueAtCost),
-                          const Color(0xFFF59E0B),
+                          DepartmentColors.accountingFinance,
                         ),
                       ],
                     ),
@@ -779,13 +756,16 @@ class _PharmacyHeadDashboardScreenState
   }
 
   Widget _valueChip(String label, String value, Color color) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -831,16 +811,12 @@ class _PharmacyHeadDashboardScreenState
           onTap: () => context.router.push(a.route),
           child: Container(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
+            decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 14),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(a.icon, color: const Color(0xFF4338CA), size: 22),
+                Icon(a.icon, color: DepartmentColors.pharmacy, size: 22),
                 const Spacer(),
                 Text(
                   a.label,
@@ -861,38 +837,37 @@ class _PharmacyHeadDashboardScreenState
   }
 
   Widget _emptyCard(String message) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      padding: const EdgeInsets.all(20),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 16),
       child: Center(
         child: Text(
           message,
-          style: const TextStyle(color: Color(0xFF64748B)),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
   }
 
   Widget _errorCard(String message) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFECACA)),
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: ModuleSurfaceStyles.errorBanner(theme),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 18),
+          Icon(Icons.error_outline, color: cs.error, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Color(0xFF991B1B)),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onErrorContainer,
+              ),
             ),
           ),
         ],

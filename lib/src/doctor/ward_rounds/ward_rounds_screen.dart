@@ -108,7 +108,7 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
               Text(
                 'Loading your inpatients…',
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -162,7 +162,7 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
               Text(
                 'No inpatients under your care',
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 8),
@@ -170,7 +170,7 @@ class _WardRoundsScreenState extends ConsumerState<WardRoundsScreen> {
                 'Admitted patients with you as attending doctor will appear here for ward rounds.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

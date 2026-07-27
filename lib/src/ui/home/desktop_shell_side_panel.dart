@@ -73,7 +73,7 @@ class _DesktopShellSidePanelState extends ConsumerState<DesktopShellSidePanel> {
                 onTap: () =>
                     ref.read(shellSidePanelProvider.notifier).close(),
                 child: Container(
-                  color: Colors.black.withValues(alpha: 0.22),
+                  color: scheme.scrim.withValues(alpha: 0.35),
                 ),
               ),
             ),
@@ -111,9 +111,9 @@ class _DesktopShellSidePanelState extends ConsumerState<DesktopShellSidePanel> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.18),
-                          blurRadius: 40,
-                          offset: const Offset(-8, 8),
+                          color: scheme.shadow.withValues(alpha: 0.12),
+                          blurRadius: 24,
+                          offset: const Offset(-4, 4),
                         ),
                       ],
                     ),

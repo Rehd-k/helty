@@ -7,6 +7,8 @@ import '../models/pharmacy_dashboard_model.dart';
 import '../models/pharmacy_model.dart';
 import '../services/pharmacy_dashboard_service.dart';
 import '../services/pharmacy_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/shared/module_surface_styles.dart';
 
 enum _DatePreset { today, last7Days, last30Days, thisMonth }
 
@@ -165,49 +167,49 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
       _KpiMetric(
         label: 'Prescriptions Processed',
         value: summary.prescriptionsProcessed,
-        color: const Color(0xFF10B981),
+        color: DepartmentColors.pharmacy,
       ),
       _KpiMetric(
         label: 'Pending Orders',
         value: summary.pendingOrders,
-        color: const Color(0xFFF59E0B),
+        color: DepartmentColors.accountingFinance,
       ),
       _KpiMetric(
         label: 'Dispensed Orders',
         value: summary.dispensedOrders,
-        color: const Color(0xFF3B82F6),
+        color: DepartmentColors.outpatientClinic,
       ),
       _KpiMetric(
         label: 'Pharmacy Revenue',
         value: summary.revenue,
-        color: const Color(0xFF8B5CF6),
+        color: DepartmentColors.laboratory,
         isCurrency: true,
       ),
       _KpiMetric(
         label: 'Inventory Value',
         value: summary.inventoryValue,
-        color: const Color(0xFF6366F1),
+        color: DepartmentColors.radiology,
         isCurrency: true,
       ),
       _KpiMetric(
         label: 'Low Stock Drugs',
         value: summary.lowStockCount,
-        color: const Color(0xFFF59E0B),
+        color: DepartmentColors.billing,
       ),
       _KpiMetric(
         label: 'Out-of-Stock Drugs',
         value: summary.outOfStockCount,
-        color: const Color(0xFFEF4444),
+        color: DepartmentColors.emergency,
       ),
       _KpiMetric(
         label: 'Near-Expiry Drugs',
         value: summary.nearExpiryCount,
-        color: const Color(0xFFF59E0B),
+        color: DepartmentColors.accountingFinance,
       ),
       _KpiMetric(
         label: 'Expired Drugs',
         value: summary.expiredCount,
-        color: const Color(0xFFDC2626),
+        color: DepartmentColors.icu,
       ),
     ];
   }
@@ -237,7 +239,10 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: ModuleSurfaceStyles.departmentScaffoldBackground(
+        theme,
+        DepartmentColors.pharmacy,
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _bootstrap,
@@ -282,16 +287,12 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
 
   Widget _buildHeader(ThemeData theme, AppBreakpoints bp) {
     final updated = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme),
       child: Text(
         'Updated ${DateFormat.Hm().format(_lastUpdated)}',
         style: theme.textTheme.labelLarge?.copyWith(
-          color: const Color(0xFF475569),
+          color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -309,7 +310,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
         Text(
           'Live pharmacy operations, inventory and revenue insights.',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFF64748B),
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -333,16 +334,12 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   }
 
   Widget _buildFilterBar(ThemeData theme) {
+    final cs = theme.colorScheme;
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEEF2FF), Color(0xFFF8FAFC)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDDE6FF)),
+      padding: const EdgeInsets.all(12),
+      decoration: ModuleSurfaceStyles.departmentFilterPanel(
+        theme,
+        DepartmentColors.pharmacy,
       ),
       child: Wrap(
         runSpacing: 10,
@@ -351,11 +348,11 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
         children: [
           ..._DatePreset.values.map(
             (preset) => ChoiceChip(
-              selectedColor: const Color(0xFF4338CA),
+              selectedColor: DepartmentColors.pharmacy,
               labelStyle: TextStyle(
                 color: _selectedPreset == preset
-                    ? Colors.white
-                    : const Color(0xFF1E293B),
+                    ? cs.onPrimary
+                    : cs.onSurface,
                 fontWeight: FontWeight.w600,
               ),
               label: Text(_presetLabel(preset)),
@@ -378,12 +375,12 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
           FilledButton.icon(
             onPressed: _isLoading ? null : _loadDashboard,
             icon: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: cs.onPrimary,
                     ),
                   )
                 : const Icon(Icons.refresh, size: 16),
@@ -400,15 +397,11 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
         height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         alignment: Alignment.centerLeft,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFCBD5E1)),
-        ),
+        decoration: ModuleSurfaceStyles.compactDropdown(theme),
         child: Text(
           'No stores',
           style: theme.textTheme.bodySmall?.copyWith(
-            color: const Color(0xFF64748B),
+            color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -424,11 +417,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     return Container(
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
-      ),
+      decoration: ModuleSurfaceStyles.compactDropdown(theme),
       child: DropdownButton<String>(
         value: dropdownValue,
         underline: const SizedBox.shrink(),
@@ -456,14 +445,11 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     required List<String> items,
     required ValueChanged<String> onChanged,
   }) {
+    final theme = Theme.of(context);
     return Container(
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
-      ),
+      decoration: ModuleSurfaceStyles.compactDropdown(theme),
       child: DropdownButton<String>(
         value: value,
         underline: const SizedBox.shrink(),
@@ -495,19 +481,15 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
 
   Widget _kpiCard(ThemeData theme, _KpiMetric kpi) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             kpi.label,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF64748B),
+              color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -516,7 +498,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             _formatValue(kpi.value, isCurrency: kpi.isCurrency),
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 10),
@@ -542,12 +524,14 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
       firstFlex: 1,
       secondFlex: 2,
       first: _panel(
+        theme: theme,
         title: 'Order Status Breakdown',
         child: _statusBars(theme, data.orderStatuses),
       ),
       second: _panel(
+        theme: theme,
         title: 'Top-Selling Medications',
-        child: _topSellingTable(data.topSelling),
+        child: _topSellingTable(theme, data.topSelling),
       ),
     );
   }
@@ -560,10 +544,10 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
         .map((e) => e.count)
         .fold<int>(0, (prev, curr) => curr > prev ? curr : prev);
     const colors = [
-      Color(0xFFF59E0B),
-      Color(0xFF0EA5E9),
-      Color(0xFF10B981),
-      Color(0xFFEF4444),
+      DepartmentColors.accountingFinance,
+      DepartmentColors.pediatrics,
+      DepartmentColors.pharmacy,
+      DepartmentColors.emergency,
     ];
 
     return Column(
@@ -589,7 +573,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                   Text(
                     NumberFormat.decimalPattern().format(item.count),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF475569),
+                      color: theme.colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -602,7 +586,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                   minHeight: 10,
                   value: widthFactor,
                   color: colors[idx % colors.length],
-                  backgroundColor: const Color(0xFFE2E8F0),
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 ),
               ),
             ],
@@ -612,13 +596,15 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  Widget _topSellingTable(List<PharmacyTopSellingItem> rows) {
+  Widget _topSellingTable(ThemeData theme, List<PharmacyTopSellingItem> rows) {
     if (rows.isEmpty) {
       return const Text('No top-selling medication data available.');
     }
     return ResponsiveDataTable(
       child: DataTable(
-        headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
+        headingRowColor: WidgetStateProperty.all(
+          theme.colorScheme.surfaceContainerHighest,
+        ),
         columns: const [
           DataColumn(label: Text('Drug')),
           DataColumn(label: Text('Qty Sold')),
@@ -658,6 +644,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     return ResponsiveRowColumn(
       gap: 12,
       first: _panel(
+        theme: theme,
         title: 'Revenue Trend (Net Revenue)',
         child: SizedBox(
           height: 170,
@@ -666,13 +653,14 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
               : CustomPaint(
                   painter: _SparklinePainter(
                     points: points,
-                    color: const Color(0xFF4F46E5),
+                    color: DepartmentColors.pharmacy,
                     fillArea: true,
                   ),
                 ),
         ),
       ),
       second: _panel(
+        theme: theme,
         title: 'Safety & Compliance Alerts',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -680,19 +668,19 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             _MiniAlertTile(
               title: 'Total alerts',
               value: data.safety.totalAlerts.toString(),
-              color: const Color(0xFFDC2626),
+              color: DepartmentColors.emergency,
             ),
             const SizedBox(height: 10),
             _MiniAlertTile(
               title: 'High-severity alerts',
               value: data.safety.highSeverityAlerts.toString(),
-              color: const Color(0xFFB91C1C),
+              color: DepartmentColors.icu,
             ),
             const SizedBox(height: 10),
             _MiniAlertTile(
               title: 'Overridden alerts',
               value: data.safety.overriddenAlerts.toString(),
-              color: const Color(0xFFF59E0B),
+              color: DepartmentColors.accountingFinance,
             ),
           ],
         ),
@@ -700,23 +688,22 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  Widget _panel({required String title, required Widget child}) {
+  Widget _panel({
+    required ThemeData theme,
+    required String title,
+    required Widget child,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: Color(0xFF0F172A),
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
@@ -727,16 +714,15 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   }
 
   Widget _errorCard(String message) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFFCA5A5)),
-      ),
+      decoration: ModuleSurfaceStyles.errorBanner(theme),
       child: Text(
         message,
-        style: const TextStyle(color: Color(0xFF991B1B)),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onErrorContainer,
+        ),
       ),
     );
   }
@@ -766,8 +752,8 @@ class _MiniAlertTile extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                color: Color(0xFF334155),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),

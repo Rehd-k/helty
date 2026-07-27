@@ -344,7 +344,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
         prefixIcon: Icon(
           Icons.search,
           size: 18,
-          color: colorScheme.onSurface.withValues(alpha: 0.6),
+          color: colorScheme.onSurfaceVariant,
         ),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
@@ -896,14 +896,13 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                                                                 .withValues(
                                                                   alpha: 0.1,
                                                                 )
-                                                          : Colors.grey
-                                                                .withValues(
-                                                                  alpha: 0.1,
-                                                                ),
+                                                          : colorScheme
+                                                                .surfaceContainerHighest,
                                                       foregroundColor:
                                                           isUnassigned
                                                           ? colorScheme.primary
-                                                          : Colors.grey,
+                                                          : colorScheme
+                                                                .onSurfaceVariant,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                     )
@@ -917,14 +916,13 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                                                                 .withValues(
                                                                   alpha: 0.1,
                                                                 )
-                                                          : Colors.grey
-                                                                .withValues(
-                                                                  alpha: 0.1,
-                                                                ),
+                                                          : colorScheme
+                                                                .surfaceContainerHighest,
                                                       foregroundColor:
                                                           isUnassigned
                                                           ? colorScheme.primary
-                                                          : Colors.grey,
+                                                          : colorScheme
+                                                                .onSurfaceVariant,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                     ),
@@ -1142,7 +1140,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                             : "Tap an unassigned patient to record vitals and assign a room.",
                         style: TextStyle(
                           fontSize: 14,
-                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -1265,7 +1263,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                 "Select a waiting patient\nto record vitals.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  color: colorScheme.onSurfaceVariant,
                   fontSize: 14,
                 ),
               ),
@@ -1370,7 +1368,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                               : '$patientCode • $gender',
                           style: TextStyle(
                             fontSize: 12,
-                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -1429,7 +1427,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                               : '$patientCode • $gender',
                           style: TextStyle(
                             fontSize: 12,
-                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -1454,7 +1452,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1485,7 +1483,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1549,7 +1547,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1608,7 +1606,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1621,7 +1619,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                       hintText: "Select Room",
                       hintStyle: TextStyle(
                         fontSize: 13,
-                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                       filled: true,
                       fillColor: colorScheme.onSurface.withValues(alpha: 0.02),
@@ -1649,7 +1647,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                     icon: Icon(
                       Icons.keyboard_arrow_down,
                       size: 18,
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                     style: TextStyle(
                       fontSize: 13,
@@ -1787,7 +1785,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
         alignLabelWithHint: true,
         labelStyle: TextStyle(
           fontSize: 12,
-          color: colorScheme.onSurface.withValues(alpha: 0.6),
+          color: colorScheme.onSurfaceVariant,
         ),
         hintText: 'Optional observations, alerts, or context',
         hintStyle: TextStyle(
@@ -1836,7 +1834,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
         labelText: label,
         labelStyle: TextStyle(
           fontSize: 12,
-          color: colorScheme.onSurface.withValues(alpha: 0.6),
+          color: colorScheme.onSurfaceVariant,
         ),
         suffixText: suffix,
         suffixStyle: TextStyle(
@@ -1881,7 +1879,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
       fontSize: 11,
       fontWeight: FontWeight.bold,
       letterSpacing: 0.5,
-      color: colorScheme.onSurface.withValues(alpha: 0.5),
+      color: colorScheme.onSurfaceVariant,
     );
   }
 
@@ -1898,7 +1896,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
         Text(
           consultation,
           style: TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.7),
+            color: colorScheme.onSurfaceVariant,
             fontSize: 13,
           ),
         ),

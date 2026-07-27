@@ -9,12 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
 import '../../accounts/auth/accounting_permissions.dart';
+import '../../app/product_definition.dart';
+import '../../app/product_module_access.dart';
 import '../../auth/billing_permissions.dart';
 import '../../auth/dialysis_permissions.dart';
 import '../../auth/theatre_permissions.dart';
 import '../../auth/nursing_permissions.dart';
 import '../../nursing/providers/nursing_providers.dart';
 import '../../helper/theme.dart';
+import '../../shared/department_colors.dart';
 import '../../chat/providers/pending_orders_tick_provider.dart';
 import '../../chat/providers/staff_chat_shell_provider.dart';
 import '../../chat/services/internal_chat_socket.dart';
@@ -48,12 +51,17 @@ class MenuItem {
   /// When null, the sidebar derives a tone from item index or label hash.
   final MenuAccent? accent;
 
+  /// Explicit department brand color (see [DepartmentColors]). When set,
+  /// this takes priority over [accent] for the sidebar icon/label tint.
+  final Color? color;
+
   const MenuItem({
     required this.label,
     required this.icon,
     required this.route,
     this.children,
     this.accent,
+    this.color,
   });
 }
 
@@ -63,19 +71,19 @@ const cmacExecutiveMenuItems = <MenuItem>[
     label: 'Oversight overview',
     icon: Icons.dashboard_rounded,
     route: CmacOverviewRoute(),
-    accent: MenuAccent.primary,
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Insights',
     icon: Icons.lightbulb_outline_rounded,
     route: CmacInsightsRoute(),
-    accent: MenuAccent.tertiary,
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Patient activity',
     icon: Icons.people_alt_rounded,
     route: CmacPatientActivityRoute(),
-    accent: MenuAccent.secondary,
+    color: DepartmentColors.outpatientClinic,
   ),
   MenuItem(
     label: 'Patient notifications',
@@ -88,25 +96,25 @@ const cmacExecutiveMenuItems = <MenuItem>[
     label: 'Clinical',
     icon: Icons.medical_information_outlined,
     route: CmacClinicalRoute(),
-    accent: MenuAccent.primary,
+    color: DepartmentColors.outpatientClinic,
   ),
   MenuItem(
     label: 'Laboratory',
     icon: Icons.biotech_rounded,
     route: CmacLaboratoryRoute(),
-    accent: MenuAccent.tertiary,
+    color: DepartmentColors.laboratory,
   ),
   MenuItem(
     label: 'Pharmacy',
     icon: Icons.medication_rounded,
     route: CmacPharmacyRoute(),
-    accent: MenuAccent.secondary,
+    color: DepartmentColors.pharmacy,
   ),
   MenuItem(
     label: 'Operations',
     icon: Icons.schedule_rounded,
     route: CmacOperationsRoute(),
-    accent: MenuAccent.primary,
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Quality analytics',
@@ -118,7 +126,7 @@ const cmacExecutiveMenuItems = <MenuItem>[
     label: 'Staff',
     icon: Icons.groups_rounded,
     route: CmacStaffRoute(),
-    accent: MenuAccent.secondary,
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Quality capture',
@@ -163,66 +171,79 @@ const cmdExecutiveMenuItems = <MenuItem>[
     label: 'Executive dashboard',
     icon: Icons.home_outlined,
     route: CMDDashboardRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Hospital overview',
     icon: Icons.account_balance_outlined,
     route: CMDHospitalOverviewRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Financial command',
     icon: Icons.payments_outlined,
     route: CMDFinancialCommandRoute(),
+    color: DepartmentColors.accountingFinance,
   ),
   MenuItem(
     label: 'Staff oversight',
     icon: Icons.groups_outlined,
     route: CMDStaffOversightRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Beds & facilities',
     icon: Icons.bed_outlined,
     route: CMDBedsFacilitiesRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Lab monitoring',
     icon: Icons.biotech_outlined,
     route: CMDLabMonitoringRoute(),
+    color: DepartmentColors.laboratory,
   ),
   MenuItem(
     label: 'Alerts & incidents',
     icon: Icons.crisis_alert_outlined,
     route: CMDAlertsIncidentsRoute(),
+    color: DepartmentColors.emergency,
   ),
   MenuItem(
     label: 'Reports & analytics',
     icon: Icons.assessment_outlined,
     route: CMDReportsAnalyticsRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Audit & compliance',
     icon: Icons.fact_check_outlined,
     route: CMDAuditComplianceRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Communication',
     icon: Icons.campaign_outlined,
     route: CMDCommunicationCenterRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Patient notifications',
     icon: Icons.notifications_active_outlined,
     route: CustomPatientPushRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'Patient experience',
     icon: Icons.star_outline,
     route: CMDPatientExperienceRoute(),
+    color: DepartmentColors.administration,
   ),
   MenuItem(
     label: 'System control',
     icon: Icons.tune_outlined,
     route: CMDSystemControlRoute(),
+    color: DepartmentColors.itDepartment,
   ),
 ];
 
@@ -234,19 +255,6 @@ enum UserRole { admin, staff, receptionist }
 
 const _kSidebarWidth = 260.0;
 const _kSidebarCollapsedWidth = 64.0;
-
-Color _menuInactiveIconColor(ColorScheme cs, MenuAccent accent) {
-  switch (accent) {
-    case MenuAccent.primary:
-      return Color.lerp(cs.onSurfaceVariant, cs.primary, 0.5)!;
-    case MenuAccent.secondary:
-      return Color.lerp(cs.onSurfaceVariant, cs.secondary, 0.5)!;
-    case MenuAccent.tertiary:
-      return Color.lerp(cs.onSurfaceVariant, cs.tertiary, 0.5)!;
-    case MenuAccent.errorTone:
-      return Color.lerp(cs.onSurfaceVariant, cs.error, 0.42)!;
-  }
-}
 
 Color _accentColor(ColorScheme cs, MenuAccent accent) {
   switch (accent) {
@@ -270,6 +278,7 @@ class _NavIconBox extends StatelessWidget {
     required this.iconSize,
     required this.cs,
     required this.shell,
+    this.explicitColor,
   });
 
   final IconData icon;
@@ -279,22 +288,28 @@ class _NavIconBox extends StatelessWidget {
   final ColorScheme cs;
   final AppShellTheme shell;
 
+  /// Department brand color override (see [MenuItem.color]). Falls back to
+  /// the semantic [accent] tone when null.
+  final Color? explicitColor;
+
   @override
   Widget build(BuildContext context) {
-    final base = _accentColor(cs, accent);
-    final inactiveIcon = _menuInactiveIconColor(cs, accent);
+    final base = explicitColor ?? _accentColor(cs, accent);
+    final inactiveIcon = explicitColor != null
+        ? Color.lerp(shell.sidebarMuted, explicitColor, 0.72)!
+        : Color.lerp(shell.sidebarMuted, base, 0.58)!;
     final fill = isActive
         ? Color.alphaBlend(
-            base.withValues(alpha: 0.34),
-            cs.surfaceContainerLowest,
+            base.withValues(alpha: 0.42),
+            shell.sidebarBackground,
           )
         : Color.alphaBlend(
-            base.withValues(alpha: 0.16),
+            base.withValues(alpha: 0.22),
             shell.sidebarBackground,
           );
     final borderColor = isActive
-        ? base.withValues(alpha: 0.62)
-        : cs.outlineVariant.withValues(alpha: 0.55);
+        ? base.withValues(alpha: 0.75)
+        : shell.sidebarDivider.withValues(alpha: 0.7);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
@@ -303,14 +318,6 @@ class _NavIconBox extends StatelessWidget {
         color: fill,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: borderColor, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: cs.shadow.withValues(alpha: isActive ? 0.26 : 0.12),
-            blurRadius: isActive ? 9 : 5,
-            offset: const Offset(0, 2),
-            spreadRadius: isActive ? -0.5 : -1,
-          ),
-        ],
       ),
       child: Icon(icon, size: iconSize, color: isActive ? base : inactiveIcon),
     );
@@ -347,7 +354,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   List<MenuItem> _menuForRole(Staff? staff, String role, String accountType) {
     final common = <MenuItem>[];
-    if (staffIsSuperAdmin(staff)) {
+    bool moduleOn(AppModule module) => ProductModuleAccess.isModuleEnabled(module);
+
+    if (staffIsSuperAdmin(staff) && moduleOn(AppModule.administration)) {
       common.add(
         const MenuItem(
           label: 'Super Admin hub',
@@ -368,13 +377,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final canBillingDash = staffCanAccessPrivilegedBilling(staff);
 
     final isCmacAccount = at == 'cmac' || r == 'cmac';
-    if (isCmacAccount) {
+    if (isCmacAccount && moduleOn(AppModule.administration)) {
       common.addAll(cmacExecutiveMenuItems);
       return common;
     }
 
     final isCmdAccount = at == 'cmd' || r == 'cmd';
-    if (isCmdAccount) {
+    if (isCmdAccount && moduleOn(AppModule.administration)) {
       common.addAll(cmdUnifiedMenuItems);
       return common;
     }
@@ -384,7 +393,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         at == 'frontdesk' ||
         r == 'front_desk' ||
         r == 'receptionist';
-    if (isFrontDesk) {
+    if (isFrontDesk && moduleOn(AppModule.registration)) {
       common.addAll(frontDesk);
     }
 
@@ -394,7 +403,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         r == 'billing' ||
         r == 'billing_head' ||
         r == 'billing_staff';
-    if (isBilling) {
+    if (isBilling && moduleOn(AppModule.billing)) {
       final billingMenu = canBillingDash
           ? bills
           : bills.where((m) => m.route is! BillingDashboardRoute).toList();
@@ -410,7 +419,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     final bootstrap = ref.watch(nursingBootstrapDataProvider);
-    if (isNursingStaff(staff)) {
+    if (isNursingStaff(staff) && moduleOn(AppModule.nursing)) {
       common.addAll(nurseMenuFor(staff, bootstrap));
     }
 
@@ -419,7 +428,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         at == 'pharmacy_store' ||
         at == 'pharmacy_dispensary' ||
         at == 'pharmacy_head';
-    if (isPharmacyDept) {
+    if (isPharmacyDept && moduleOn(AppModule.pharmacy)) {
       final isDispensary =
           at == 'pharmacy_dispensary' ||
           (at == 'pharmacy' && r == 'pharmacy_dispensary');
@@ -444,7 +453,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         at == 'purchases_head' ||
         r == 'purchases_store' ||
         r == 'purchases_head';
-    if (isPurchasesDept) {
+    if (isPurchasesDept && moduleOn(AppModule.purchases)) {
       common.addAll(purchasesMenu);
     }
 
@@ -460,7 +469,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         r == 'senior_resident' ||
         r == 'chief_resident' ||
         r == 'medical_student';
-    if (isPhysician) {
+    if (isPhysician && moduleOn(AppModule.physician)) {
       common.addAll(doctors);
     }
 
@@ -470,37 +479,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         r == 'lab_head' ||
         r == 'lab_scientist' ||
         r == 'lab_technician';
-    if (isLab) {
+    if (isLab && moduleOn(AppModule.laboratory)) {
       common.addAll(labMenu);
     }
 
-    if (at == 'radiology') {
+    if (at == 'radiology' && moduleOn(AppModule.radiology)) {
       common.addAll(radiologyMenu);
     }
 
-    if (canAccessDialysisModule(staff)) {
+    if (canAccessDialysisModule(staff) && moduleOn(AppModule.dialysis)) {
       common.addAll(dialysisMenu);
     }
 
-    if (canAccessTheatreModule(staff)) {
+    if (canAccessTheatreModule(staff) && moduleOn(AppModule.theatre)) {
       common.addAll(theatreMenu);
     }
 
-    if (at == 'ict' || r == 'ict_staff') {
+    if ((at == 'ict' || r == 'ict_staff') && moduleOn(AppModule.ict)) {
       common.addAll([
         const MenuItem(
           label: 'Dashboard',
           icon: Icons.dashboard_outlined,
           route: DashboardRoute(),
+          color: DepartmentColors.itDepartment,
         ),
       ]);
     }
 
-    if (at == 'medical_records' || r == 'medical_records') {
+    if ((at == 'medical_records' || r == 'medical_records') &&
+        moduleOn(AppModule.medicalRecords)) {
       common.addAll(medicalRecordsMenu);
     }
 
-    if (at == 'accounting' || at == 'accounts') {
+    if ((at == 'accounting' || at == 'accounts') &&
+        moduleOn(AppModule.accounting)) {
       common.addAll(
         isAccountHead(staff) ? accountsHeadMenu : accountsStaffMenu,
       );
@@ -510,102 +522,154 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         at == 'cmac' ||
         at == 'super_admin' ||
         r == 'super_admin') {
-      common.addAll([
-        if (canBillingDash)
+      // Product-scoped admin extras: only modules this build enables.
+      if (moduleOn(AppModule.billing) && canBillingDash) {
+        common.add(
           const MenuItem(
             label: 'Billing Dashboard',
             icon: Icons.dashboard_customize_outlined,
             route: BillingDashboardRoute(),
+            color: DepartmentColors.billing,
           ),
-        const MenuItem(
-          label: 'Receivables',
-          icon: Icons.receipt_long_outlined,
-          route: ReceivablesHmoRoute(),
-          children: [
-            MenuItem(
-              label: 'HMO Receivables',
-              icon: Icons.health_and_safety_outlined,
-              route: ReceivablesHmoRoute(),
-            ),
-            MenuItem(
-              label: 'Discount Receivables',
-              icon: Icons.sell_outlined,
-              route: ReceivablesDiscountRoute(),
-            ),
-          ],
-        ),
-        const MenuItem(
-          label: 'Discount Policies',
-          icon: Icons.rule_folder_outlined,
-          route: DiscountPolicyManagementRoute(),
-        ),
-        MenuItem(
-          label: 'CMD Panel',
-          icon: Icons.dashboard_customize_outlined,
-          route: const CMDDashboardRoute(),
-          children: cmdExecutiveMenuItems,
-        ),
-        const MenuItem(
-          label: 'Register',
-          icon: Icons.verified_user_rounded,
-          route: RegisterRoute(),
-        ),
-        const MenuItem(
-          label: 'Laboratory',
-          icon: Icons.biotech_rounded,
-          route: LabDashboardRoute(),
-        ),
-        const MenuItem(
-          label: 'Radiology',
-          icon: Icons.radar_rounded,
-          route: RadiologyDashboardRoute(),
-        ),
-        const MenuItem(
-          label: 'Store',
-          icon: Icons.inventory_2_rounded,
-          route: StoreDashboardRoute(),
-        ),
-        MenuItem(
-          label: 'System Setup',
-          icon: Icons.dashboard_outlined,
-          route: CMDDashboardRoute(),
-          children: [
-            MenuItem(
-              label: 'Add Service',
-              icon: Icons.add_box_outlined,
-              route: SystemSetupRoute(),
-            ),
-            MenuItem(
-              label: 'Add Consulting Room',
-              icon: Icons.add_box_outlined,
-              route: ConsultingRoomsRoute(),
-            ),
-            MenuItem(
-              label: 'Ward Management',
-              icon: Icons.add_box_outlined,
-              route: WardManagementRoute(),
-            ),
-            MenuItem(
-              label: 'Bank Management',
-              icon: Icons.account_balance_outlined,
-              route: BankManagementRoute(),
-            ),
-          ],
-        ),
-      ]);
+        );
+      }
+      if (moduleOn(AppModule.accounting)) {
+        common.add(
+          const MenuItem(
+            label: 'Receivables',
+            icon: Icons.receipt_long_outlined,
+            route: ReceivablesHmoRoute(),
+            color: DepartmentColors.accountingFinance,
+            children: [
+              MenuItem(
+                label: 'HMO Receivables',
+                icon: Icons.health_and_safety_outlined,
+                route: ReceivablesHmoRoute(),
+                color: DepartmentColors.accountingFinance,
+              ),
+              MenuItem(
+                label: 'Discount Receivables',
+                icon: Icons.sell_outlined,
+                route: ReceivablesDiscountRoute(),
+                color: DepartmentColors.accountingFinance,
+              ),
+            ],
+          ),
+        );
+        common.add(
+          const MenuItem(
+            label: 'Discount Policies',
+            icon: Icons.rule_folder_outlined,
+            route: DiscountPolicyManagementRoute(),
+            color: DepartmentColors.administration,
+          ),
+        );
+      }
+      if (moduleOn(AppModule.administration)) {
+        common.add(
+          const MenuItem(
+            label: 'Clinical packages',
+            icon: Icons.medical_information_outlined,
+            route: ClinicalPackageManagementRoute(),
+            color: DepartmentColors.outpatientClinic,
+          ),
+        );
+        common.add(
+          MenuItem(
+            label: 'CMD Panel',
+            icon: Icons.dashboard_customize_outlined,
+            route: const CMDDashboardRoute(),
+            color: DepartmentColors.administration,
+            children: cmdExecutiveMenuItems,
+          ),
+        );
+        common.add(
+          const MenuItem(
+            label: 'Register',
+            icon: Icons.verified_user_rounded,
+            route: RegisterRoute(),
+            color: DepartmentColors.administration,
+          ),
+        );
+      }
+      if (moduleOn(AppModule.laboratory)) {
+        common.add(
+          const MenuItem(
+            label: 'Laboratory',
+            icon: Icons.biotech_rounded,
+            route: LabDashboardRoute(),
+            color: DepartmentColors.laboratory,
+          ),
+        );
+      }
+      if (moduleOn(AppModule.radiology)) {
+        common.add(
+          const MenuItem(
+            label: 'Radiology',
+            icon: Icons.radar_rounded,
+            route: RadiologyDashboardRoute(),
+            color: DepartmentColors.radiology,
+          ),
+        );
+      }
+      if (moduleOn(AppModule.store)) {
+        common.add(
+          const MenuItem(
+            label: 'Store',
+            icon: Icons.inventory_2_rounded,
+            route: StoreDashboardRoute(),
+          ),
+        );
+      }
+      if (moduleOn(AppModule.administration)) {
+        common.add(
+          MenuItem(
+            label: 'System Setup',
+            icon: Icons.dashboard_outlined,
+            route: CMDDashboardRoute(),
+            color: DepartmentColors.itDepartment,
+            children: [
+              MenuItem(
+                label: 'Add Service',
+                icon: Icons.add_box_outlined,
+                route: SystemSetupRoute(),
+                color: DepartmentColors.itDepartment,
+              ),
+              MenuItem(
+                label: 'Add Consulting Room',
+                icon: Icons.add_box_outlined,
+                route: ConsultingRoomsRoute(),
+                color: DepartmentColors.itDepartment,
+              ),
+              MenuItem(
+                label: 'Ward Management',
+                icon: Icons.add_box_outlined,
+                route: WardManagementRoute(),
+                color: DepartmentColors.itDepartment,
+              ),
+              MenuItem(
+                label: 'Bank Management',
+                icon: Icons.account_balance_outlined,
+                route: BankManagementRoute(),
+                color: DepartmentColors.accountingFinance,
+              ),
+            ],
+          ),
+        );
+      }
     }
 
-    if (at == 'store') {
+    if (at == 'store' && moduleOn(AppModule.store)) {
       common.addAll(storeMenu);
     }
 
     final isHmoDesk = at == 'hmo' || r == 'hmo_staff' || r == 'hmo_desk';
-    if (isHmoDesk) {
+    if (isHmoDesk && moduleOn(AppModule.hmo)) {
       common.addAll(hmoDeskMenu);
     }
 
     // Billing / accounting heads — HMO desk gets these from [hmoDeskMenu] instead.
-    if (canManageHmos(staff) && !isHmoDesk) {
+    if (canManageHmos(staff) && !isHmoDesk && moduleOn(AppModule.hmo)) {
       common.addAll([
         MenuItem(
           label: 'HMO plans',
@@ -842,8 +906,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               offset: _mobileDrawerOpen ? Offset.zero : const Offset(-1, 0),
               curve: Curves.easeInOut,
               child: Material(
-                elevation: 16,
-                shadowColor: Colors.black.withValues(alpha: 0.35),
+                elevation: 0,
+                color: Theme.of(context).colorScheme.surface,
+                shadowColor: Theme.of(context).colorScheme.shadow,
                 clipBehavior: Clip.none,
                 child: _SidebarNavigation(
                   menuItems: menuItems,
@@ -1178,13 +1243,6 @@ class _SidebarNavigation extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(100),
-        boxShadow: [
-          BoxShadow(
-            color: cs.primary.withValues(alpha: 0.4),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: CircleAvatar(
         radius: collapsed ? 18 : 20,
@@ -1498,16 +1556,6 @@ class _SidebarEntryState extends State<_SidebarEntry> {
           border: isActive
               ? Border.all(color: cs.primary.withValues(alpha: 0.38), width: 1)
               : null,
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: cs.shadow.withValues(alpha: 0.22),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                    spreadRadius: -2,
-                  ),
-                ]
-              : null,
         ),
         child: Material(
           color: Colors.transparent,
@@ -1555,6 +1603,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
             iconSize: 22,
             cs: cs,
             shell: shell,
+            explicitColor: widget.item.color,
           ),
         ),
       ),
@@ -1569,7 +1618,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
     ColorScheme cs,
     AppShellTheme shell,
   ) {
-    final accentCol = _accentColor(cs, _accent);
+    final accentCol = widget.item.color ?? _accentColor(cs, _accent);
     return Row(
       children: [
         SizedBox(
@@ -1584,15 +1633,6 @@ class _SidebarEntryState extends State<_SidebarEntry> {
               decoration: BoxDecoration(
                 color: accentCol,
                 borderRadius: BorderRadius.circular(3),
-                boxShadow: isActive
-                    ? [
-                        BoxShadow(
-                          color: accentCol.withValues(alpha: 0.45),
-                          blurRadius: 6,
-                          offset: const Offset(1, 0),
-                        ),
-                      ]
-                    : null,
               ),
             ),
           ),
@@ -1608,6 +1648,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
             iconSize: 20,
             cs: cs,
             shell: shell,
+            explicitColor: widget.item.color,
           ),
         ),
         const SizedBox(width: 12),
@@ -1663,7 +1704,7 @@ class _ChildEntryState extends State<_ChildEntry> {
   Widget build(BuildContext context) {
     final shell = AppShellTheme.of(context);
     final cs = Theme.of(context).colorScheme;
-    final accentCol = _accentColor(cs, _accent);
+    final accentCol = widget.item.color ?? _accentColor(cs, _accent);
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
@@ -1680,16 +1721,6 @@ class _ChildEntryState extends State<_ChildEntry> {
           borderRadius: BorderRadius.circular(8),
           border: _isActive
               ? Border.all(color: cs.primary.withValues(alpha: 0.34), width: 1)
-              : null,
-          boxShadow: _isActive
-              ? [
-                  BoxShadow(
-                    color: cs.shadow.withValues(alpha: 0.18),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                    spreadRadius: -2,
-                  ),
-                ]
               : null,
         ),
         child: Material(
@@ -1719,15 +1750,6 @@ class _ChildEntryState extends State<_ChildEntry> {
                         decoration: BoxDecoration(
                           color: accentCol,
                           borderRadius: BorderRadius.circular(2),
-                          boxShadow: _isActive
-                              ? [
-                                  BoxShadow(
-                                    color: accentCol.withValues(alpha: 0.4),
-                                    blurRadius: 4,
-                                    offset: const Offset(1, 0),
-                                  ),
-                                ]
-                              : null,
                         ),
                       ),
                     ),
@@ -1743,6 +1765,7 @@ class _ChildEntryState extends State<_ChildEntry> {
                       iconSize: 17,
                       cs: cs,
                       shell: shell,
+                      explicitColor: widget.item.color,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1795,13 +1818,11 @@ class _MobileTopBar extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: shell.sidebarBackground,
-        boxShadow: [
-          BoxShadow(
-            color: cs.shadow.withValues(alpha: 0.18),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
-        ],
+        ),
       ),
       child: Row(
         children: [

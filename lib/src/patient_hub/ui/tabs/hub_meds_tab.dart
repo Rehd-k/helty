@@ -108,7 +108,6 @@ class _HubMedsScreenState extends ConsumerState<HubMedsScreen> {
                     final item = items[index];
                     final section = item['_section']?.toString() ?? 'meds';
                     return Card(
-                      elevation: 0,
                       child: ListTile(
                         leading: const Icon(Icons.medication_liquid_outlined),
                         title: Text(hubRowTitle(section, item)),

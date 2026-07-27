@@ -141,7 +141,7 @@ class _CMDCommunicationCenterScreenState extends ConsumerState<CMDCommunicationC
                   const SizedBox(height: 12),
                   ...data.map(
                     (a) => Card(
-                      margin: const EdgeInsets.only(bottom: 10),
+                      margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         title: Text(a.title),
                         subtitle: Text('${a.audience} · ${a.priority}'),

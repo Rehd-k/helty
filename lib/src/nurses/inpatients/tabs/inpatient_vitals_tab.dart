@@ -161,7 +161,7 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
             'Use “Record Vitals” to add observations. Adjust the recorded time '
             'when entering vitals taken earlier.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: scheme.onSurface.withValues(alpha: 0.7),
+              color: scheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -653,7 +653,7 @@ class _VitalsTrendDialogState extends State<_VitalsTrendDialog> {
                             : 'No data points for ${_metricLabel(_metric)} in this history.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurface.withValues(alpha: 0.7),
+                              color: scheme.onSurfaceVariant,
                             ),
                       ),
                     )
@@ -748,7 +748,7 @@ class _TrendChart extends StatelessWidget {
                   child: Text(
                     label,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.65),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                   ),
                 );
@@ -764,7 +764,7 @@ class _TrendChart extends StatelessWidget {
                   value.abs() >= 100 ? 0 : (value.abs() >= 10 ? 1 : 2),
                 ),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.65),
+                      color: colorScheme.onSurfaceVariant,
                     ),
               ),
             ),

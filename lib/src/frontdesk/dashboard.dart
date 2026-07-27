@@ -18,6 +18,7 @@ import '../providers/auth_provider.dart';
 import '../paitients/patient_service.dart';
 import '../services/appointment_service.dart';
 import '../services/frontdesk_dashboard_service.dart';
+import '../shared/department_colors.dart';
 import 'widgets/check_in_patient_dialog.dart';
 
 @RoutePage()
@@ -288,7 +289,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? Colors.white.withValues(alpha: 0.92)
+                    ? colorScheme.onPrimary.withValues(alpha: 0.92)
                     : colorScheme.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -297,7 +298,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? colorScheme.primary : Colors.white,
+                  color: isSelected ? colorScheme.primary : colorScheme.onPrimary,
                 ),
               ),
             ),
@@ -310,7 +311,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
         fontSize: 12,
         fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
         color: isSelected
-            ? Colors.white
+            ? colorScheme.onPrimary
             : (isToday ? colorScheme.primary : colorScheme.onSurface),
       ),
     );
@@ -402,11 +403,20 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   (Color bg, Color fg) _statusColors(String status, ColorScheme scheme) {
     switch (status) {
       case 'Waiting':
-        return (Colors.orange.withValues(alpha: 0.12), Colors.orange.shade800);
+        return (
+          DepartmentColors.billing.withValues(alpha: 0.16),
+          DepartmentColors.billing,
+        );
       case 'InRoom':
-        return (Colors.blue.withValues(alpha: 0.12), Colors.blue.shade800);
+        return (
+          DepartmentColors.outpatientClinic.withValues(alpha: 0.16),
+          DepartmentColors.outpatientClinic,
+        );
       case 'InConsultation':
-        return (Colors.green.withValues(alpha: 0.12), Colors.green.shade800);
+        return (
+          DepartmentColors.pharmacy.withValues(alpha: 0.16),
+          DepartmentColors.pharmacy,
+        );
       default:
         return (scheme.surfaceContainerHighest, scheme.onSurfaceVariant);
     }
@@ -415,11 +425,11 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   Color _avatarColor(String seed, ColorScheme scheme) {
     final i = seed.hashCode.abs();
     final palette = <Color>[
-      scheme.primary,
-      scheme.secondary,
-      scheme.tertiary,
-      Colors.teal,
-      Colors.deepPurple,
+      DepartmentColors.outpatientClinic,
+      DepartmentColors.frontDesk,
+      DepartmentColors.laboratory,
+      DepartmentColors.maternity,
+      DepartmentColors.pharmacy,
     ];
     return palette[i % palette.length];
   }
@@ -481,16 +491,16 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   ) {
     return switch (status) {
       FrontdeskFeedbackStatus.open => (
-        Colors.blue.withValues(alpha: 0.12),
-        Colors.blue.shade800,
+        DepartmentColors.outpatientClinic.withValues(alpha: 0.16),
+        DepartmentColors.outpatientClinic,
       ),
       FrontdeskFeedbackStatus.inReview => (
-        Colors.orange.withValues(alpha: 0.12),
-        Colors.orange.shade800,
+        DepartmentColors.billing.withValues(alpha: 0.16),
+        DepartmentColors.billing,
       ),
       FrontdeskFeedbackStatus.resolved => (
-        Colors.green.withValues(alpha: 0.12),
-        Colors.green.shade800,
+        DepartmentColors.pharmacy.withValues(alpha: 0.16),
+        DepartmentColors.pharmacy,
       ),
       FrontdeskFeedbackStatus.closed => (
         scheme.surfaceContainerHighest,
@@ -509,8 +519,8 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
         scheme.onErrorContainer,
       ),
       FrontdeskFeedbackKind.suggestion => (
-        Colors.teal.withValues(alpha: 0.12),
-        Colors.teal.shade800,
+        DepartmentColors.frontDesk.withValues(alpha: 0.16),
+        DepartmentColors.frontDesk,
       ),
       FrontdeskFeedbackKind.general => (
         scheme.surfaceContainerHighest,
@@ -794,6 +804,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final staff = ref.watch(currentStaffProvider);
     final welcome = _welcomeName(staff);
 
@@ -837,7 +848,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                             ? _formatAppointmentDelta(apptChange)
                             : '—',
                         Icons.calendar_today,
-                        Colors.blue,
+                        DepartmentColors.outpatientClinic,
                         isNegative: apptChange != null
                             ? _appointmentDeltaNegative(apptChange)
                             : false,
@@ -850,7 +861,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                             : '${summary?.checkInsToday ?? '—'}',
                         '—',
                         Icons.check_circle_outline,
-                        Colors.green,
+                        DepartmentColors.pharmacy,
                       ),
                       _buildStatCard(
                         context,
@@ -860,7 +871,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                             : '${summary?.waitingRoomCount ?? '—'}',
                         '—',
                         Icons.hourglass_empty,
-                        Colors.orange,
+                        DepartmentColors.billing,
                       ),
                       _buildStatCard(
                         context,
@@ -870,7 +881,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                             : '${summary?.dischargesToday ?? '—'}',
                         '—',
                         Icons.logout,
-                        Colors.purple,
+                        DepartmentColors.laboratory,
                       ),
                       _buildStatCard(
                         context,
@@ -880,7 +891,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                             : '${_registrationsToday ?? '—'}',
                         '—',
                         Icons.person_add_alt_1_outlined,
-                        Colors.teal,
+                        DepartmentColors.frontDesk,
                         onTap: () =>
                             context.router.push(const TodayPatientsRoute()),
                       ),
@@ -902,7 +913,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: Colors.red,
+                            color: DepartmentColors.emergency,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -1249,17 +1260,20 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                           onPressed: () {
                             context.router.push(PatientFormRoute());
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.person_add,
                             size: 18,
-                            color: Colors.white,
+                            color: colorScheme.onPrimary,
                           ),
-                          label: const Text(
+                          label: Text(
                             'Register New Patient',
-                            style: TextStyle(color: Colors.white, fontSize: 13),
+                            style: textTheme.labelLarge?.copyWith(
+                              color: colorScheme.onPrimary,
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: colorScheme.primary,
+                            foregroundColor: colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -1479,7 +1493,9 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: isNegative ? Colors.red : Colors.green,
+                    color: isNegative
+                        ? DepartmentColors.emergency
+                        : DepartmentColors.pharmacy,
                   ),
                 )
               else

@@ -291,16 +291,17 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F8),
       body: ResponsiveBody(
         center: false,
         builder: (context, bp) => ResponsiveRowColumn(
-          first: _buildFormPanel(),
+          first: _buildFormPanel(theme, scheme),
           second: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildTopBar(),
+              _buildTopBar(theme, scheme),
               const SizedBox(height: 24),
               Expanded(child: _buildLocationsGrid()),
             ],
@@ -310,35 +311,22 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
     );
   }
 
-  Widget _buildFormPanel() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _editingId != null ? 'Edit Location' : 'Add New Location',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+  Widget _buildFormPanel(ThemeData theme, ColorScheme scheme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _editingId != null ? 'Edit Location' : 'Add New Location',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
@@ -374,11 +362,11 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
                     onPressed: _loading ? null : _clearForm,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: scheme.outlineVariant),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      foregroundColor: Colors.black87,
+                      foregroundColor: scheme.onSurface,
                     ),
                     child: const Text(
                       'Cancel',
@@ -419,10 +407,12 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _buildStaffDropdown() {
+    final scheme = Theme.of(context).colorScheme;
     return DropdownButtonFormField<String>(
       initialValue:
           _selectedStaffId == null ||
@@ -445,39 +435,40 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
       onChanged: (v) => setState(() => _selectedStaffId = v),
       decoration: InputDecoration(
         hintText: 'Select manager',
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        hintStyle: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: scheme.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
       ),
     );
   }
 
   Widget _buildFormLabel(String label, {bool isRequired = false}) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, top: 16.0),
       child: RichText(
         text: TextSpan(
           text: label,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
-            color: Colors.black87,
+            color: onSurface,
           ),
           children: [
             if (isRequired)
@@ -498,6 +489,7 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
@@ -505,24 +497,24 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
       validator: validator,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        hintStyle: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: scheme.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
       ),
     );
@@ -534,6 +526,7 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return DropdownButtonFormField<String>(
       initialValue: value,
       items: items
@@ -547,65 +540,49 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        hintStyle: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: scheme.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderSide: BorderSide(color: scheme.outlineVariant),
         ),
       ),
       icon: Icon(
         Icons.keyboard_arrow_down,
-        color: Colors.grey.shade600,
+        color: scheme.onSurfaceVariant,
         size: 20,
       ),
     );
   }
 
-  Widget _buildTopBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search locations...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: Colors.grey.shade400,
-                  size: 20,
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF8F9FA),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
+  Widget _buildTopBar(ThemeData theme, ColorScheme scheme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search locations...',
+                  prefixIcon: Icon(Icons.search, size: 20),
                 ),
               ),
             ),
-          ),
           const Spacer(),
           Row(
             children: [
@@ -617,11 +594,13 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
             ],
           ),
         ],
+        ),
       ),
     );
   }
 
   Widget _buildFilterTab(String label) {
+    final scheme = Theme.of(context).colorScheme;
     final isActive = _activeFilter == label;
     final count = _countType(label);
     return InkWell(
@@ -638,7 +617,7 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
         child: Text(
           '$label ($count)',
           style: TextStyle(
-            color: isActive ? _primaryRed : Colors.black87,
+            color: isActive ? _primaryRed : scheme.onSurface,
             fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
             fontSize: 13,
           ),
@@ -652,10 +631,11 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_filteredLocations.isEmpty) {
+      final muted = Theme.of(context).colorScheme.onSurfaceVariant;
       return Center(
         child: Text(
           'No locations yet. Add one using the form.',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+          style: TextStyle(color: muted, fontSize: 15),
         ),
       );
     }
@@ -672,6 +652,7 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
   }
 
   Widget _buildLocationCard(PurchasesLocation location) {
+    final scheme = Theme.of(context).colorScheme;
     final typeLabel = _labelFromType(location.type);
     IconData typeIcon = Icons.store;
     Color iconColor = _primaryRed;
@@ -685,9 +666,9 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -729,7 +710,7 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,
-                            color: Colors.grey.shade700,
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -740,10 +721,10 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
                 const SizedBox(height: 12),
                 Text(
                   location.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: scheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -753,7 +734,10 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
                   const SizedBox(height: 8),
                   Text(
                     location.description!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -763,11 +747,11 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: Colors.grey.shade200,
+                      backgroundColor: scheme.surfaceContainerHighest,
                       child: Text(
                         _getInitials(location.staffName ?? 'Unassigned'),
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: scheme.onSurfaceVariant,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -779,16 +763,16 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
                       children: [
                         Text(
                           location.staffName ?? 'Unassigned',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
-                            color: Colors.black87,
+                            color: scheme.onSurface,
                           ),
                         ),
                         Text(
                           'Manager',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: scheme.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -805,8 +789,9 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
   }
 
   Widget _buildPopupMenu(PurchasesLocation location) {
+    final scheme = Theme.of(context).colorScheme;
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, color: Colors.black54, size: 20),
+      icon: Icon(Icons.more_vert, color: scheme.onSurfaceVariant, size: 20),
       tooltip: 'Options',
       onSelected: (String value) {
         if (value == 'edit') {
@@ -816,13 +801,13 @@ class _PurchasesLocationScreenState extends State<PurchasesLocationScreen> {
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'edit',
           child: Row(
             children: [
-              Icon(Icons.edit_outlined, size: 18, color: Colors.black87),
-              SizedBox(width: 8),
-              Text('Edit Location'),
+              Icon(Icons.edit_outlined, size: 18, color: scheme.onSurface),
+              const SizedBox(width: 8),
+              const Text('Edit Location'),
             ],
           ),
         ),

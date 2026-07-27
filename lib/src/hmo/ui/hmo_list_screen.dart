@@ -91,7 +91,7 @@ class _HmoListScreenState extends State<HmoListScreen> {
                 hintText: 'Search by name or code',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,

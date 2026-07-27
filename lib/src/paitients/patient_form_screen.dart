@@ -593,9 +593,12 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
             constraints: const BoxConstraints(maxWidth: 400),
             child: Material(
               color: colors.surface,
-              elevation: 6,
+              elevation: 0,
               shadowColor: colors.shadow.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: colors.outlineVariant),
+              ),
               clipBehavior: Clip.antiAlias,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),

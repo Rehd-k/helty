@@ -11,6 +11,7 @@ import 'package:helty/src/models/receivables_models.dart';
 import 'package:helty/src/receivables/ui/receivables_analytics_screen.dart';
 import 'package:helty/src/services/hmo_service.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/services/receivables_service.dart';
 
 enum _ReceivableKind { hmo, discount }
@@ -513,7 +514,9 @@ class _ReceivablesScreenState extends ConsumerState<_ReceivablesScreen> {
                               '${e.outstandingAmount.toFinancial(isMoney: true)} · ${e.coverageId}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade700,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                             ),
                             value: selected[e.coverageId] ?? false,
@@ -674,25 +677,25 @@ class _ReceivablesScreenState extends ConsumerState<_ReceivablesScreen> {
                           label: 'Records',
                           value: '${_items.length}',
                           icon: Icons.receipt_long,
-                          color: Colors.blue,
+                          color: DepartmentColors.outpatientClinic,
                         ),
                         _summaryCard(
                           label: 'Outstanding',
                           value: totalOutstanding.toFinancial(isMoney: true),
                           icon: Icons.account_balance_wallet_outlined,
-                          color: Colors.orange,
+                          color: DepartmentColors.billing,
                         ),
                         _summaryCard(
                           label: 'Total Amount',
                           value: totalAmount.toFinancial(isMoney: true),
                           icon: Icons.summarize_outlined,
-                          color: Colors.green,
+                          color: DepartmentColors.pharmacy,
                         ),
                         _summaryCard(
                           label: _isHmo ? 'Unique HMOs' : 'Unique Payers',
                           value: '$uniquePayers',
                           icon: Icons.groups_outlined,
-                          color: Colors.purple,
+                          color: DepartmentColors.laboratory,
                         ),
                       ],
                     ),

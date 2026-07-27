@@ -7,6 +7,7 @@ import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_side_panel.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/service_model.dart';
+import 'package:helty/src/obstetrics/ui/widgets/antenatal_package_scope.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
 import 'package:helty/src/radiology/ui/widgets/radiology_image_viewer.dart';
@@ -86,21 +87,24 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     final service = result.selected!;
     final serviceId = service.serviceId.isNotEmpty ? service.serviceId : service.id;
     _studyNamesByServiceId[serviceId] = service.name;
+    final pregnancyId = scope.pregnancyId;
+    final itemPayload = {
+      'scanType': RadiologyModality.inferFromStudyName(service.name).apiValue,
+      'priority': _urgencyToPriorityApi(result.urgency),
+      'bodyPart': result.area,
+      'clinicalNotes': result.notesToRadiologist,
+      'contrast': result.contrast,
+      'serviceId': serviceId,
+      if (pregnancyId != null && pregnancyId.isNotEmpty)
+        'useAntenatalPackage': true,
+    };
     await _orderService.createOrder({
       'encounterId': scope.encounterId,
       'patientId': patientId!,
       'requestedById': staffId!,
-      'items': [
-        {
-          'scanType':
-              RadiologyModality.inferFromStudyName(service.name).apiValue,
-          'priority': _urgencyToPriorityApi(result.urgency),
-          'bodyPart': result.area,
-          'clinicalNotes': result.notesToRadiologist,
-          'contrast': result.contrast,
-          'serviceId': serviceId,
-        },
-      ],
+      if (pregnancyId != null && pregnancyId.isNotEmpty)
+        'pregnancyId': pregnancyId,
+      'items': [itemPayload],
     });
     if (mounted) {
       ScaffoldMessenger.of(
@@ -688,9 +692,19 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
                         itemCount: _suggestions.length,
                         itemBuilder: (_, i) {
                           final s = _suggestions[i];
+                          final serviceId =
+                              s.serviceId.isNotEmpty ? s.serviceId : s.id;
                           return ListTile(
                             dense: true,
-                            title: Text(s.name),
+                            title: Row(
+                              children: [
+                                Expanded(child: Text(s.name)),
+                                antenatalPackageBadge(
+                                  context,
+                                  serviceId: serviceId,
+                                ),
+                              ],
+                            ),
                             subtitle: s.departmentName != null
                                 ? Text(
                                     s.departmentName!,
@@ -1003,7 +1017,7 @@ class _ResultRow extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 color: Theme.of(
                   context,
-                ).colorScheme.onSurface.withValues(alpha: 0.7),
+                ).colorScheme.onSurfaceVariant,
               ),
             ),
           ),

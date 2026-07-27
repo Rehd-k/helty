@@ -505,7 +505,7 @@ class _DoctorEncounterAdmissionTabState
             _loadingWards ? 'Loading wards...' : 'Loading available beds...',
             style: TextStyle(
               fontSize: 12,
-              color: cs.onSurface.withValues(alpha: 0.7),
+              color: cs.onSurfaceVariant,
             ),
           ),
         ],
@@ -526,7 +526,7 @@ class _DoctorEncounterAdmissionTabState
         'No available beds in this ward.',
         style: TextStyle(
           fontSize: 12,
-          color: cs.onSurface.withValues(alpha: 0.7),
+          color: cs.onSurfaceVariant,
         ),
       );
     }
@@ -552,7 +552,7 @@ class _DoctorEncounterAdmissionTabState
           border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: cs.surfaceContainerHighest,
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -579,7 +579,7 @@ class _DoctorEncounterAdmissionTabState
                       'Transfer the patient to another ward or bed (e.g. ICU, surgical).',
                       style: TextStyle(
                         fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.7),
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -608,7 +608,7 @@ class _DoctorEncounterAdmissionTabState
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: cs.onSurface.withValues(alpha: 0.65),
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -712,7 +712,7 @@ class _DoctorEncounterAdmissionTabState
           border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: cs.surfaceContainerHighest,
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -739,7 +739,7 @@ class _DoctorEncounterAdmissionTabState
                       'Choose ward and bed, then confirm admission.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.7),
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ],

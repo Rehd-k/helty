@@ -27,6 +27,9 @@ import '../../services/invoice_service.dart';
 import '../../services/service_category_service.dart';
 import '../../services/service_service.dart';
 import '../../services/ward_service.dart';
+import 'package:helty/src/helper/theme.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 
 @RoutePage()
@@ -46,6 +49,17 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  BoxDecoration _surfacePanelDecoration({Color? borderColor}) {
+    final cs = Theme.of(context).colorScheme;
+    return BoxDecoration(
+      color: cs.surface,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      border: Border.all(
+        color: borderColor ?? cs.outlineVariant.withValues(alpha: 0.65),
+      ),
+    );
   }
 
   // ── list data ─────────────────────────────────────────────────────────────
@@ -583,28 +597,18 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // LEFT PANE COMPONENTS
   // =========================================================================
   Widget _buildSearchAndFilterCard() {
-    return Container(
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return HeltySurfaceCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
       child: Column(
         children: [
           // Search Bar
-          Container(
+          DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
             ),
             child: TextField(
               onChanged: (val) {
@@ -615,18 +619,18 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 });
               },
               decoration: InputDecoration(
-                hintText: "Search services, meds, or CPT...",
-                hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+                hintText: 'Search services, meds, or CPT...',
+                hintStyle: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                prefixIcon: Icon(Icons.search, color: cs.onSurfaceVariant),
                 suffixIcon: _loading
                     ? Padding(
-                        padding: const EdgeInsets.all(12.0),
+                        padding: const EdgeInsets.all(12),
                         child: SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.blue.shade400,
+                            color: cs.primary,
                           ),
                         ),
                       )
@@ -649,7 +653,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     children: [
                       // "All" chip
                       Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
+                        padding: const EdgeInsets.only(right: 8),
                         child: _buildDeptChip(
                           label: 'All Services',
                           isSelected: _selectedDepartmentId == '',
@@ -663,7 +667,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                       ..._departments.map((unit) {
                         final isSelected = _selectedDepartmentId == unit.id;
                         return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
+                          padding: const EdgeInsets.only(right: 8),
                           child: _buildDeptChip(
                             label: unit.name,
                             isSelected: isSelected,
@@ -685,33 +689,28 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
               // Category Dropdown
               if (!_flowConfig.isModuleFlow)
-                Container(
-                  margin: const EdgeInsets.only(left: 8),
+                DecoratedBox(
                   decoration: BoxDecoration(
                     color: _selectedCategoryId == ''
-                        ? Colors.blue.shade50
-                        : Colors.grey.shade100,
+                        ? cs.primaryContainer.withValues(alpha: 0.45)
+                        : cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                     border: _selectedCategoryId == ''
-                        ? Border.all(color: Colors.blue.shade300)
+                        ? Border.all(color: cs.primary.withValues(alpha: 0.35))
                         : null,
                   ),
                   child: PopupMenuButton<String?>(
                     icon: Icon(
                       Icons.filter_list,
-                      color: _selectedCategoryId == ""
-                          ? Colors.blue.shade700
-                          : Colors.grey.shade700,
+                      color: _selectedCategoryId == ''
+                          ? cs.primary
+                          : cs.onSurfaceVariant,
                     ),
                     tooltip: 'Filter by Category',
                     offset: const Offset(0, 40),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                     itemBuilder: (context) => [
-                      // "All Categories" clear option
                       const PopupMenuItem<String?>(
-                        value: "",
+                        value: '',
                         child: Row(
                           children: [
                             Icon(Icons.clear, size: 16),
@@ -727,11 +726,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                           child: Row(
                             children: [
                               if (isCurrent)
-                                Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: Colors.blue.shade600,
-                                )
+                                Icon(Icons.check, size: 16, color: cs.primary)
                               else
                                 const SizedBox(width: 16),
                               const SizedBox(width: 8),
@@ -760,6 +755,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     required VoidCallback onTap,
     bool showGridIcon = false,
   }) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -767,10 +764,10 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.shade600 : Colors.grey.shade100,
+          color: isSelected ? cs.primary : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.blue.shade600 : Colors.transparent,
+            color: isSelected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.4),
           ),
         ),
         child: Row(
@@ -779,16 +776,15 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
               Icon(
                 Icons.grid_view,
                 size: 16,
-                color: isSelected ? Colors.white : Colors.grey.shade700,
+                color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
             ],
             Text(
               label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey.shade800,
+              style: tt.labelLarge?.copyWith(
+                color: isSelected ? cs.onPrimary : cs.onSurface,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                fontSize: 13,
               ),
             ),
           ],
@@ -798,39 +794,32 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   }
 
   Widget _buildAvailableServicesList() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return DecoratedBox(
+      decoration: _surfacePanelDecoration(),
       child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _services.isEmpty
           ? Center(
               child: Text(
-                "No services found.",
-                style: TextStyle(color: Colors.grey.shade500),
+                'No services found.',
+                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
             )
           : ListView.separated(
               itemCount: _services.length,
-              separatorBuilder: (context, index) =>
-                  Divider(height: 1, color: Colors.grey.shade100),
+              separatorBuilder: (context, index) => Divider(
+                height: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.35),
+              ),
               itemBuilder: (context, index) {
                 final item = _services[index];
                 return InkWell(
                   onTap: () => _addToSelected(item),
-                  hoverColor: Colors.blue.shade50,
+                  hoverColor: cs.primaryContainer.withValues(alpha: 0.35),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         Expanded(
@@ -839,9 +828,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                             children: [
                               Text(
                                 item.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                                style: tt.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -849,9 +837,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                 children: [
                                   Text(
                                     item.serviceId,
-                                    style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 12,
+                                    style: tt.bodySmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -871,18 +858,15 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                 _effectiveUnitPrice(
                                   item,
                                 ).toFinancial(isMoney: true),
-                                style: TextStyle(
-                                  color: Colors.grey.shade800,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
+                                style: tt.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             const SizedBox(height: 4),
                             Text(
                               'Click to Add',
-                              style: TextStyle(
-                                color: Theme.of(context).primaryColor,
-                                fontSize: 11,
+                              style: tt.labelSmall?.copyWith(
+                                color: cs.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -911,39 +895,40 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
+      decoration: _surfacePanelDecoration(),
       child: Row(
         children: [
           // Item range label (left)
           if (showing > 0)
             Text(
               showing == 0 ? '' : '$from–$to${_hasMore ? '+' : ''}',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: canGoBack ? _prevPage : null,
-            color: canGoBack ? Colors.blue.shade600 : Colors.grey.shade300,
+            color: canGoBack
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
             tooltip: 'Previous page',
           ),
           const SizedBox(width: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: Theme.of(context).colorScheme.primaryContainer.withValues(
+                alpha: 0.45,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               'Page $_currentPage',
-              style: TextStyle(
-                fontSize: 13,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: Colors.blue.shade700,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -951,7 +936,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: canGoNext ? _nextPage : null,
-            color: canGoNext ? Colors.blue.shade600 : Colors.grey.shade300,
+            color: canGoNext
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
             tooltip: 'Next page',
           ),
           const Spacer(),
@@ -959,21 +946,10 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           AnimatedOpacity(
             opacity: _hasMore ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 200),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Text(
-                'More pages ›',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.orange.shade700,
-                ),
-              ),
+            child: HeltyStatusChip(
+              label: 'More pages ›',
+              color: DepartmentColors.billing,
+              dense: true,
             ),
           ),
         ],
@@ -985,19 +961,12 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   // RIGHT PANE COMPONENTS
   // =========================================================================
   Widget _buildSelectedServicesPanel(Patient? selectedPatient, AuthState auth) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     final hasPatient = selectedPatient != null;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return DecoratedBox(
+      decoration: _surfacePanelDecoration(
+        borderColor: cs.primary.withValues(alpha: 0.28),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1006,22 +975,21 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             SelectedPatientCard(onBeforeClear: _handleBeforeClearPatient)
           else
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   Icon(
                     Icons.person_search_outlined,
-                    color: Colors.orange.shade400,
+                    color: DepartmentColors.billing,
                     size: 28,
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Please select a patient to continue.',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: tt.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w500,
-                        color: Colors.black54,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -1032,21 +1000,21 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
+              color: cs.primaryContainer.withValues(alpha: 0.35),
+              border: Border(
+                bottom: BorderSide(
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                ),
               ),
-              border: Border(bottom: BorderSide(color: Colors.blue.shade100)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Selected Services',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blueAccent,
+                  style: tt.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: cs.primary,
                   ),
                 ),
                 if (hasPatient && _selectedItems.isNotEmpty)
@@ -1055,13 +1023,13 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                     icon: Icon(
                       Icons.pause_circle_outline,
                       size: 18,
-                      color: Colors.orange.shade800,
+                      color: DepartmentColors.billing,
                     ),
                     label: Text(
                       'Park bill',
-                      style: TextStyle(
-                        color: Colors.orange.shade800,
-                        fontWeight: FontWeight.bold,
+                      style: tt.labelLarge?.copyWith(
+                        color: DepartmentColors.billing,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1069,16 +1037,12 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                   const SizedBox(width: 4),
                   TextButton.icon(
                     onPressed: _emptySelection,
-                    icon: const Icon(
-                      Icons.delete_sweep,
-                      size: 18,
-                      color: Colors.redAccent,
-                    ),
-                    label: const Text(
+                    icon: Icon(Icons.delete_sweep, size: 18, color: cs.error),
+                    label: Text(
                       'Empty',
-                      style: TextStyle(
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.bold,
+                      style: tt.labelLarge?.copyWith(
+                        color: cs.error,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1091,7 +1055,11 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              border: Border(
+                bottom: BorderSide(
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
             ),
             child: Row(
               children: [
@@ -1115,21 +1083,25 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                         Icon(
                           Icons.shopping_cart_outlined,
                           size: 48,
-                          color: Colors.grey.shade300,
+                          color: cs.outlineVariant,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          "No services selected yet.\nClick on a service from the left to add it.",
+                          'No services selected yet.\nClick on a service from the left to add it.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade500),
+                          style: tt.bodyMedium?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
                   )
                 : ListView.separated(
                     itemCount: _selectedItems.length,
-                    separatorBuilder: (context, index) =>
-                        Divider(height: 1, color: Colors.grey.shade100),
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      color: cs.outlineVariant.withValues(alpha: 0.35),
+                    ),
                     itemBuilder: (context, index) {
                       final item = _selectedItems[index];
                       return Padding(
@@ -1150,39 +1122,21 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                       Expanded(
                                         child: Text(
                                           item.name,
-                                          style: const TextStyle(
+                                          style: tt.bodyMedium?.copyWith(
                                             fontWeight: FontWeight.w600,
-                                            fontSize: 13,
                                           ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       if (item.qty! > 1)
-                                        Container(
-                                          margin: const EdgeInsets.only(
+                                        Padding(
+                                          padding: const EdgeInsets.only(
                                             left: 6,
                                           ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.shade50,
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.orange.shade200,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'x${item.qty}',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.orange.shade800,
-                                            ),
+                                          child: HeltyStatusChip(
+                                            label: 'x${item.qty}',
+                                            color: DepartmentColors.billing,
                                           ),
                                         ),
                                     ],
@@ -1195,9 +1149,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                 flex: 2,
                                 child: Text(
                                   item.cost.toFinancial(isMoney: true),
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 13,
+                                  style: tt.bodyMedium?.copyWith(
+                                    color: cs.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -1207,10 +1160,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                   (item.cost * (item.qty ?? 1)).toFinancial(
                                     isMoney: true,
                                   ),
-                                  style: TextStyle(
-                                    color: Colors.grey.shade900,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                                  style: tt.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
@@ -1220,9 +1171,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                               child: Align(
                                 alignment: Alignment.centerRight,
                                 child: IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.close,
-                                    color: Colors.grey,
+                                    color: cs.onSurfaceVariant,
                                     size: 20,
                                   ),
                                   onPressed: () => _removeSelected(index),
@@ -1243,29 +1194,30 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(16),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+              border: Border(
+                top: BorderSide(
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                ),
               ),
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'AMOUNT DUE',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black54,
-                    letterSpacing: 1,
+                  style: tt.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurfaceVariant,
+                    letterSpacing: 0.8,
                   ),
                 ),
                 if (!_flowConfig.hideServicePrices)
                   Text(
                     _totalDue.toFinancial(isMoney: true),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: Theme.of(context).primaryColor,
+                    style: tt.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: cs.primary,
                     ),
                   ),
                 _footerCheckoutButton(
@@ -1298,7 +1250,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     final usePayAtPos = !_flowConfig.sendToBillOnly && !admitted;
 
     if (usePayAtPos) {
-      return ElevatedButton(
+      return FilledButton(
         onPressed: (_selectedItems.isEmpty || _payAtPosBusy)
             ? null
             : () async {
@@ -1314,36 +1266,30 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                   if (mounted) setState(() => _payAtPosBusy = false);
                 }
               },
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(40),
-          ),
-        ),
         child: _payAtPosBusy
             ? const SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Text(
+            : Text(
                 'Pay',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
       );
     }
 
-    return ElevatedButton(
+    return FilledButton(
       onPressed: _selectedItems.isEmpty
           ? null
           : () => _handleSendToBill(selectedPatient: selectedPatient),
-      style: ElevatedButton.styleFrom(
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
-      ),
       child: Text(
         _flowConfig.isModuleFlow ? 'Send To Bill' : 'Send To Bills',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -1483,61 +1429,41 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
   }
 
   Widget _headerCell(String title, {required int flex}) {
+    final cs = Theme.of(context).colorScheme;
     return Expanded(
       flex: flex,
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey.shade500,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: cs.onSurfaceVariant,
           letterSpacing: 0.5,
         ),
       ),
     );
   }
 
-  Widget _buildCategoryBadge(String category) {
-    Color bgColor;
-    Color textColor;
-
+  Color _categoryAccent(String category) {
     switch (category.toLowerCase()) {
       case 'opd':
       case 'clinic':
-        bgColor = Colors.blue.shade50;
-        textColor = Colors.blue.shade700;
-        break;
+        return DepartmentColors.outpatientClinic;
       case 'lab':
-        bgColor = Colors.purple.shade50;
-        textColor = Colors.purple.shade700;
-        break;
+        return DepartmentColors.laboratory;
       case 'pharmacy':
-        bgColor = Colors.green.shade50;
-        textColor = Colors.green.shade700;
-        break;
+        return DepartmentColors.pharmacy;
       case 'radiology':
-        bgColor = Colors.orange.shade50;
-        textColor = Colors.orange.shade700;
-        break;
+        return DepartmentColors.radiology;
       default:
-        bgColor = Colors.grey.shade100;
-        textColor = Colors.grey.shade700;
+        return Theme.of(context).colorScheme.outline;
     }
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        category,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+  Widget _buildCategoryBadge(String category) {
+    if (category.trim().isEmpty) return const SizedBox.shrink();
+    return HeltyStatusChip(
+      label: category,
+      color: _categoryAccent(category),
     );
   }
 }

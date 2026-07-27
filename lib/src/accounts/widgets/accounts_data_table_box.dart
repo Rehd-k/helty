@@ -32,20 +32,14 @@ class AccountsDataTableBox extends StatelessWidget {
             : _fallbackHeight(context);
 
         return Card(
-          elevation: 0,
           clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                    alpha: 0.5,
-                  ),
-            ),
-          ),
           child: SizedBox(
             height: height,
             width: double.infinity,
-            child: child,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: child,
+            ),
           ),
         );
       },

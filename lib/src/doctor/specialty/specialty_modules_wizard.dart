@@ -285,7 +285,6 @@ class _SpecialtyModulesWizardState extends ConsumerState<SpecialtyModulesWizard>
         final selected = _selectedSpecialties.contains(s.code);
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
-          elevation: 0,
           color: selected
               ? scheme.primary.withValues(alpha: 0.08)
               : scheme.surfaceContainerHighest.withValues(alpha: 0.4),
@@ -355,7 +354,6 @@ class _SpecialtyModulesWizardState extends ConsumerState<SpecialtyModulesWizard>
 
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
-          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(color: scheme.outline.withValues(alpha: 0.12)),

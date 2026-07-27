@@ -278,10 +278,11 @@ class PregnancySummaryCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: scheme.surface,
-        elevation: 1,
-        shadowColor: statusColor.withValues(alpha: 0.2),
-        borderRadius: ObstetricsTheme.borderRadius,
+        color: scheme.surfaceContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: ObstetricsTheme.borderRadius,
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
         child: InkWell(
           onTap: onTap,
           borderRadius: ObstetricsTheme.borderRadius,
@@ -448,9 +449,11 @@ class GynaeProcedureCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: scheme.surface,
-        elevation: 1,
-        borderRadius: ObstetricsTheme.borderRadius,
+        color: scheme.surfaceContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: ObstetricsTheme.borderRadius,
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
         child: InkWell(
           onTap: onTap,
           borderRadius: ObstetricsTheme.borderRadius,
@@ -623,13 +626,7 @@ class ObKpiStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: ObstetricsTheme.borderRadius,
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

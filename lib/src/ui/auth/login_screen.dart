@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
+import '../../app/product_environment.dart';
 import '../../core/storage/saved_login_storage.dart';
 import '../../models/saved_login.dart';
 import '../../models/super_admin_department_preview.dart';
@@ -209,7 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+              colors: [Color(0xFF0F172A), Color(0xFF1E3A5F), Color(0xFF2563EB)],
             ),
           ),
           child: Row(
@@ -228,7 +229,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          'Helty',
+                          ProductEnvironment.displayName,
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 color: Colors.white,
@@ -350,7 +351,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -425,14 +426,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: colors.outline.withValues(alpha: 0.12)),
-          boxShadow: [
-            BoxShadow(
-              color: colors.shadow.withValues(alpha: 0.12),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
-              spreadRadius: -6,
-            ),
-          ],
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -444,8 +437,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: showHeroLogo ? 24 : 32,
-            vertical: showHeroLogo ? 26 : 36,
+            horizontal: showHeroLogo ? 24 : 24,
+            vertical: showHeroLogo ? 24 : 32,
           ),
           child: Form(
             key: _formKey,
@@ -552,13 +545,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 FilledButton(
                   onPressed: auth.isLoading ? null : _submit,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
                   child: auth.isLoading
                       ? SizedBox(
                           height: 22,
@@ -568,11 +554,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: colors.onPrimary,
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Sign in',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
+                            color: colors.onPrimary,
                           ),
                         ),
                 ),

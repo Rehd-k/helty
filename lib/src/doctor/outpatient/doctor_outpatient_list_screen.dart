@@ -96,7 +96,7 @@ class _DoctorOutpatientListScreenState
           Text(
             'Outpatient list — click a row to open encounter.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.7),
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           FromToDateFilter(
@@ -359,7 +359,7 @@ class _DoctorOutpatientListScreenState
           fontSize: 11,
           fontWeight: FontWeight.bold,
           letterSpacing: 0.4,
-          color: colorScheme.onSurface.withValues(alpha: 0.6),
+          color: colorScheme.onSurfaceVariant,
         ),
       ),
     );

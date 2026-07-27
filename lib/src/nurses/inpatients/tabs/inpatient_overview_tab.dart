@@ -293,7 +293,7 @@ class _InpatientOverviewScreenState extends State<InpatientOverviewScreen> {
                 ? 'Other overview cards are read-only. Use the corresponding tabs to record or update data.'
                 : 'Overview is read-only. Use the corresponding tabs to record or update data.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: colorScheme.onSurfaceVariant,
                 ),
           ),
         ],

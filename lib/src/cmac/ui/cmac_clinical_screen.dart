@@ -52,7 +52,7 @@ class CmacClinicalScreen extends ConsumerWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             CmacBarChartCard(
               title: 'Top diagnoses',
               points: data.topDiagnoses,

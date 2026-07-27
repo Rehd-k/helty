@@ -316,20 +316,16 @@ class _PurchasesPurchaseHistoryScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const pageBg = Color(0xFFF4F6FA);
-    const accent = Color(0xFF0D9488);
+    final scheme = theme.colorScheme;
+    final accent = scheme.primary;
 
     final scopeSubtitle = _selectedDrug != null
         ? 'Inbound batches for ${_drugDisplayLabel(_selectedDrug!)}'
         : 'Track receipts, costs, and batch status across suppliers';
 
     return Scaffold(
-      backgroundColor: pageBg,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: pageBg,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -341,7 +337,7 @@ class _PurchasesPurchaseHistoryScreenState
                     color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.inventory_2_outlined,
                     color: accent,
                     size: 22,
@@ -365,7 +361,7 @@ class _PurchasesPurchaseHistoryScreenState
                 scopeSubtitle,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade600,
+                  color: theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -483,7 +479,7 @@ class _PurchasesPurchaseHistoryScreenState
                                     Text(
                                       'Loading batches…',
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                        color: theme.colorScheme.onSurfaceVariant,
                                         fontSize: 14,
                                       ),
                                     ),
@@ -560,7 +556,7 @@ class _PurchasesPurchaseHistoryScreenState
                   title,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey.shade600,
+                    color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -810,6 +806,7 @@ class _PurchasesPurchaseHistoryScreenState
   }
 
   Widget _buildScrollableTable(ThemeData theme) {
+    final scheme = theme.colorScheme;
     if (_rows.isEmpty) {
       final msg = _selectedDrug != null
           ? 'No batches found for this Item in the selected period.\nTry widening the date range or clearing other filters.'
@@ -823,14 +820,14 @@ class _PurchasesPurchaseHistoryScreenState
               Icon(
                 Icons.search_off_rounded,
                 size: 48,
-                color: Colors.grey.shade400,
+                color: theme.colorScheme.outline,
               ),
               const SizedBox(height: 16),
               Text(
                 msg,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.grey.shade700,
+                  color: theme.colorScheme.onSurface,
                   fontSize: 15,
                   height: 1.45,
                 ),
@@ -898,9 +895,9 @@ class _PurchasesPurchaseHistoryScreenState
                     DataCell(
                       Text(
                         batch.batchNumber ?? (batch.id ?? '—'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: scheme.onSurface,
                         ),
                       ),
                     ),
@@ -921,7 +918,7 @@ class _PurchasesPurchaseHistoryScreenState
                     DataCell(
                       Text(
                         _formatDate(row.receiveDate),
-                        style: const TextStyle(color: Colors.black54),
+                        style: TextStyle(color: scheme.onSurfaceVariant),
                       ),
                     ),
                     DataCell(
@@ -929,9 +926,9 @@ class _PurchasesPurchaseHistoryScreenState
                         constraints: const BoxConstraints(maxWidth: 160),
                         child: Text(
                           supplierText,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: Colors.black87,
+                            color: scheme.onSurface,
                           ),
                           softWrap: true,
                         ),
@@ -943,7 +940,7 @@ class _PurchasesPurchaseHistoryScreenState
                         constraints: const BoxConstraints(maxWidth: 100),
                         child: Text(
                           _formatQuantity(row),
-                          style: const TextStyle(color: Colors.black54),
+                          style: TextStyle(color: scheme.onSurfaceVariant),
                           softWrap: true,
                         ),
                       ),
@@ -951,9 +948,9 @@ class _PurchasesPurchaseHistoryScreenState
                     DataCell(
                       Text(
                         _formatTotalCost(row),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: scheme.onSurface,
                         ),
                       ),
                     ),
@@ -986,18 +983,19 @@ class _PurchasesPurchaseHistoryScreenState
   }
 
   Widget _buildStatusChip(String status) {
+    final scheme = Theme.of(context).colorScheme;
     Color bgColor;
     Color textColor;
 
     if (status.toLowerCase() == 'verified') {
-      bgColor = const Color(0xFFE3FCEF);
-      textColor = const Color(0xFF00A36C);
+      bgColor = scheme.primaryContainer;
+      textColor = scheme.onPrimaryContainer;
     } else if (status.toLowerCase() == 'quarantine') {
-      bgColor = const Color(0xFFFFF3CD);
-      textColor = const Color(0xFFD39E00);
+      bgColor = scheme.tertiaryContainer;
+      textColor = scheme.onTertiaryContainer;
     } else {
-      bgColor = Colors.grey.shade100;
-      textColor = Colors.grey.shade700;
+      bgColor = scheme.surfaceContainerHighest;
+      textColor = scheme.onSurfaceVariant;
     }
 
     return Container(
@@ -1038,12 +1036,12 @@ class _PurchasesPurchaseHistoryScreenState
             children: [
               Text(
                 'Showing ${_totalItems == 0 ? 0 : start}–$end of $_totalItems',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
               ),
               const SizedBox(width: 16),
               Text(
                 'Per page:',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
               ),
               const SizedBox(width: 8),
               DropdownButton<int>(
@@ -1071,7 +1069,7 @@ class _PurchasesPurchaseHistoryScreenState
             children: [
               Text(
                 'Page $_currentPage of $totalPages',
-                style: const TextStyle(color: Colors.grey),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(width: 8),
               IconButton(
@@ -1241,9 +1239,8 @@ class _SupplyHistoryDrugSheetState extends State<_SupplyHistoryDrugSheet> {
                           child: Text(
                             'No drugs match this search. Try another name.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 15,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:helty/src/helper/theme.dart';
 
 /// Rounded card wrapper for specialty sub-forms.
 class ClinicalSectionCard extends StatelessWidget {
@@ -21,14 +22,8 @@ class ClinicalSectionCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Card(
-      elevation: 0,
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outline.withValues(alpha: 0.12)),
-      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppTheme.spaceLg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -36,18 +31,19 @@ class ClinicalSectionCard extends StatelessWidget {
               title,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
+                color: scheme.onSurface,
               ),
             ),
             if (subtitle != null) ...[
-              const Gap(4),
+              const Gap(AppTheme.spaceSm / 2),
               Text(
                 subtitle!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.65),
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ],
-            const Gap(16),
+            const Gap(AppTheme.spaceMd),
             child,
           ],
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../app/product_environment.dart';
 import '../core/errors/user_facing_error.dart';
 import '../helper/app_timezone.dart';
 import '../helper/date.formatter.dart';
@@ -41,7 +42,7 @@ class _ClockSyncGateState extends State<ClockSyncGate> {
     final timeService = ServerTimeService();
     try {
       final probe = await ApiEndpointSelector.selectFastest(
-        kApiCandidateBaseUrls,
+        ProductEnvironment.apiCandidateBaseUrls(),
       );
       ApiService().setBaseUrl(probe.baseUrl);
       if (kDebugMode) {

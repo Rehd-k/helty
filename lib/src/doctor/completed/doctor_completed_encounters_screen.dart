@@ -258,7 +258,7 @@ class _DoctorCompletedEncountersScreenState
                 Text(
                   'Loading completed encounters…',
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -314,7 +314,7 @@ class _DoctorCompletedEncountersScreenState
                       ? 'No completed encounters yet.'
                       : 'No matches for search or date filter.',
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -369,7 +369,7 @@ class _DoctorCompletedEncountersScreenState
                             ? e.chiefComplaint!
                             : 'No chief complaint recorded',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.8),
+                          color: colorScheme.onSurface,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -378,7 +378,7 @@ class _DoctorCompletedEncountersScreenState
                       Text(
                         _doctorLabel(e),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.65),
+                          color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -386,7 +386,7 @@ class _DoctorCompletedEncountersScreenState
                       Text(
                         '${DateFormat.yMMMd().format(closed)} • ${e.primaryIcdDescription ?? e.status}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -407,7 +407,7 @@ class _DoctorCompletedEncountersScreenState
                         ),
                       Icon(
                         Icons.chevron_right,
-                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ],
                   ),
@@ -444,7 +444,7 @@ class _DoctorCompletedEncountersScreenState
                   Text(
                     'View past encounter details. Tap a row to open.',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   if (showPhysicianScopeToggle) ...[

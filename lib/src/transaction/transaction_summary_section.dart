@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 
 /// A scrollable row of summary cards showing transaction financial totals.
@@ -138,9 +139,10 @@ class TransactionSummaryCard extends StatelessWidget {
       textColor = colorScheme.primary;
       border = Border.all(color: colorScheme.primary.withValues(alpha: 0.3));
     } else if (isSuccess) {
-      bgColor = Colors.green.withValues(alpha: 0.05);
-      textColor = Colors.green[700]!;
-      border = Border.all(color: Colors.green.withValues(alpha: 0.3));
+      final success = FinanceStatusColors.success(colorScheme);
+      bgColor = success.withValues(alpha: 0.05);
+      textColor = success;
+      border = Border.all(color: success.withValues(alpha: 0.3));
     }
     if (isSelected && onTap != null) {
       border = Border.all(color: colorScheme.primary, width: 2);

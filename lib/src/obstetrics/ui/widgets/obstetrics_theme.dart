@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:helty/src/helper/theme.dart';
+
 /// Shared layout constants for the O&G module.
 abstract final class ObstetricsTheme {
   static const double contentMaxWidth = 1200;
-  static const double cardRadius = 18;
-  static const double cardElevation = 0;
-  static const double sectionPadding = 20;
-  static const double listHorizontalPadding = 20;
+  static const double cardRadius = AppTheme.radiusMd;
+  static const double sectionPadding = AppTheme.spaceLg;
+  static const double listHorizontalPadding = AppTheme.spaceLg;
   static const double sliverAppBarExpanded = 132;
 
   static BoxDecoration gradientHeader(ColorScheme scheme) => BoxDecoration(

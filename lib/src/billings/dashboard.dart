@@ -14,6 +14,7 @@ import 'package:helty/src/services/api_service.dart';
 import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/billing_analytics_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
 import 'patient_invoice.dart';
 
 @RoutePage()
@@ -211,10 +212,10 @@ class _BillingDashboardScreenState
 
   Color _statusColor(String status, ColorScheme scheme) {
     final s = status.toUpperCase();
-    if (s.contains('PAID')) return Colors.green;
-    if (s.contains('PARTIAL')) return Colors.orange;
-    if (s.contains('PEND')) return Colors.orange;
-    if (s.contains('CANCEL')) return Colors.grey;
+    if (s.contains('PAID')) return DepartmentColors.pharmacy;
+    if (s.contains('PARTIAL')) return DepartmentColors.billing;
+    if (s.contains('PEND')) return DepartmentColors.accountingFinance;
+    if (s.contains('CANCEL')) return DepartmentColors.medicalRecords;
     return scheme.primary;
   }
 
@@ -234,14 +235,14 @@ class _BillingDashboardScreenState
   }
 
   static const List<Color> _piePalette = [
-    Color(0xFF1565C0),
-    Color(0xFF42A5F5),
-    Color(0xFF90CAF9),
-    Color(0xFF546E7A),
-    Color(0xFF7E57C2),
-    Color(0xFF26A69A),
-    Color(0xFFFFA726),
-    Color(0xFF78909C),
+    DepartmentColors.outpatientClinic,
+    DepartmentColors.frontDesk,
+    DepartmentColors.billing,
+    DepartmentColors.pharmacy,
+    DepartmentColors.laboratory,
+    DepartmentColors.radiology,
+    DepartmentColors.maternity,
+    DepartmentColors.accountingFinance,
   ];
 
   /// All endpoints succeeded and assigned (see [_loadDashboard]).
@@ -679,7 +680,7 @@ class _BillingDashboardScreenState
         revenuePct,
         _vsPreviousLabel(),
         Icons.payments,
-        Colors.green,
+        DepartmentColors.pharmacy,
         trendNeutral: revenueNeutral,
       ),
       _buildKpiCard(
@@ -689,7 +690,7 @@ class _BillingDashboardScreenState
         unpaidPct,
         _vsPreviousLabel(),
         Icons.receipt_long,
-        Colors.orange,
+        DepartmentColors.billing,
         subtitleExtra:
             '(${unpaid.openStock.outstandingTotal.toFinancial(isMoney: true)} outstanding)',
         trendNeutral: unpaidNeutral,
@@ -701,7 +702,7 @@ class _BillingDashboardScreenState
         overduePct,
         _vsPreviousLabel(),
         Icons.warning_amber_rounded,
-        Colors.red,
+        DepartmentColors.emergency,
         subtitleExtra: '(${overdue.overdueStock.invoiceCount} invoices)',
         trendNeutral: overdueNeutral,
       ),
@@ -809,7 +810,7 @@ class _BillingDashboardScreenState
                   ],
                 ),
               ),
-              _buildLegendIndicator(colorScheme.primary, 'Cash in'),
+              _buildLegendIndicator(colorScheme, colorScheme.primary, 'Cash in'),
             ],
           ),
           const SizedBox(height: 32),
@@ -859,8 +860,8 @@ class _BillingDashboardScreenState
                                 meta: meta,
                                 child: Text(
                                   label,
-                                  style: const TextStyle(
-                                    color: Colors.grey,
+                                  style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -879,8 +880,8 @@ class _BillingDashboardScreenState
                               }
                               return Text(
                                 value.toFinancial(isMoney: true),
-                                style: const TextStyle(
-                                  color: Colors.grey,
+                                style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
                                   fontSize: 10,
                                 ),
                               );
@@ -928,7 +929,7 @@ class _BillingDashboardScreenState
     required double pieTotal,
   }) {
     final displayTotal = _deptChartDisplayTotal(slices, pieTotal);
-    final legend = slices.isNotEmpty ? _buildDeptLegend(slices) : null;
+    final legend = slices.isNotEmpty ? _buildDeptLegend(colorScheme, slices) : null;
     final pieAreaHeight = height != null ? null : 220.0;
     final outerRadius = height != null
         ? (height * 0.18).clamp(56.0, 80.0)
@@ -1062,7 +1063,7 @@ class _BillingDashboardScreenState
     );
   }
 
-  Widget _buildDeptLegend(List<DepartmentSlice> slices) {
+  Widget _buildDeptLegend(ColorScheme colorScheme, List<DepartmentSlice> slices) {
     return Wrap(
       spacing: 16,
       runSpacing: 12,
@@ -1070,6 +1071,7 @@ class _BillingDashboardScreenState
       children: [
         for (var i = 0; i < slices.length; i++)
           _buildLegendIndicator(
+            colorScheme,
             _piePalette[i % _piePalette.length],
             '${slices[i].name} (${slices[i].percent.toStringAsFixed(0)}%)',
           ),
@@ -1331,12 +1333,12 @@ class _BillingDashboardScreenState
     final isDecrease = percent.startsWith('-');
     Color trendColor;
     if (trendNeutral || percent == '—') {
-      trendColor = Colors.grey;
+      trendColor = DepartmentColors.medicalRecords;
     } else {
       trendColor =
           (isIncrease && !isNegativeGood) || (isDecrease && isNegativeGood)
-          ? Colors.green
-          : Colors.red;
+          ? DepartmentColors.pharmacy
+          : DepartmentColors.emergency;
     }
 
     IconData trendIcon;
@@ -1444,7 +1446,7 @@ class _BillingDashboardScreenState
     );
   }
 
-  Widget _buildLegendIndicator(Color color, String text) {
+  Widget _buildLegendIndicator(ColorScheme colorScheme, Color color, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1454,7 +1456,7 @@ class _BillingDashboardScreenState
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Text(text, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(text, style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
       ],
     );
   }

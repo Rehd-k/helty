@@ -5,6 +5,7 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
+import 'package:helty/src/obstetrics/models/pregnancy_clinical_models.dart';
 import 'package:helty/src/obstetrics/services/obstetrics_service.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_cards.dart';
 import 'package:helty/src/obstetrics/utils/obstetrics_display.dart';
@@ -28,6 +29,25 @@ class PregnancyViewScope extends InheritedWidget {
 
   static PregnancyViewScope? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<PregnancyViewScope>();
+
+  String? get effectiveEncounterId {
+    final fromRoute = encounterId?.trim();
+    if (fromRoute != null && fromRoute.isNotEmpty) return fromRoute;
+    final fromPregnancy = pregnancy?.encounterId?.trim();
+    if (fromPregnancy != null && fromPregnancy.isNotEmpty) return fromPregnancy;
+    return null;
+  }
+
+  PregnancyClinicalContext? toClinicalContext() {
+    final enc = effectiveEncounterId;
+    final p = pregnancy;
+    if (enc == null || p == null) return null;
+    return PregnancyClinicalContext(
+      patientId: p.patientId,
+      pregnancyId: pregnancyId,
+      encounterId: enc,
+    );
+  }
 
   @override
   bool updateShouldNotify(PregnancyViewScope old) =>
@@ -105,9 +125,9 @@ class _ObstetricsPregnancyViewScreenState
     switch (index) {
       case 1:
         return p.antenatalVisits?.length ?? 0;
-      case 2:
+      case 4:
         return p.labourDeliveries?.length ?? 0;
-      case 3:
+      case 5:
         // Postnatal visits are not embedded on LabourDelivery in our current
         // model. The Postnatal tab fetches them separately, so we avoid
         // misleading counts here.
@@ -164,20 +184,22 @@ class _ObstetricsPregnancyViewScreenState
     final p = _pregnancy!;
     return PregnancyViewScope(
       pregnancyId: widget.pregnancyId,
-      encounterId: widget.encounterId,
+      encounterId: widget.encounterId ?? p.encounterId,
       pregnancy: p,
       onRefresh: _load,
       child: AutoTabsRouter(
         routes: [
           ObstetricsPregnancyOverviewTab(),
           ObstetricsAntenatalVisitsTab(),
+          ObstetricsPregnancyClinicalOrdersTab(),
+          ObstetricsPregnancyClinicalResultsTab(),
           ObstetricsLabourDeliveryTab(),
           ObstetricsPostnatalTab(),
         ],
         builder: (context, child) {
           final tabsRouter = AutoTabsRouter.of(context);
           _tabController ??= TabController(
-            length: 4,
+            length: 6,
             vsync: this,
             initialIndex: tabsRouter.activeIndex,
           );
@@ -187,6 +209,8 @@ class _ObstetricsPregnancyViewScreenState
           final tabLabels = [
             'Overview',
             _badgeLabel('Antenatal', _tabCount(p, 1)),
+            'Orders',
+            'Results',
             _badgeLabel('Labour', _tabCount(p, 2)),
             _badgeLabel('Postnatal', _tabCount(p, 3)),
           ];
@@ -210,7 +234,7 @@ class _ObstetricsPregnancyViewScreenState
                 isScrollable: true,
                 onTap: tabsRouter.setActiveIndex,
                 tabs: List.generate(
-                  4,
+                  6,
                   (i) => Tab(text: tabLabels[i]),
                 ),
               ),

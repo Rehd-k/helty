@@ -65,7 +65,7 @@ class _CompletedEncounterLabsTabState extends State<CompletedEncounterLabsTab> {
           child: Text(
             'No lab orders for this encounter.',
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              color: theme.colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),

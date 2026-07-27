@@ -13,6 +13,7 @@ import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_round_note_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/widgets/expandable_rich_content.dart';
 
 enum _WardRoundSortField { date, author }
@@ -171,7 +172,7 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
                 child: Text(
                   'No admission context.',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -264,7 +265,7 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
         child: Text(
           'No ward round notes yet. Use "Add round note" to document a round.',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurface.withValues(alpha: 0.7),
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
       );
@@ -393,7 +394,7 @@ class _WardRoundSortBar extends StatelessWidget {
                       'Sort by',
                       style: theme.textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: scheme.onSurface.withValues(alpha: 0.7),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                     const Spacer(),
@@ -414,7 +415,7 @@ class _WardRoundSortBar extends StatelessWidget {
                 'Sort by',
                 style: theme.textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: scheme.onSurface.withValues(alpha: 0.7),
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 12),
@@ -441,25 +442,25 @@ class _NoteTile extends StatelessWidget {
       key: 'subjective',
       label: 'Subjective',
       shortLabel: 'S',
-      color: Color(0xFF5C6BC0),
+      color: DepartmentColors.radiology,
     ),
     _SoapSectionDef(
       key: 'objective',
       label: 'Objective',
       shortLabel: 'O',
-      color: Color(0xFF26A69A),
+      color: DepartmentColors.frontDesk,
     ),
     _SoapSectionDef(
       key: 'assessment',
       label: 'Assessment',
       shortLabel: 'A',
-      color: Color(0xFFFFA726),
+      color: DepartmentColors.billing,
     ),
     _SoapSectionDef(
       key: 'plan',
       label: 'Plan',
       shortLabel: 'P',
-      color: Color(0xFFEF5350),
+      color: DepartmentColors.emergency,
     ),
   ];
 
@@ -560,13 +561,13 @@ class _NoteTile extends StatelessWidget {
                         Icon(
                           Icons.schedule,
                           size: 14,
-                          color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           dateTimeStr,
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -779,7 +780,7 @@ class _SoapCollapsedHeader extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurface.withValues(alpha: 0.55),
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ] else if (!hasContent)
@@ -802,7 +803,7 @@ class _SoapCollapsedHeader extends StatelessWidget {
               const SizedBox(width: 4),
               Icon(
                 Icons.keyboard_arrow_down_rounded,
-                color: scheme.onSurface.withValues(alpha: 0.45),
+                color: scheme.onSurfaceVariant,
               ),
             ],
           ),
@@ -978,7 +979,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
       _SoapEditorSlot(
         label: 'Subjective',
         shortLabel: 'S',
-        color: const Color(0xFF5C6BC0),
+        color: DepartmentColors.radiology,
         controller: _subjectiveCtrl,
         focusNode: _subjectiveFocus,
         scrollController: _subjectiveScroll,
@@ -986,7 +987,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
       _SoapEditorSlot(
         label: 'Objective',
         shortLabel: 'O',
-        color: const Color(0xFF26A69A),
+        color: DepartmentColors.frontDesk,
         controller: _objectiveCtrl,
         focusNode: _objectiveFocus,
         scrollController: _objectiveScroll,
@@ -994,7 +995,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
       _SoapEditorSlot(
         label: 'Assessment',
         shortLabel: 'A',
-        color: const Color(0xFFFFA726),
+        color: DepartmentColors.billing,
         controller: _assessmentCtrl,
         focusNode: _assessmentFocus,
         scrollController: _assessmentScroll,
@@ -1002,7 +1003,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
       _SoapEditorSlot(
         label: 'Plan',
         shortLabel: 'P',
-        color: const Color(0xFFEF5350),
+        color: DepartmentColors.emergency,
         controller: _planCtrl,
         focusNode: _planFocus,
         scrollController: _planScroll,
@@ -1131,7 +1132,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
                         Text(
                           'Expand one SOAP section at a time — tap a header to switch.',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.6),
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       ],

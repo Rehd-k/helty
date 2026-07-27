@@ -11,6 +11,7 @@ import 'package:helty/src/models/lab_order_model.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/services/service_category_service.dart';
 import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
+import 'package:helty/src/obstetrics/ui/widgets/antenatal_package_scope.dart';
 import 'package:helty/src/services/lab_order_service.dart';
 import 'package:helty/src/services/service_service.dart';
 
@@ -157,6 +158,7 @@ class _DoctorEncounterInvestigationsTabState
     if (result == null || result.selected.isEmpty || !mounted) return;
 
     final notes = result.notes.trim();
+    final pregnancyId = scope.pregnancyId;
     for (final service in result.selected) {
       await _labOrderService.create(
         encounterId: scope.encounterId,
@@ -169,6 +171,9 @@ class _DoctorEncounterInvestigationsTabState
             : service.id,
         priority: result.priority,
         notes: notes.isEmpty ? null : notes,
+        pregnancyId: pregnancyId,
+        useAntenatalPackage:
+            pregnancyId != null && pregnancyId.isNotEmpty ? true : null,
       );
     }
     if (mounted) {
@@ -456,7 +461,6 @@ class _InvestigationOrderCard extends StatelessWidget {
 
     return Material(
       color: cs.surface,
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
@@ -918,9 +922,16 @@ class _OrderLabTestDialogState extends State<_OrderLabTestDialog> {
                     itemBuilder: (_, i) {
                       final s = _searchResults[i];
                       final isSelected = _selected.any((e) => e.id == s.id);
+                      final serviceId =
+                          s.serviceId.isNotEmpty ? s.serviceId : s.id;
                       return CheckboxListTile(
                         value: isSelected,
-                        title: Text(s.name),
+                        title: Row(
+                          children: [
+                            Expanded(child: Text(s.name)),
+                            antenatalPackageBadge(context, serviceId: serviceId),
+                          ],
+                        ),
                         subtitle: Text(
                           s.departmentName ?? s.categoryName ?? "—",
                         ),

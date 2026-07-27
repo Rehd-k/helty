@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../shared/department_colors.dart';
 
 /// Persistent top bar for doctor screens: name, department, on-call, notifications, quick search.
 class DoctorTopBar extends ConsumerWidget {
@@ -14,13 +15,11 @@ class DoctorTopBar extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.15),
-          ),
+          bottom: BorderSide(color: colorScheme.outlineVariant),
         ),
       ),
       child: Row(
@@ -35,26 +34,28 @@ class DoctorTopBar extends ConsumerWidget {
                     color: colorScheme.onSurface,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 if (staff?.departmentName != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
+                      horizontal: 12,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                      color: DepartmentColors.outpatientClinic.withValues(
+                        alpha: 0.12,
+                      ),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       staff!.departmentName!,
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: colorScheme.onPrimaryContainer,
+                        color: DepartmentColors.outpatientClinic,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -91,7 +92,7 @@ class DoctorTopBar extends ConsumerWidget {
                 prefixIcon: Icon(
                   Icons.search,
                   size: 20,
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(

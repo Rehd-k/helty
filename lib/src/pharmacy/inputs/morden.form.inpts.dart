@@ -24,20 +24,20 @@ class ModernTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: Colors.black87,
+              color: cs.onSurface,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           TextFormField(
             controller: controller,
             keyboardType: keyboardType,
@@ -45,34 +45,36 @@ class ModernTextField extends StatelessWidget {
             validator: validator,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
               prefixIcon: icon != null
-                  ? Icon(icon, color: Colors.grey.shade500, size: 20)
+                  ? Icon(icon, color: cs.onSurfaceVariant, size: 20)
                   : null,
               filled: true,
-              fillColor: Colors.white,
+              fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.35),
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
+                horizontal: 14,
+                vertical: 12,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
-                  color: theme.colorScheme.primary,
+                  color: cs.primary,
                   width: 2,
                 ),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: theme.colorScheme.error),
+                borderSide: BorderSide(color: cs.error),
               ),
             ),
           ),
@@ -100,13 +102,14 @@ class ModernSwitchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
@@ -116,15 +119,16 @@ class ModernSwitchCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -132,7 +136,7 @@ class ModernSwitchCard extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: theme.colorScheme.primary,
+            activeThumbColor: cs.primary,
           ),
         ],
       ),

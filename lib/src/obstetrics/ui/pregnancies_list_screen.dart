@@ -144,7 +144,7 @@ class _ObstetricsPregnanciesListScreenState
     context.router.push(
       ObstetricsPregnancyViewRoute(
         pregnancyId: p.id,
-        encounterId: widget.encounterId,
+        encounterId: p.encounterId ?? widget.encounterId,
       ),
     );
   }

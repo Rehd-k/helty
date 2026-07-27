@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:helty/src/core/layout/app_breakpoints.dart';
 
+/// Responsive shell: sidebar on wide layouts, Material 3 [NavigationBar] on narrow.
 class ResponsiveScaffold extends StatelessWidget {
   final Widget body;
   final List<BottomNavigationBarItem> bottomItems;
@@ -39,10 +40,17 @@ class ResponsiveScaffold extends StatelessWidget {
 
     return Scaffold(
       body: body,
-      bottomNavigationBar: BottomNavigationBar(
-        items: bottomItems,
-        currentIndex: currentIndex,
-        onTap: onItemTapped,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: currentIndex.clamp(0, bottomItems.length - 1),
+        onDestinationSelected: onItemTapped,
+        destinations: [
+          for (final item in bottomItems)
+            NavigationDestination(
+              icon: item.icon,
+              selectedIcon: item.activeIcon,
+              label: item.label ?? '',
+            ),
+        ],
       ),
       drawer: drawer,
     );

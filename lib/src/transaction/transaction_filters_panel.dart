@@ -50,20 +50,21 @@ class TransactionFiltersPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
-          _buildDateRow(context),
+          _buildDateRow(context, cs),
           const SizedBox(height: 16),
-          _buildStatusDropdown(context),
+          _buildStatusDropdown(context, cs),
           const SizedBox(height: 16),
           _buildMyTransactionsSwitch(context),
           if (staffOptions.isNotEmpty) ...[
             const SizedBox(height: 16),
-            _buildStaffDropdown(context),
+            _buildStaffDropdown(context, cs),
           ],
           const SizedBox(height: 24),
           Row(
@@ -96,13 +97,15 @@ class TransactionFiltersPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildDateRow(BuildContext context) {
+  Widget _buildDateRow(BuildContext context, ColorScheme cs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Date from',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 4),
         InkWell(
@@ -118,7 +121,7 @@ class TransactionFiltersPanel extends StatelessWidget {
           child: InputDecorator(
             decoration: InputDecoration(
               filled: true,
-              fillColor: theme.cardColor,
+              fillColor: cs.surfaceContainer,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 12,
@@ -131,8 +134,8 @@ class TransactionFiltersPanel extends StatelessWidget {
               dateFrom != null
                   ? DateFormat('yyyy-MM-dd').format(dateFrom!)
                   : 'Select',
-              style: TextStyle(
-                color: dateFrom != null ? null : Colors.grey[600],
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: dateFrom != null ? null : cs.onSurfaceVariant,
               ),
             ),
           ),
@@ -140,7 +143,9 @@ class TransactionFiltersPanel extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           'Date to',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 4),
         InkWell(
@@ -156,7 +161,7 @@ class TransactionFiltersPanel extends StatelessWidget {
           child: InputDecorator(
             decoration: InputDecoration(
               filled: true,
-              fillColor: theme.cardColor,
+              fillColor: cs.surfaceContainer,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 12,
@@ -169,7 +174,9 @@ class TransactionFiltersPanel extends StatelessWidget {
               dateTo != null
                   ? DateFormat('yyyy-MM-dd').format(dateTo!)
                   : 'Select',
-              style: TextStyle(color: dateTo != null ? null : Colors.grey[600]),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: dateTo != null ? null : cs.onSurfaceVariant,
+              ),
             ),
           ),
         ),
@@ -177,18 +184,23 @@ class TransactionFiltersPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusDropdown(BuildContext context) {
+  Widget _buildStatusDropdown(BuildContext context, ColorScheme cs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('Status', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(
+          'Status',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 4),
         DropdownButtonFormField<TransactionStatus?>(
           initialValue: status,
           decoration: InputDecoration(
             filled: true,
-            fillColor: theme.cardColor,
+            fillColor: cs.surfaceContainer,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 10,
@@ -223,19 +235,24 @@ class TransactionFiltersPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildStaffDropdown(BuildContext context) {
+  Widget _buildStaffDropdown(BuildContext context, ColorScheme cs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('User', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(
+          'User',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 4),
         DropdownButtonFormField<String?>(
           key: ValueKey<String?>(selectedInitiatedById),
           initialValue: selectedInitiatedById,
           decoration: InputDecoration(
             filled: true,
-            fillColor: theme.cardColor,
+            fillColor: cs.surfaceContainer,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 10,

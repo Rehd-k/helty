@@ -75,7 +75,6 @@ class EncounterSidePanel extends StatelessWidget {
 
     return Material(
       color: scheme.surfaceContainerLowest,
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
@@ -146,7 +145,6 @@ class EncounterSidePanel extends StatelessWidget {
       width: expanded ? expandedWidth : collapsedWidth,
       child: Material(
         color: scheme.surfaceContainerLowest,
-        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
@@ -285,7 +283,7 @@ class _PanelBody extends StatelessWidget {
           Text(
             subtitle!,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurface.withValues(alpha: 0.65),
+              color: scheme.onSurfaceVariant,
             ),
           ),
         if (chips.isNotEmpty) ...[

@@ -7,6 +7,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
 
 const double _contentMaxWidth = 1200;
 const double _cardRadius = 20;
@@ -201,8 +202,9 @@ class _RadiologyDashboardScreenState
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
+                      DepartmentColors.radiology.withValues(alpha: 0.22),
                       colorScheme.primaryContainer,
-                      colorScheme.tertiaryContainer.withValues(alpha: 0.7),
+                      colorScheme.tertiaryContainer.withValues(alpha: 0.5),
                     ],
                   ),
                 ),

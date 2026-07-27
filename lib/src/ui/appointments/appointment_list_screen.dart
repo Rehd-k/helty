@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import '../../helper/date.formatter.dart';
 import '../../models/appointment_model.dart';
 import '../../services/appointment_service.dart';
+import '../../shared/department_colors.dart';
+import '../../widgets/helty_surface.dart';
 import '../../widgets/filter.patients.dart';
 import '../../widgets/table/reusable_async_table.dart';
 
@@ -219,25 +221,17 @@ class _AppointmentListScreenState extends ConsumerState<AppointmentListScreen> {
     final u = status.toUpperCase();
     if (u.contains('CANCEL')) return scheme.error;
     if (u.contains('CONFIRM') || u.contains('SCHEDULE') || u.contains('BOOK')) {
-      return Colors.green.shade700;
+      return DepartmentColors.pharmacy;
     }
-    if (u.contains('PEND') || u.contains('WAIT')) return Colors.orange.shade800;
+    if (u.contains('PEND') || u.contains('WAIT')) {
+      return DepartmentColors.billing;
+    }
     return scheme.primary;
   }
 
   Widget _statusChip(String status, ColorScheme scheme) {
     final c = _statusColor(status, scheme);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w700),
-      ),
-    );
+    return HeltyStatusChip(label: status, color: c);
   }
 
   @override

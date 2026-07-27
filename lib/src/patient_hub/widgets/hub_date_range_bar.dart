@@ -20,7 +20,6 @@ class HubDateRangeBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Material(
-      elevation: 0,
       color: cs.surfaceContainerLow,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

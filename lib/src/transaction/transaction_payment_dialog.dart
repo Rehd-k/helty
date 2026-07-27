@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
@@ -394,8 +395,10 @@ class _BalanceBar extends StatelessWidget {
         ? (totalEntered / totalDue).clamp(0.0, 1.0)
         : 0.0);
     final barColor = isOverpaid
-        ? Colors.red
-        : (remaining == 0 ? Colors.green : colorScheme.primary);
+        ? FinanceStatusColors.danger(colorScheme)
+        : (remaining == 0
+            ? FinanceStatusColors.success(colorScheme)
+            : colorScheme.primary);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
@@ -420,7 +423,9 @@ class _BalanceBar extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: isOverpaid ? Colors.red : colorScheme.onSurface,
+                  color: isOverpaid
+                      ? FinanceStatusColors.danger(colorScheme)
+                      : colorScheme.onSurface,
                 ),
               ),
             ],

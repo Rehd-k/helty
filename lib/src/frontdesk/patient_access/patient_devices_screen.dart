@@ -6,6 +6,7 @@ import 'package:helty/src/frontdesk/patient_access/patient_access_models.dart';
 import 'package:helty/src/frontdesk/patient_access/patient_access_providers.dart';
 import 'package:helty/src/frontdesk/patient_access_permissions.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/widgets/empty.widget.dart';
 import 'package:intl/intl.dart';
 
 @RoutePage()
@@ -214,8 +215,12 @@ class _PatientDevicesScreenState extends ConsumerState<PatientDevicesScreen> {
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: const [
-                        SizedBox(height: 120),
-                        Center(child: Text('No registered devices.')),
+                        EmptyStateWidget(
+                          icon: Icons.devices_outlined,
+                          title: 'No registered devices',
+                          message:
+                              'Approved mobile devices for this patient will appear here.',
+                        ),
                       ],
                     )
                   : ListView.separated(

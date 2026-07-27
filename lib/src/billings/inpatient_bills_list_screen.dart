@@ -10,6 +10,7 @@ import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/invoice_service.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 import 'package:helty/src/widgets/date.filter.dart';
 import 'package:intl/intl.dart';
 
@@ -301,12 +302,7 @@ class _BillCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2)),
-      ),
+      margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -387,6 +383,7 @@ class _BillCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: _statusColor(
                         invoice.status,
+                        colorScheme,
                       ).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -395,7 +392,7 @@ class _BillCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: _statusColor(invoice.status),
+                        color: _statusColor(invoice.status, colorScheme),
                       ),
                     ),
                   ),
@@ -408,14 +405,6 @@ class _BillCard extends StatelessWidget {
     );
   }
 
-  Color _statusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'PAID':
-        return Colors.green;
-      case 'PENDING':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
-  }
+  Color _statusColor(String status, ColorScheme scheme) =>
+      FinanceStatusColors.invoiceStatus(status, scheme);
 }

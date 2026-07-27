@@ -82,7 +82,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       body: ResponsiveBody(
         builder: (context, bp) => Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Form(
@@ -145,12 +145,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
                   FilledButton(
                     onPressed: auth.isLoading ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
                     child: auth.isLoading
                         ? SizedBox(
                             height: 22,
@@ -160,11 +154,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                               color: colors.onPrimary,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             'Continue',
-                            style: TextStyle(
-                              fontSize: 16,
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
+                              color: colors.onPrimary,
                             ),
                           ),
                   ),

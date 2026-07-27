@@ -163,7 +163,6 @@ class _EncounterEditHistorySheetState extends State<EncounterEditHistorySheet> {
                               final by = item.editedBy?.displayName ?? 'Staff';
                               final keys = item.changedKeys;
                               return Card(
-                                elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   side: BorderSide(

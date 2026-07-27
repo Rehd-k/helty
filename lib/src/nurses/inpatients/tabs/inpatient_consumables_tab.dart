@@ -41,11 +41,15 @@ class _InpatientConsumablesScreenState
   }
 
   Widget _emptyBilledList() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
         'No consumables on this invoice yet.',
-        style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontStyle: FontStyle.italic,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

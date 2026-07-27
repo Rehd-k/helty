@@ -109,7 +109,6 @@ class _StoreStockScreenState extends ConsumerState<StoreStockScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
             child: Card(
-              elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
                 side: BorderSide(

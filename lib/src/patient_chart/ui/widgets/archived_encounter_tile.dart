@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:helty/src/widgets/empty.widget.dart';
+
 import '../../models/archived_encounter_models.dart';
 import '../../permissions/patient_chart_permissions.dart';
 import '../../services/patient_chart_service.dart';
@@ -24,11 +26,10 @@ class ArchivedEncountersList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (groups.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('No archived encounter scans yet.'),
-        ),
+      return const EmptyStateWidget(
+        icon: Icons.upload_file_outlined,
+        title: 'No archived encounter scans',
+        message: 'Uploaded paper encounter scans will be listed here.',
       );
     }
 
@@ -41,7 +42,6 @@ class ArchivedEncountersList extends StatelessWidget {
         final group = groups[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(

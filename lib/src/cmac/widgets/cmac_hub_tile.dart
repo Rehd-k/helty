@@ -27,22 +27,15 @@ class CmacHubTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [c1, c2],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: c1.withValues(alpha: 0.35),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
           ),
           child: Padding(
             padding: const EdgeInsets.all(18),

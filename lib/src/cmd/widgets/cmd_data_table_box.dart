@@ -25,10 +25,13 @@ class CmdDataTableBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenH = MediaQuery.sizeOf(context).height;
     final h = (screenH * heightFactor).clamp(minHeight, maxHeight);
-    return SizedBox(
-      height: h,
-      width: double.infinity,
-      child: child,
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: h,
+        width: double.infinity,
+        child: child,
+      ),
     );
   }
 }

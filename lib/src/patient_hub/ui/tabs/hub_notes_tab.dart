@@ -92,7 +92,6 @@ class _HubNotesScreenState extends ConsumerState<HubNotesScreen> {
                     final item = items[index];
                     final section = item['_section']?.toString() ?? 'notes';
                     return Card(
-                      elevation: 0,
                       child: ListTile(
                         leading: const Icon(Icons.description_outlined),
                         title: Text(hubRowTitle(section, item)),

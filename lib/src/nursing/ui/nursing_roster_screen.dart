@@ -554,7 +554,7 @@ class _NursingRosterScreenState extends ConsumerState<NursingRosterScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Text(
                       _error!,
-                      style: TextStyle(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.error,
                       ),
                     ),

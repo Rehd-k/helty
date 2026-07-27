@@ -9,9 +9,11 @@ import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
+import 'package:helty/src/printing/pdf/report_template_picker.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/shared/department_colors.dart';
 import 'package:printing/printing.dart';
 
 @RoutePage()
@@ -142,8 +144,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
                       height: 80,
                       child: Center(child: CircularProgressIndicator()),
                     ),
-                    const SizedBox(height: 20),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     _buildOrdersSection(
                       context,
                       theme,
@@ -156,8 +157,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildOrdersErrorCard(theme, error),
-                    const SizedBox(height: 20),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     _buildOrdersSection(
                       context,
                       theme,
@@ -173,8 +173,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildSummaryRow(theme, allOrders),
-                      const SizedBox(height: 20),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       _buildOrdersSection(
                         context,
                         theme,
@@ -280,8 +279,9 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
+                DepartmentColors.laboratory.withValues(alpha: 0.22),
                 theme.colorScheme.primaryContainer,
-                theme.colorScheme.tertiaryContainer.withValues(alpha: 0.7),
+                theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
               ],
             ),
           ),
@@ -301,6 +301,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
         ),
       ),
       actions: [
+        const ReportTemplatePickerButton(),
         if (isLabManager)
           TextButton.icon(
             onPressed: () => context.router.push(const LabConfigRoute()),

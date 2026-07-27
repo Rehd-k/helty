@@ -178,6 +178,19 @@ class _ObstetricsDashboardScreenState
                             ),
                           ),
                         ),
+                        _DashboardCard(
+                          title: 'ANC package',
+                          bullets: const [
+                            'Default antenatal services & drugs',
+                            'Zero-bill covered items',
+                            'Admin configuration',
+                          ],
+                          icon: Icons.inventory_2_outlined,
+                          accent: colorScheme.secondary,
+                          onTap: () => context.router.push(
+                            const ClinicalPackageManagementRoute(),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -252,9 +265,11 @@ class _DashboardCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Material(
-      elevation: 2,
-      shadowColor: accent.withValues(alpha: 0.25),
-      borderRadius: ObstetricsTheme.borderRadius,
+      color: colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: ObstetricsTheme.borderRadius,
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: ObstetricsTheme.borderRadius,
@@ -305,7 +320,7 @@ class _DashboardCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Text(

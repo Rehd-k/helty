@@ -146,15 +146,10 @@ class _PurchasesAddItemScreenState extends State<PurchasesAddItemScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text(
           widget.existingItem != null ? 'Edit Item' : 'Add New Item',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
       ),
       body: ResponsiveBody(
         builder: (context, bp) => Form(

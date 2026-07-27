@@ -10,6 +10,8 @@ import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
 import 'package:helty/src/radiology/ui/radiology_ui_helpers.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/shared/module_surface_styles.dart';
 
 @RoutePage()
 class RadiologyWorklistScreen extends ConsumerStatefulWidget {
@@ -211,10 +213,16 @@ class _RadiologyWorklistScreenState
               ),
             ),
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: ModuleSurfaceStyles.departmentFilterPanel(
+                theme,
+                DepartmentColors.radiology,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Row(
                   children: [
                     Expanded(
@@ -225,7 +233,9 @@ class _RadiologyWorklistScreenState
                               'Search by patient name or hospital number…',
                           prefixIcon: const Icon(Icons.search, size: 20),
                           filled: true,
-                          fillColor: colorScheme.surface,
+                          fillColor: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.45,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -299,6 +309,7 @@ class _RadiologyWorklistScreenState
                   ],
                 ),
               ],
+            ),
             ),
           ),
           Padding(

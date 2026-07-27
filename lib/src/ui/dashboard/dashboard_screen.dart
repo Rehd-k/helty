@@ -11,7 +11,7 @@ class DashboardScreen extends StatelessWidget {
     // placeholder cards, would be wired up with real data via providers
     return ResponsiveBody(
       builder: (context, bp) => Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(24),
       child: GridView.count(
         crossAxisCount: bp.isDesktop ? 3 : 1,
         crossAxisSpacing: 16,
@@ -35,16 +35,24 @@ class _DashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(value, style: Theme.of(context).textTheme.headlineMedium),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(title, style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),

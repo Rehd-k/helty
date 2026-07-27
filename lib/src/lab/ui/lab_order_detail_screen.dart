@@ -9,6 +9,7 @@ import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/lab/ui/lab_record_sample_sheet.dart';
 import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
+import 'package:helty/src/printing/pdf/report_template_picker.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'dart:typed_data';
@@ -111,6 +112,7 @@ class _LabOrderDetailScreenState extends ConsumerState<LabOrderDetailScreen> {
           onPressed: () => context.router.maybePop(),
         ),
         actions: [
+          const ReportTemplatePickerButton(),
           if (hasAnyResults)
             IconButton(
               tooltip: 'Print',

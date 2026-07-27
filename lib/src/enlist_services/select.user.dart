@@ -1,7 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/services/api_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
 
 import '../../app_router.gr.dart';
@@ -88,7 +90,7 @@ class _SelectUserState extends State<SelectUser> {
     if (widget.patients.isEmpty) {
       return EmptyStateWidget(
         icon: Icons.person_off_outlined,
-        title: "Oops, such empty",
+        title: "No matching patients",
         message: "We couldn't find any patient matching '${_searchCtrl.text}'.",
         buttonText: _allowQuickNewPatient
             ? "Register New Patient"
@@ -99,7 +101,7 @@ class _SelectUserState extends State<SelectUser> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: widget.patients.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
@@ -112,7 +114,7 @@ class _SelectUserState extends State<SelectUser> {
   }
 
   Widget _buildNewPatientButton() {
-    return ElevatedButton.icon(
+    return FilledButton.tonalIcon(
       onPressed: () => showNewPatientInvoiceForm(
         context,
         firstName,
@@ -122,43 +124,31 @@ class _SelectUserState extends State<SelectUser> {
         wardId,
         createNewPatient,
       ),
-      icon: const Icon(
-        Icons.person_add_alt_1_rounded,
-        size: 16,
-      ),
-      label: const Text(
-        "New Patient",
-        style: TextStyle(fontSize: 13),
-      ),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
-      ),
+      icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+      label: const Text('New Patient'),
     );
   }
 
   Widget _buildHeader(bool compact) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final accent = DepartmentColors.frontDesk;
+
     final titleRow = Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+            color: accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
           ),
-          child: const Icon(Icons.person_search_rounded, size: 20),
+          child: Icon(Icons.person_search_rounded, size: 20, color: accent),
         ),
         const SizedBox(width: 12),
-        const Text(
+        Text(
           'Find Patient',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
           ),
         ),
         if (!compact && _allowQuickNewPatient) ...[
@@ -169,7 +159,7 @@ class _SelectUserState extends State<SelectUser> {
     );
 
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -193,23 +183,23 @@ class _SelectUserState extends State<SelectUser> {
             },
             decoration: InputDecoration(
               hintText: "Name, ID, or Phone number...",
-              hintStyle: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 14,
-              ),
-              border: InputBorder.none,
-              prefixIcon: const Icon(
-                Icons.search,
-                color: Colors.grey,
-              ),
+              prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.fingerprint),
                 onPressed: () {},
                 tooltip: "Scan Fingerprint",
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 14,
+              filled: true,
+              fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                borderSide: BorderSide(color: cs.outlineVariant),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
         ],
@@ -219,18 +209,8 @@ class _SelectUserState extends State<SelectUser> {
 
   Widget _buildSearchCard(bool compact, {required bool boundedHeight}) {
     final content = _buildContent();
-    final card = Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+    final card = Card(
+      margin: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

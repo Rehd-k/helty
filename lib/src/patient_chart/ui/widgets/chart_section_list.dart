@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:helty/src/widgets/empty.widget.dart';
+
 import '../../models/patient_chart_models.dart';
 
 /// Generic list renderer for chart section JSON rows.
@@ -23,11 +25,10 @@ class ChartSectionList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('No records in this section.'),
-        ),
+      return const EmptyStateWidget(
+        icon: Icons.folder_open_outlined,
+        title: 'No records in this section',
+        message: 'Clinical data for this category will appear here when available.',
       );
     }
 
@@ -71,10 +72,9 @@ class _SectionTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final title = _titleForItem();
     final subtitle = _subtitleForItem();
-    final trailing = _trailingForItem();
+    final trailing = _trailingForItem(context);
 
     return Card(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: cs.outlineVariant),
@@ -156,12 +156,14 @@ class _SectionTile extends StatelessWidget {
     return parts.isEmpty ? null : parts.join(' · ');
   }
 
-  Widget? _trailingForItem() {
+  Widget? _trailingForItem(BuildContext context) {
     final amount = item['total'] ?? item['amount'] ?? item['totalAmount'];
     if (amount != null) {
       return Text(
         amount is num ? amount.toStringAsFixed(2) : amount.toString(),
-        style: const TextStyle(fontWeight: FontWeight.w600),
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
       );
     }
     return null;

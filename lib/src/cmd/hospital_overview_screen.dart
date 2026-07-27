@@ -143,10 +143,8 @@ class _DeptTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fmt = cmdNairaFormat();
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: CmdDataTableBox(
-        child: DataTable2(
+    return CmdDataTableBox(
+      child: DataTable2(
           columnSpacing: 12,
           horizontalMargin: 12,
           minWidth: 720,
@@ -170,14 +168,15 @@ class _DeptTable extends StatelessWidget {
                     r.status,
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: r.status == 'OK' ? Colors.green.shade700 : theme.colorScheme.error,
+                      color: r.status == 'OK'
+                          ? theme.colorScheme.tertiary
+                          : theme.colorScheme.error,
                     ),
                   ),
                 ),
               ],
             ),
         ],
-        ),
       ),
     );
   }
@@ -216,12 +215,10 @@ class _WaitTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: CmdDataTableBox(
-        heightFactor: 0.35,
-        minHeight: 220,
-        child: DataTable2(
+    return CmdDataTableBox(
+      heightFactor: 0.35,
+      minHeight: 220,
+      child: DataTable2(
           columnSpacing: 12,
           horizontalMargin: 12,
           minWidth: 560,
@@ -242,7 +239,6 @@ class _WaitTable extends StatelessWidget {
                 ],
               ),
           ],
-        ),
       ),
     );
   }

@@ -61,22 +61,28 @@ class LabOrderService {
   /// POST /lab-requests — create lab order. Returns created order with id from API.
   /// [serviceId] is optional; when provided, an invoice item is created for the service.
   Future<LabOrderModel> create({
-    required String encounterId,
+    String? encounterId,
     required String patientId,
     required String testType,
     required String staffId,
     String? serviceId,
     String? priority,
     String? notes,
+    String? pregnancyId,
+    bool? useAntenatalPackage,
   }) async {
     final body = <String, dynamic>{
-      'encounterId': encounterId,
       'testType': testType,
       'patientId': patientId,
       'requestedByDoctorId': staffId,
+      if (encounterId != null && encounterId.isNotEmpty)
+        'encounterId': encounterId,
       if (serviceId != null && serviceId.isNotEmpty) 'serviceId': serviceId,
       if (priority != null && priority.isNotEmpty) 'priority': priority,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (pregnancyId != null && pregnancyId.isNotEmpty)
+        'pregnancyId': pregnancyId,
+      if (useAntenatalPackage != null) 'useAntenatalPackage': useAntenatalPackage,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/lab-requests',

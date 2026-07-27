@@ -1,6 +1,7 @@
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/helper/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/bank_model.dart';
@@ -157,10 +158,10 @@ class _BankManagementScreenState extends ConsumerState<BankManagementScreen> {
                 Expanded(
                   flex: 1,
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(AppTheme.spaceLg),
                     child: Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(AppTheme.spaceLg),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -189,7 +190,7 @@ class _BankManagementScreenState extends ConsumerState<BankManagementScreen> {
                             const SizedBox(height: 16),
                             Row(
                               children: [
-                                ElevatedButton(
+                                FilledButton(
                                   onPressed: _saveBank,
                                   child: Text(
                                     _editingBank != null ? 'Update' : 'Create',
@@ -213,10 +214,10 @@ class _BankManagementScreenState extends ConsumerState<BankManagementScreen> {
                 Expanded(
                   flex: 2,
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(AppTheme.spaceLg),
                     child: Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(AppTheme.spaceLg),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

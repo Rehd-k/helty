@@ -198,9 +198,13 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
 
   Widget _buildSupplierForm(BuildContext context, ThemeData theme) {
     return Card(
-      elevation: 1,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -303,6 +307,7 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final theme = Theme.of(context);
         const cardMinWidth = 260.0;
         final crossAxisCount = (constraints.maxWidth / (cardMinWidth + 16))
             .floor()
@@ -335,9 +340,10 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
                   final isBlacklisted = s.isBlacklisted;
 
                   return Card(
-                    elevation: 1,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: theme.colorScheme.outlineVariant),
                     ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
@@ -430,7 +436,7 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey[700],
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ),
@@ -517,7 +523,6 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
         builder: (context, bp) {
           final formSection = _buildSupplierForm(context, theme);
           final tableSection = Card(
-            elevation: 1,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(

@@ -3,6 +3,7 @@ import 'package:helty/src/models/discount_policy_models.dart';
 import 'package:helty/src/models/service_model.dart';
 import '../models/invoice.dart';
 import '../models/invoice_billing_models.dart';
+import '../models/invoice_by_service_category_row.dart';
 import '../models/paid_without_encounter_invoice.dart';
 import 'api_service.dart';
 
@@ -20,6 +21,9 @@ class InvoiceService {
         data['data'],
         data['items'],
         data['invoices'],
+        data['results'],
+        data['rows'],
+        data['patients'],
         data['payments'],
         data['transactions'],
       ];
@@ -79,6 +83,59 @@ class InvoiceService {
     } on DioException catch (e) {
       throw Exception(
         'Failed to load invoices: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  /// Waiting patients filtered by service category
+  /// (`GET /invoices/by-service-categories?category=`).
+  /// Does not force `status=PAID` so unpaid rows remain visible.
+  Future<List<InvoiceByServiceCategoryRow>> fetchByServiceCategories({
+    required String category,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? search,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final from = fromDate ?? DateTime(now.year, now.month, now.day);
+      final to =
+          toDate ?? DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+      final q = search?.trim() ?? '';
+
+      final response = await _dio.get(
+        '/invoices/by-service-categories',
+        queryParameters: {
+          'category': category.trim(),
+          'fromDate': from.toUtc().toIso8601String(),
+          'toDate': to.toUtc().toIso8601String(),
+          if (q.isNotEmpty) ...{
+            'transactionId': q,
+            'patientName': q,
+            'invoiceId': q,
+            'invoiceID': q,
+          },
+        },
+      );
+
+      final list = _extractList(response.data, key: 'invoices');
+      final rows = <InvoiceByServiceCategoryRow>[];
+      for (final e in list) {
+        if (e is! Map) continue;
+        try {
+          rows.add(
+            InvoiceByServiceCategoryRow.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          );
+        } catch (_) {
+          // Skip malformed rows; keep the rest of the table usable.
+        }
+      }
+      return rows;
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load waiting patients: ${_dioMessage(e, 'Unknown error')}',
       );
     }
   }

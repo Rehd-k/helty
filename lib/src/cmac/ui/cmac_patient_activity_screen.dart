@@ -31,7 +31,7 @@ class CmacPatientActivityScreen extends ConsumerWidget {
             kpis: data.kpis,
             accent: CmacPalette.patientActivity.first,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           CmacLineChartCard(
             title: 'New patients',
             series: data.newPatientsSeries,

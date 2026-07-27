@@ -199,8 +199,7 @@ class _DepartmentCardState extends State<_DepartmentCard> {
       onExit: (_) => setState(() => _hover = false),
       child: Material(
         color: cs.surfaceContainerLow,
-        elevation: _hover ? 2 : 0,
-        shadowColor: cs.shadow.withValues(alpha: 0.35),
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(

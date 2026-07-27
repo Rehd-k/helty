@@ -9,6 +9,7 @@ import 'package:helty/src/frontdesk/patient_access/patient_access_models.dart';
 import 'package:helty/src/frontdesk/patient_access/patient_access_providers.dart';
 import 'package:helty/src/frontdesk/patient_access_permissions.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/widgets/empty.widget.dart';
 import 'package:intl/intl.dart';
 
 @RoutePage()
@@ -251,8 +252,12 @@ class _PendingDeviceApprovalsScreenState
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: const [
-                              SizedBox(height: 120),
-                              Center(child: Text('No pending devices.')),
+                              EmptyStateWidget(
+                                icon: Icons.pending_actions_outlined,
+                                title: 'No pending devices',
+                                message:
+                                    'New patient app sign-ins awaiting approval will show here.',
+                              ),
                             ],
                           )
                         : ListView.separated(

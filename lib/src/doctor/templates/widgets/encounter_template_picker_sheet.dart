@@ -135,7 +135,7 @@ class _EncounterTemplatePickerSheetState
                       Text(
                         'Filtered: ${encounterTemplateTypeLabel(widget.scope.encounterType)}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurface.withValues(alpha: 0.7),
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                   ],
@@ -183,7 +183,7 @@ class _EncounterTemplatePickerSheetState
           'No templates found. Create one from the Templates menu or save the current encounter.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: scheme.onSurface.withValues(alpha: 0.7),
+            color: scheme.onSurfaceVariant,
           ),
         ),
       );
@@ -213,7 +213,7 @@ class _EncounterTemplatePickerSheetState
                   '${encounterTemplateTypeLabel(t.encounterType)} • ${t.populatedFieldCount} fields'
                   '${updated != null ? ' • ${DateFormat.yMMMd().format(updated.toLocal())}' : ''}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurface.withValues(alpha: 0.65),
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ],

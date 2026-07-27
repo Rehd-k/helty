@@ -50,7 +50,7 @@ class CompletedEncounterFollowUpTab extends StatelessWidget {
           child: Text(
             'No follow-up or referral recorded for this encounter.',
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
+              color: colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
@@ -134,7 +134,7 @@ class _Block extends StatelessWidget {
           Text(
             content,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.9),
+              color: colorScheme.onSurface,
               height: 1.4,
             ),
           ),

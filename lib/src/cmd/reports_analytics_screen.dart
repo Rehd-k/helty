@@ -31,10 +31,8 @@ class CMDReportsAnalyticsScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-              Card(
-                clipBehavior: Clip.antiAlias,
-                child: CmdDataTableBox(
-                  child: DataTable2(
+              CmdDataTableBox(
+                child: DataTable2(
                     columnSpacing: 12,
                     horizontalMargin: 12,
                     minWidth: 720,
@@ -72,7 +70,6 @@ class CMDReportsAnalyticsScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-              ),
               const SizedBox(height: 24),
               Text(
                 'Custom builder',

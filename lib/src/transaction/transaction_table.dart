@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 
 import 'transaction_models.dart';
 
@@ -74,12 +75,8 @@ class _TransactionTableState extends State<TransactionTable> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-      ),
+    return Card(
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -372,14 +369,8 @@ class _TransactionRow extends StatelessWidget {
   final VoidCallback onTap;
   final ValueChanged<Offset> onContextMenu;
 
-  Color _statusColor(String? status) => switch (status) {
-    'PAID' => Colors.green,
-    'PARTIALLY_PAID' => Colors.orange,
-    'CANCELLED' => Colors.red,
-    'REFUNDED' => Colors.purple,
-    'ACTIVE' => colorScheme.primary,
-    _ => colorScheme.onSurface.withValues(alpha: 0.5),
-  };
+  Color _statusColor(String? status) =>
+      FinanceStatusColors.transactionStatus(status, colorScheme);
 
   @override
   Widget build(BuildContext context) {
@@ -395,7 +386,7 @@ class _TransactionRow extends StatelessWidget {
           color: isSelected
               ? colorScheme.primary.withValues(alpha: 0.06)
               : Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
               // Transaction ID
@@ -459,10 +450,10 @@ class _TransactionRow extends StatelessWidget {
                 width: _kColAmountPaid,
                 child: Text(
                   txn['amountPaid'].toFinancial(isMoney: true),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                    color: FinanceStatusColors.success(colorScheme),
                   ),
                 ),
               ),
@@ -481,7 +472,10 @@ class _TransactionRow extends StatelessWidget {
                 width: _kColDiscount,
                 child: Text(
                   txn['discount'].toFinancial(isMoney: true),
-                  style: const TextStyle(fontSize: 12, color: Colors.orange),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: FinanceStatusColors.discount(colorScheme),
+                  ),
                 ),
               ),
 
@@ -505,9 +499,10 @@ class _TransactionRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: (txn['debt'] as num) > 0
-                        ? Colors.red
-                        : colorScheme.onSurface.withValues(alpha: 0.5),
+                    color: FinanceStatusColors.debt(
+                      colorScheme,
+                      hasDebt: (txn['debt'] as num) > 0,
+                    ),
                   ),
                 ),
               ),

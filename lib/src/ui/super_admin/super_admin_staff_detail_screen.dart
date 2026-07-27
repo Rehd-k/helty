@@ -632,7 +632,9 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
             if (wards.isEmpty) {
               return Text(
                 'No wards found. Add wards under Hospital → Ward management.',
-                style: TextStyle(color: cs.onSurfaceVariant),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               );
             }
             final wardIds = wards.map((w) => w.id).toSet();
@@ -665,7 +667,9 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
           loading: () => const LinearProgressIndicator(),
           error: (e, _) => Text(
             'Could not load wards: $e',
-            style: TextStyle(color: cs.error),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: cs.error,
+            ),
           ),
         ),
       ];
@@ -704,7 +708,9 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
         loading: () => const LinearProgressIndicator(),
         error: (e, _) => Text(
           'Could not load departments: $e',
-          style: TextStyle(color: cs.error),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: cs.error,
+          ),
         ),
       ),
     ];

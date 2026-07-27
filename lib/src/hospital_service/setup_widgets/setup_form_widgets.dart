@@ -36,18 +36,16 @@ class SetupFormHeader extends StatelessWidget {
           children: [
             Text(
               title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
                 color: cs.onSurface,
               ),
             ),
             Text(
               subtitle,
-              style: TextStyle(
-                fontSize: 12,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
-                color: cs.onSurface.withValues(alpha: 0.5),
+                color: cs.onSurfaceVariant,
               ),
             ),
           ],
@@ -74,39 +72,13 @@ class SetupTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return TextField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: isNumber
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-          fontSize: 13,
-          color: cs.onSurface.withValues(alpha: 0.6),
-        ),
-        filled: true,
-        fillColor: cs.onSurface.withValues(alpha: 0.02),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.3)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.3)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: cs.primary),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
-      ),
-      style: TextStyle(fontSize: 14, color: cs.onSurface),
+      decoration: InputDecoration(labelText: label),
     );
   }
 }

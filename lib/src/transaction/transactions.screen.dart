@@ -6,6 +6,7 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 
 import 'transaction_details_pane.dart';
 import 'transaction_filters_panel.dart';
@@ -255,7 +256,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             content: Text(
               'Payment of ${(result['totalPaid'] as double).toFinancial(isMoney: true)} recorded.',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: FinanceStatusColors.success(
+              Theme.of(context).colorScheme,
+            ),
           ),
         );
         _loadTransactions();
@@ -603,27 +606,39 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                 Text((txn['initiator'] as String?) ?? ''),
                               ),
                               DataCell(
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    (txn['status'] as String?)?.replaceAll(
-                                          '_',
-                                          ' ',
-                                        ) ??
-                                        '',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                                Builder(
+                                  builder: (context) {
+                                    final scheme =
+                                        Theme.of(context).colorScheme;
+                                    final status =
+                                        txn['status'] as String?;
+                                    final statusColor =
+                                        FinanceStatusColors.transactionStatus(
+                                      status,
+                                      scheme,
+                                    );
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        status?.replaceAll('_', ' ') ?? '',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: statusColor,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ],
@@ -652,13 +667,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                 ),
                               ),
                               if (canRefund)
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'refund',
                                   child: Text(
                                     'Make a Refund',
                                     style: TextStyle(
                                       fontSize: 13,
-                                      color: Colors.red,
+                                      color: Theme.of(context).colorScheme.error,
                                     ),
                                   ),
                                 ),
@@ -707,10 +722,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               right: 0,
               bottom: 0,
               child: Material(
-                elevation: 8,
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
                 child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                    ),
+                  ),
                   width: 360,
-                  color: Theme.of(context).scaffoldBackgroundColor,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

@@ -326,7 +326,7 @@ class _EncounterSpecialtyFormsPanelState
                             'Use Configure to add modules for this visit.',
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurface.withValues(alpha: 0.7),
+                              color: scheme.onSurfaceVariant,
                             ),
                           ),
                           if (!widget.readOnly) ...[
@@ -444,7 +444,6 @@ class _EncounterSpecialtyFormsPanelState
       return SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Card(
-          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(

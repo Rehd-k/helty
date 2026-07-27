@@ -102,7 +102,6 @@ class HubProfileScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Card(
-        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
           side: BorderSide(

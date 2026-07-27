@@ -55,7 +55,7 @@ class CmacLaboratoryScreen extends ConsumerWidget {
                 ],
               ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             CmacDonutChartCard(
               title: 'Status breakdown',
               slices: data.statusBreakdown,
@@ -63,7 +63,7 @@ class CmacLaboratoryScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             CmacBarChartCard(title: 'Top tests', points: data.topTests),
             if (data.criticalAlerts.isNotEmpty) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Text(
                 'Critical alerts',
                 style: theme.textTheme.titleMedium?.copyWith(

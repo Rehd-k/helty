@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 
 /// Displays detailed information about a single selected transaction.
 ///
@@ -189,14 +191,8 @@ class _DetailHeader extends StatelessWidget {
   final Map<String, dynamic> txn;
   final ColorScheme colorScheme;
 
-  Color _statusColor(String? status) => switch (status) {
-    'PAID' => Colors.green,
-    'PARTIALLY_PAID' => Colors.orange,
-    'CANCELLED' => Colors.red,
-    'REFUNDED' => Colors.purple,
-    'ACTIVE' => colorScheme.primary,
-    _ => colorScheme.onSurface.withValues(alpha: 0.5),
-  };
+  Color _statusColor(String? status) =>
+      FinanceStatusColors.transactionStatus(status, colorScheme);
 
   @override
   Widget build(BuildContext context) {
@@ -352,11 +348,11 @@ class _ServicesSection extends StatelessWidget {
   final ColorScheme colorScheme;
 
   Color _sourceColor(String source) => switch (source.toUpperCase()) {
-    'LAB' => Colors.blue,
-    'RADIOLOGY' => Colors.indigo,
-    'PHARMACY' => Colors.teal,
-    'CONSULTATION' => colorScheme.primary,
-    'ADMISSION' => Colors.purple,
+    'LAB' => DepartmentColors.laboratory,
+    'RADIOLOGY' => DepartmentColors.radiology,
+    'PHARMACY' => DepartmentColors.pharmacy,
+    'CONSULTATION' => DepartmentColors.outpatientClinic,
+    'ADMISSION' => DepartmentColors.icu,
     _ => colorScheme.onSurface.withValues(alpha: 0.5),
   };
 
@@ -472,10 +468,10 @@ class _ServicesSection extends StatelessWidget {
                         ),
                         Text(
                           (svc['paid'] as num).toFinancial(isMoney: true),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Colors.green,
+                            color: FinanceStatusColors.success(colorScheme),
                           ),
                         ),
                       ],
@@ -543,14 +539,17 @@ class _FinancialBreakdown extends StatelessWidget {
             amount: (txn['amountPaid'] as num).toDouble(),
             colorScheme: colorScheme,
             isBold: true,
-            valueColor: Colors.green,
+            valueColor: FinanceStatusColors.success(colorScheme),
           ),
           _BreakdownRow(
             label: 'Unpaid Balance (Debt)',
             amount: debt,
             colorScheme: colorScheme,
             isBold: true,
-            valueColor: debt > 0 ? Colors.red : null,
+            valueColor: FinanceStatusColors.debt(
+              colorScheme,
+              hasDebt: debt > 0,
+            ),
           ),
           const SizedBox(height: 8),
           _BreakdownRow(
@@ -606,7 +605,9 @@ class _BreakdownRow extends StatelessWidget {
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               color:
                   valueColor ??
-                  (isDiscount ? Colors.orange : colorScheme.onSurface),
+                  (isDiscount
+                      ? FinanceStatusColors.discount(colorScheme)
+                      : colorScheme.onSurface),
             ),
           ),
         ],
@@ -682,17 +683,17 @@ class _ActionButtons extends StatelessWidget {
           if (showRefund)
             OutlinedButton.icon(
               onPressed: onRefund,
-              icon: const Icon(Icons.undo, size: 14, color: Colors.red),
-              label: const Text(
+              icon: Icon(Icons.undo, size: 14, color: colorScheme.error),
+              label: Text(
                 'Refund',
-                style: TextStyle(fontSize: 12, color: Colors.red),
+                style: TextStyle(fontSize: 12, color: colorScheme.error),
               ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 8,
                 ),
-                side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+                side: BorderSide(color: colorScheme.error.withValues(alpha: 0.3)),
               ),
             ),
         ],

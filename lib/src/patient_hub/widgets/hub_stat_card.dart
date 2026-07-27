@@ -19,19 +19,15 @@ class HubStatCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final accent = color ?? cs.primary;
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (icon != null)
+            if (icon != null) ...[
               Icon(icon, size: 22, color: accent),
-            if (icon != null) const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
             Text(
               value,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(

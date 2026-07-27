@@ -56,7 +56,7 @@ class CompletedEncounterSummaryTab extends StatelessWidget {
               Text(
                 e.chiefComplaint?.isNotEmpty == true ? e.chiefComplaint! : '—',
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.85),
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],
@@ -72,7 +72,7 @@ class CompletedEncounterSummaryTab extends StatelessWidget {
                   Text(
                     e.primaryIcdDescription!,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.85),
+                      color: colorScheme.onSurface,
                     ),
                   ),
               ],
@@ -131,7 +131,7 @@ class _Row extends StatelessWidget {
     final theme = Theme.of(context);
     final bp = AppBreakpoints.of(context);
     final labelStyle = theme.textTheme.bodyMedium?.copyWith(
-      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+      color: theme.colorScheme.onSurfaceVariant,
     );
     final valueStyle = theme.textTheme.bodyMedium;
 

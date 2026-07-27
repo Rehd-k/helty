@@ -134,7 +134,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       body: ResponsiveBody(
         builder: (context, bp) => Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Form(
@@ -295,12 +295,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   FilledButton(
                     onPressed:
                         (auth.isLoading || secondaryBusy) ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
                     child: auth.isLoading
                         ? SizedBox(
                             height: 22,
@@ -310,11 +304,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                               color: colors.onPrimary,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             'Update password',
-                            style: TextStyle(
-                              fontSize: 16,
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
+                              color: colors.onPrimary,
                             ),
                           ),
                   ),

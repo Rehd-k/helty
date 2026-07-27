@@ -110,7 +110,7 @@ class _DoctorCompletedEncounterViewScreenState
               Text(
                 'Loading encounter…',
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -429,7 +429,7 @@ class _DoctorCompletedEncounterViewScreenState
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected
                           ? scheme.onPrimary
-                          : scheme.onSurface.withValues(alpha: 0.8),
+                          : scheme.onSurface,
                     ),
                   ),
                 ),

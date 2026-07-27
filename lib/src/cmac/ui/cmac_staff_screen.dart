@@ -41,7 +41,7 @@ class CmacStaffScreen extends ConsumerWidget {
               title: 'Lab workload per technician',
               points: data.labWorkloadPerTechnician,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Text(
               'Department efficiency',
               style: Theme.of(
@@ -54,12 +54,10 @@ class CmacStaffScreen extends ConsumerWidget {
                 message: 'No department efficiency data for this period.',
               )
             else
-              Card(
-                clipBehavior: Clip.antiAlias,
-                child: CmdDataTableBox(
-                  heightFactor: 0.34,
-                  minHeight: 220,
-                  child: DataTable2(
+              CmdDataTableBox(
+                heightFactor: 0.34,
+                minHeight: 220,
+                child: DataTable2(
                     columnSpacing: 12,
                     horizontalMargin: 12,
                     minWidth: 480,
@@ -84,7 +82,6 @@ class CmacStaffScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-              ),
           ],
         );
       },

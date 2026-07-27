@@ -99,7 +99,6 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
         children: [
           Card(
             margin: const EdgeInsets.all(24),
-            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
               side: BorderSide(
@@ -264,7 +263,6 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
             const SizedBox(height: 24),
           ],
           Card(
-            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
               side: BorderSide(
@@ -380,7 +378,6 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
           ),
           const SizedBox(height: 24),
           Card(
-            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
               side: BorderSide(
@@ -503,7 +500,6 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

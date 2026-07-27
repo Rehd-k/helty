@@ -22,6 +22,7 @@ import 'package:helty/src/admissions/admission_discharge_helpers.dart';
 import 'package:helty/src/admissions/discharge_admission_dialog.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 import 'package:helty/src/wallet/wallet_providers.dart';
 import 'package:pdf/pdf.dart';
@@ -1000,6 +1001,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   }
 
   Widget _chargeRowPaymentBackdrop(ChargeItem item) {
+    final colorScheme = Theme.of(context).colorScheme;
     final progress = item.paymentProgress;
     final due = item.lineAmountDue;
     final nothingPaid = progress < 0.001 && due > 0.001;
@@ -1008,14 +1010,14 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (nothingPaid) ColoredBox(color: Colors.red.withValues(alpha: 0.10)),
+        if (nothingPaid) ColoredBox(color: colorScheme.error.withValues(alpha: 0.10)),
         Align(
           alignment: Alignment.centerLeft,
           child: FractionallySizedBox(
             widthFactor: full ? 1.0 : progress,
             heightFactor: 1,
             child: ColoredBox(
-              color: Colors.green.withValues(alpha: full ? 0.26 : 0.22),
+              color: DepartmentColors.pharmacy.withValues(alpha: full ? 0.26 : 0.22),
             ),
           ),
         ),
@@ -1329,6 +1331,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       entries.add(const PopupMenuDivider());
       entries.addAll(refundEntries);
     }
+    final colorScheme = Theme.of(context).colorScheme;
     if (canDeleteInpatientInvoice(ref.read(authProvider).staff)) {
       entries.add(const PopupMenuDivider());
       entries.add(
@@ -1340,11 +1343,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             leading: Icon(
               Icons.delete_outline,
               size: 22,
-              color: Colors.red.shade700,
+              color: colorScheme.error,
             ),
             title: Text(
               'Delete item',
-              style: TextStyle(color: Colors.red.shade700),
+              style: TextStyle(color: colorScheme.error),
             ),
           ),
         ),
@@ -1470,10 +1473,13 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             if (canDeleteInpatientInvoice(ref.read(authProvider).staff)) ...[
               const Divider(height: 1),
               ListTile(
-                leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(ctx).colorScheme.error,
+                ),
                 title: Text(
                   'Delete item',
-                  style: TextStyle(color: Colors.red.shade700),
+                  style: TextStyle(color: Theme.of(ctx).colorScheme.error),
                 ),
                 onTap: () => Navigator.pop(ctx, 'delete_line'),
               ),
@@ -1628,8 +1634,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 ),
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Colors.blue.shade100,
-                    child: Icon(Icons.radar, color: Colors.blue.shade800),
+                    backgroundColor: DepartmentColors.outpatientClinic.withValues(alpha: 0.15),
+                    child: Icon(Icons.radar, color: DepartmentColors.outpatientClinic),
                   ),
                   title: const Text('Radiology'),
                   subtitle: const Text('Add radiology services'),
@@ -1659,10 +1665,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 ),
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Colors.orange.shade100,
+                    backgroundColor: DepartmentColors.billing.withValues(alpha: 0.15),
                     child: Icon(
                       Icons.receipt_long,
-                      color: Colors.orange.shade800,
+                      color: DepartmentColors.billing,
                     ),
                   ),
                   title: const Text('Add other bills'),
@@ -2098,7 +2104,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                   displayBalanceDue.toFinancial(isMoney: true),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: isPaidOff ? Colors.green : colorScheme.error,
+                    color: isPaidOff ? DepartmentColors.pharmacy : colorScheme.error,
                   ),
                 ),
                 if (isPaidOff)
@@ -2109,13 +2115,13 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
+                      color: DepartmentColors.pharmacy.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
                       'CLEARED',
                       style: TextStyle(
-                        color: Colors.green,
+                        color: DepartmentColors.pharmacy,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
@@ -2205,7 +2211,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       Text(
                         totalPayments.toFinancial(isMoney: true),
                         style: const TextStyle(
-                          color: Colors.green,
+                          color: DepartmentColors.pharmacy,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -2226,7 +2232,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                       Text(
                         walletBalance.toFinancial(isMoney: true),
                         style: const TextStyle(
-                          color: Colors.blue,
+                          color: DepartmentColors.outpatientClinic,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -2331,11 +2337,14 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     BillingInvoiceDetail? detail,
   ) {
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8.0),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Text(
           'No charges in this category yet.',
-          style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+          style: TextStyle(
+            fontStyle: FontStyle.italic,
+            color: colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -2773,17 +2782,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       itemBuilder: (context, index) {
         final row = payments[index];
         return Card(
-          elevation: 0,
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.green.withValues(alpha: 0.5)),
-          ),
-          color: Colors.green.withValues(alpha: 0.05),
+          margin: const EdgeInsets.only(bottom: 16),
+          color: DepartmentColors.pharmacy.withValues(alpha: 0.05),
           child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Icon(Icons.check_circle, color: Colors.green),
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              child: const Icon(Icons.check_circle, color: DepartmentColors.pharmacy),
             ),
             title: Text(
               row.method != null && row.method!.trim().isNotEmpty
@@ -2817,7 +2821,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             trailing: Text(
               row.amount.toFinancial(isMoney: true),
               style: const TextStyle(
-                color: Colors.green,
+                color: DepartmentColors.pharmacy,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -3336,9 +3340,9 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
     if (serviceUuid.isEmpty) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Service has no valid id — cannot add to invoice'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
@@ -3369,7 +3373,7 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to add: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }

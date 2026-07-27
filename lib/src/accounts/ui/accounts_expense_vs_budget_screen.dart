@@ -11,6 +11,7 @@ import 'package:helty/src/accounts/widgets/accounts_data_table_box.dart';
 import 'package:helty/src/accounts/widgets/accounts_money_format.dart';
 import 'package:helty/src/accounts/widgets/accounts_period_selector.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 
 @RoutePage()
 class AccountsExpenseVsBudgetScreen extends ConsumerWidget {
@@ -35,6 +36,7 @@ class AccountsExpenseVsBudgetScreen extends ConsumerWidget {
         if (rows.isEmpty) {
           return const AccountsEmptyState(title: 'No Expense vs budget', subtitle: 'No records for the selected filters.');
         }
+        final scheme = Theme.of(context).colorScheme;
         return AccountsDataTableBox(
           child: DataTable2(
             minWidth: 800,
@@ -49,7 +51,11 @@ class AccountsExpenseVsBudgetScreen extends ConsumerWidget {
               for (final r in rows)
                 DataRow2(
                   color: r.variance > 0
-                      ? WidgetStateProperty.all(Colors.red.withValues(alpha: 0.06))
+                      ? WidgetStateProperty.all(
+                          FinanceStatusColors.danger(scheme).withValues(
+                            alpha: 0.06,
+                          ),
+                        )
                       : null,
                   cells: [
                     DataCell(Text(r.category)),

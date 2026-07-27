@@ -60,6 +60,7 @@ class EncounterScope extends InheritedWidget {
     this.isOutpatient = false,
     this.activeAdmissionId,
     this.patientWard,
+    this.pregnancyId,
     this.onEncounterUpdated,
     required super.child,
   });
@@ -92,6 +93,9 @@ class EncounterScope extends InheritedWidget {
 
   /// Patient ward name when known (e.g. OPD).
   final String? patientWard;
+
+  /// Linked ongoing pregnancy when ordering from antenatal chart.
+  final String? pregnancyId;
 
   /// Amending a completed encounter (versioned saves + optional editReason).
   final bool amendMode;
@@ -147,7 +151,8 @@ class EncounterScope extends InheritedWidget {
       reloadGeneration != old.reloadGeneration ||
       isOutpatient != old.isOutpatient ||
       activeAdmissionId != old.activeAdmissionId ||
-      patientWard != old.patientWard;
+      patientWard != old.patientWard ||
+      pregnancyId != old.pregnancyId;
 }
 
 @RoutePage()
@@ -711,7 +716,7 @@ class _DoctorEncounterViewScreenState
                     ? 'Emergency department clinical workspace'
                     : 'OPD encounter view',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.7),
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
               if (isEm && _edEsiLevel != null)
@@ -1006,7 +1011,7 @@ class _DoctorEncounterViewScreenState
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected
                           ? scheme.onPrimary
-                          : scheme.onSurface.withValues(alpha: 0.8),
+                          : scheme.onSurface,
                     ),
                   ),
                 ),

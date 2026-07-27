@@ -90,8 +90,6 @@ class CmacBarChartCard extends StatelessWidget {
     final maxY = maxV <= 0 ? 1.0 : maxV * 1.15;
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -103,7 +101,7 @@ class CmacBarChartCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             horizontal
                 ? _RankedBarList(points: points, max: maxY)
                 : SizedBox(
@@ -277,14 +275,17 @@ class CmacLineChartCard extends StatelessWidget {
     }
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             if (secondLabel != null)
               Text(
                 secondLabel!,
@@ -353,14 +354,17 @@ class CmacDonutChartCard extends StatelessWidget {
     }
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               height: height,
               child: Row(

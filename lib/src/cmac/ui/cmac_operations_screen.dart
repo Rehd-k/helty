@@ -28,7 +28,7 @@ class CmacOperationsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CmacKpiGrid(kpis: data.kpis, accent: CmacPalette.operations.first),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           CmacBarChartCard(
             title: 'Doctor workload',
             points: data.doctorWorkload,

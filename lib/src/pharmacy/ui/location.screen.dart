@@ -2,7 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 
-import '../../core/errors/app_exception.dart';
+import 'package:helty/src/core/errors/app_exception.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/shared/module_surface_styles.dart';
 import '../models/pharmacy_model.dart';
 import '../services/pharmacy_service.dart';
 
@@ -45,7 +47,8 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   // Optional: list of staff for manager dropdown (id -> display name). Populate from your staff API if available.
   final Map<String, String> _staffOptions = {};
 
-  final Color _primaryRed = const Color(0xFFE50914);
+  // Pharmacy accent (legacy field name kept for minimal diff).
+  Color get _primaryRed => DepartmentColors.pharmacy;
 
   @override
   void initState() {
@@ -290,8 +293,12 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F8),
+      backgroundColor: ModuleSurfaceStyles.departmentScaffoldBackground(
+        theme,
+        DepartmentColors.pharmacy,
+      ),
       body: ResponsiveBody(
         center: false,
         builder: (context, bp) => ResponsiveRowColumn(
@@ -313,20 +320,11 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   }
 
   Widget _buildFormPanel() {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(16),
+      decoration: ModuleSurfaceStyles.borderedSurface(theme, radius: 16),
       child: Form(
         key: _formKey,
         child: Column(
@@ -335,10 +333,10 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
           children: [
             Text(
               _editingId != null ? 'Edit Location' : 'Add New Location',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: cs.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -376,11 +374,11 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                     onPressed: _loading ? null : _clearForm,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: cs.outlineVariant),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      foregroundColor: Colors.black87,
+                      foregroundColor: cs.onSurface,
                     ),
                     child: const Text(
                       'Cancel',
@@ -425,6 +423,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   }
 
   Widget _buildStaffDropdown() {
+    final cs = Theme.of(context).colorScheme;
     return DropdownButtonFormField<String>(
       initialValue:
           _selectedStaffId == null ||
@@ -447,39 +446,40 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
       onChanged: (v) => setState(() => _selectedStaffId = v),
       decoration: InputDecoration(
         hintText: 'Select manager',
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: cs.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: cs.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: cs.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderSide: BorderSide(color: cs.outline),
         ),
       ),
     );
   }
 
   Widget _buildFormLabel(String label, {bool isRequired = false}) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, top: 16.0),
       child: RichText(
         text: TextSpan(
           text: label,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
-            color: Colors.black87,
+            color: cs.onSurface,
           ),
           children: [
             if (isRequired)
@@ -500,6 +500,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
@@ -507,24 +508,24 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
       validator: validator,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: cs.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: cs.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: cs.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderSide: BorderSide(color: cs.outline),
         ),
       ),
     );
@@ -536,6 +537,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return DropdownButtonFormField<String>(
       initialValue: value,
       items: items
@@ -549,35 +551,36 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: cs.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: cs.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: cs.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderSide: BorderSide(color: cs.outline),
         ),
       ),
       icon: Icon(
         Icons.keyboard_arrow_down,
-        color: Colors.grey.shade600,
+        color: cs.onSurfaceVariant,
         size: 20,
       ),
     );
   }
 
   Widget _buildTopBar(AppBreakpoints bp) {
+    final cs = Theme.of(context).colorScheme;
     final filters = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -591,9 +594,9 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: bp.stackPanels
           ? Column(
@@ -603,16 +606,16 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                   decoration: InputDecoration(
                     hintText: 'Search locations...',
                     hintStyle: TextStyle(
-                      color: Colors.grey.shade400,
+                      color: cs.onSurfaceVariant,
                       fontSize: 14,
                     ),
                     prefixIcon: Icon(
                       Icons.search,
-                      color: Colors.grey.shade400,
+                      color: cs.onSurfaceVariant,
                       size: 20,
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF8F9FA),
+                    fillColor: cs.surfaceContainerHighest,
                     contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -635,16 +638,16 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                     decoration: InputDecoration(
                       hintText: 'Search locations...',
                       hintStyle: TextStyle(
-                        color: Colors.grey.shade400,
+                        color: cs.onSurfaceVariant,
                         fontSize: 14,
                       ),
                       prefixIcon: Icon(
                         Icons.search,
-                        color: Colors.grey.shade400,
+                        color: cs.onSurfaceVariant,
                         size: 20,
                       ),
                       filled: true,
-                      fillColor: const Color(0xFFF8F9FA),
+                      fillColor: cs.surfaceContainerHighest,
                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -661,6 +664,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   }
 
   Widget _buildFilterTab(String label) {
+    final cs = Theme.of(context).colorScheme;
     final isActive = _activeFilter == label;
     final count = _countType(label);
     return InkWell(
@@ -677,7 +681,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
         child: Text(
           '$label ($count)',
           style: TextStyle(
-            color: isActive ? _primaryRed : Colors.black87,
+            color: isActive ? _primaryRed : cs.onSurface,
             fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
             fontSize: 13,
           ),
@@ -691,10 +695,11 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_filteredLocations.isEmpty) {
+      final cs = Theme.of(context).colorScheme;
       return Center(
         child: Text(
           'No locations yet. Add one using the form.',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 15),
         ),
       );
     }
@@ -713,6 +718,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   }
 
   Widget _buildLocationCard(PharmacyLocation location) {
+    final cs = Theme.of(context).colorScheme;
     final typeLabel = _labelFromType(location.type);
     IconData typeIcon = Icons.store;
     Color iconColor = _primaryRed;
@@ -726,9 +732,9 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: cs.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -770,7 +776,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,
-                            color: Colors.grey.shade700,
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -781,10 +787,10 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                 const SizedBox(height: 12),
                 Text(
                   location.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: cs.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -794,7 +800,7 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                   const SizedBox(height: 8),
                   Text(
                     location.description!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -804,11 +810,11 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: Colors.grey.shade200,
+                      backgroundColor: cs.surfaceContainerHighest,
                       child: Text(
                         _getInitials(location.staffName ?? 'Unassigned'),
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: cs.onSurfaceVariant,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -820,16 +826,16 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                       children: [
                         Text(
                           location.staffName ?? 'Unassigned',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
-                            color: Colors.black87,
+                            color: cs.onSurface,
                           ),
                         ),
                         Text(
                           'Manager',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: cs.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -846,8 +852,9 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
   }
 
   Widget _buildPopupMenu(PharmacyLocation location) {
+    final cs = Theme.of(context).colorScheme;
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, color: Colors.black54, size: 20),
+      icon: Icon(Icons.more_vert, color: cs.onSurfaceVariant, size: 20),
       tooltip: 'Options',
       onSelected: (String value) {
         if (value == 'edit') {
@@ -857,13 +864,13 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'edit',
           child: Row(
             children: [
-              Icon(Icons.edit_outlined, size: 18, color: Colors.black87),
-              SizedBox(width: 8),
-              Text('Edit Location'),
+              Icon(Icons.edit_outlined, size: 18, color: cs.onSurface),
+              const SizedBox(width: 8),
+              const Text('Edit Location'),
             ],
           ),
         ),

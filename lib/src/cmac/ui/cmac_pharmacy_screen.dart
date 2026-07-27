@@ -28,7 +28,7 @@ class CmacPharmacyScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CmacKpiGrid(kpis: data.kpis, accent: CmacPalette.pharmacy.first),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           CmacBarChartCard(
             title: 'Top prescribed',
             points: data.topPrescribed,

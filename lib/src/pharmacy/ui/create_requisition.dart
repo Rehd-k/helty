@@ -202,9 +202,10 @@ class _CreateRequisitionScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: cs.surfaceContainerHighest,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +220,7 @@ class _CreateRequisitionScreenState
             ),
             Text(
               'Send stock request to Purchases Department',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
             ),
           ],
         ),
@@ -228,7 +229,7 @@ class _CreateRequisitionScreenState
         elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey.shade200, height: 1),
+          child: Container(color: cs.outlineVariant, height: 1),
         ),
       ),
       body: ResponsiveBody(
@@ -254,7 +255,7 @@ class _CreateRequisitionScreenState
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.02),
@@ -382,7 +383,7 @@ class _CreateRequisitionScreenState
               border: Border(
                 left: bp.stackPanels
                     ? BorderSide.none
-                    : BorderSide(color: Colors.grey.shade200),
+                    : BorderSide(color: theme.colorScheme.outlineVariant),
               ),
             ),
               child: Column(
@@ -392,7 +393,7 @@ class _CreateRequisitionScreenState
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade100),
+                        bottom: BorderSide(color: theme.colorScheme.outlineVariant),
                       ),
                     ),
                     child: Row(
@@ -435,13 +436,13 @@ class _CreateRequisitionScreenState
                                 Icon(
                                   Icons.receipt_long_outlined,
                                   size: 64,
-                                  color: Colors.grey.shade300,
+                                  color: theme.colorScheme.outlineVariant,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No items added yet',
                                   style: TextStyle(
-                                    color: Colors.grey.shade500,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -449,7 +450,7 @@ class _CreateRequisitionScreenState
                                 Text(
                                   'Select items from the left to build your request.',
                                   style: TextStyle(
-                                    color: Colors.grey.shade400,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -474,7 +475,7 @@ class _CreateRequisitionScreenState
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border(
-                        top: BorderSide(color: Colors.grey.shade200),
+                        top: BorderSide(color: theme.colorScheme.outlineVariant),
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -511,7 +512,7 @@ class _CreateRequisitionScreenState
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         backgroundColor: theme.colorScheme.primary,
-                        disabledBackgroundColor: Colors.grey.shade300,
+                        disabledBackgroundColor: theme.colorScheme.outlineVariant,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -550,9 +551,9 @@ class _CreateRequisitionScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,7 +576,7 @@ class _CreateRequisitionScreenState
                       'Qty: ${item.quantity}',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -605,7 +606,7 @@ class _CreateRequisitionScreenState
                     'Note: ${item.notes}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade500,
+                      color: theme.colorScheme.onSurfaceVariant,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -660,6 +661,7 @@ class _CreateRequisitionScreenState
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Column(
@@ -667,10 +669,10 @@ class _CreateRequisitionScreenState
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: Colors.black87,
+              color: cs.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -681,28 +683,28 @@ class _CreateRequisitionScreenState
             validator: validator,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
               prefixIcon: icon != null
-                  ? Icon(icon, color: Colors.grey.shade500, size: 20)
+                  ? Icon(icon, color: cs.onSurfaceVariant, size: 20)
                   : null,
               filled: true,
-              fillColor: Colors.grey.shade50,
+              fillColor: cs.surfaceContainerHighest,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
-                  color: Theme.of(context).colorScheme.primary,
+                  color: cs.primary,
                   width: 2,
                 ),
               ),
@@ -721,6 +723,7 @@ class _CreateRequisitionScreenState
     required void Function(dynamic)? onChanged,
     IconData? icon,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
@@ -728,10 +731,10 @@ class _CreateRequisitionScreenState
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: Colors.black87,
+              color: cs.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -741,26 +744,26 @@ class _CreateRequisitionScreenState
             onChanged: onChanged,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
               prefixIcon: icon != null
-                  ? Icon(icon, color: Colors.grey.shade500, size: 20)
+                  ? Icon(icon, color: cs.onSurfaceVariant, size: 20)
                   : null,
               filled: true,
-              fillColor: Colors.grey.shade50,
+              fillColor: cs.surfaceContainerHighest,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
             ),
-            icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade600),
+            icon: Icon(Icons.keyboard_arrow_down, color: cs.onSurfaceVariant),
             borderRadius: BorderRadius.circular(10),
           ),
         ],

@@ -284,7 +284,6 @@ class _PatientPreviousEncountersSheetState
                       final completed = status.toUpperCase() == 'COMPLETED';
 
                       return Card(
-                        elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(

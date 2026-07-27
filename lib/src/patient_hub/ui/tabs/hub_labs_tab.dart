@@ -112,7 +112,6 @@ class _HubLabsScreenState extends ConsumerState<HubLabsScreen> {
                     final item = items[index];
                     final section = item['_section']?.toString() ?? 'labs';
                     return Card(
-                      elevation: 0,
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ExpansionTile(
                         title: Text(hubRowTitle(section, item)),

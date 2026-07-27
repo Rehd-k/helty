@@ -1038,7 +1038,7 @@ class _MedicationRequestCard extends StatelessWidget {
         courseQty != request.requestedQuantity;
 
     return Material(
-      elevation: selected ? 1 : 0,
+      elevation: 0,
       color: selected
           ? colorScheme.primaryContainer.withValues(alpha: 0.15)
           : colorScheme.surface,

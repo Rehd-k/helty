@@ -213,7 +213,6 @@ class _IssueTabState extends ConsumerState<_IssueTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
-            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
               side: BorderSide(
@@ -545,7 +544,6 @@ class _ReceiveTabState extends ConsumerState<_ReceiveTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
-            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
               side: BorderSide(
@@ -873,7 +871,6 @@ class _TransferTabState extends ConsumerState<_TransferTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
-            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
               side: BorderSide(

@@ -423,7 +423,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
                       'least 24 hours old — the server will reject otherwise).',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -488,7 +488,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
       onPressed: eligible ? () => _showQuantityCorrectionDialog(b) : null,
       icon: Icon(
         Icons.edit_note_outlined,
-        color: eligible ? theme.colorScheme.primary : Colors.grey.shade400,
+        color: eligible ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
       ),
     );
   }
@@ -558,6 +558,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
     IconData? icon,
   }) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final isDisabled = onChanged == null;
 
     return Padding(
@@ -576,37 +577,43 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
             onChanged: onChanged,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(fontSize: 14),
-              prefixIcon: icon != null ? Icon(icon, size: 20) : null,
+              hintStyle: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+              prefixIcon: icon != null
+                  ? Icon(icon, size: 20, color: cs.onSurfaceVariant)
+                  : null,
               filled: true,
-              fillColor: isDisabled ? Colors.grey.shade100 : Colors.white,
+              fillColor: isDisabled
+                  ? cs.surfaceContainerHighest
+                  : cs.surface,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
-                  color: theme.colorScheme.primary,
+                  color: cs.primary,
                   width: 2,
                 ),
               ),
               disabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
             ),
             icon: Icon(
               Icons.keyboard_arrow_down,
-              color: isDisabled ? Colors.grey.shade400 : Colors.grey.shade600,
+              color: isDisabled
+                  ? cs.onSurfaceVariant.withValues(alpha: 0.38)
+                  : cs.onSurfaceVariant,
             ),
             dropdownColor: Colors.white,
             borderRadius: BorderRadius.circular(10),
@@ -727,9 +734,13 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
 
   Widget _buildItemsSelector(ThemeData theme) {
     return Card(
-      elevation: 1,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1031,9 +1042,13 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
     final distinctDrugs = _lines.map((l) => l.drug.id).toSet().length;
 
     return Card(
-      elevation: 1,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1044,7 +1059,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
             const SizedBox(height: 4),
             Text(
               'Review and confirm before moving stock.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             ModernTextField(

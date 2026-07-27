@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
@@ -127,8 +129,10 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Delete'),
           ),
@@ -320,9 +324,11 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                             title: Text(item.name),
                             subtitle: Text(subtitle),
                             secondary: !isSelectable
-                                ? const Icon(
+                                ? Icon(
                                     Icons.lock_outline,
-                                    color: Colors.grey,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   )
                                 : null,
                           );
@@ -330,19 +336,25 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                       ),
                     ),
                     if (selectedItemIds.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           'Select at least one item to continue.',
-                          style: TextStyle(color: Colors.redAccent),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
                     if (allSelectableChosen)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           'Warning: selecting all eligible lines is not allowed.',
-                          style: TextStyle(color: Colors.orange),
+                          style: TextStyle(
+                            color: FinanceStatusColors.warning(
+                              Theme.of(context).colorScheme,
+                            ),
+                          ),
                         ),
                       ),
                   ],
@@ -458,19 +470,19 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                               children: [
                                 SlidableAction(
                                   onPressed: (_) {},
-                                  backgroundColor: Colors.blue,
+                                  backgroundColor: DepartmentColors.outpatientClinic,
                                   icon: Icons.edit,
                                   label: 'Edit',
                                 ),
                                 SlidableAction(
                                   onPressed: (_) {},
-                                  backgroundColor: Colors.orange,
+                                  backgroundColor: DepartmentColors.billing,
                                   icon: Icons.archive,
                                   label: 'Archive',
                                 ),
                                 SlidableAction(
                                   onPressed: (_) {},
-                                  backgroundColor: Colors.red,
+                                  backgroundColor: DepartmentColors.emergency,
                                   icon: Icons.delete,
                                   label: 'Delete',
                                 ),
@@ -488,13 +500,9 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                 );
                               },
                               child: Card(
-                                elevation: 3,
                                 margin: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
+                                  horizontal: 16,
+                                  vertical: 8,
                                 ),
                                 child: ListTile(
                                   contentPadding: const EdgeInsets.all(16),
@@ -513,10 +521,14 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                       Text("Status: ${invoice.status}"),
                                       Text(
                                         "Initiator: ${invoice.staff['firstName']} ${invoice.staff['lastName']}",
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
-                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -532,7 +544,7 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                             invoice,
                                             currentStaffId,
                                           ))
-                                            ElevatedButton.icon(
+                                            FilledButton.icon(
                                               onPressed:
                                                   _deletingInvoiceIds.contains(
                                                     invoice.id,
@@ -557,10 +569,10 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                                       size: 16,
                                                     ),
                                               label: const Text('Delete'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    Colors.red.shade600,
-                                                foregroundColor: Colors.white,
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: Theme.of(context)
+                                                    .colorScheme
+                                                    .error,
                                                 minimumSize: const Size(0, 34),
                                                 padding:
                                                     const EdgeInsets.symmetric(
@@ -609,8 +621,10 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                   ),
                                   trailing: Text(
                                     invoice.total.toFinancial(isMoney: true),
-                                    style: const TextStyle(
-                                      color: Colors.green,
+                                    style: TextStyle(
+                                      color: FinanceStatusColors.success(
+                                        Theme.of(context).colorScheme,
+                                      ),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),

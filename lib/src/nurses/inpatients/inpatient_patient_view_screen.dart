@@ -348,7 +348,7 @@ class _InpatientPatientViewScreenState
       color: scheme.onSurface,
     );
     final subtitleStyle = theme.textTheme.bodySmall?.copyWith(
-      color: scheme.onSurface.withValues(alpha: 0.7),
+      color: scheme.onSurfaceVariant,
     );
 
     final encounterId = _admission?.encounterId?.trim();
@@ -546,7 +546,7 @@ class _InpatientPatientViewScreenState
               child: Text(
                 'Waiting for backend response...',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.75),
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -739,7 +739,7 @@ class _InpatientPatientViewScreenState
                               : FontWeight.w500,
                           color: selected
                               ? scheme.onPrimary
-                              : scheme.onSurface.withValues(alpha: 0.8),
+                              : scheme.onSurface,
                         ),
                       ),
                     ),
@@ -786,7 +786,7 @@ class _PinnedTabStripDelegate extends SliverPersistentHeaderDelegate {
     return Material(
       color: color,
       elevation: overlapsContent ? 1 : 0,
-      shadowColor: Colors.black26,
+      shadowColor: Theme.of(context).colorScheme.shadow,
       child: child,
     );
   }

@@ -225,14 +225,7 @@ class _MoneyTile extends StatelessWidget {
     final dark = theme.brightness == Brightness.dark;
 
     return Card(
-      elevation: 0,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: dark ? 0.45 : 0.55),
-        ),
-      ),
       child: Stack(
         children: [
           Positioned.fill(
@@ -357,11 +350,6 @@ class _RevenueBarChart extends StatelessWidget {
     }
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.6)),
-      ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 16, 12, 8),
@@ -475,15 +463,8 @@ class _RevenueTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.6)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: CmdDataTableBox(
-        child: DataTable2(
+    return CmdDataTableBox(
+      child: DataTable2(
           columnSpacing: 12,
           horizontalMargin: 12,
           minWidth: 520,
@@ -506,7 +487,6 @@ class _RevenueTable extends StatelessWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }
@@ -525,14 +505,9 @@ class _PaymentMixCard extends StatelessWidget {
     final safeTotal = total > 0 ? total : 1.0;
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.6)),
-      ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -552,7 +527,7 @@ class _PaymentMixCard extends StatelessWidget {
                 color: cs.primary,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             _mixRow(
               theme,
               'Insurance',
@@ -560,7 +535,7 @@ class _PaymentMixCard extends StatelessWidget {
               fmt.format(mix.insuranceAmount),
               cs.primary,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _mixRow(
               theme,
               'Cash',
@@ -568,7 +543,7 @@ class _PaymentMixCard extends StatelessWidget {
               fmt.format(mix.cashAmount),
               cs.tertiary,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _mixRow(
               theme,
               'Corporate',
@@ -637,17 +612,10 @@ class _ExpenseTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.6)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: CmdDataTableBox(
-        heightFactor: 0.36,
-        minHeight: 240,
-        child: DataTable2(
+    return CmdDataTableBox(
+      heightFactor: 0.36,
+      minHeight: 240,
+      child: DataTable2(
           columnSpacing: 12,
           horizontalMargin: 12,
           minWidth: 640,
@@ -682,7 +650,6 @@ class _ExpenseTable extends StatelessWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }
@@ -711,16 +678,8 @@ class _LeakList extends StatelessWidget {
       children: [
         for (final l in leaks)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Material(
-              color: cs.surfaceContainerLow,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.65),
-                ),
-              ),
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Card(
               clipBehavior: Clip.antiAlias,
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(

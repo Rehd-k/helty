@@ -246,7 +246,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: theme.cardColor,
+                        color: theme.colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: theme.dividerColor.withValues(alpha: 0.1),
@@ -280,7 +280,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
               ),
               second: Container(
                 decoration: BoxDecoration(
-                  color: theme.cardColor,
+                  color: theme.colorScheme.surface,
                   border: Border(
                     left: bp.isMobile
                         ? BorderSide.none
@@ -307,10 +307,14 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
               right: 0,
               bottom: 0,
               child: Material(
-                elevation: 8,
+                color: theme.colorScheme.surfaceContainerHigh,
                 child: Container(
                   width: 360,
-                  color: theme.scaffoldBackgroundColor,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: theme.colorScheme.outlineVariant),
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -447,7 +451,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
             Text(
               'Manage stock, track expiries, and update details',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -494,6 +498,10 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
   }
 
   Widget _buildTable(ThemeData theme) {
+    final headerStyle = theme.textTheme.labelSmall?.copyWith(
+      fontWeight: FontWeight.bold,
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     return ResponsiveDataTable(
       child: Scrollbar(
         controller: _horizontalScrollController,
@@ -520,69 +528,27 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                   false, // Hide default checkboxes to match design
               columns: [
                 DataColumn(
-                  label: const Text(
-                    'ITEM NAME',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('ITEM NAME', style: headerStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'itemName'),
                 ),
                 DataColumn(
-                  label: const Text(
-                    'MANUFACTURER',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('MANUFACTURER', style: headerStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'manufacturerName'),
                 ),
                 DataColumn(
-                  label: const Text(
-                    'STOCK',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('STOCK', style: headerStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'stock'),
                 ),
                 DataColumn(
-                  label: const Text(
-                    'SELLING PRICE',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('SELLING PRICE', style: headerStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'sellingPrice'),
                 ),
                 DataColumn(
-                  label: const Text(
-                    'EXPIRY',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('EXPIRY', style: headerStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'expiryDate'),
                 ),
-                const DataColumn(
-                  label: Text(
-                    'STATUS',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                DataColumn(
+                  label: Text('STATUS', style: headerStyle),
                 ),
               ],
               rows: _drugs.map((item) {
@@ -641,7 +607,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                                 'ID: ${item.id ?? '—'}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey[600],
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -652,7 +618,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                     DataCell(
                       Text(
                         item.manufacturerName ?? '—',
-                        style: TextStyle(color: Colors.grey[800]),
+                        style: TextStyle(color: theme.colorScheme.onSurface),
                       ),
                     ),
                     DataCell(
@@ -668,7 +634,9 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                             ),
                             TextSpan(
                               text: item.displayUnit,
-                              style: const TextStyle(color: Colors.grey),
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
@@ -679,8 +647,8 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                         _formatSellingPrice(item.sellingPrice),
                         style: TextStyle(
                           color: (item.sellingPrice ?? 0) > 0
-                              ? Colors.green.shade800
-                              : Colors.grey[600],
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
                           fontWeight: (item.sellingPrice ?? 0) > 0
                               ? FontWeight.w600
                               : FontWeight.normal,
@@ -708,7 +676,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                             style: TextStyle(
                               color: item.displayStatus == 'Expiring Soon'
                                   ? Colors.orange[800]
-                                  : Colors.grey[800],
+                                  : theme.colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -732,29 +700,30 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
   }
 
   Widget _buildStatusChip(String status) {
+    final scheme = Theme.of(context).colorScheme;
     Color color;
     Color bgColor;
 
     switch (status) {
       case 'In Stock':
-        color = Colors.green;
-        bgColor = Colors.green.withValues(alpha: 0.1);
+        color = scheme.primary;
+        bgColor = scheme.primaryContainer.withValues(alpha: 0.5);
         break;
       case 'Low Stock':
-        color = Colors.orange;
-        bgColor = Colors.orange.withValues(alpha: 0.1);
+        color = scheme.tertiary;
+        bgColor = scheme.tertiaryContainer.withValues(alpha: 0.5);
         break;
       case 'Expiring Soon':
-        color = Colors.orange[800]!;
-        bgColor = Colors.orange.withValues(alpha: 0.1);
+        color = scheme.error;
+        bgColor = scheme.errorContainer.withValues(alpha: 0.45);
         break;
       case 'Out of Stock':
-        color = Colors.red;
-        bgColor = Colors.red.withValues(alpha: 0.1);
+        color = scheme.error;
+        bgColor = scheme.errorContainer.withValues(alpha: 0.35);
         break;
       default:
-        color = Colors.grey;
-        bgColor = Colors.grey.withValues(alpha: 0.1);
+        color = scheme.onSurfaceVariant;
+        bgColor = scheme.surfaceContainerHighest;
     }
 
     return Container(
@@ -790,12 +759,12 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
             children: [
               Text(
                 'Showing ${_totalItems == 0 ? 0 : start}–$end of $_totalItems',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
               ),
               const SizedBox(width: 16),
               Text(
                 'Per page:',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
               ),
               const SizedBox(width: 8),
               DropdownButton<int>(
@@ -824,7 +793,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
             children: [
               Text(
                 'Page $_currentPage of $totalPages',
-                style: const TextStyle(color: Colors.grey),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(width: 8),
               IconButton(
@@ -871,7 +840,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.edit, color: Colors.grey),
+                icon: Icon(Icons.edit, color: theme.colorScheme.onSurfaceVariant),
                 onPressed: () => _showEditMedicineModal(context, theme, item),
               ),
             ],
@@ -885,7 +854,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
           ),
           Text(
             '${item.category ?? '—'} • ID: ${item.id ?? '—'}',
-            style: TextStyle(color: Colors.grey[600]),
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           Row(
@@ -993,7 +962,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+          Text(title, style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12)),
           const SizedBox(height: 8),
           RichText(
             text: TextSpan(
@@ -1006,7 +975,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                   text: ' $suffix',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[500],
+                    color: theme.colorScheme.outline,
                     fontWeight: FontWeight.normal,
                   ),
                 ),
@@ -1036,7 +1005,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: Colors.grey[600]),
+              Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 8),
               Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
             ],
@@ -1049,12 +1018,18 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
   }
 
   Widget _buildInfoRow(String label, String value, {bool isFullWidth = false}) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: EdgeInsets.only(bottom: isFullWidth ? 12.0 : 0.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
         ],
@@ -1063,6 +1038,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
   }
 
   Widget _buildLocationRow(String location, int quantity) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -1073,10 +1049,13 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
               Icon(
                 Icons.inventory_2_outlined,
                 size: 16,
-                color: Colors.grey[600],
+                color: scheme.onSurfaceVariant,
               ),
               const SizedBox(width: 8),
-              Text(location, style: TextStyle(color: Colors.grey[800])),
+              Text(
+                location,
+                style: TextStyle(color: scheme.onSurface),
+              ),
             ],
           ),
           Text(
@@ -1094,7 +1073,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
       return [
         Text(
           'No stock locations available.',
-          style: TextStyle(color: Colors.grey[600]),
+          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
         ),
       ];
     }
@@ -1130,7 +1109,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
       return [
         Text(
           'No stock locations available.',
-          style: TextStyle(color: Colors.grey[600]),
+          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
         ),
       ];
     }
@@ -1320,6 +1299,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
       title: Text('Order ${widget.item.itemName}'),
       content: SizedBox(
@@ -1330,7 +1310,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
           children: [
             Text(
               'Create a purchase order for ${widget.item.itemName} (${widget.item.itemName}).',
-              style: TextStyle(color: Colors.grey[700]),
+              style: TextStyle(color: scheme.onSurface),
             ),
             const SizedBox(height: 20),
             if (widget.suppliers.isEmpty)

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/widgets/patient_avatar.dart';
+import '../../shared/department_colors.dart';
 import '../../helper/date.formatter.dart';
 import '../../models/staff_model.dart';
 import '../../paitients/patient_model.dart';
@@ -666,20 +667,20 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 28),
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
         child: Column(
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.12),
+                color: DepartmentColors.pharmacy.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Padding(
-                padding: EdgeInsets.all(20),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
                 child: Icon(
                   Icons.check_circle_rounded,
                   size: 56,
-                  color: Colors.green,
+                  color: DepartmentColors.pharmacy,
                 ),
               ),
             ),

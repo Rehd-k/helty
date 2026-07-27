@@ -212,10 +212,12 @@ class Pregnancy {
     this.antenatalVisits,
     this.labourDeliveries,
     this.pregnancyId,
+    this.encounterId,
   });
 
   final String id;
   final String? pregnancyId; // some APIs use pregnancyId
+  final String? encounterId;
   final String patientId;
   final int gravida;
   final int para;
@@ -245,9 +247,15 @@ class Pregnancy {
 
   factory Pregnancy.fromJson(Map<String, dynamic> json) {
     final id = json['id'] as String? ?? json['pregnancyId'] as String? ?? '';
+    final encounterRaw = json['encounter'];
+    final nestedEncounterId = encounterRaw is Map<String, dynamic>
+        ? encounterRaw['id'] as String?
+        : null;
     return Pregnancy(
       id: id,
       pregnancyId: json['pregnancyId'] as String?,
+      encounterId:
+          json['encounterId'] as String? ?? nestedEncounterId,
       patientId: json['patientId'] as String,
       gravida: (json['gravida'] as num?)?.toInt() ?? 0,
       para: (json['para'] as num?)?.toInt() ?? 0,

@@ -51,10 +51,8 @@ class CMDAuditComplianceScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-              Card(
-                clipBehavior: Clip.antiAlias,
-                child: CmdDataTableBox(
-                  child: DataTable2(
+              CmdDataTableBox(
+                child: DataTable2(
                     columnSpacing: 10,
                     horizontalMargin: 10,
                     minWidth: 900,
@@ -79,7 +77,6 @@ class CMDAuditComplianceScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-              ),
               const SizedBox(height: 24),
             ],
           ),

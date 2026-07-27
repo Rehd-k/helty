@@ -15,6 +15,7 @@ import 'package:helty/src/wallet/wallet_payment_resolver.dart';
 import 'package:helty/src/wallet/wallet_providers.dart';
 import 'package:helty/src/wallet/wallet_receipt_helper.dart';
 import 'package:helty/src/wallet/wallet_reference_labels.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 
 @RoutePage()
 class PatientWalletHistoryScreen extends ConsumerStatefulWidget {
@@ -344,7 +345,9 @@ class _PatientWalletHistoryScreenState
                               '${txn.isCredit ? '+' : '−'}${txn.amount.toFinancial(isMoney: true)}',
                               style: TextStyle(
                                 color: txn.isCredit
-                                    ? Colors.green.shade700
+                                    ? FinanceStatusColors.success(
+                                        theme.colorScheme,
+                                      )
                                     : theme.colorScheme.error,
                                 fontWeight: FontWeight.w600,
                               ),

@@ -236,7 +236,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
           'Select a ward and patient to open the full inpatient view.',
           style: TextStyle(
             fontSize: 14,
-            color: colorScheme.onSurface.withValues(alpha: 0.6),
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -303,7 +303,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
         prefixIcon: Icon(
           Icons.search,
           size: 18,
-          color: colorScheme.onSurface.withValues(alpha: 0.6),
+          color: colorScheme.onSurfaceVariant,
         ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         isDense: true,
@@ -406,7 +406,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       return Center(
         child: Text(
           'Select a ward to view current inpatients.',
-          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -414,7 +414,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       return Center(
         child: Text(
           'No inpatients in this ward.',
-          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -492,7 +492,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                   child: Text(
                     row.wardName,
                     style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.8),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -501,7 +501,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                   child: Text(
                     row.bedLabel,
                     style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.8),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -510,7 +510,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                   child: Text(
                     row.diagnosis,
                     style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.8),
+                      color: colorScheme.onSurface,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -520,7 +520,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                   child: Text(
                     '${row.daysAdmitted} days',
                     style: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.9),
+                      color: colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -572,7 +572,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       return Center(
         child: Text(
           'Select a ward to view current inpatients.',
-          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -580,7 +580,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
       return Center(
         child: Text(
           'No inpatients in this ward.',
-          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -596,18 +596,12 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
             .split(RegExp(r'\s+'))
             .where((p) => p.isNotEmpty)
             .toList();
-        return Material(
-          elevation: 0,
-          color: colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2)),
-          ),
+        return Card(
+          margin: EdgeInsets.zero,
           child: InkWell(
-            borderRadius: BorderRadius.circular(16),
             onTap: () => _openInpatientView(row),
             child: Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -671,7 +665,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                     '${row.wardName} · Bed ${row.bedLabel}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: colorScheme.onSurface.withValues(alpha: 0.85),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   if (row.diagnosis.trim().isNotEmpty) ...[
@@ -680,7 +674,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                       row.diagnosis,
                       style: TextStyle(
                         fontSize: 13,
-                        color: colorScheme.onSurface.withValues(alpha: 0.75),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -735,7 +729,7 @@ class _HeaderCell extends StatelessWidget {
         fontSize: 11,
         fontWeight: FontWeight.bold,
         letterSpacing: 0.4,
-        color: colorScheme.onSurface.withValues(alpha: 0.6),
+        color: colorScheme.onSurfaceVariant,
       ),
     );
 

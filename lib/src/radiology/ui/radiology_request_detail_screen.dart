@@ -16,6 +16,7 @@ import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/printing/pdf/radiology_clinical_notes_pdf.dart';
 import 'package:helty/src/printing/pdf/radiology_report_pdf.dart';
+import 'package:helty/src/printing/pdf/report_template_picker.dart';
 import 'package:helty/src/radiology/ui/radiology_ui_helpers.dart';
 import 'package:helty/src/radiology/ui/widgets/radiology_image_viewer.dart';
 import 'package:printing/printing.dart';
@@ -347,6 +348,7 @@ class _RadiologyRequestDetailScreenState
       appBar: AppBar(
         title: Text('Radiology order ${order!.id.substring(0, 8)}'),
         actions: [
+          const ReportTemplatePickerButton(),
           IconButton(
             onPressed: _hasClinicalNotes(_order!) ? _printClinicalNotes : null,
             icon: const Icon(Icons.note_alt_outlined),

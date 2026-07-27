@@ -317,8 +317,6 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
 
   Widget _buildWardListCard(ColorScheme cs, {required bool isNarrow}) {
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -500,7 +498,6 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
 
   Widget _buildEmptyWardDetail(ColorScheme cs) {
     return Card(
-      elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Center(
         child: Padding(
@@ -541,8 +538,6 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
     final ward = _selectedWard!;
 
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -803,11 +798,11 @@ class _BedStatusChip extends StatelessWidget {
   Color _background(ColorScheme cs) {
     switch (status) {
       case BedStatus.available:
-        return Colors.green.withValues(alpha: 0.08);
+        return cs.tertiaryContainer.withValues(alpha: 0.45);
       case BedStatus.occupied:
         return cs.error.withValues(alpha: 0.08);
       case BedStatus.reserved:
-        return Colors.orange.withValues(alpha: 0.08);
+        return cs.secondaryContainer.withValues(alpha: 0.55);
       case BedStatus.outOfService:
         return cs.outline.withValues(alpha: 0.08);
     }
@@ -816,11 +811,11 @@ class _BedStatusChip extends StatelessWidget {
   Color _foreground(ColorScheme cs) {
     switch (status) {
       case BedStatus.available:
-        return Colors.green.shade700;
+        return cs.onTertiaryContainer;
       case BedStatus.occupied:
         return cs.error;
       case BedStatus.reserved:
-        return Colors.orange.shade800;
+        return cs.onSecondaryContainer;
       case BedStatus.outOfService:
         return cs.onSurface.withValues(alpha: 0.7);
     }

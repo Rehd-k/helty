@@ -2,6 +2,8 @@
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
+import 'package:helty/src/printing/pdf/report_template_preference.dart';
+import 'package:helty/src/printing/pdf/report_templates/report_pdf_theme.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -17,388 +19,39 @@ class _PdfStatusColors {
   final PdfColor foreground;
 }
 
-class _LabPdfPalette {
-  _LabPdfPalette()
-      : primary = PdfColor.fromHex('#0D3B66'),
-        primaryDark = PdfColor.fromHex('#082845'),
-        accent = PdfColor.fromHex('#D4AF37'),
-        surface = PdfColor.fromHex('#F8FAFC'),
-        surfaceCard = PdfColor.fromHex('#F1F5F9'),
-        border = PdfColor.fromHex('#CBD5E1'),
-        textMuted = PdfColor.fromHex('#64748B');
+pw.Widget _labStatusPill(LabOrderStatus status) {
+  final style = _labPdfStatusStyle(status);
+  return pw.Container(
+    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: pw.BoxDecoration(
+      color: style.background,
+      borderRadius: pw.BorderRadius.circular(20),
+      border: pw.Border.all(color: style.border, width: 0.5),
+    ),
+    child: pw.Text(
+      _labStatusLabel(status).toUpperCase(),
+      style: pw.TextStyle(
+        fontSize: 7.5,
+        fontWeight: pw.FontWeight.bold,
+        color: style.foreground,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
+}
 
-  final PdfColor primary;
-  final PdfColor primaryDark;
-  final PdfColor accent;
-  final PdfColor surface;
-  final PdfColor surfaceCard;
-  final PdfColor border;
-  final PdfColor textMuted;
+// Legacy palette chrome lives in ReportPdfTheme implementations.
+typedef _LabPdfPalette = ReportPdfTheme;
 
-  pw.Widget infoCard({
-    required String title,
-    required List<pw.Widget> rows,
-  }) {
-    return pw.Expanded(
-      child: pw.Container(
-        padding: const pw.EdgeInsets.fromLTRB(14, 12, 14, 14),
-        decoration: pw.BoxDecoration(
-          color: surface,
-          borderRadius: pw.BorderRadius.circular(12),
-          border: pw.Border.all(color: border, width: 0.65),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: [
-                pw.Text(
-                  title,
-                  style: pw.TextStyle(
-                    color: primary,
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 8.5,
-                    letterSpacing: 1.1,
-                  ),
-                ),
-                pw.SizedBox(width: 8),
-                pw.Expanded(child: pw.Container(height: 1, color: border)),
-              ],
-            ),
-            pw.SizedBox(height: 4),
-            pw.Container(
-              width: 36,
-              height: 3,
-              decoration: pw.BoxDecoration(
-                color: accent,
-                borderRadius: pw.BorderRadius.circular(2),
-              ),
-            ),
-            pw.SizedBox(height: 12),
-            ...rows,
-          ],
-        ),
-      ),
-    );
-  }
+extension on ReportPdfTheme {
+  pw.Widget hospitalHeader(pw.ImageProvider logoImage) => header(
+        logo: logoImage,
+        subtitle: 'Clinical laboratory · Quality-assured diagnostics',
+      );
 
-  pw.Widget kv(String label, String value, {bool emphasize = false}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 5),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.SizedBox(
-            width: 86,
-            child: pw.Text(
-              label,
-              style: pw.TextStyle(fontSize: 8.5, color: textMuted),
-            ),
-          ),
-          pw.Expanded(
-            child: pw.Text(
-              value,
-              style: pw.TextStyle(
-                fontSize: 9.5,
-                fontWeight: emphasize
-                    ? pw.FontWeight.bold
-                    : pw.FontWeight.normal,
-                color: PdfColors.grey900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  pw.Widget labReportBanner() => reportBanner('Laboratory Report');
 
-  pw.Widget statusPill(LabOrderStatus status) {
-    final style = _labPdfStatusStyle(status);
-    return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: pw.BoxDecoration(
-        color: style.background,
-        borderRadius: pw.BorderRadius.circular(20),
-        border: pw.Border.all(color: style.border, width: 0.5),
-      ),
-      child: pw.Text(
-        _labStatusLabel(status).toUpperCase(),
-        style: pw.TextStyle(
-          fontSize: 7.5,
-          fontWeight: pw.FontWeight.bold,
-          color: style.foreground,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
-  }
-
-  pw.Widget hospitalHeader(pw.ImageProvider logoImage) {
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        gradient: pw.LinearGradient(
-          colors: [primaryDark, primary],
-          begin: pw.Alignment.topLeft,
-          end: pw.Alignment.bottomRight,
-        ),
-        borderRadius: pw.BorderRadius.circular(14),
-        border: pw.Border.all(color: accent, width: 0.75),
-        boxShadow: [
-          pw.BoxShadow(
-            color: PdfColor.fromInt(0x300D3B66),
-            offset: const PdfPoint(0, 6),
-            blurRadius: 12,
-          ),
-        ],
-      ),
-      child: pw.Column(
-        children: [
-          pw.Padding(
-            padding: const pw.EdgeInsets.fromLTRB(20, 18, 20, 16),
-            child: pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(6),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.white,
-                    borderRadius: pw.BorderRadius.circular(12),
-                    border: pw.Border.all(
-                      color: PdfColor.fromInt(0x80D4AF37),
-                      width: 0.5,
-                    ),
-                  ),
-                  child: pw.Image(logoImage, width: 52, height: 52),
-                ),
-                pw.SizedBox(width: 16),
-                pw.Expanded(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'IBOM MULTISPECIALITY HOSPITAL',
-                        style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontSize: 17,
-                          fontWeight: pw.FontWeight.bold,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        'Clinical laboratory · Quality-assured diagnostics',
-                        style: pw.TextStyle(
-                          color: PdfColor.fromHex('#E2E8F0'),
-                          fontSize: 9,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          pw.Container(width: double.infinity, height: 4, color: accent),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget reportBanner() {
-    return pw.Center(
-      child: pw.Container(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-        decoration: pw.BoxDecoration(
-          color: surfaceCard,
-          borderRadius: pw.BorderRadius.circular(24),
-          border: pw.Border.all(color: border, width: 0.65),
-        ),
-        child: pw.Row(
-          mainAxisSize: pw.MainAxisSize.min,
-          children: [
-            pw.Container(
-              width: 6,
-              height: 6,
-              decoration: pw.BoxDecoration(
-                color: accent,
-                shape: pw.BoxShape.circle,
-              ),
-            ),
-            pw.SizedBox(width: 10),
-            pw.Text(
-              'LABORATORY REPORT',
-              style: pw.TextStyle(
-                fontSize: 11,
-                fontWeight: pw.FontWeight.bold,
-                color: primary,
-                letterSpacing: 2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  pw.Widget resultsSummaryHeader() {
-    return pw.Container(
-      padding: const pw.EdgeInsets.only(left: 10, bottom: 8),
-      decoration: pw.BoxDecoration(
-        border: pw.Border(left: pw.BorderSide(color: accent, width: 3)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Results summary',
-            style: pw.TextStyle(
-              fontSize: 12,
-              fontWeight: pw.FontWeight.bold,
-              color: primary,
-            ),
-          ),
-          pw.SizedBox(height: 2),
-          pw.Text(
-            'Parameters listed below reflect values released on this report.',
-            style: pw.TextStyle(fontSize: 8.5, color: textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget pageFooter(String generatedStr, pw.Context context) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 12),
-      padding: const pw.EdgeInsets.only(top: 10),
-      decoration: pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: border, width: 0.5)),
-      ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Expanded(
-            child: pw.Text(
-              'Confidential medical record. If you are not the intended '
-              'recipient, contact IBOM  Multispeciality Hospital immediately.',
-              style: pw.TextStyle(
-                fontSize: 7,
-                color: textMuted,
-                lineSpacing: 1.2,
-              ),
-            ),
-          ),
-          pw.SizedBox(width: 16),
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.end,
-            children: [
-              pw.Text(
-                'Page ${context.pageNumber} of ${context.pagesCount}',
-                style: pw.TextStyle(
-                  fontSize: 8,
-                  color: textMuted,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 2),
-              pw.Text(
-                'Generated $generatedStr',
-                style: pw.TextStyle(fontSize: 7, color: textMuted),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget continuationHeader(String subtitle) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 14),
-      padding: const pw.EdgeInsets.only(bottom: 8),
-      decoration: pw.BoxDecoration(
-        border: pw.Border(bottom: pw.BorderSide(color: border, width: 0.5)),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            'IBOM MULTISPECIALITY HOSPITAL',
-            style: pw.TextStyle(
-              fontSize: 8,
-              fontWeight: pw.FontWeight.bold,
-              color: primary,
-              letterSpacing: 0.3,
-            ),
-          ),
-          pw.Text(
-            subtitle,
-            style: pw.TextStyle(fontSize: 8, color: textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget signatureSection() {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 32),
-      padding: const pw.EdgeInsets.only(top: 18),
-      decoration: pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: border, width: 0.65)),
-      ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Expanded(child: _signatureBlock('Med Lab Scientist')),
-          pw.SizedBox(width: 36),
-          pw.Expanded(child: _signatureBlock('HOD Med Lab')),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _signatureBlock(String title) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        pw.Text(
-          'Signature',
-          style: pw.TextStyle(
-            fontSize: 7.5,
-            color: textMuted,
-            letterSpacing: 0.4,
-          ),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Container(
-          height: 52,
-          padding: const pw.EdgeInsets.all(10),
-          decoration: pw.BoxDecoration(
-            color: PdfColors.white,
-            borderRadius: pw.BorderRadius.circular(8),
-            border: pw.Border.all(color: border, width: 0.75),
-          ),
-        ),
-        pw.SizedBox(height: 8),
-        pw.Container(height: 1.2, color: primaryDark),
-        pw.SizedBox(height: 8),
-        pw.Text(
-          title,
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(
-            fontSize: 9.5,
-            fontWeight: pw.FontWeight.bold,
-            color: primary,
-            letterSpacing: 0.2,
-          ),
-        ),
-      ],
-    );
-  }
+  pw.Widget statusPill(LabOrderStatus status) => _labStatusPill(status);
 }
 
 /// Whether a single result line should appear on a printed report.
@@ -825,7 +478,7 @@ List<pw.Widget> _buildLabOrderItemPdfSections(
 /// Builds a laboratory order PDF for print / share.
 Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
   final logoImage = await _loadLabPdfLogo();
-  final palette = _LabPdfPalette();
+  final palette = await resolveSelectedReportPdfTheme();
 
   final generatedOn = DateTime.now();
   final generatedStr = generatedOn.toIso8601String().split('T').first;
@@ -860,7 +513,7 @@ Future<List<int>> buildLabOrderPdf(LabOrder order, PdfPageFormat format) async {
         return [
           palette.hospitalHeader(logoImage),
           pw.SizedBox(height: 20),
-          palette.reportBanner(),
+          palette.labReportBanner(),
           pw.SizedBox(height: 18),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -939,7 +592,7 @@ Future<List<int>> buildLabPatientItemsPdf({
   if (printable.isEmpty) return [];
 
   final logoImage = await _loadLabPdfLogo();
-  final palette = _LabPdfPalette();
+  final palette = await resolveSelectedReportPdfTheme();
 
   final generatedOn = DateTime.now();
   final generatedStr = generatedOn.toIso8601String().split('T').first;
@@ -979,7 +632,7 @@ Future<List<int>> buildLabPatientItemsPdf({
         return [
           palette.hospitalHeader(logoImage),
           pw.SizedBox(height: 20),
-          palette.reportBanner(),
+          palette.labReportBanner(),
           pw.SizedBox(height: 18),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,

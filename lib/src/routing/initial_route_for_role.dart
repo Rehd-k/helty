@@ -1,12 +1,19 @@
 import 'package:auto_route/auto_route.dart';
 
 import '../../app_router.gr.dart';
+import '../app/product_definition.dart';
+import '../app/product_module_access.dart';
 import '../models/staff_model.dart';
 
 /// First child route under [HomeRoute] after login, matching department role.
 PageRouteInfo initialRouteForRole(String role, String accountType) {
   final at = accountType.toLowerCase();
   final r = role.toUpperCase();
+
+  final blocked = _landingBlockedByProduct(at, r);
+  if (blocked) {
+    return ProductModuleAccess.fallbackInitialRoute();
+  }
 
   switch (at) {
     case 'front_desk':
@@ -94,4 +101,30 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
       }
       return const FrontDeskDashboardRoute();
   }
+}
+
+bool _landingBlockedByProduct(String accountType, String roleUpper) {
+  var module = ProductModuleAccess.moduleForAccountType(accountType);
+  if (module == null) {
+    if (roleUpper == 'DIALYSIS_HEAD' ||
+        roleUpper == 'DIALYSIS_NURSE' ||
+        roleUpper == 'DIALYSIS_TECH' ||
+        roleUpper == 'DIALYSIS_TECHNICIAN' ||
+        roleUpper == 'DIALYSIS_RECEPTIONIST') {
+      module = AppModule.dialysis;
+    } else if (roleUpper == 'THEATRE' ||
+        roleUpper == 'THEATRE_HEAD' ||
+        roleUpper == 'THEATRE_NURSE' ||
+        roleUpper == 'THEATRE_SCRUB' ||
+        roleUpper == 'THEATRE_ANAESTHETIST' ||
+        roleUpper == 'THEATRE_RECEPTIONIST') {
+      module = AppModule.theatre;
+    }
+  }
+
+  if (module == null) {
+    // Unknown account types keep hospital default landing; elsewhere fall back.
+    return !ProductModuleAccess.isAccountTypeAllowedForProduct(accountType);
+  }
+  return !ProductModuleAccess.isModuleEnabled(module);
 }

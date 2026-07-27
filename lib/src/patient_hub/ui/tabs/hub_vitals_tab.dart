@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:helty/src/widgets/empty.widget.dart';
+
 import '../../models/patient_hub_models.dart';
 import '../../../patient_chart/models/patient_chart_models.dart';
 import '../../providers/patient_hub_providers.dart';
@@ -108,7 +110,6 @@ class _HubVitalsScreenState extends ConsumerState<HubVitalsScreen> {
               const SizedBox(height: 16),
               ...vitals.map(
                 (v) => Card(
-                  elevation: 0,
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     title: Text(
@@ -167,7 +168,11 @@ class _VitalsChart extends StatelessWidget {
     }
 
     if (points.isEmpty) {
-      return const Center(child: Text('No data for selected metric'));
+      return const EmptyStateWidget(
+        icon: Icons.show_chart_outlined,
+        title: 'No data for this metric',
+        message: 'Try another vital sign or widen the date range.',
+      );
     }
 
     final minY = points.map((p) => p.y).reduce(math.min);
@@ -175,7 +180,6 @@ class _VitalsChart extends StatelessWidget {
     final pad = (maxY - minY).abs() < 1 ? 1.0 : (maxY - minY) * 0.1;
 
     return Card(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: cs.outlineVariant),

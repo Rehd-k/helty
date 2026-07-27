@@ -27,7 +27,6 @@ class ObFormSectionCard extends StatelessWidget {
         : scheme.onPrimaryContainer;
 
     return Card(
-      elevation: ObstetricsTheme.cardElevation,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: ObstetricsTheme.borderRadius,
@@ -176,9 +175,11 @@ class ObstetricsFormScaffold extends StatelessWidget {
               ],
             ),
           ),
-          Material(
-            elevation: 8,
-            color: scheme.surface,
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              border: Border(top: BorderSide(color: scheme.outlineVariant)),
+            ),
             child: SafeArea(
               top: false,
               child: Padding(

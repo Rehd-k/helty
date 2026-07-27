@@ -4,6 +4,7 @@ import 'package:helty/src/billings/parked_billing_session.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/parked_billing_provider.dart';
+import 'package:helty/src/shared/department_colors.dart';
 
 class ParkedBillingChipsBar extends ConsumerWidget {
   const ParkedBillingChipsBar({
@@ -17,8 +18,10 @@ class ParkedBillingChipsBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final sessions = ref.watch(parkedBillingProvider);
     if (sessions.isEmpty) return const SizedBox.shrink();
+    final accent = DepartmentColors.billing;
 
     return Padding(
       padding: padding,
@@ -27,29 +30,27 @@ class ParkedBillingChipsBar extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.pause_circle_outline, size: 18, color: Colors.orange.shade800),
-              const SizedBox(width: 6),
+              Icon(Icons.pause_circle_outline, size: 18, color: accent),
+              const SizedBox(width: 8),
               Text(
                 'Waiting to pay',
-                style: TextStyle(
-                  fontSize: 13,
+                style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.orange.shade900,
+                  color: accent,
                 ),
               ),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
+                  color: accent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '${sessions.length}',
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: theme.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade900,
+                    color: accent,
                   ),
                 ),
               ),
@@ -100,7 +101,7 @@ class ParkedBillingChipsBar extends ConsumerWidget {
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.redAccent,
+              backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
             child: const Text('Dismiss'),
           ),
@@ -143,8 +144,10 @@ class _ParkedBillChip extends StatelessWidget {
       ago,
     ];
 
+    final accent = DepartmentColors.billing;
+
     return Material(
-      color: Colors.orange.shade50,
+      color: accent.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onResume,
@@ -154,24 +157,23 @@ class _ParkedBillChip extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, right: 4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.orange.shade300),
+            border: Border.all(color: accent.withValues(alpha: 0.35)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.receipt_long, size: 16, color: Colors.orange.shade800),
-              const SizedBox(width: 6),
+              Icon(Icons.receipt_long, size: 16, color: accent),
+              const SizedBox(width: 8),
               Text(
                 labelParts.join(' · '),
-                style: TextStyle(
-                  fontSize: 12,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.orange.shade900,
+                  color: accent,
                 ),
               ),
               IconButton(
                 onPressed: onDismiss,
-                icon: Icon(Icons.close, size: 16, color: Colors.orange.shade700),
+                icon: Icon(Icons.close, size: 16, color: accent),
                 tooltip: 'Dismiss parked bill',
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),

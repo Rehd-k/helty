@@ -99,10 +99,8 @@ class CMDPatientExperienceScreen extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: CmdDataTableBox(
-                      child: DataTable2(
+                  CmdDataTableBox(
+                    child: DataTable2(
                         columnSpacing: 12,
                         horizontalMargin: 12,
                         minWidth: 720,
@@ -123,21 +121,18 @@ class CMDPatientExperienceScreen extends ConsumerWidget {
                               ],
                             ),
                         ],
-                      ),
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
                   Text(
                     'Department ratings (rolling)',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: CmdDataTableBox(
-                      heightFactor: 0.34,
-                      minHeight: 220,
-                      child: DataTable2(
+                  CmdDataTableBox(
+                    heightFactor: 0.34,
+                    minHeight: 220,
+                    child: DataTable2(
                         columnSpacing: 12,
                         horizontalMargin: 12,
                         minWidth: 520,
@@ -156,7 +151,6 @@ class CMDPatientExperienceScreen extends ConsumerWidget {
                               ],
                             ),
                         ],
-                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

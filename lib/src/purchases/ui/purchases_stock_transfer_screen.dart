@@ -421,9 +421,8 @@ class _PurchasesStockTransferScreenState
                       'For wrong data entry only. This uses the restricted '
                       'correction endpoint (pharmacy head; batch must be at '
                       'least 24 hours old — the server will reject otherwise).',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade700,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -491,7 +490,7 @@ class _PurchasesStockTransferScreenState
       onPressed: eligible ? () => _showQuantityCorrectionDialog(b) : null,
       icon: Icon(
         Icons.edit_note_outlined,
-        color: eligible ? theme.colorScheme.primary : Colors.grey.shade400,
+        color: eligible ? theme.colorScheme.primary : theme.colorScheme.outline,
       ),
     );
   }
@@ -566,6 +565,7 @@ class _PurchasesStockTransferScreenState
     IconData? icon,
   }) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final isDisabled = onChanged == null;
 
     return Padding(
@@ -575,7 +575,9 @@ class _PurchasesStockTransferScreenState
         children: [
           Text(
             label,
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<dynamic>(
@@ -584,40 +586,12 @@ class _PurchasesStockTransferScreenState
             onChanged: onChanged,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(fontSize: 14),
               prefixIcon: icon != null ? Icon(icon, size: 20) : null,
-              filled: true,
-              fillColor: isDisabled ? Colors.grey.shade100 : Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.primary,
-                  width: 2,
-                ),
-              ),
-              disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
-              ),
             ),
             icon: Icon(
               Icons.keyboard_arrow_down,
-              color: isDisabled ? Colors.grey.shade400 : Colors.grey.shade600,
+              color: isDisabled ? scheme.outline : scheme.onSurfaceVariant,
             ),
-            dropdownColor: Colors.white,
-            borderRadius: BorderRadius.circular(10),
           ),
         ],
       ),
@@ -641,18 +615,8 @@ class _PurchasesStockTransferScreenState
     }
 
     return Card(
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
         child: Row(
           children: [
             Expanded(
@@ -735,7 +699,6 @@ class _PurchasesStockTransferScreenState
 
   Widget _buildItemsSelector(ThemeData theme) {
     return Card(
-      elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -1038,7 +1001,6 @@ class _PurchasesStockTransferScreenState
     final distinctDrugs = _lines.map((l) => l.item.id).toSet().length;
 
     return Card(
-      elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -1051,7 +1013,9 @@ class _PurchasesStockTransferScreenState
             const SizedBox(height: 4),
             Text(
               'Review and confirm before moving stock.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             ModernTextField(

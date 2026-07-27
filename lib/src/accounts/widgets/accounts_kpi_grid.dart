@@ -45,22 +45,12 @@ class AccountsKpiGrid extends StatelessWidget {
           itemBuilder: (context, index) {
             final tile = tiles[index];
             final accent = tile.accent ?? AccountsPalette.primary;
-            return Material(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
+            return Card(
               child: InkWell(
                 onTap: tile.onTap,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

@@ -511,19 +511,20 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
         .where((s) => (s.id?.trim().isNotEmpty ?? false))
         .toList();
 
+    final cs = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: cs.surfaceContainerHighest,
       appBar: AppBar(
         title: const Text(
           'Add Drug Batch',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         elevation: 0,
+        scrolledUnderElevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey.shade200, height: 1),
+          child: Container(color: cs.outlineVariant, height: 1),
         ),
       ),
       body: ResponsiveBody(
@@ -545,12 +546,12 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Medicine',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
-                                color: Colors.black87,
+                                color: cs.onSurfaceVariant,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -676,12 +677,12 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                           'Quantities & Pricing',
                           Icons.attach_money_outlined,
                         ),
-                        const Text(
+                        Text(
                           'Receive as',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
-                            color: Colors.black87,
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -914,7 +915,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -941,10 +942,11 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _summaryRow('Line items', '${_pendingEntries.length}'),
-          _summaryRow('Unique drugs', '$uniqueDrugs'),
-          _summaryRow('Total quantity', totalQty.toFinancial(isMoney: false)),
+          _summaryRow(theme, 'Line items', '${_pendingEntries.length}'),
+          _summaryRow(theme, 'Unique drugs', '$uniqueDrugs'),
+          _summaryRow(theme, 'Total quantity', totalQty.toFinancial(isMoney: false)),
           _summaryRow(
+            theme,
             'Total value',
             totalValue.toFinancial(isMoney: true),
             isHighlight: true,
@@ -954,7 +956,13 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     );
   }
 
-  Widget _summaryRow(String label, String value, {bool isHighlight = false}) {
+  Widget _summaryRow(
+    ThemeData theme,
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -964,7 +972,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade700,
+              color: cs.onSurfaceVariant,
               fontWeight: isHighlight ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
@@ -973,7 +981,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
-              color: isHighlight ? Colors.green.shade700 : Colors.black87,
+              color: isHighlight ? Colors.green.shade700 : cs.onSurfaceVariant,
             ),
           ),
         ],
@@ -988,7 +996,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
         ),
         child: Center(
           child: Column(
@@ -997,17 +1005,23 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
               Icon(
                 Icons.inventory_2_outlined,
                 size: 48,
-                color: Colors.grey.shade400,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(height: 12),
               Text(
                 'No batches added yet',
-                style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Use the form on the left to add entries.',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -1019,7 +1033,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -1067,12 +1081,12 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
       decoration: BoxDecoration(
         color: isEditing
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-            : Colors.grey.shade50,
+            : theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isEditing
               ? theme.colorScheme.primary.withValues(alpha: 0.5)
-              : Colors.grey.shade200,
+              : theme.colorScheme.outlineVariant,
         ),
       ),
       child: Column(
@@ -1097,7 +1111,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                         entry.drug.genericName,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     const SizedBox(height: 6),
@@ -1105,9 +1119,10 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                       children: [
                         if (entry.batchNumber != null &&
                             entry.batchNumber!.isNotEmpty)
-                          _chip('Batch: ${entry.batchNumber}'),
-                        _chip(entry.receiveSummary),
+                          _chip(theme, 'Batch: ${entry.batchNumber}'),
+                        _chip(theme, entry.receiveSummary),
                         _chip(
+                          theme,
                           'Unit cost: ${entry.costPrice.toFinancial(isMoney: true)}',
                         ),
                       ],
@@ -1162,17 +1177,18 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     );
   }
 
-  Widget _chip(String text) {
+  Widget _chip(ThemeData theme, String text) {
+    final cs = theme.colorScheme;
     return Container(
       margin: const EdgeInsets.only(right: 8, bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
       ),
     );
   }
@@ -1248,13 +1264,20 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                 if (drug.genericName.isNotEmpty)
                   Text(
                     drug.genericName,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
               ],
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close, size: 20, color: Colors.grey.shade700),
+            icon: Icon(
+              Icons.close,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             onPressed: _clearSelectedDrug,
             style: IconButton.styleFrom(
               minimumSize: const Size(36, 36),
@@ -1267,11 +1290,12 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
   }
 
   Widget _buildDrugSearchField(ThemeData theme) {
+    final cs = theme.colorScheme;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: cs.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -1285,8 +1309,8 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
         focusNode: _drugSearchFocus,
         decoration: InputDecoration(
           hintText: 'Search medicine by name...',
-          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-          prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+          hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
+          prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
           filled: true,
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(
@@ -1324,12 +1348,13 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
   }
 
   Widget _buildDrugDropdownList(ThemeData theme) {
+    final cs = theme.colorScheme;
     return Container(
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: cs.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -1351,7 +1376,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
               padding: const EdgeInsets.all(20.0),
               child: Text(
                 'No medicines found. Keep typing to search.',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               ),
             );
           }
@@ -1372,7 +1397,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
             subtitle: drug.genericName.isNotEmpty
                 ? Text(
                     drug.genericName,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
                   )
                 : null,
             onTap: () {
@@ -1419,6 +1444,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     required ValueChanged<T?> onChanged,
   }) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Column(
@@ -1426,10 +1452,10 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: Colors.black87,
+              color: cs.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -1439,20 +1465,20 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
             onChanged: onChanged,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: cs.surface,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
+                borderSide: BorderSide(color: cs.outlineVariant),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -1462,8 +1488,8 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                 ),
               ),
             ),
-            icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade600),
-            dropdownColor: Colors.white,
+            icon: Icon(Icons.keyboard_arrow_down, color: cs.onSurfaceVariant),
+            dropdownColor: cs.surface,
             borderRadius: BorderRadius.circular(10),
           ),
         ],
@@ -1478,12 +1504,13 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     bool isDanger = false,
   }) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final dateString = date != null
         ? DateFormat('MMM dd, yyyy').format(date)
         : 'Select Date';
     final textColor = date != null
-        ? (isDanger ? theme.colorScheme.error : Colors.black87)
-        : Colors.grey.shade400;
+        ? (isDanger ? cs.error : cs.onSurface)
+        : cs.onSurfaceVariant;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -1492,10 +1519,10 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: Colors.black87,
+              color: cs.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -1505,12 +1532,12 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cs.surface,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: isDanger
-                      ? theme.colorScheme.error.withValues(alpha: 0.5)
-                      : Colors.grey.shade200,
+                      ? cs.error.withValues(alpha: 0.5)
+                      : cs.outlineVariant,
                 ),
               ),
               child: Row(
@@ -1530,7 +1557,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                     Icons.calendar_today_outlined,
                     color: isDanger
                         ? theme.colorScheme.error
-                        : Colors.grey.shade500,
+                        : theme.colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
                 ],

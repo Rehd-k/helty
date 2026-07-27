@@ -36,7 +36,7 @@ class CompletedEncounterExaminationTab extends StatelessWidget {
         child: Text(
           content,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: colorScheme.onSurface.withValues(alpha: 0.9),
+            color: colorScheme.onSurface,
             height: 1.5,
           ),
         ),

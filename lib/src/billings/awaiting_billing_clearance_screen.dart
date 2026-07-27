@@ -8,6 +8,8 @@ import 'package:helty/src/models/admission_billing_clearance_models.dart';
 import 'package:helty/src/providers/admission_clearance_providers.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/admission_service.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 
 const _pageSize = 20;
 
@@ -721,21 +723,24 @@ class _ClearanceStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final ready = billing.allPaid && billing.totalBalance <= 0.005;
     final partial = billing.totalBalance > 0.005 && billing.totalAmountPaid > 0.005;
 
-    final Color bg;
-    final Color fg;
-    if (ready) {
-      bg = Colors.green.withValues(alpha: 0.12);
-      fg = Colors.green.shade800;
-    } else if (partial) {
-      bg = Colors.orange.withValues(alpha: 0.12);
-      fg = Colors.orange.shade900;
-    } else {
-      bg = Colors.red.withValues(alpha: 0.1);
-      fg = Colors.red.shade800;
-    }
+    final (bg, fg) = ready
+        ? (
+            FinanceStatusColors.success(scheme).withValues(alpha: 0.12),
+            FinanceStatusColors.success(scheme),
+          )
+        : partial
+        ? (
+            FinanceStatusColors.warning(scheme).withValues(alpha: 0.12),
+            FinanceStatusColors.warning(scheme),
+          )
+        : (
+            FinanceStatusColors.danger(scheme).withValues(alpha: 0.1),
+            FinanceStatusColors.danger(scheme),
+          );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -819,7 +824,7 @@ class _CoverageBreakdown extends StatelessWidget {
                       child: cell(
                         'Covered',
                         billing.totalCoveredAmount.toFinancial(isMoney: true),
-                        valueColor: Colors.deepPurple,
+                        valueColor: DepartmentColors.laboratory,
                       ),
                     ),
                     Expanded(
@@ -828,7 +833,7 @@ class _CoverageBreakdown extends StatelessWidget {
                         billing.totalBalance.toFinancial(isMoney: true),
                         valueColor: billing.totalBalance > 0
                             ? colorScheme.error
-                            : Colors.green.shade700,
+                            : FinanceStatusColors.success(colorScheme),
                       ),
                     ),
                   ],

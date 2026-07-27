@@ -120,16 +120,7 @@ class AccountsFinancialReportsHubScreen extends ConsumerWidget {
             itemBuilder: (context, i) {
               final r = reports[i];
               return Card(
-                elevation: 0,
                 clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: theme.colorScheme.outlineVariant.withValues(
-                      alpha: 0.5,
-                    ),
-                  ),
-                ),
                 child: InkWell(
                   onTap: () => context.router.push(r.route),
                   child: Padding(

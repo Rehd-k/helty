@@ -11,12 +11,6 @@ import '../services/pharmacy_service.dart';
 import 'add_drug_screen.dart';
 import 'medicine_filters_panel.dart';
 
-/// Search field type for the search bar dropdown.
-enum SearchFieldType { genericName, brandName }
-
-/// Filter pill type for status/category filtering.
-enum FilterPillType { all, lowStock, expiringSoon, antibiotics, painkillers }
-
 @RoutePage()
 class MedicineInventoryScreen extends StatefulWidget {
   const MedicineInventoryScreen({super.key});
@@ -277,11 +271,11 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              '• The drug will no longer appear in searches or new orders.',
+              '� The drug will no longer appear in searches or new orders.',
             ),
-            const Text('• Past prescriptions and invoices are not affected.'),
+            const Text('� Past prescriptions and invoices are not affected.'),
             const Text(
-              '• You cannot hide a drug while sellable stock remains.',
+              '� You cannot hide a drug while sellable stock remains.',
             ),
           ],
         ),
@@ -494,6 +488,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   }
 
   Widget _buildMainSection(ThemeData theme, AppBreakpoints bp) {
+    final cs = theme.colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -502,10 +497,10 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: theme.cardColor,
+              color: cs.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: theme.dividerColor.withValues(alpha: 0.1),
+                color: cs.outlineVariant.withValues(alpha: 0.1),
               ),
             ),
             child: Column(
@@ -533,6 +528,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   }
 
   Widget _buildHeader(ThemeData theme, AppBreakpoints bp) {
+    final cs = theme.colorScheme;
     final actions = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -544,7 +540,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
           label: const Text('Filters'),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
+            side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
           ),
         ),
         const SizedBox(width: 12),
@@ -573,7 +569,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
         const SizedBox(height: 4),
         Text(
           'Manage stock, track expiries, and update details',
-          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+          style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
         ),
       ],
     );
@@ -594,6 +590,12 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   }
 
   Widget _buildTable(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final columnHeaderStyle = TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 12,
+      color: cs.onSurfaceVariant,
+    );
     return ResponsiveDataTable(
       child: Scrollbar(
         controller: _verticalScrollController,
@@ -613,68 +615,26 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                   false, // Hide default checkboxes to match design
               columns: [
                 DataColumn(
-                  label: const Text(
-                    'MEDICINE NAME',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('MEDICINE NAME', style: columnHeaderStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'brandName'),
                 ),
                 DataColumn(
-                  label: const Text(
-                    'COMPOSITION',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('COMPOSITION', style: columnHeaderStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'genericName'),
                 ),
                 DataColumn(
-                  label: const Text(
-                    'STOCK',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('STOCK', style: columnHeaderStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'stock'),
                 ),
                 DataColumn(
-                  label: const Text(
-                    'EXPIRY',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  label: Text('EXPIRY', style: columnHeaderStyle),
                   onSort: (idx, asc) => _onSort(idx, asc, 'expiryDate'),
                 ),
-                const DataColumn(
-                  label: Text(
-                    'STATUS',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                DataColumn(
+                  label: Text('STATUS', style: columnHeaderStyle),
                 ),
-                const DataColumn(
-                  label: Text(
-                    'ACTIONS',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                DataColumn(
+                  label: Text('ACTIONS', style: columnHeaderStyle),
                 ),
               ],
               rows: _drugs.map((drug) {
@@ -730,10 +690,10 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                                 ),
                               ),
                               Text(
-                                'ID: ${drug.id ?? '—'}',
+                                'ID: ${drug.id ?? '�'}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey[600],
+                                  color: cs.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -744,7 +704,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                     DataCell(
                       Text(
                         drug.genericName,
-                        style: TextStyle(color: Colors.grey[800]),
+                        style: TextStyle(color: cs.onSurface),
                       ),
                     ),
                     DataCell(
@@ -760,7 +720,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                             ),
                             TextSpan(
                               text: drug.displayUnit,
-                              style: const TextStyle(color: Colors.grey),
+                              style: TextStyle(color: cs.onSurfaceVariant),
                             ),
                           ],
                         ),
@@ -783,17 +743,17 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                                 ? DateFormat(
                                     'MMM yyyy',
                                   ).format(drug.expiryDate!)
-                                : '—',
+                                : '�',
                             style: TextStyle(
                               color: drug.displayStatus == 'Expiring Soon'
                                   ? Colors.orange[800]
-                                  : Colors.grey[800],
+                                  : cs.onSurface,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    DataCell(_buildStatusChip(drug.displayStatus)),
+                    DataCell(_buildStatusChip(cs, drug.displayStatus)),
                     DataCell(
                       PopupMenuButton<String>(
                         icon: const Icon(Icons.more_vert, size: 20),
@@ -811,7 +771,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                                   Icons.visibility_off_outlined,
                                   size: 18,
                                   color: _hasSellableStock(drug)
-                                      ? Colors.grey
+                                      ? cs.onSurfaceVariant
                                       : Colors.red,
                                 ),
                                 const SizedBox(width: 8),
@@ -819,7 +779,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                                   'Hide from catalog',
                                   style: TextStyle(
                                     color: _hasSellableStock(drug)
-                                        ? Colors.grey
+                                        ? cs.onSurfaceVariant
                                         : Colors.red,
                                   ),
                                 ),
@@ -838,7 +798,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     );
   }
 
-  Widget _buildStatusChip(String status) {
+  Widget _buildStatusChip(ColorScheme cs, String status) {
     Color color;
     Color bgColor;
 
@@ -860,8 +820,8 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
         bgColor = Colors.red.withValues(alpha: 0.1);
         break;
       default:
-        color = Colors.grey;
-        bgColor = Colors.grey.withValues(alpha: 0.1);
+        color = cs.onSurfaceVariant;
+        bgColor = cs.onSurfaceVariant.withValues(alpha: 0.1);
     }
 
     return Container(
@@ -882,6 +842,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   }
 
   Widget _buildPagination(ThemeData theme, AppBreakpoints bp) {
+    final cs = theme.colorScheme;
     int totalPages = (_totalItems / _pageSize).ceil();
     if (totalPages == 0) totalPages = 1;
     final start = (_currentPage - 1) * _pageSize + 1;
@@ -892,7 +853,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       children: [
         Text(
           'Page $_currentPage of $totalPages',
-          style: const TextStyle(color: Colors.grey),
+          style: TextStyle(color: cs.onSurfaceVariant),
         ),
         const SizedBox(width: 8),
         IconButton(
@@ -914,13 +875,13 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Showing ${_totalItems == 0 ? 0 : start}–$end of $_totalItems',
-          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          'Showing ${_totalItems == 0 ? 0 : start}�$end of $_totalItems',
+          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
         ),
         const SizedBox(width: 16),
         Text(
           'Per page:',
-          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
         ),
         const SizedBox(width: 8),
         DropdownButton<int>(
@@ -966,6 +927,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   // --- Right Panel Details ---
 
   Widget _buildDetailsPanel(ThemeData theme, Drug drug) {
+    final cs = theme.colorScheme;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -991,12 +953,12 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.grey),
+                    icon: Icon(Icons.edit, color: cs.onSurfaceVariant),
                     onPressed: () =>
                         _showEditMedicineModal(context, theme, drug),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.sell_outlined, color: Colors.grey),
+                    icon: Icon(Icons.sell_outlined, color: cs.onSurfaceVariant),
                     tooltip: 'Batch & ward pricing preview',
                     onPressed: drug.id == null || drug.id!.trim().isEmpty
                         ? null
@@ -1010,7 +972,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                       color: _hasSellableStock(drug) ||
                               drug.id == null ||
                               drug.id!.trim().isEmpty
-                          ? Colors.grey.withValues(alpha: 0.4)
+                          ? cs.onSurfaceVariant.withValues(alpha: 0.4)
                           : Colors.red,
                     ),
                     tooltip: 'Hide drug from catalog',
@@ -1032,13 +994,13 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
             ),
           ),
           Text(
-            '${drug.therapeuticClass ?? '—'} • ID: ${drug.id ?? '—'}',
-            style: TextStyle(color: Colors.grey[600]),
+            '${drug.therapeuticClass ?? '�'} � ID: ${drug.id ?? '�'}',
+            style: TextStyle(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildStatusChip(drug.displayStatus),
+              _buildStatusChip(cs, drug.displayStatus),
               const SizedBox(width: 8),
               if (drug.displayStatus == 'Expiring Soon' &&
                   drug.expiryDate != null)
@@ -1080,7 +1042,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
             Text(
               'Deplete or transfer stock before hiding.',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: cs.onSurfaceVariant,
                 fontSize: 13,
                 fontStyle: FontStyle.italic,
               ),
@@ -1093,6 +1055,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
             children: [
               Expanded(
                 child: _buildStatCard(
+                  cs,
                   theme,
                   'Total Stock',
                   '${drug.displayStock}',
@@ -1100,35 +1063,36 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              Expanded(child: _buildPricesCard(theme, drug.prices)),
+              Expanded(child: _buildPricesCard(cs, theme, drug.prices)),
             ],
           ),
           const SizedBox(height: 16),
 
           // Composition Card
-          _buildInfoCard(theme, 'Drug Composition', Icons.science_outlined, [
-            _buildInfoRow('Generic Name', drug.genericName, isFullWidth: true),
+          _buildInfoCard(cs, theme, 'Drug Composition', Icons.science_outlined, [
+            _buildInfoRow(cs, 'Generic Name', drug.genericName, isFullWidth: true),
             Row(
               children: [
                 Expanded(
-                  child: _buildInfoRow('Strength', drug.strength ?? '—'),
+                  child: _buildInfoRow(cs, 'Strength', drug.strength ?? '�'),
                 ),
                 Expanded(
-                  child: _buildInfoRow('Dosage Form', drug.dosageForm ?? '—'),
+                  child: _buildInfoRow(cs, 'Dosage Form', drug.dosageForm ?? '�'),
                 ),
               ],
             ),
             _buildInfoRow(
+              cs,
               'Manufacturer',
-              drug.manufacturerName ?? drug.manufacturerId ?? '—',
+              drug.manufacturerName ?? drug.manufacturerId ?? '�',
               isFullWidth: true,
             ),
           ]),
           const SizedBox(height: 16),
 
           // Locations Card
-          _buildInfoCard(theme, 'Stock Locations', Icons.storefront_outlined, [
-            ..._buildStockLocationChildren(theme, drug),
+          _buildInfoCard(cs, theme, 'Stock Locations', Icons.storefront_outlined, [
+            ..._buildStockLocationChildren(cs, theme, drug),
           ]),
           const SizedBox(height: 24),
           // Order button
@@ -1152,6 +1116,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   }
 
   Widget _buildStatCard(
+    ColorScheme cs,
     ThemeData theme,
     String title,
     String value,
@@ -1160,14 +1125,14 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+          Text(title, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
           const SizedBox(height: 8),
           RichText(
             text: TextSpan(
@@ -1180,7 +1145,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                   text: ' $suffix',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[500],
+                    color: cs.onSurfaceVariant,
                     fontWeight: FontWeight.normal,
                   ),
                 ),
@@ -1192,25 +1157,25 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     );
   }
 
-  Widget _buildPricesCard(ThemeData theme, List<DrugPrice>? prices) {
+  Widget _buildPricesCard(ColorScheme cs, ThemeData theme, List<DrugPrice>? prices) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Selling Prices',
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
           ),
           const SizedBox(height: 8),
           if (prices == null || prices.isEmpty)
             Text(
-              '—',
+              '�',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -1238,6 +1203,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   }
 
   Widget _buildInfoCard(
+    ColorScheme cs,
     ThemeData theme,
     String title,
     IconData icon,
@@ -1246,16 +1212,16 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: Colors.grey[600]),
+              Icon(icon, size: 18, color: cs.onSurfaceVariant),
               const SizedBox(width: 8),
               Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
             ],
@@ -1267,13 +1233,18 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isFullWidth = false}) {
+  Widget _buildInfoRow(
+    ColorScheme cs,
+    String label,
+    String value, {
+    bool isFullWidth = false,
+  }) {
     return Padding(
       padding: EdgeInsets.only(bottom: isFullWidth ? 12.0 : 0.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          Text(label, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
         ],
@@ -1281,7 +1252,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     );
   }
 
-  Widget _buildLocationRow(String location, int quantity) {
+  Widget _buildLocationRow(ColorScheme cs, String location, int quantity) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -1292,10 +1263,10 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
               Icon(
                 Icons.inventory_2_outlined,
                 size: 16,
-                color: Colors.grey[600],
+                color: cs.onSurfaceVariant,
               ),
               const SizedBox(width: 8),
-              Text(location, style: TextStyle(color: Colors.grey[800])),
+              Text(location, style: TextStyle(color: cs.onSurface)),
             ],
           ),
           Text(
@@ -1307,13 +1278,17 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     );
   }
 
-  List<Widget> _buildStockLocationChildren(ThemeData theme, Drug drug) {
+  List<Widget> _buildStockLocationChildren(
+    ColorScheme cs,
+    ThemeData theme,
+    Drug drug,
+  ) {
     final id = drug.id;
     if (id == null || id.isEmpty) {
       return [
         Text(
           'No stock locations available.',
-          style: TextStyle(color: Colors.grey[600]),
+          style: TextStyle(color: cs.onSurfaceVariant),
         ),
       ];
     }
@@ -1349,7 +1324,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       return [
         Text(
           'No stock locations available.',
-          style: TextStyle(color: Colors.grey[600]),
+          style: TextStyle(color: cs.onSurfaceVariant),
         ),
       ];
     }
@@ -1357,7 +1332,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     final rows = <Widget>[];
     for (var i = 0; i < locations.length; i++) {
       final loc = locations[i];
-      rows.add(_buildLocationRow(loc.locationName, loc.quantity));
+      rows.add(_buildLocationRow(cs, loc.locationName, loc.quantity));
       if (i < locations.length - 1) {
         rows.add(const Divider());
       }
@@ -1421,7 +1396,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   }
 }
 
-// ─── Add/Edit Medicine dialog (reusable) ───────────────────────────────────
+// ??? Add/Edit Medicine dialog (reusable) ???????????????????????????????????
 
 class _AddMedicineDialog extends StatefulWidget {
   const _AddMedicineDialog({
@@ -1462,7 +1437,7 @@ class _AddMedicineDialogState extends State<_AddMedicineDialog> {
   }
 }
 
-// ─── Order medicine dialog ─────────────────────────────────────────────────
+// ??? Order medicine dialog ?????????????????????????????????????????????????
 
 class _OrderMedicineDialog extends StatefulWidget {
   const _OrderMedicineDialog({
@@ -1535,6 +1510,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return AlertDialog(
       title: Text('Order ${widget.drug.brandName}'),
       content: SizedBox(
@@ -1545,7 +1521,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
           children: [
             Text(
               'Create a purchase order for ${widget.drug.genericName} (${widget.drug.brandName}).',
-              style: TextStyle(color: Colors.grey[700]),
+              style: TextStyle(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 20),
             if (widget.suppliers.isEmpty)
@@ -1567,7 +1543,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
                 items: [
                   const DropdownMenuItem(
                     value: null,
-                    child: Text('— Select supplier —'),
+                    child: Text('� Select supplier �'),
                   ),
                   ...widget.suppliers.map(
                     (s) => DropdownMenuItem<String?>(

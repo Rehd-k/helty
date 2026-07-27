@@ -73,7 +73,7 @@ class _SoapBlock extends StatelessWidget {
           Text(
             content,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.85),
+              color: colorScheme.onSurface,
               height: 1.4,
             ),
           ),

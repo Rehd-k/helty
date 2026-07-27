@@ -18,12 +18,6 @@ class CmacPeriodToolbar extends ConsumerWidget {
     final query = ref.watch(cmacAnalyticsQueryProvider);
 
     return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: accent.withValues(alpha: 0.35)),
-      ),
       color: cs.surface.withValues(alpha: 0.92),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

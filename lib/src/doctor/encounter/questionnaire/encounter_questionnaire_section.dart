@@ -149,7 +149,7 @@ class _EncounterQuestionnaireSectionState
                             Text(
                               widget.section.subtitle!,
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurface.withValues(alpha: 0.65),
+                                color: scheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -293,7 +293,7 @@ class _SavedNoteBanner extends StatelessWidget {
           child: Text(
             text,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ),
@@ -334,7 +334,7 @@ class _GeneratedPreview extends StatelessWidget {
             text.isEmpty ? '— (answer questions above)' : text,
             style: theme.textTheme.bodySmall?.copyWith(
               fontStyle: text.isEmpty ? FontStyle.italic : FontStyle.normal,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],

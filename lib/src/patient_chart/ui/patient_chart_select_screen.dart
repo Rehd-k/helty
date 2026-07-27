@@ -7,6 +7,7 @@ import '../../paitients/patient_model.dart';
 import '../../paitients/patient_service.dart';
 import '../../core/widgets/patient_avatar.dart';
 import '../../widgets/filter.patients.dart';
+import '../../widgets/empty.widget.dart';
 import 'package:helty/src/core/responsive.dart';
 
 @RoutePage()
@@ -139,7 +140,11 @@ class _PatientChartSelectScreenState extends State<PatientChartSelectScreen> {
             child: _initialLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _patients.isEmpty
-                    ? const Center(child: Text('No patients found.'))
+                    ? const EmptyStateWidget(
+                        icon: Icons.person_search_outlined,
+                        title: 'No patients found',
+                        message: 'Adjust your search to locate a patient chart.',
+                      )
                     : RefreshIndicator(
                         onRefresh: _refreshPatients,
                         child: ListView.builder(

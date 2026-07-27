@@ -9,6 +9,7 @@ import '../../widgets/patient_consultation_credits_panel.dart';
 import '../models/patient_chart_models.dart';
 import '../permissions/patient_chart_permissions.dart';
 import '../providers/patient_chart_providers.dart';
+import 'package:helty/src/widgets/empty.widget.dart';
 import 'widgets/archived_encounter_tile.dart';
 import 'widgets/archived_encounter_upload_sheet.dart';
 import 'widgets/chart_patient_header.dart';
@@ -206,7 +207,12 @@ class _PatientChartScreenState extends ConsumerState<PatientChartScreen>
                   summary: header.summary,
                 ),
                 const Expanded(
-                  child: Center(child: Text('No chart sections available.')),
+                  child: EmptyStateWidget(
+                    icon: Icons.medical_information_outlined,
+                    title: 'No chart sections available',
+                    message:
+                        'This account cannot view any sections for this patient.',
+                  ),
                 ),
               ],
               ),

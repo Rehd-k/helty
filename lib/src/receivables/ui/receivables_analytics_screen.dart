@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/responsive.dart';
@@ -216,11 +217,8 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
     required String currentDisplay,
     required PeriodComparisonMetric metric,
   }) {
-    final color = switch (metric.trend) {
-      'up' => Colors.green,
-      'down' => Colors.red,
-      _ => Colors.grey,
-    };
+    final scheme = Theme.of(context).colorScheme;
+    final color = FinanceStatusColors.trend(metric.trend, scheme);
     final icon = switch (metric.trend) {
       'up' => Icons.trending_up,
       'down' => Icons.trending_down,
@@ -230,33 +228,36 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
         ? 'N/A'
         : '${metric.percentageChange!.toStringAsFixed(2)}%';
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text(
-              currentDisplay,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(icon, color: color, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  '${metric.absoluteChange.toFinancial(isMoney: true)} ($percent)',
-                  style: TextStyle(color: color, fontWeight: FontWeight.w600),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                currentDisplay,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${metric.absoluteChange.toFinancial(isMoney: true)} ($percent)',
+                    style: TextStyle(color: color, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -307,28 +308,32 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
   }
 
   Widget _errorState(String message, VoidCallback onRetry) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: Colors.red),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(message, maxLines: 3, overflow: TextOverflow.ellipsis),
-          ),
-          const SizedBox(width: 10),
-          OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: scheme.error),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                message,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 16),
+            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final previous = _previousRange;
     return Scaffold(
       appBar: AppBar(
@@ -357,7 +362,7 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
                 ),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Colors.grey.withValues(alpha: 0.35),
+                    color: scheme.outlineVariant.withValues(alpha: 0.35),
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -426,6 +431,7 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
   }
 
   Widget _buildDiscountSection() {
+    final scheme = Theme.of(context).colorScheme;
     if (_discountError != null) {
       return _errorState(_discountError!, _loadDiscountCoverage);
     }
@@ -459,7 +465,7 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
               'By Reason',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade800,
+                color: scheme.onSurface,
               ),
             ),
           ),
@@ -477,7 +483,7 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
               'By Policy',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade800,
+                color: scheme.onSurface,
               ),
             ),
           ),
@@ -641,11 +647,12 @@ class _ReceivablesAnalyticsScreenState extends State<ReceivablesAnalyticsScreen>
   }
 
   Widget _sectionContainer({required String title, required Widget child}) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.24)),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

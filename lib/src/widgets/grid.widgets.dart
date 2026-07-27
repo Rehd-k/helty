@@ -10,22 +10,26 @@ Widget buildModernGrid(
   void Function(int) removeService,
   BuildContext context,
 ) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+
   return Column(
     children: [
-      // --- HEADER ---
       Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor, // Dark professional background
+          color: cs.surfaceContainerHighest,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         ),
-        child: const Row(
+        child: Row(
           children: [
             Expanded(
               flex: 3,
               child: Text(
                 'Description/Service',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             Expanded(
@@ -33,7 +37,9 @@ Widget buildModernGrid(
               child: Text(
                 'QTY',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             Expanded(
@@ -41,7 +47,9 @@ Widget buildModernGrid(
               child: Text(
                 'Unit Price',
                 textAlign: TextAlign.right,
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             Expanded(
@@ -49,14 +57,14 @@ Widget buildModernGrid(
               child: Text(
                 'Total',
                 textAlign: TextAlign.right,
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
         ),
       ),
-
-      // --- BODY ---
       Expanded(
         child: ListView.separated(
           itemCount: invocie.invoiceItems.length,
@@ -66,17 +74,17 @@ Widget buildModernGrid(
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               color: index % 2 == 0
-                  ? Theme.of(context).cardColor.withValues(alpha: 0.5)
-                  : Theme.of(
-                      context,
-                    ).canvasColor.withValues(alpha: 0.05), // Zebra striping
+                  ? cs.surfaceContainer.withValues(alpha: 0.5)
+                  : cs.surface.withValues(alpha: 0.05),
               child: Row(
                 children: [
                   Expanded(
                     flex: 3,
                     child: Text(
                       item.name,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   Expanded(
@@ -95,9 +103,9 @@ Widget buildModernGrid(
                     child: Text(
                       (item.qty! * item.cost).toFinancial(isMoney: true),
                       textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: cs.primary,
                       ),
                     ),
                   ),

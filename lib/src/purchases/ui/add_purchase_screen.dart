@@ -539,9 +539,9 @@ class _PurchasesAddPurchaseScreenState
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('All batches saved successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('All batches saved successfully!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
         Navigator.of(context).pop();
@@ -577,7 +577,10 @@ class _PurchasesAddPurchaseScreenState
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
     );
   }
 
@@ -588,19 +591,13 @@ class _PurchasesAddPurchaseScreenState
         .where((s) => (s.id?.trim().isNotEmpty ?? false))
         .toList();
 
+    final scheme = theme.colorScheme;
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text(
-          'Add Purchase Batch',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
+        title: const Text('Add Purchase Batch'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey.shade200, height: 1),
+          child: Divider(height: 1, color: scheme.outlineVariant),
         ),
       ),
       body: ResponsiveBody(
@@ -619,12 +616,11 @@ class _PurchasesAddPurchaseScreenState
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Medicine',
-                              style: TextStyle(
+                              style: theme.textTheme.labelLarge?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: Colors.black87,
+                                color: scheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -750,12 +746,11 @@ class _PurchasesAddPurchaseScreenState
                           'Quantities & Pricing',
                           Icons.attach_money_outlined,
                         ),
-                        const Text(
+                        Text(
                           'Receive as',
-                          style: TextStyle(
+                          style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: Colors.black87,
+                            color: scheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -909,23 +904,12 @@ class _PurchasesAddPurchaseScreenState
                             Expanded(
                               child: SizedBox(
                                 height: 54,
-                                child: ElevatedButton(
+                                child: FilledButton(
                                   onPressed: _addOrUpdateEntry,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: theme.colorScheme.primary,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
                                   child: Text(
                                     _editingIndex != null
                                         ? 'Update entry'
                                         : 'Add to list',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
                                   ),
                                 ),
                               ),
@@ -960,32 +944,21 @@ class _PurchasesAddPurchaseScreenState
         const SizedBox(height: 16),
         SizedBox(
           height: 54,
-          child: ElevatedButton(
+          child: FilledButton(
             onPressed: (_isLoading || _pendingEntries.isEmpty)
                 ? null
                 : _saveAllBatches,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
             child: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     height: 24,
                     width: 24,
                     child: CircularProgressIndicator(
-                      color: Colors.white,
+                      color: theme.colorScheme.onPrimary,
                       strokeWidth: 2,
                     ),
                   )
                 : Text(
                     'Save all batches (${_pendingEntries.length})',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
                   ),
           ),
         ),
@@ -999,52 +972,55 @@ class _PurchasesAddPurchaseScreenState
     int totalQty,
     int uniqueDrugs,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.summarize, color: theme.colorScheme.primary, size: 22),
-              const SizedBox(width: 10),
-              Text(
-                'Summary',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade900,
+    final scheme = theme.colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.summarize, color: scheme.primary, size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  'Summary',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onPrimaryContainer,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _summaryRow('Line items', '${_pendingEntries.length}'),
-          _summaryRow('Unique drugs', '$uniqueDrugs'),
-          _summaryRow('Total quantity', totalQty.toFinancial(isMoney: false)),
-          _summaryRow(
-            'Total value',
-            totalValue.toFinancial(isMoney: true),
-            isHighlight: true,
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            _summaryRow(theme, scheme, 'Line items', '${_pendingEntries.length}'),
+            _summaryRow(theme, scheme, 'Unique drugs', '$uniqueDrugs'),
+            _summaryRow(
+              theme,
+              scheme,
+              'Total quantity',
+              totalQty.toFinancial(isMoney: false),
+            ),
+            _summaryRow(
+              theme,
+              scheme,
+              'Total value',
+              totalValue.toFinancial(isMoney: true),
+              isHighlight: true,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _summaryRow(String label, String value, {bool isHighlight = false}) {
+  Widget _summaryRow(
+    ThemeData theme,
+    ColorScheme scheme,
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -1052,18 +1028,16 @@ class _PurchasesAddPurchaseScreenState
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade700,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
               fontWeight: isHighlight ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 14,
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
-              color: isHighlight ? Colors.green.shade700 : Colors.black87,
+              color: isHighlight ? scheme.primary : scheme.onSurface,
             ),
           ),
         ],
@@ -1072,52 +1046,43 @@ class _PurchasesAddPurchaseScreenState
   }
 
   Widget _buildEntriesList(ThemeData theme) {
+    final scheme = theme.colorScheme;
     if (_pendingEntries.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.inventory_2_outlined,
-                size: 48,
-                color: Colors.grey.shade400,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'No batches added yet',
-                style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Use the form on the left to add entries.',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              ),
-            ],
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 48,
+                  color: scheme.outline,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No batches added yet',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Use the form on the left to add entries.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return Card(
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1125,14 +1090,13 @@ class _PurchasesAddPurchaseScreenState
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Text(
               'Added batches',
-              style: TextStyle(
-                fontSize: 15,
+              style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.blue.shade900,
+                color: scheme.primary,
               ),
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: scheme.outlineVariant),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1148,6 +1112,7 @@ class _PurchasesAddPurchaseScreenState
   }
 
   Widget _buildEntryTile(ThemeData theme, int index) {
+    final scheme = theme.colorScheme;
     final entry = _pendingEntries[index];
     final isEditing = _editingIndex == index;
 
@@ -1157,12 +1122,12 @@ class _PurchasesAddPurchaseScreenState
       decoration: BoxDecoration(
         color: isEditing
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-            : Colors.grey.shade50,
+            : scheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isEditing
-              ? theme.colorScheme.primary.withValues(alpha: 0.5)
-              : Colors.grey.shade200,
+              ? scheme.primary.withValues(alpha: 0.5)
+              : scheme.outlineVariant,
         ),
       ),
       child: Column(
@@ -1185,9 +1150,8 @@ class _PurchasesAddPurchaseScreenState
                     if (entry.item.sku != null && entry.item.sku!.isNotEmpty)
                       Text(
                         entry.item.sku!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     const SizedBox(height: 6),
@@ -1197,17 +1161,21 @@ class _PurchasesAddPurchaseScreenState
                       children: [
                         if (entry.batchNumber != null &&
                             entry.batchNumber!.isNotEmpty)
-                          _chip('Batch: ${entry.batchNumber}'),
-                        _chip(entry.receiveSummary),
+                          _chip('Batch: ${entry.batchNumber}', scheme, theme),
+                        _chip(entry.receiveSummary, scheme, theme),
                         _chip(
                           'Unit cost: ${entry.costPrice.toFinancial(isMoney: true)}',
+                          scheme,
+                          theme,
                         ),
                         if (entry.sellingPricePerUnit != null)
                           _chip(
                             'Sell: ${entry.sellingPricePerUnit!.toFinancial(isMoney: true)}/unit',
+                            scheme,
+                            theme,
                           )
                         else
-                          _chip('Sell: catalog'),
+                          _chip('Sell: catalog', scheme, theme),
                       ],
                     ),
                   ],
@@ -1235,7 +1203,7 @@ class _PurchasesAddPurchaseScreenState
                     icon: Icon(
                       Icons.delete_outline,
                       size: 20,
-                      color: Colors.red.shade400,
+                      color: scheme.error,
                     ),
                     style: IconButton.styleFrom(
                       minimumSize: const Size(36, 36),
@@ -1249,10 +1217,9 @@ class _PurchasesAddPurchaseScreenState
           const SizedBox(height: 6),
           Text(
             'Line total: ${entry.lineTotal.toFinancial(isMoney: true)}',
-            style: TextStyle(
-              fontSize: 13,
+            style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: Colors.green.shade700,
+              color: scheme.primary,
             ),
           ),
         ],
@@ -1260,22 +1227,25 @@ class _PurchasesAddPurchaseScreenState
     );
   }
 
-  Widget _chip(String text) {
+  Widget _chip(String text, ColorScheme scheme, ThemeData theme) {
     return Container(
       margin: const EdgeInsets.only(right: 8, bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
       ),
     );
   }
 
   Widget _buildReceivePreview(ThemeData theme) {
+    final scheme = theme.colorScheme;
     final conversion = _tryComputeFromForm();
     if (conversion == null) {
       return const SizedBox(height: 4);
@@ -1302,18 +1272,16 @@ class _PurchasesAddPurchaseScreenState
           Text(
             '→ ${conversion.quantityInUnits.toFinancial(isMoney: false)} units @ '
             '${conversion.costPricePerUnit.toFinancial(isMoney: true)}/unit$sellingLine',
-            style: TextStyle(
-              fontSize: 13,
+            style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: Colors.blue.shade900,
+              color: scheme.onPrimaryContainer,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Line total: ${conversion.lineTotal.toFinancial(isMoney: true)}',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.green.shade700,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.primary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -1323,6 +1291,7 @@ class _PurchasesAddPurchaseScreenState
   }
 
   Widget _buildSelectedDrugPill(ThemeData theme, PurchaseItem selectedItem) {
+    final scheme = theme.colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -1351,16 +1320,17 @@ class _PurchasesAddPurchaseScreenState
                 if (selectedItem.sku != null && selectedItem.sku!.isNotEmpty)
                   Text(
                     selectedItem.sku!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 if (selectedItem.sellingPrice != null)
                   Text(
                     selectedItem.sellingPrice! > 0
                         ? 'Catalog sell: ${selectedItem.sellingPrice!.toFinancial(isMoney: true)}'
                         : 'Catalog sell: Free',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.green.shade700,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.primary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -1368,7 +1338,7 @@ class _PurchasesAddPurchaseScreenState
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close, size: 20, color: Colors.grey.shade700),
+            icon: Icon(Icons.close, size: 20, color: scheme.onSurfaceVariant),
             onPressed: _clearSelectedDrug,
             style: IconButton.styleFrom(
               minimumSize: const Size(36, 36),
@@ -1381,125 +1351,93 @@ class _PurchasesAddPurchaseScreenState
   }
 
   Widget _buildDrugSearchField(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    return TextField(
+      controller: _drugSearchCtrl,
+      focusNode: _drugSearchFocus,
+      decoration: InputDecoration(
+        hintText: 'Search medicine by name...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: _drugSearchLoading
+            ? const Padding(
+                padding: EdgeInsets.all(12.0),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : null,
       ),
-      child: TextField(
-        controller: _drugSearchCtrl,
-        focusNode: _drugSearchFocus,
-        decoration: InputDecoration(
-          hintText: 'Search medicine by name...',
-          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-          prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: InputBorder.none,
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-          ),
-          suffixIcon: _drugSearchLoading
-              ? const Padding(
-                  padding: EdgeInsets.all(12.0),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              : null,
-        ),
-        onTap: () {
-          if (_drugSearchCtrl.text.trim().isNotEmpty &&
-              _drugSearchResults.isNotEmpty) {
-            setState(() => _showDrugDropdown = true);
-          }
-        },
-      ),
+      onTap: () {
+        if (_drugSearchCtrl.text.trim().isNotEmpty &&
+            _drugSearchResults.isNotEmpty) {
+          setState(() => _showDrugDropdown = true);
+        }
+      },
     );
   }
 
   Widget _buildDrugDropdownList(ThemeData theme) {
-    return Container(
+    final scheme = theme.colorScheme;
+    return Card(
       margin: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      constraints: const BoxConstraints(maxHeight: 320),
-      child: ListView.builder(
-        padding: EdgeInsets.zero,
-        shrinkWrap: true,
-        itemCount: _drugSearchResults.isEmpty && !_drugSearchLoading
-            ? 1
-            : _drugSearchResults.length,
-        itemBuilder: (context, index) {
-          if (_drugSearchResults.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Text(
-                'No medicines found. Keep typing to search.',
-                style: TextStyle(color: Colors.grey.shade600),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 320),
+        child: ListView.builder(
+          padding: EdgeInsets.zero,
+          shrinkWrap: true,
+          itemCount: _drugSearchResults.isEmpty && !_drugSearchLoading
+              ? 1
+              : _drugSearchResults.length,
+          itemBuilder: (context, index) {
+            if (_drugSearchResults.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Text(
+                  'No medicines found. Keep typing to search.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              );
+            }
+            final pickedItem = _drugSearchResults[index];
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: scheme.primary.withValues(alpha: 0.1),
+                child: Icon(
+                  Icons.inventory_2,
+                  color: scheme.primary,
+                  size: 22,
+                ),
               ),
+              title: Text(
+                pickedItem.itemName,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle:
+                  pickedItem.category != null && pickedItem.category!.isNotEmpty
+                  ? Text(
+                      pickedItem.category!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    )
+                  : null,
+              onTap: () {
+                _selectDrug(pickedItem);
+              },
             );
-          }
-          final pickedItem = _drugSearchResults[index];
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-              child: Icon(
-                Icons.inventory_2,
-                color: theme.colorScheme.primary,
-                size: 22,
-              ),
-            ),
-            title: Text(
-              pickedItem.itemName,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle:
-                pickedItem.category != null && pickedItem.category!.isNotEmpty
-                ? Text(
-                    pickedItem.category!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  )
-                : null,
-            onTap: () {
-              _selectDrug(pickedItem);
-            },
-          );
-        },
+          },
+        ),
       ),
     );
   }
 
   Widget _buildSectionHeader(String title, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
       child: Row(
@@ -1507,18 +1445,17 @@ class _PurchasesAddPurchaseScreenState
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: scheme.primaryContainer,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: Colors.blue.shade700, size: 20),
+            child: Icon(icon, color: scheme.onPrimaryContainer, size: 20),
           ),
           const SizedBox(width: 12),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 16,
+            style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: Colors.blue.shade900,
+              color: scheme.primary,
             ),
           ),
         ],
@@ -1534,6 +1471,7 @@ class _PurchasesAddPurchaseScreenState
     required ValueChanged<T?> onChanged,
   }) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Column(
@@ -1541,10 +1479,9 @@ class _PurchasesAddPurchaseScreenState
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: Colors.black87,
+              color: scheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -1552,34 +1489,8 @@ class _PurchasesAddPurchaseScreenState
             initialValue: value,
             items: items,
             onChanged: onChanged,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade200),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.primary,
-                  width: 2,
-                ),
-              ),
-            ),
-            icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade600),
-            dropdownColor: Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            decoration: InputDecoration(hintText: hint),
+            borderRadius: BorderRadius.circular(12),
           ),
         ],
       ),
@@ -1593,12 +1504,13 @@ class _PurchasesAddPurchaseScreenState
     bool isDanger = false,
   }) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final dateString = date != null
         ? DateFormat('MMM dd, yyyy').format(date)
         : 'Select Date';
     final textColor = date != null
-        ? (isDanger ? theme.colorScheme.error : Colors.black87)
-        : Colors.grey.shade400;
+        ? (isDanger ? scheme.error : scheme.onSurface)
+        : scheme.outline;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -1607,48 +1519,42 @@ class _PurchasesAddPurchaseScreenState
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: Colors.black87,
+              color: scheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isDanger
-                      ? theme.colorScheme.error.withValues(alpha: 0.5)
-                      : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(12),
+            child: InputDecorator(
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+                suffixIcon: Icon(
+                  Icons.calendar_today_outlined,
+                  color: isDanger ? scheme.error : scheme.onSurfaceVariant,
+                  size: 20,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: isDanger
+                        ? scheme.error.withValues(alpha: 0.5)
+                        : scheme.outlineVariant,
+                  ),
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    dateString,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 14,
-                      fontWeight: date != null
-                          ? FontWeight.w500
-                          : FontWeight.normal,
-                    ),
-                  ),
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    color: isDanger
-                        ? theme.colorScheme.error
-                        : Colors.grey.shade500,
-                    size: 20,
-                  ),
-                ],
+              child: Text(
+                dateString,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: textColor,
+                  fontWeight:
+                      date != null ? FontWeight.w500 : FontWeight.normal,
+                ),
               ),
             ),
           ),

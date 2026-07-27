@@ -4,6 +4,7 @@ import '../../../app_router.gr.dart';
 import '../../auth/nursing_permissions.dart';
 import '../../models/staff_model.dart';
 import '../../nursing/models/nursing_models.dart';
+import '../../shared/department_colors.dart';
 import 'home_screen.dart';
 
 /// Clinical unified patient lookup — all clinical departments except medical records billing chart.
@@ -15,46 +16,55 @@ const patientHubMenuItem = MenuItem(
 
 final frontDesk = <MenuItem>[
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
     route: FrontDeskDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'View Waiting Patients',
     icon: Icons.add_alarm_outlined,
     route: NewPatientRoute(use: 'For Register'),
   ),
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'Add New Patient',
     icon: Icons.view_agenda_outlined,
     route: PatientFormRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'View Patients',
     icon: Icons.add_alarm_outlined,
     route: PatientListRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'Registered today',
     icon: Icons.today_outlined,
     route: TodayPatientsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'Add New Appointment',
     icon: Icons.view_agenda_outlined,
     route: NewAppointmentRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'View Appointments',
     icon: Icons.add_alarm_outlined,
     route: AppointmentListRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'Device approvals',
     icon: Icons.phonelink_lock_outlined,
     route: PendingDeviceApprovalsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.frontDesk,
     label: 'Family links',
     icon: Icons.family_restroom,
     route: FamilyLinksRoute(),
@@ -65,16 +75,19 @@ final frontDesk = <MenuItem>[
 final medicalRecordsMenu = <MenuItem>[
   ...frontDesk,
   MenuItem(
+    color: DepartmentColors.medicalRecords,
     label: 'Patient chart',
     icon: Icons.folder_shared_outlined,
     route: PatientChartSelectRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.medicalRecords,
     label: 'Completed Encounters',
     icon: Icons.check_circle_outline,
     route: DoctorCompletedEncountersRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.medicalRecords,
     label: 'Paid consultation report',
     icon: Icons.receipt_long_outlined,
     route: ConsultationPaymentReportRoute(),
@@ -83,36 +96,43 @@ final medicalRecordsMenu = <MenuItem>[
 
 final bills = <MenuItem>[
   MenuItem(
+    color: DepartmentColors.billing,
     label: 'Dashboard',
     icon: Icons.dashboard_customize_outlined,
     route: BillingDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.billing,
     label: 'Pending Transaction',
     icon: Icons.pending_actions_outlined,
     route: PendingBillsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.billing,
     label: 'Render Service',
     icon: Icons.dataset_outlined,
     route: EnlistPaitientRoute(serviceName: 'OPD'),
   ),
   MenuItem(
+    color: DepartmentColors.billing,
     label: 'Process Ward Payment',
     icon: Icons.access_time_filled_outlined,
     route: EnlistPaitientRoute(serviceName: 'inpatient'),
   ),
   MenuItem(
+    color: DepartmentColors.billing,
     label: 'Admitted Patients',
     icon: Icons.bed_outlined,
     route: BillingWardInpatientsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.billing,
     label: 'Awaiting Billing Clearance',
     icon: Icons.fact_check_outlined,
     route: AwaitingBillingClearanceRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.billing,
     label: 'Add Service',
     icon: Icons.add_box_outlined,
     route: SystemSetupRoute(),
@@ -123,6 +143,7 @@ final bills = <MenuItem>[
   //   route: NotAvailableRoute(),
   // ),
   MenuItem(
+    color: DepartmentColors.billing,
     label: 'Transaction',
     icon: Icons.list_outlined,
     route: TransactionsRoute(),
@@ -132,11 +153,13 @@ final bills = <MenuItem>[
 /// Extra entries for billing head only (reports + refund approvals).
 final billingHeadExtraMenu = <MenuItem>[
   const MenuItem(
+    color: DepartmentColors.billing,
     label: 'Item refund requests',
     icon: Icons.receipt_long_outlined,
     route: AccountsRefundRequestsRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.billing,
     label: 'Revenue by service',
     icon: Icons.category_rounded,
     route: AccountsRevenueByServiceRoute(),
@@ -212,6 +235,7 @@ final nurses = <MenuItem>[
     route: NursingAssignmentsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.emergency,
     label: 'ED Board',
     icon: Icons.emergency_outlined,
     route: EdBoardRoute(),
@@ -233,21 +257,25 @@ final nurses = <MenuItem>[
     route: EnlistPaitientRoute(serviceName: 'Consumables'),
   ),
   MenuItem(
+    color: DepartmentColors.obgyn,
     label: 'O&G Dashboard',
     icon: Icons.pregnant_woman_rounded,
     route: ObstetricsDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.obgyn,
     label: 'Pregnancies (by patient)',
     icon: Icons.family_restroom_rounded,
     route: ObstetricsPatientSelectRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.obgyn,
     label: 'Gynaecology procedures',
     icon: Icons.medical_services_rounded,
     route: ObstetricsGynaeProceduresRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.radiology,
     label: 'Radiology',
     icon: Icons.radar_rounded,
     route: RadiologyDashboardRoute(),
@@ -327,11 +355,18 @@ final doctors = <MenuItem>[
     route: DoctorWalkInQueueRoute(),
   ),
   MenuItem(
+    label: 'Waiting Patients',
+    icon: Icons.hourglass_empty_outlined,
+    route: DoctorWaitingPatientsRoute(),
+  ),
+  MenuItem(
+    color: DepartmentColors.emergency,
     label: 'ED Board',
     icon: Icons.emergency_outlined,
     route: EdBoardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.emergency,
     label: 'ED Registration',
     icon: Icons.person_add_alt_1_outlined,
     route: EdRegistrationRoute(),
@@ -348,16 +383,19 @@ final doctors = <MenuItem>[
     route: EnlistPaitientRoute(serviceName: 'Consumables'),
   ),
   MenuItem(
+    color: DepartmentColors.obgyn,
     label: 'O&G Dashboard',
     icon: Icons.pregnant_woman_rounded,
     route: ObstetricsDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.obgyn,
     label: 'Pregnancies (by patient)',
     icon: Icons.family_restroom_rounded,
     route: ObstetricsPatientSelectRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.obgyn,
     label: 'Gynaecology procedures',
     icon: Icons.medical_services_rounded,
     route: ObstetricsGynaeProceduresRoute(),
@@ -383,21 +421,25 @@ final doctors = <MenuItem>[
 /// Head-of-pharmacy only entries (command dashboard + financial reports).
 final pharmacyHeadExtraMenu = <MenuItem>[
   const MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Head Dashboard',
     icon: Icons.space_dashboard_outlined,
     route: PharmacyHeadDashboardRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Pharmacy Reports',
     icon: Icons.assessment_outlined,
     route: PharmacyReportsHubRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Sales Breakdown',
     icon: Icons.pie_chart_outline,
     route: PharmacySalesBreakdownRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Inventory Valuation',
     icon: Icons.warehouse_outlined,
     route: PharmacyInventoryValuationRoute(),
@@ -407,68 +449,81 @@ final pharmacyHeadExtraMenu = <MenuItem>[
 final pharmacy = <MenuItem>[
   patientHubMenuItem,
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
     route: PharmacyDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Medicine Inventory',
     icon: Icons.inventory_2_outlined,
     route: MedicineInventoryRoute(),
   ),
 
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Add Supplier',
     icon: Icons.person_add_alt_1_outlined,
     route: AddSupplierRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Add Supply',
     icon: Icons.add_box_outlined,
     route: AddBatchRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Dispense History',
     icon: Icons.receipt_long_outlined,
     route: DispenseHistoryRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Stock Transfer',
     icon: Icons.move_to_inbox_outlined,
     route: StockTransferRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Create Requisition',
     icon: Icons.receipt_long_outlined,
     route: CreateRequisitionRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Supply History',
     icon: Icons.list_alt_outlined,
     route: SupplyHistoryRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Pharmacy Locations',
     icon: Icons.location_on_outlined,
     route: PharmacyLocationRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Medicine Sales',
     icon: Icons.add_alarm_outlined,
     route: EnlistPaitientRoute(serviceName: 'Pharmacy'),
   ),
 
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Medication Requests',
     icon: Icons.medication_outlined,
     route: MedicationRequestsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Refill Requests',
     icon: Icons.autorenew_outlined,
     route: PharmacyRefillRequestsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Pharmacy Waiting Patient',
     icon: Icons.add_alarm_outlined,
     route: WaitingPatientRoute(),
@@ -478,68 +533,81 @@ final pharmacy = <MenuItem>[
 final phamDispense = <MenuItem>[
   patientHubMenuItem,
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
     route: PharmacyDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Medicine Inventory',
     icon: Icons.inventory_2_outlined,
     route: MedicineInventoryRoute(),
   ),
 
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Add Supplier',
     icon: Icons.person_add_alt_1_outlined,
     route: AddSupplierRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Add Supply',
     icon: Icons.add_box_outlined,
     route: AddBatchRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Dispense History',
     icon: Icons.receipt_long_outlined,
     route: DispenseHistoryRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Stock Transfer',
     icon: Icons.move_to_inbox_outlined,
     route: StockTransferRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Create Requisition',
     icon: Icons.receipt_long_outlined,
     route: CreateRequisitionRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Supply History',
     icon: Icons.list_alt_outlined,
     route: SupplyHistoryRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Pharmacy Locations',
     icon: Icons.location_on_outlined,
     route: PharmacyLocationRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Medicine Sales',
     icon: Icons.add_alarm_outlined,
     route: EnlistPaitientRoute(serviceName: 'Pharmacy'),
   ),
 
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Medication Requests',
     icon: Icons.medication_outlined,
     route: MedicationRequestsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Refill Requests',
     icon: Icons.autorenew_outlined,
     route: PharmacyRefillRequestsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.pharmacy,
     label: 'Pharmacy Waiting Patient',
     icon: Icons.add_alarm_outlined,
     route: WaitingPatientRoute(),
@@ -604,22 +672,26 @@ final obstetrics = <MenuItem>[];
 final labMenu = <MenuItem>[
   patientHubMenuItem,
   MenuItem(
+    color: DepartmentColors.laboratory,
     label: 'Laboratory',
     icon: Icons.biotech_rounded,
     route: LabDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.laboratory,
     label: 'Investigations report',
     icon: Icons.assessment_outlined,
     route: LabInvestigationsRoute(),
   ),
 
   MenuItem(
+    color: DepartmentColors.laboratory,
     label: 'New patient',
     icon: Icons.add_circle_outline_rounded,
     route: EnlistPaitientRoute(serviceName: 'lab'),
   ),
   MenuItem(
+    color: DepartmentColors.laboratory,
     label: 'Waiting Patients',
     icon: Icons.receipt_long_outlined,
     route: NewPatientRoute(
@@ -632,11 +704,13 @@ final labMenu = <MenuItem>[
 final theatreMenu = <MenuItem>[
   patientHubMenuItem,
   MenuItem(
+    color: DepartmentColors.theatre,
     label: 'Theatre',
     icon: Icons.medical_services_outlined,
     route: TheatreDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.theatre,
     label: 'Theatre rooms',
     icon: Icons.meeting_room_outlined,
     route: TheatreRoomsRoute(),
@@ -678,26 +752,31 @@ final dialysisMenu = <MenuItem>[
 final radiologyMenu = <MenuItem>[
   patientHubMenuItem,
   MenuItem(
+    color: DepartmentColors.radiology,
     label: 'Radiology',
     icon: Icons.radar_rounded,
     route: RadiologyDashboardRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.radiology,
     label: 'Investigations report',
     icon: Icons.assessment_outlined,
     route: RadiologyInvestigationsRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.radiology,
     label: 'Worklist',
     icon: Icons.list_alt_rounded,
     route: RadiologyWorklistRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.radiology,
     label: 'New patient',
     icon: Icons.add_circle_outline_rounded,
     route: EnlistPaitientRoute(serviceName: 'Radiology'),
   ),
   MenuItem(
+    color: DepartmentColors.radiology,
     label: 'Waiting Patients',
     icon: Icons.receipt_long_outlined,
     route: NewPatientRoute(
@@ -710,21 +789,25 @@ final radiologyMenu = <MenuItem>[
 /// Shared receivables subtree for accounting roles.
 final _accountsReceivablesMenu = <MenuItem>[
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'HMO Receivables',
     icon: Icons.health_and_safety_outlined,
     route: ReceivablesHmoRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Discount Receivables',
     icon: Icons.sell_outlined,
     route: ReceivablesDiscountRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Receivables analytics',
     icon: Icons.analytics_outlined,
     route: ReceivablesAnalyticsRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'AR aging report',
     icon: Icons.hourglass_bottom_rounded,
     route: AccountsAgingReportRoute(),
@@ -734,57 +817,68 @@ final _accountsReceivablesMenu = <MenuItem>[
 /// ACCOUNT_HEAD — full Accounts & Audit module.
 final accountsHeadMenu = <MenuItem>[
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
     route: AccountsDashboardRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Revenue analytics',
     icon: Icons.bar_chart_rounded,
     route: BillingDashboardRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Collections ledger',
     icon: Icons.list_alt_rounded,
     route: TransactionsRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Daily collections',
     icon: Icons.calendar_today_rounded,
     route: AccountsDailyCollectionsRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Consultation report',
     icon: Icons.receipt_long_outlined,
     route: ConsultationPaymentReportRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Receivables',
     icon: Icons.receipt_long_outlined,
     route: ReceivablesHmoRoute(),
     children: _accountsReceivablesMenu,
   ),
   MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Cash & banking',
     icon: Icons.account_balance_outlined,
     route: AccountsBanksRoute(),
     children: [
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Bank accounts',
         icon: Icons.account_balance_outlined,
         route: AccountsBanksRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Patient wallets',
         icon: Icons.wallet_rounded,
         route: AccountsWalletsOverviewRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Daily cash recon',
         icon: Icons.calculate_rounded,
         route: AccountsDailyCashReconRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Bank reconciliation',
         icon: Icons.compare_arrows_rounded,
         route: AccountsBankReconRoute(),
@@ -792,41 +886,49 @@ final accountsHeadMenu = <MenuItem>[
     ],
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Financial reports',
     icon: Icons.assessment_rounded,
     route: AccountsFinancialReportsHubRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Audit & compliance',
     icon: Icons.policy_rounded,
     route: AccountsAuditLogRoute(),
     children: [
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Audit log',
         icon: Icons.history_rounded,
         route: AccountsAuditLogRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Compliance checklist',
         icon: Icons.verified_user_outlined,
         route: AccountsComplianceRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Invoice changes',
         icon: Icons.edit_note_rounded,
         route: AccountsInvoiceChangesRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Refund history',
         icon: Icons.undo_rounded,
         route: AccountsRefundHistoryRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Leak detection',
         icon: Icons.shield_outlined,
         route: AccountsLeakDetectionRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Staff activity',
         icon: Icons.people_outline_rounded,
         route: AccountsStaffActivityRoute(),
@@ -834,31 +936,37 @@ final accountsHeadMenu = <MenuItem>[
     ],
   ),
   MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Approvals & GL',
     icon: Icons.fact_check_outlined,
     route: AccountsApprovalsRoute(),
     children: [
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Pending approvals',
         icon: Icons.fact_check_outlined,
         route: AccountsApprovalsRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Item refund requests',
         icon: Icons.receipt_long_outlined,
         route: AccountsRefundRequestsRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Period close',
         icon: Icons.lock_clock_rounded,
         route: AccountsPeriodCloseRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Journal entries',
         icon: Icons.menu_book_rounded,
         route: AccountsJournalEntriesRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Chart of accounts',
         icon: Icons.account_tree_rounded,
         route: AccountsChartOfAccountsRoute(),
@@ -870,52 +978,62 @@ final accountsHeadMenu = <MenuItem>[
 /// ACCOUNTING_STAFF — operational finance (no approvals, GL, or head-only reports).
 final accountsStaffMenu = <MenuItem>[
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
     route: AccountsDashboardRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Revenue summary',
     icon: Icons.insights_outlined,
     route: AccountsRevenueSummaryRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Collections ledger',
     icon: Icons.list_alt_rounded,
     route: TransactionsRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Daily collections',
     icon: Icons.calendar_today_rounded,
     route: AccountsDailyCollectionsRoute(),
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Consultation report',
     icon: Icons.receipt_long_outlined,
     route: ConsultationPaymentReportRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Receivables',
     icon: Icons.receipt_long_outlined,
     route: ReceivablesHmoRoute(),
     children: _accountsReceivablesMenu,
   ),
   MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Cash & banking',
     icon: Icons.account_balance_outlined,
     route: AccountsBanksRoute(),
     children: [
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Bank accounts (view)',
         icon: Icons.account_balance_outlined,
         route: AccountsBanksRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Patient wallets',
         icon: Icons.wallet_rounded,
         route: AccountsWalletsOverviewRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Daily cash recon',
         icon: Icons.calculate_rounded,
         route: AccountsDailyCashReconRoute(),
@@ -923,31 +1041,37 @@ final accountsStaffMenu = <MenuItem>[
     ],
   ),
   const MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Financial reports',
     icon: Icons.assessment_rounded,
     route: AccountsFinancialReportsHubRoute(),
   ),
   MenuItem(
+    color: DepartmentColors.accountingFinance,
     label: 'Audit (read-only)',
     icon: Icons.policy_rounded,
     route: AccountsAuditLogRoute(),
     children: [
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Audit log',
         icon: Icons.history_rounded,
         route: AccountsAuditLogRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Compliance checklist',
         icon: Icons.verified_user_outlined,
         route: AccountsComplianceRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Invoice changes',
         icon: Icons.edit_note_rounded,
         route: AccountsInvoiceChangesRoute(),
       ),
       const MenuItem(
+        color: DepartmentColors.accountingFinance,
         label: 'Refund history',
         icon: Icons.undo_rounded,
         route: AccountsRefundHistoryRoute(),

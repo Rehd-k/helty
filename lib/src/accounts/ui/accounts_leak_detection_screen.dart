@@ -8,6 +8,7 @@ import 'package:helty/src/accounts/widgets/accounts_access_denied.dart';
 import 'package:helty/src/accounts/widgets/accounts_async_scaffold.dart';
 import 'package:helty/src/accounts/widgets/accounts_money_format.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/shared/finance_status_colors.dart';
 
 @RoutePage()
 class AccountsLeakDetectionScreen extends ConsumerWidget {
@@ -43,11 +44,10 @@ class AccountsLeakDetectionScreen extends ConsumerWidget {
                 child: ListTile(
                   leading: Icon(
                     Icons.shield_outlined,
-                    color: l.severity == 'high'
-                        ? Colors.red
-                        : l.severity == 'medium'
-                            ? Colors.orange
-                            : AccountsPalette.primary,
+                    color: FinanceStatusColors.severity(
+                      l.severity,
+                      Theme.of(context).colorScheme,
+                    ),
                   ),
                   title: Text(l.title),
                   subtitle: Text(l.description),

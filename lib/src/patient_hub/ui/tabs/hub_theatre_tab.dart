@@ -46,7 +46,6 @@ class HubTheatreScreen extends ConsumerWidget {
             final r = requests[index];
             final serviceName = r.service?.name ?? 'Surgery request';
             return Card(
-              elevation: 0,
               child: ListTile(
                 leading: const Icon(Icons.medical_services_outlined),
                 title: Text(serviceName),

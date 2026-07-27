@@ -81,11 +81,12 @@ class MedicationOrderService {
 
   /// POST /medication-orders — create prescription. Returns created order with id from API.
   Future<MedicationOrderModel> create({
-    required String encounterId,
+    String? encounterId,
     required String patientId,
     required String drugId,
     required String drugName,
     required String staffId,
+    String? pregnancyId,
     String? dose,
     String? frequency,
     String? duration,
@@ -106,11 +107,14 @@ class MedicationOrderService {
       throw ArgumentError('End date/time cannot be before start date/time.');
     }
     final body = <String, dynamic>{
-      'encounterId': encounterId,
       'drugId': drugId,
       'drugName': drugName,
       'patientId': patientId,
       'doctorId': staffId,
+      if (encounterId != null && encounterId.isNotEmpty)
+        'encounterId': encounterId,
+      if (pregnancyId != null && pregnancyId.isNotEmpty)
+        'pregnancyId': pregnancyId,
       if (dose != null && dose.isNotEmpty) 'dose': dose,
       if (frequency != null && frequency.isNotEmpty) 'frequency': frequency,
       if (duration != null && duration.isNotEmpty) 'duration': duration,

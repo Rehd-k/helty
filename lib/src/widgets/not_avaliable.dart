@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/empty.widget.dart';
 
 @RoutePage()
 class NotAvailableScreen extends StatelessWidget {
@@ -9,95 +10,40 @@ class NotAvailableScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: ResponsiveBody(
-          builder: (context, bp) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Icon / Illustration
-                Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.construction_rounded,
-                    size: 80,
-                    color: Colors.orange.shade800,
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // Main title
-                Text(
-                  "Not Available",
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 16),
-
-                // Subtitle / explanation
-                Text(
-                  "This module is currently disabled in Testing mode.\n\n"
-                  "It will become available once the app is in production or "
-                  "when testing restrictions are removed.",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                    height: 1.4,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 48),
-
-                // Optional action buttons
-                FilledButton.icon(
-                  onPressed: () {
-                    // Option 1: Go back
-                    context.router.maybePop();
-                  },
-                  icon: const Icon(Icons.arrow_back_rounded, size: 20),
-                  label: const Text("Go Back"),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
+          builder: (context, bp) => EmptyStateWidget(
+            icon: Icons.construction_rounded,
+            title: 'Not Available',
+            message:
+                'This module is currently disabled in testing mode.\n'
+                'It will become available once testing restrictions are removed.',
+            buttonText: 'Go Back',
+            onPressed: () => context.router.maybePop(),
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              OutlinedButton(
+                onPressed: () => context.router.push(DashboardRoute()),
+                child: const Text('Back to Home'),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Testing Mode • ${DateTime.now().year}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
                     ),
-                    textStyle: const TextStyle(fontSize: 16),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                OutlinedButton(
-                  onPressed: () {
-                    // Option 2: Go to home / dashboard
-                    context.router.push(
-                      DashboardRoute(),
-                    ); // ← adjust route name
-                  },
-                  child: const Text("Back to Home"),
-                ),
-
-                const SizedBox(height: 80),
-
-                // Small hint (optional)
-                Text(
-                  "Testing Mode • ${DateTime.now().year}",
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

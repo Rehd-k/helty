@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 
 // Assuming these exist based on your snippet
+import 'package:helty/src/shared/finance_status_colors.dart';
+
 import '../models/invoice.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/grid.widgets.dart';
@@ -16,15 +18,11 @@ class SummaryBills extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Card(
-      elevation: 0, // Flat design with border is trendy
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -35,7 +33,7 @@ class SummaryBills extends ConsumerWidget {
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 8),
 
             // The Grid Widget (Preserving your external widget)
             Expanded(
@@ -48,11 +46,11 @@ class SummaryBills extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
 
             // Financial Breakdown
             // _buildRow('Subtotal', patient.amountDue.toFinancial(isMoney: true)),
-            _buildRow('Tax', '0', isDiscount: false),
+            _buildRow(context, 'Tax', '0', isDiscount: false),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12.0),
               child: Divider(height: 1),
@@ -68,10 +66,9 @@ class SummaryBills extends ConsumerWidget {
                 ),
                 Text(
                   invoice.total.toFinancial(isMoney: true),
-                  style: TextStyle(
+                  style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w900,
-                    fontSize: 20,
-                    color: Theme.of(context).primaryColor,
+                    color: scheme.primary,
                   ),
                 ),
               ],
@@ -82,17 +79,9 @@ class SummaryBills extends ConsumerWidget {
             // Action Button
             SizedBox(
               height: 50,
-              child: ElevatedButton.icon(
+              child: FilledButton.icon(
                 onPressed: () =>
                     openCustomModal(context, invoice, auth.staff?.id ?? ''),
-                style: ElevatedButton.styleFrom(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  backgroundColor: Colors.black87, // Modern dark button
-                  foregroundColor: Colors.white,
-                ),
                 icon: const Icon(Icons.payment, size: 18),
                 label: const Text(
                   'Proceed to Payment',
@@ -106,23 +95,30 @@ class SummaryBills extends ConsumerWidget {
     );
   }
 
-  Widget _buildRow(String label, String value, {bool isDiscount = false}) {
+  Widget _buildRow(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isDiscount = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final discountColor = FinanceStatusColors.discount(scheme);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: TextStyle(
-              color: isDiscount ? Colors.green : Colors.grey[600],
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: isDiscount ? discountColor : scheme.onSurfaceVariant,
               fontWeight: isDiscount ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
           Text(
             value,
-            style: TextStyle(
-              color: isDiscount ? Colors.green : Colors.black87,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: isDiscount ? discountColor : scheme.onSurface,
               fontWeight: isDiscount ? FontWeight.bold : FontWeight.w500,
             ),
           ),
