@@ -85,16 +85,28 @@ class Appointment {
     return formatted ?? '—';
   }
 
-  /// Doctor / staff column — prefers `staff`, falls back to `createdBy`.
+  /// Doctor / staff column — nested `staff` only (not `createdBy`).
   String get doctorDisplayName {
-    final f = staffFirstName?.trim().isNotEmpty == true
-        ? staffFirstName!.trim()
-        : (createdByFirstName?.trim() ?? '');
-    final l = staffLastName?.trim().isNotEmpty == true
-        ? staffLastName!.trim()
-        : (createdByLastName?.trim() ?? '');
+    final f = staffFirstName?.trim() ?? '';
+    final l = staffLastName?.trim() ?? '';
     if (f.isEmpty && l.isEmpty) return '—';
     return 'Dr. ${f.isEmpty ? '' : '$f '}$l'.trim();
+  }
+
+  /// Creator display from nested `createdBy`. Null when missing.
+  String? get createdByDisplayName {
+    final f = createdByFirstName?.trim() ?? '';
+    final l = createdByLastName?.trim() ?? '';
+    final name = '$f $l'.trim();
+    return name.isEmpty ? null : name;
+  }
+
+  /// Last updater display from nested `updatedBy`. Null when missing.
+  String? get updatedByDisplayName {
+    final f = updatedByFirstName?.trim() ?? '';
+    final l = updatedByLastName?.trim() ?? '';
+    final name = '$f $l'.trim();
+    return name.isEmpty ? null : name;
   }
 
   factory Appointment.fromJson(Map<String, dynamic> json) {

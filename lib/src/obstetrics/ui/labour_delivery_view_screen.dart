@@ -457,6 +457,17 @@ class _BabiesList extends StatelessWidget {
                                         color: colorScheme.onSurfaceVariant,
                                       ),
                                     ),
+                                    if (b.createdByName != null &&
+                                        b.createdByName!.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Created by: ${b.createdByName}',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

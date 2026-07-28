@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/widgets/patient_avatar.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/obstetrics/models/obstetrics_models.dart';
 import 'package:helty/src/obstetrics/ui/widgets/obstetrics_theme.dart';
 import 'package:helty/src/obstetrics/utils/obstetrics_display.dart';
@@ -321,6 +322,13 @@ class PregnancySummaryCard extends StatelessWidget {
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
+                if (pregnancy.createdByName != null &&
+                    pregnancy.createdByName!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  CreatedByCaption(
+                    label: 'Created by: ${pregnancy.createdByName}',
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -602,6 +610,20 @@ class PregnancyHeroHeader extends StatelessWidget {
             pregnancyDateRangeLabel(pregnancy),
             style: theme.textTheme.bodyMedium,
           ),
+          if (pregnancy.createdByName != null &&
+              pregnancy.createdByName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            CreatedByCaption(
+              label: 'Created by: ${pregnancy.createdByName}',
+            ),
+          ],
+          if (pregnancy.updatedByName != null &&
+              pregnancy.updatedByName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            CreatedByCaption(
+              label: 'Last updated by: ${pregnancy.updatedByName}',
+            ),
+          ],
         ],
       ),
     );

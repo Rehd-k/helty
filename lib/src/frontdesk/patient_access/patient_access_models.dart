@@ -1,3 +1,5 @@
+import 'package:helty/src/models/staff_attribution.dart';
+
 /// Patient summary nested on device / child rows.
 class PatientAccessPatientSummary {
   const PatientAccessPatientSummary({
@@ -131,14 +133,22 @@ class FamilyChildRow {
     required this.id,
     required this.patientId,
     required this.displayName,
+    this.createdByName,
   });
 
   /// Child patient UUID.
   final String id;
   final String patientId;
   final String displayName;
+  final String? createdByName;
 
   factory FamilyChildRow.fromJson(Map<String, dynamic> json) {
+    final createdByName = formatStaffName(
+      json['createdBy'] is Map
+          ? Map<String, dynamic>.from(json['createdBy'] as Map)
+          : null,
+    );
+
     // Prefer nested patient object when present.
     final nested = json['child'] ?? json['patient'] ?? json['childPatient'];
     if (nested is Map) {
@@ -153,6 +163,7 @@ class FamilyChildRow {
                   ''),
         patientId: summary.patientId,
         displayName: summary.displayName,
+        createdByName: createdByName,
       );
     }
 
@@ -175,6 +186,7 @@ class FamilyChildRow {
           json['hospitalId']?.toString() ??
           '',
       displayName: name.isNotEmpty ? name : (json['id']?.toString() ?? ''),
+      createdByName: createdByName,
     );
   }
 }

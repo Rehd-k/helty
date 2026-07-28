@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 import '../../cmac_palette.dart';
 import '../../models/cmac_quality_safety_models.dart';
@@ -123,6 +124,14 @@ class _QualityListPage extends ConsumerWidget {
                           [
                             if (r.status != null) r.status,
                             if (r.createdAt != null) r.createdAt.toString(),
+                            if (entity == QualitySafetyEntity.incidents)
+                              staffRefLabel(
+                                r.raw,
+                                'reportedBy',
+                                prefix: 'Reported by',
+                              )
+                            else
+                              createdByLabel(r.raw),
                           ].whereType<String>().join(' · '),
                         ),
                         trailing: const Icon(Icons.chevron_right),

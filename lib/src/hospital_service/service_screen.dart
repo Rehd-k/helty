@@ -785,13 +785,18 @@ class _DepartmentTableState extends State<_DepartmentTable> {
                                       cs.onSurface.withValues(alpha: 0.8),
                                     ),
                                     _cell(
-                                      '—',
+                                      item.createdByName ?? '',
                                       150,
                                       cs.onSurface.withValues(alpha: 0.6),
                                       fontSize: 12,
                                     ),
                                     _cell(
-                                      '—',
+                                      item.createdAt != null
+                                          ? _fmtDate(
+                                              item.createdAt!
+                                                  .toIso8601String(),
+                                            )
+                                          : '',
                                       150,
                                       cs.onSurface.withValues(alpha: 0.6),
                                       fontSize: 12,
@@ -1301,7 +1306,7 @@ class _ServiceTableState extends State<_ServiceTable> {
                                                   fontSize: 11,
                                                 ),
                                                 _cell(
-                                                  item.createdByName ?? '—',
+                                                  item.createdByName ?? '',
                                                   140,
                                                   cs.onSurface.withValues(
                                                     alpha: 0.6,

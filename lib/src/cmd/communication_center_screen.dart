@@ -144,7 +144,14 @@ class _CMDCommunicationCenterScreenState extends ConsumerState<CMDCommunicationC
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         title: Text(a.title),
-                        subtitle: Text('${a.audience} · ${a.priority}'),
+                        subtitle: Text(
+                          [
+                            '${a.audience} · ${a.priority}',
+                            if (a.createdByName != null &&
+                                a.createdByName!.trim().isNotEmpty)
+                              'Created by: ${a.createdByName}',
+                          ].join(' · '),
+                        ),
                         isThreeLine: true,
                         trailing: a.sentAt != null
                             ? Text(DateFormatter.dateTime(a.sentAt!))

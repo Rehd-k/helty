@@ -72,8 +72,12 @@ class AppBreakpoints {
 
   double get chartHeight => isMobile ? 320 : 380;
 
-  /// Minimum width for horizontally scrollable tables on mobile.
-  double get tableMinWidth => isMobile ? 720 : 0;
+  /// Minimum width for horizontally scrollable tables.
+  double get tableMinWidth {
+    if (isMobile) return 720;
+    if (isTablet) return 960;
+    return 1100;
+  }
 
   /// Dialog width clamped to screen.
   double dialogWidth(BuildContext context, {double max = 560}) {

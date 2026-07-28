@@ -24,6 +24,11 @@ class EncounterTemplateStaffRef {
       staffId: json['staffId'] as String?,
     );
   }
+
+  String? get displayName {
+    final name = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+    return name.isEmpty ? null : name;
+  }
 }
 
 class EncounterTemplateModel {

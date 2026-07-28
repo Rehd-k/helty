@@ -799,6 +799,15 @@ class _AppointmentMobileCard extends StatelessWidget {
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
+                if (appointment.createdByDisplayName != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Created by: ${appointment.createdByDisplayName}',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 if (notes != null && notes.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(

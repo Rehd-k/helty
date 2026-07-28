@@ -2,6 +2,7 @@ import '../paitients/patient_model.dart';
 import 'admission_billing_clearance_models.dart';
 import 'medication_order_model.dart';
 import 'patient_vitals_model.dart';
+import 'staff_attribution.dart';
 
 /// Nested `attendingDoctor` on GET `/admissions/:id`.
 class AttendingDoctorSummary {
@@ -66,6 +67,8 @@ class AdmissionModel {
     this.admittedByDoctorId,
     this.createdById,
     this.updatedById,
+    this.createdByName,
+    this.updatedByName,
     this.dischargeSummary,
     this.outcome,
     this.otherImportantNotes,
@@ -121,6 +124,8 @@ class AdmissionModel {
   final String? admittedByDoctorId;
   final String? createdById;
   final String? updatedById;
+  final String? createdByName;
+  final String? updatedByName;
 
   final String? dischargeSummary;
   final String? outcome;
@@ -292,6 +297,16 @@ class AdmissionModel {
       admittedByDoctorId: json['admittedByDoctorId']?.toString(),
       createdById: json['createdById']?.toString(),
       updatedById: json['updatedById']?.toString(),
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
+      updatedByName: formatStaffName(
+        json['updatedBy'] is Map
+            ? Map<String, dynamic>.from(json['updatedBy'] as Map)
+            : null,
+      ),
       dischargeSummary: json['dischargeSummary']?.toString(),
       outcome: json['outcome']?.toString(),
       otherImportantNotes: json['otherImportantNotes']?.toString(),

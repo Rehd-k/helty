@@ -90,14 +90,12 @@ class SupportTicketSummary {
   String get requesterGroupKey =>
       createdBy?.id ?? createdById ?? '__unknown_requester__';
 
-  String get requesterDisplayLabel {
+  /// Display name for the requester. Null when missing — hide UI (no "Unknown").
+  String? get requesterDisplayLabel {
     if (createdBy != null && createdBy!.fullName.isNotEmpty) {
       return createdBy!.fullName;
     }
-    if (createdById != null && createdById!.isNotEmpty) {
-      return 'User $createdById';
-    }
-    return 'Unknown requester';
+    return null;
   }
 
   static SupportTicketSummary? tryParse(Map<String, dynamic>? json) {

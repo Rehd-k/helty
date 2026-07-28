@@ -215,6 +215,8 @@ class _StaffCardState extends State<_StaffCard> {
     final subtitle = [
       if (s.email != null && s.email!.isNotEmpty) s.email!,
       '${s.staffRole} · ${s.staffId}',
+      if (s.createdByName != null && s.createdByName!.trim().isNotEmpty)
+        'Created by: ${s.createdByName}',
     ].join('\n');
 
     return MouseRegion(

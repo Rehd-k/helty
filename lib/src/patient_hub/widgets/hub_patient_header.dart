@@ -84,6 +84,8 @@ class HubPatientHeader extends StatelessWidget {
                           if (patient.phoneNumber != null &&
                               patient.phoneNumber!.isNotEmpty)
                             _chip(context, patient.phoneNumber!),
+                          if (_createdBy != null)
+                            _chip(context, 'Created by: $_createdBy'),
                         ],
                       ),
                     ],
@@ -159,6 +161,14 @@ class HubPatientHeader extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String? get _createdBy {
+    final fromProfile = fullProfile?.createdBy?.trim();
+    if (fromProfile != null && fromProfile.isNotEmpty) return fromProfile;
+    final fromChart = patient.createdBy?.trim();
+    if (fromChart != null && fromChart.isNotEmpty) return fromChart;
+    return null;
   }
 
   String _admissionLine() {

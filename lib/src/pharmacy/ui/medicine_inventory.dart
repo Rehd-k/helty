@@ -271,11 +271,11 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'ù The drug will no longer appear in searches or new orders.',
+              'ÔøΩ The drug will no longer appear in searches or new orders.',
             ),
-            const Text('ù Past prescriptions and invoices are not affected.'),
+            const Text('ÔøΩ Past prescriptions and invoices are not affected.'),
             const Text(
-              'ù You cannot hide a drug while sellable stock remains.',
+              'ÔøΩ You cannot hide a drug while sellable stock remains.',
             ),
           ],
         ),
@@ -345,10 +345,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: 7,
-                    child: _buildMainSection(theme, bp),
-                  ),
+                  Expanded(flex: 7, child: _buildMainSection(theme, bp)),
                   SizedBox(
                     width: 380,
                     child: _selectedDrug == null
@@ -552,7 +549,9 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: theme.colorScheme.onPrimary,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         ),
       ],
@@ -569,7 +568,9 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
         const SizedBox(height: 4),
         Text(
           'Manage stock, track expiries, and update details',
-          style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -597,6 +598,8 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       color: cs.onSurfaceVariant,
     );
     return ResponsiveDataTable(
+      minWidth: 1100,
+      horizontalScrollController: _horizontalScrollController,
       child: Scrollbar(
         controller: _verticalScrollController,
         thumbVisibility: true,
@@ -604,82 +607,77 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
           controller: _verticalScrollController,
           scrollDirection: Axis.vertical,
           child: DataTable(
-              sortColumnIndex: _sortColumnIndex,
-              sortAscending: _isAscending,
-              headingRowColor: WidgetStateProperty.all(
-                theme.colorScheme.surface,
+            sortColumnIndex: _sortColumnIndex,
+            sortAscending: _isAscending,
+            headingRowColor: WidgetStateProperty.all(theme.colorScheme.surface),
+            dataRowMinHeight: 70,
+            dataRowMaxHeight: 70,
+            showCheckboxColumn:
+                false, // Hide default checkboxes to match design
+            columns: [
+              DataColumn(
+                label: Text('MEDICINE NAME', style: columnHeaderStyle),
+                onSort: (idx, asc) => _onSort(idx, asc, 'brandName'),
               ),
-              dataRowMinHeight: 70,
-              dataRowMaxHeight: 70,
-              showCheckboxColumn:
-                  false, // Hide default checkboxes to match design
-              columns: [
-                DataColumn(
-                  label: Text('MEDICINE NAME', style: columnHeaderStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'brandName'),
-                ),
-                DataColumn(
-                  label: Text('COMPOSITION', style: columnHeaderStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'genericName'),
-                ),
-                DataColumn(
-                  label: Text('STOCK', style: columnHeaderStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'stock'),
-                ),
-                DataColumn(
-                  label: Text('EXPIRY', style: columnHeaderStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'expiryDate'),
-                ),
-                DataColumn(
-                  label: Text('STATUS', style: columnHeaderStyle),
-                ),
-                DataColumn(
-                  label: Text('ACTIONS', style: columnHeaderStyle),
-                ),
-              ],
-              rows: _drugs.map((drug) {
-                final isSelected = _selectedDrug?.id == drug.id;
-                return DataRow(
-                  selected: isSelected,
-                  onSelectChanged: (selected) {
-                    if (selected != null && selected) {
-                      _selectDrug(drug);
-                    }
-                  },
-                  color: WidgetStateProperty.resolveWith<Color?>((
-                    Set<WidgetState> states,
-                  ) {
-                    if (states.contains(WidgetState.selected)) {
-                      return theme.colorScheme.primary.withValues(alpha: 0.05);
-                    }
-                    return null; // Use default
-                  }),
-                  cells: [
-                    DataCell(
-                      Row(
-                        children: [
-                          if (isSelected)
-                            Container(
-                              width: 4,
-                              height: 40,
-                              color: theme.colorScheme.primary,
-                              margin: const EdgeInsets.only(right: 8),
-                            ),
+              DataColumn(
+                label: Text('COMPOSITION', style: columnHeaderStyle),
+                onSort: (idx, asc) => _onSort(idx, asc, 'genericName'),
+              ),
+              DataColumn(
+                label: Text('STOCK', style: columnHeaderStyle),
+                onSort: (idx, asc) => _onSort(idx, asc, 'stock'),
+              ),
+              DataColumn(
+                label: Text('EXPIRY', style: columnHeaderStyle),
+                onSort: (idx, asc) => _onSort(idx, asc, 'expiryDate'),
+              ),
+              DataColumn(label: Text('STATUS', style: columnHeaderStyle)),
+              DataColumn(label: Text('ACTIONS', style: columnHeaderStyle)),
+            ],
+            rows: _drugs.map((drug) {
+              final isSelected = _selectedDrug?.id == drug.id;
+              return DataRow(
+                selected: isSelected,
+                onSelectChanged: (selected) {
+                  if (selected != null && selected) {
+                    _selectDrug(drug);
+                  }
+                },
+                color: WidgetStateProperty.resolveWith<Color?>((
+                  Set<WidgetState> states,
+                ) {
+                  if (states.contains(WidgetState.selected)) {
+                    return theme.colorScheme.primary.withValues(alpha: 0.05);
+                  }
+                  return null; // Use default
+                }),
+                cells: [
+                  DataCell(
+                    Row(
+                      children: [
+                        if (isSelected)
                           Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.medication,
-                              color: theme.colorScheme.primary,
-                            ),
+                            width: 4,
+                            height: 40,
+                            color: theme.colorScheme.primary,
+                            margin: const EdgeInsets.only(right: 8),
                           ),
-                          const SizedBox(width: 12),
-                          Column(
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.medication,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -688,110 +686,122 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                'ID: ${drug.id ?? 'ù'}',
+                                'ID: ${drug.id ?? '‚Äî'}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: cs.onSurfaceVariant,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
+                              if (drug.createdByName != null &&
+                                  drug.createdByName!.trim().isNotEmpty)
+                                Text(
+                                  'Created by: ${drug.createdByName}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        drug.genericName,
-                        style: TextStyle(color: cs.onSurface),
-                      ),
-                    ),
-                    DataCell(
-                      RichText(
-                        text: TextSpan(
-                          style: theme.textTheme.bodyMedium,
-                          children: [
-                            TextSpan(
-                              text: '${drug.displayStock} ',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            TextSpan(
-                              text: drug.displayUnit,
-                              style: TextStyle(color: cs.onSurfaceVariant),
-                            ),
-                          ],
                         ),
-                      ),
+                      ],
                     ),
-                    DataCell(
-                      Row(
+                  ),
+                  DataCell(
+                    Text(
+                      drug.genericName,
+                      style: TextStyle(color: cs.onSurface),
+                    ),
+                  ),
+                  DataCell(
+                    RichText(
+                      text: TextSpan(
+                        style: theme.textTheme.bodyMedium,
                         children: [
-                          if (drug.displayStatus == 'Expiring Soon')
-                            const Padding(
-                              padding: EdgeInsets.only(right: 4.0),
-                              child: Icon(
-                                Icons.warning_amber_rounded,
-                                color: Colors.orange,
-                                size: 16,
-                              ),
-                            ),
-                          Text(
-                            drug.expiryDate != null
-                                ? DateFormat(
-                                    'MMM yyyy',
-                                  ).format(drug.expiryDate!)
-                                : 'ù',
-                            style: TextStyle(
-                              color: drug.displayStatus == 'Expiring Soon'
-                                  ? Colors.orange[800]
-                                  : cs.onSurface,
-                            ),
+                          TextSpan(
+                            text: '${drug.displayStock} ',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(
+                            text: drug.displayUnit,
+                            style: TextStyle(color: cs.onSurfaceVariant),
                           ),
                         ],
                       ),
                     ),
-                    DataCell(_buildStatusChip(cs, drug.displayStatus)),
-                    DataCell(
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, size: 20),
-                        tooltip: 'Actions',
-                        onSelected: (value) {
-                          if (value == 'hide') _hideDrug(drug);
-                        },
-                        itemBuilder: (context) => [
-                          PopupMenuItem<String>(
-                            value: 'hide',
-                            enabled: !_hasSellableStock(drug),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.visibility_off_outlined,
-                                  size: 18,
+                  ),
+                  DataCell(
+                    Row(
+                      children: [
+                        if (drug.displayStatus == 'Expiring Soon')
+                          const Padding(
+                            padding: EdgeInsets.only(right: 4.0),
+                            child: Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange,
+                              size: 16,
+                            ),
+                          ),
+                        Text(
+                          drug.expiryDate != null
+                              ? DateFormat('MMM yyyy').format(drug.expiryDate!)
+                              : 'ÔøΩ',
+                          style: TextStyle(
+                            color: drug.displayStatus == 'Expiring Soon'
+                                ? Colors.orange[800]
+                                : cs.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  DataCell(_buildStatusChip(cs, drug.displayStatus)),
+                  DataCell(
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, size: 20),
+                      tooltip: 'Actions',
+                      onSelected: (value) {
+                        if (value == 'hide') _hideDrug(drug);
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem<String>(
+                          value: 'hide',
+                          enabled: !_hasSellableStock(drug),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.visibility_off_outlined,
+                                size: 18,
+                                color: _hasSellableStock(drug)
+                                    ? cs.onSurfaceVariant
+                                    : Colors.red,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Hide from catalog',
+                                style: TextStyle(
                                   color: _hasSellableStock(drug)
                                       ? cs.onSurfaceVariant
                                       : Colors.red,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Hide from catalog',
-                                  style: TextStyle(
-                                    color: _hasSellableStock(drug)
-                                        ? cs.onSurfaceVariant
-                                        : Colors.red,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                );
-              }).toList(),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         ),
       ),
@@ -875,7 +885,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Showing ${_totalItems == 0 ? 0 : start}ù$end of $_totalItems',
+          'Showing ${_totalItems == 0 ? 0 : start}ÔøΩ$end of $_totalItems',
           style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
         ),
         const SizedBox(width: 16),
@@ -911,11 +921,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       child: bp.stackPanels
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                showing,
-                const SizedBox(height: 8),
-                pageInfo,
-              ],
+              children: [showing, const SizedBox(height: 8), pageInfo],
             )
           : Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -969,14 +975,16 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                   IconButton(
                     icon: Icon(
                       Icons.visibility_off_outlined,
-                      color: _hasSellableStock(drug) ||
+                      color:
+                          _hasSellableStock(drug) ||
                               drug.id == null ||
                               drug.id!.trim().isEmpty
                           ? cs.onSurfaceVariant.withValues(alpha: 0.4)
                           : Colors.red,
                     ),
                     tooltip: 'Hide drug from catalog',
-                    onPressed: _hasSellableStock(drug) ||
+                    onPressed:
+                        _hasSellableStock(drug) ||
                             drug.id == null ||
                             drug.id!.trim().isEmpty
                         ? null
@@ -994,9 +1002,19 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
             ),
           ),
           Text(
-            '${drug.therapeuticClass ?? 'ù'} ù ID: ${drug.id ?? 'ù'}',
+            '${drug.therapeuticClass ?? 'ÔøΩ'} ÔøΩ ID: ${drug.id ?? 'ÔøΩ'}',
             style: TextStyle(color: cs.onSurfaceVariant),
           ),
+          if (drug.createdByName != null &&
+              drug.createdByName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Created by: ${drug.createdByName}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -1069,31 +1087,50 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
           const SizedBox(height: 16),
 
           // Composition Card
-          _buildInfoCard(cs, theme, 'Drug Composition', Icons.science_outlined, [
-            _buildInfoRow(cs, 'Generic Name', drug.genericName, isFullWidth: true),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInfoRow(cs, 'Strength', drug.strength ?? 'ù'),
-                ),
-                Expanded(
-                  child: _buildInfoRow(cs, 'Dosage Form', drug.dosageForm ?? 'ù'),
-                ),
-              ],
-            ),
-            _buildInfoRow(
-              cs,
-              'Manufacturer',
-              drug.manufacturerName ?? drug.manufacturerId ?? 'ù',
-              isFullWidth: true,
-            ),
-          ]),
+          _buildInfoCard(
+            cs,
+            theme,
+            'Drug Composition',
+            Icons.science_outlined,
+            [
+              _buildInfoRow(
+                cs,
+                'Generic Name',
+                drug.genericName,
+                isFullWidth: true,
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildInfoRow(cs, 'Strength', drug.strength ?? 'ÔøΩ'),
+                  ),
+                  Expanded(
+                    child: _buildInfoRow(
+                      cs,
+                      'Dosage Form',
+                      drug.dosageForm ?? 'ÔøΩ',
+                    ),
+                  ),
+                ],
+              ),
+              _buildInfoRow(
+                cs,
+                'Manufacturer',
+                drug.manufacturerName ?? drug.manufacturerId ?? 'ÔøΩ',
+                isFullWidth: true,
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // Locations Card
-          _buildInfoCard(cs, theme, 'Stock Locations', Icons.storefront_outlined, [
-            ..._buildStockLocationChildren(cs, theme, drug),
-          ]),
+          _buildInfoCard(
+            cs,
+            theme,
+            'Stock Locations',
+            Icons.storefront_outlined,
+            [..._buildStockLocationChildren(cs, theme, drug)],
+          ),
           const SizedBox(height: 24),
           // Order button
           SizedBox(
@@ -1132,7 +1169,10 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+          Text(
+            title,
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+          ),
           const SizedBox(height: 8),
           RichText(
             text: TextSpan(
@@ -1157,7 +1197,11 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     );
   }
 
-  Widget _buildPricesCard(ColorScheme cs, ThemeData theme, List<DrugPrice>? prices) {
+  Widget _buildPricesCard(
+    ColorScheme cs,
+    ThemeData theme,
+    List<DrugPrice>? prices,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1175,7 +1219,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
           const SizedBox(height: 8),
           if (prices == null || prices.isEmpty)
             Text(
-              'ù',
+              'ÔøΩ',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -1244,7 +1288,10 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+          ),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
         ],
@@ -1543,7 +1590,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
                 items: [
                   const DropdownMenuItem(
                     value: null,
-                    child: Text('ù Select supplier ù'),
+                    child: Text('ÔøΩ Select supplier ÔøΩ'),
                   ),
                   ...widget.suppliers.map(
                     (s) => DropdownMenuItem<String?>(

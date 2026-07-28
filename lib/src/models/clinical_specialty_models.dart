@@ -1,5 +1,7 @@
 // DTOs for `GET /clinical/specialties`, specialty modules, and clinical section documents.
 
+import 'staff_attribution.dart';
+
 class ClinicalSpecialtyCatalogModel {
   const ClinicalSpecialtyCatalogModel({
     required this.catalogVersion,
@@ -148,6 +150,7 @@ class EncounterClinicalSectionRowModel {
     required this.data,
     required this.schemaVersion,
     this.updatedAt,
+    this.createdByName,
   });
 
   final String encounterId;
@@ -156,6 +159,7 @@ class EncounterClinicalSectionRowModel {
   final Map<String, dynamic> data;
   final int schemaVersion;
   final DateTime? updatedAt;
+  final String? createdByName;
 
   factory EncounterClinicalSectionRowModel.fromJson(Map<String, dynamic> json) {
     final dataRaw = json['data'];
@@ -175,6 +179,11 @@ class EncounterClinicalSectionRowModel {
       updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'].toString())
           : null,
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
     );
   }
 }

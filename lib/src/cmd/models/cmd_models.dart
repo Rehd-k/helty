@@ -641,6 +641,7 @@ class CmdAnnouncement {
     required this.priority,
     this.scheduledFor,
     this.sentAt,
+    this.createdByName,
   });
 
   final String id;
@@ -650,6 +651,7 @@ class CmdAnnouncement {
   final String priority;
   final DateTime? scheduledFor;
   final DateTime? sentAt;
+  final String? createdByName;
 }
 
 // ── Patient experience ─────────────────────────────────────────────────────

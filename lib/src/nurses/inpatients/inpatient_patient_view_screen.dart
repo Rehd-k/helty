@@ -1,6 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/nurses/inpatients/tabs/inpatient_ward_round_tab.dart'
+    show showWardRoundNoteDialog;
+import 'package:helty/src/nurses/inpatients/ward_round_note_draft.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/patient_header_card.dart';
@@ -8,6 +11,7 @@ import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/auth/nursing_permissions.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/services/ward_round_note_service.dart';
 
 import '../../admissions/admission_discharge_helpers.dart';
 import '../../admissions/discharge_admission_dialog.dart';
@@ -73,6 +77,46 @@ class _InpatientPatientViewScreenState
   void initState() {
     super.initState();
     _loadPatient();
+  }
+
+  Future<void> _resumeOrOpenWardRoundNote({
+    WardRoundNoteDraft? draft,
+  }) async {
+    final staff = ref.read(authProvider).staff;
+    final doctorId = staff?.id ?? staff?.staffId ?? '';
+    if (doctorId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'You must be logged in as a doctor to add a ward round note.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final result = await showWardRoundNoteDialog(
+      context: context,
+      admissionId: widget.admissionId,
+      doctorId: doctorId,
+      wardRoundNoteService: WardRoundNoteService(),
+      initialDraft: draft,
+    );
+    if (!mounted) return;
+
+    switch (result?.outcome) {
+      case WardRoundNoteDialogOutcome.saved:
+        ref.read(wardRoundNoteDraftProvider.notifier).state = null;
+      case WardRoundNoteDialogOutcome.minimized:
+        ref.read(wardRoundNoteDraftProvider.notifier).state = result?.draft;
+      case WardRoundNoteDialogOutcome.discarded:
+      case null:
+        ref.read(wardRoundNoteDraftProvider.notifier).state = null;
+    }
+  }
+
+  void _discardWardRoundDraft() {
+    ref.read(wardRoundNoteDraftProvider.notifier).state = null;
   }
 
   /// Same identity labels as [PatientHeaderCard] / [_buildPatientHeader].
@@ -144,6 +188,12 @@ class _InpatientPatientViewScreenState
     final isNurse = isNursingStaff(ref.watch(authProvider).staff);
 
     final identity = _patientIdentityLabels();
+    final wardRoundDraft = ref.watch(wardRoundNoteDraftProvider);
+    final WardRoundNoteDraft? draftForChip =
+        (wardRoundDraft != null &&
+            wardRoundDraft.admissionId == widget.admissionId)
+        ? wardRoundDraft
+        : null;
 
     return InpatientViewScope(
       patientId: _patient?.id ?? '',
@@ -190,106 +240,168 @@ class _InpatientPatientViewScreenState
           return Scaffold(
             backgroundColor: colorScheme.surface,
             body: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final bool compact =
-                      constraints.maxWidth < kInpatientCompactBreakpoint;
-                  final double horizontalPadding = compact
-                      ? 16
-                      : (constraints.maxWidth > 1400 ? 32 : 20);
-                  final double verticalPadding = compact ? 16 : 24;
+              child: Stack(
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final bool compact =
+                          constraints.maxWidth < kInpatientCompactBreakpoint;
+                      final double horizontalPadding = compact
+                          ? 16
+                          : (constraints.maxWidth > 1400 ? 32 : 20);
+                      final double verticalPadding = compact ? 16 : 24;
 
-                  final tabContent = _uiTabIndex == _consumablesUiTabIndex
-                      ? _buildTabContentShell(
-                          colorScheme,
-                          child: const InpatientConsumablesScreen(),
-                        )
-                      : _buildTabContentShell(
-                          colorScheme,
-                          child: child,
-                        );
+                      final tabContent = _uiTabIndex == _consumablesUiTabIndex
+                          ? _buildTabContentShell(
+                              colorScheme,
+                              child: const InpatientConsumablesScreen(),
+                            )
+                          : _buildTabContentShell(
+                              colorScheme,
+                              child: child,
+                            );
 
-                  return Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: kInpatientContentMaxWidth,
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          horizontalPadding,
-                          verticalPadding,
-                          horizontalPadding,
-                          verticalPadding,
-                        ),
-                        child: compact
-                            ? CustomScrollView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                slivers: [
-                                  SliverToBoxAdapter(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        _buildHeaderRow(
-                                          context,
-                                          compact: compact,
-                                          isDoctor: isDoctor,
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: kInpatientContentMaxWidth,
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              horizontalPadding,
+                              verticalPadding,
+                              horizontalPadding,
+                              verticalPadding,
+                            ),
+                            child: compact
+                                ? CustomScrollView(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    slivers: [
+                                      SliverToBoxAdapter(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            _buildHeaderRow(
+                                              context,
+                                              compact: compact,
+                                              isDoctor: isDoctor,
+                                            ),
+                                            SizedBox(height: compact ? 12 : 16),
+                                            _buildPatientHeader(context),
+                                            SizedBox(height: compact ? 16 : 20),
+                                          ],
                                         ),
-                                        SizedBox(height: compact ? 12 : 16),
-                                        _buildPatientHeader(context),
-                                        SizedBox(height: compact ? 16 : 20),
-                                      ],
-                                    ),
-                                  ),
-                                  SliverPersistentHeader(
-                                    pinned: true,
-                                    delegate: _PinnedTabStripDelegate(
-                                      height: _pinnedTabStripHeight(compact),
-                                      color: colorScheme.surface,
-                                      child: _buildTabsStrip(
+                                      ),
+                                      SliverPersistentHeader(
+                                        pinned: true,
+                                        delegate: _PinnedTabStripDelegate(
+                                          height:
+                                              _pinnedTabStripHeight(compact),
+                                          color: colorScheme.surface,
+                                          child: _buildTabsStrip(
+                                            context,
+                                            tabsRouter,
+                                            compact: compact,
+                                          ),
+                                        ),
+                                      ),
+                                      SliverFillRemaining(
+                                        hasScrollBody: true,
+                                        child: Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 12),
+                                          child: tabContent,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      _buildHeaderRow(
+                                        context,
+                                        compact: compact,
+                                        isDoctor: isDoctor,
+                                      ),
+                                      SizedBox(height: compact ? 12 : 16),
+                                      _buildPatientHeader(context),
+                                      SizedBox(height: compact ? 16 : 20),
+                                      _buildTabsStrip(
                                         context,
                                         tabsRouter,
                                         compact: compact,
                                       ),
-                                    ),
+                                      SizedBox(height: compact ? 12 : 16),
+                                      Expanded(child: tabContent),
+                                    ],
                                   ),
-                                  SliverFillRemaining(
-                                    hasScrollBody: true,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(top: 12),
-                                      child: tabContent,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _buildHeaderRow(
-                                    context,
-                                    compact: compact,
-                                    isDoctor: isDoctor,
-                                  ),
-                                  SizedBox(height: compact ? 12 : 16),
-                                  _buildPatientHeader(context),
-                                  SizedBox(height: compact ? 16 : 20),
-                                  _buildTabsStrip(
-                                    context,
-                                    tabsRouter,
-                                    compact: compact,
-                                  ),
-                                  SizedBox(height: compact ? 12 : 16),
-                                  Expanded(child: tabContent),
-                                ],
-                              ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  if (draftForChip != null)
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
+                      child: _buildWardRoundDraftBar(
+                        colorScheme,
+                        draftForChip,
                       ),
                     ),
-                  );
-                },
+                ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildWardRoundDraftBar(
+    ColorScheme colorScheme,
+    WardRoundNoteDraft draft,
+  ) {
+    return Material(
+      elevation: 6,
+      borderRadius: BorderRadius.circular(12),
+      color: colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              Icons.edit_note_outlined,
+              color: colorScheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Ward round note in progress',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: _discardWardRoundDraft,
+              child: Text(
+                'Discard',
+                style: TextStyle(color: colorScheme.onPrimaryContainer),
+              ),
+            ),
+            const SizedBox(width: 4),
+            FilledButton(
+              onPressed: () => _resumeOrOpenWardRoundNote(draft: draft),
+              child: const Text('Resume'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -413,7 +525,7 @@ class _InpatientPatientViewScreenState
         ),
         const SizedBox(height: 4),
         Text(
-          subtitle,
+          subtitle, 
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: subtitleStyle,
@@ -613,6 +725,7 @@ class _InpatientPatientViewScreenState
       attendingDoctor: doctor,
       diagnosis: diagnosis,
       admissionDate: admissionDateStr,
+      createdBy: admission.createdByName,
       lengthOfStay: lengthOfStay,
       allergies: allergies,
       codeStatus: codeStatus,

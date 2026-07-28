@@ -425,12 +425,23 @@ class _FamilyLinksScreenState extends ConsumerState<FamilyLinksScreen> {
             else
               ..._children.map((child) {
                 final busy = _unlinkingId == child.id;
+                final subtitleParts = <String>[
+                  if (child.patientId.isNotEmpty) child.patientId,
+                  if (child.createdByName != null &&
+                      child.createdByName!.trim().isNotEmpty)
+                    'Created by: ${child.createdByName}',
+                ];
                 return Card(
                   child: ListTile(
                     title: Text(child.displayName),
-                    subtitle: child.patientId.isNotEmpty
-                        ? Text(child.patientId)
-                        : null,
+                    subtitle: subtitleParts.isEmpty
+                        ? null
+                        : Text(
+                            subtitleParts.join('\n'),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                     trailing: busy
                         ? const SizedBox(
                             width: 28,

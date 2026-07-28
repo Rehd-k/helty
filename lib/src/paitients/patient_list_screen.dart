@@ -281,14 +281,18 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                         ? DateFormatter.medicalDate(patient.createdAt!)
                         : '—',
                   ),
-                  _detailRow('Created By', patient.createdBy ?? '—'),
+                  if (patient.createdBy != null &&
+                      patient.createdBy!.trim().isNotEmpty)
+                    _detailRow('Created By', patient.createdBy!),
                   _detailRow(
                     'Updated At',
                     patient.updatedAt != null
                         ? DateFormatter.medicalDate(patient.updatedAt!)
                         : '—',
                   ),
-                  _detailRow('Updated By', patient.updatedBy ?? '—'),
+                  if (patient.updatedBy != null &&
+                      patient.updatedBy!.trim().isNotEmpty)
+                    _detailRow('Updated By', patient.updatedBy!),
                 ],
               ),
             ),
@@ -390,6 +394,17 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                         'ID: ${patient.patientId}  •  Card: ${patient.cardNo}',
                         style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
+                      if (patient.createdBy != null &&
+                          patient.createdBy!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Created by: ${patient.createdBy}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

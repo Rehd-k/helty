@@ -193,8 +193,8 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
     }
     final keys = grouped.keys.toList()
       ..sort((a, b) {
-        final la = grouped[a]!.first.requesterDisplayLabel.toLowerCase();
-        final lb = grouped[b]!.first.requesterDisplayLabel.toLowerCase();
+        final la = (grouped[a]!.first.requesterDisplayLabel ?? '').toLowerCase();
+        final lb = (grouped[b]!.first.requesterDisplayLabel ?? '').toLowerCase();
         return la.compareTo(lb);
       });
 
@@ -214,6 +214,7 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
                   return db.compareTo(da);
                 });
               final sample = list.first;
+              final requesterName = sample.requesterDisplayLabel;
               final subtitle = sample.createdBy != null &&
                       sample.createdBy!.staffId.isNotEmpty
                   ? 'Staff ID ${sample.createdBy!.staffId} · ${list.length} ticket(s)'
@@ -224,17 +225,19 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
                 childrenPadding: const EdgeInsets.only(bottom: 8),
                 initiallyExpanded: keys.length == 1,
                 title: Text(
-                  sample.requesterDisplayLabel,
+                  requesterName ?? subtitle,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                subtitle: Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                subtitle: requesterName != null
+                    ? Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      )
+                    : null,
                 children: [
                   for (var i = 0; i < list.length; i++) ...[
                     if (i > 0)

@@ -450,9 +450,6 @@ class _OrderCard extends StatelessWidget {
     final statusColor = orderStatusColor(theme, order.status);
     final firstItem = order.items.isNotEmpty ? order.items.first : null;
     final requestedByName = (order.requestedBy?.displayName ?? '').trim();
-    final requestedByLabel = requestedByName.isNotEmpty
-        ? requestedByName
-        : (order.requestedById.isNotEmpty ? order.requestedById : '-');
 
     return Card(
       elevation: 0,
@@ -506,12 +503,13 @@ class _OrderCard extends StatelessWidget {
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    Text(
-                      'Requested by: $requestedByLabel',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                    if (requestedByName.isNotEmpty)
+                      Text(
+                        'Requested by: $requestedByName',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
                     Text(
                       '${order.items.length} item(s)',
                       style: theme.textTheme.bodySmall?.copyWith(

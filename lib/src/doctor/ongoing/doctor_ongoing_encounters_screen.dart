@@ -454,6 +454,17 @@ class _DoctorOngoingEncountersScreenState
                       ),
                     ),
                   ],
+                  if (e.createdBy != null &&
+                      e.createdBy!.displayName.trim().isNotEmpty &&
+                      e.createdBy!.displayName.trim() != e.createdBy!.id) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Created by: ${e.createdBy!.displayName.trim()}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     '${DateFormat.yMMMd().add_jm().format(e.startedAt)} • ${e.visitType ?? 'OPD'}',

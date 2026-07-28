@@ -307,7 +307,7 @@ class _TodayPatientsScreenState extends ConsumerState<TodayPatientsScreen> {
                         cell(Text(_patientFullName(patient))),
                         cell(Text(patient.phoneNumber ?? '—')),
                         if (showMrExtras) cell(_statusBadge(patient.status)),
-                        cell(Text(patient.createdBy ?? '—')),
+                        cell(Text(patient.createdBy ?? '')),
                       ];
                     },
                   ),

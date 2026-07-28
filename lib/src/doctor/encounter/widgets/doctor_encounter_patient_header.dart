@@ -15,6 +15,7 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
   final String? insurance;
   final String? doctorName;
   final String doctorLabel;
+  final String? createdByName;
   final String? lastUpdatedByName;
   final String? avatarUrl;
   final String? firstName;
@@ -31,6 +32,7 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
     this.insurance,
     this.doctorName,
     this.doctorLabel = 'Doctor',
+    this.createdByName,
     this.lastUpdatedByName,
     this.avatarUrl,
     this.firstName,
@@ -91,6 +93,15 @@ class DoctorEncounterPatientHeader extends StatelessWidget {
                           context,
                           icon: Icons.medical_services_outlined,
                           label: '$doctorLabel: ${doctorName!.trim()}',
+                        ),
+                      ],
+                      if (createdByName != null &&
+                          createdByName!.trim().isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        _metaChip(
+                          context,
+                          icon: Icons.person_add_alt_1_outlined,
+                          label: 'Created by: ${createdByName!.trim()}',
                         ),
                       ],
                       if (lastUpdatedByName != null &&

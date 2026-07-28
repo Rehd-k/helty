@@ -1,6 +1,7 @@
 import '../core/utils/patient_display_name.dart';
 import '../core/utils/patient_initials.dart';
 import '../models/hmo_models.dart';
+import '../models/staff_attribution.dart';
 
 /// Sent to GET /patients as `listStatusFilter` so the server narrows by [Patient.status].
 enum PatientListStatusFilter { none, onlyAdmitted, excludeAdmitted }
@@ -290,15 +291,19 @@ class Patient {
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
-      createdBy: json['createdBy'] != null
-          ? '${json['createdBy']['lastName']} ${json['createdBy']['firstName']}'
-          : null,
+      createdBy: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
       updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'] as String)
           : null,
-      updatedBy: json['updatedBy'] != null
-          ? '${json['updatedBy']['lastName']} ${json['updatedBy']['firstName']}'
-          : null,
+      updatedBy: formatStaffName(
+        json['updatedBy'] is Map
+            ? Map<String, dynamic>.from(json['updatedBy'] as Map)
+            : null,
+      ),
       status: json['status']?.toString(),
       fingerprintData: json['fingerprintData'] as String? ?? 'No Fingerprint',
       // Client-only flags default to false/null when coming from backend.

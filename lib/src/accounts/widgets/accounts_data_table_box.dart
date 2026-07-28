@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
-/// [DataTable2] builds internal [Column]/[Flexible] layouts that require a **bounded
-/// max height**. Do not place it directly inside [SingleChildScrollView] → [Column]
-/// (unbounded vertical constraint).
+/// [DataTable2] builds internal [Column]/[Flexible] layouts that require
+/// **bounded max height and width**. Do not place it inside a horizontal
+/// [SingleChildScrollView] (unbounded width) or a vertical scroll → [Column]
+/// without a height bound.
+///
+/// Horizontal overflow is handled by [DataTable2.minWidth], not an outer
+/// scroll view.
 ///
 /// When placed inside an [Expanded] widget (as in [AccountsAsyncScaffold]), this
 /// wrapper fills the remaining viewport height. Otherwise it falls back to a
@@ -30,16 +34,16 @@ class AccountsDataTableBox extends StatelessWidget {
         final height = constraints.maxHeight.isFinite
             ? constraints.maxHeight.clamp(minHeight, double.infinity)
             : _fallbackHeight(context);
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
 
         return Card(
           clipBehavior: Clip.antiAlias,
           child: SizedBox(
             height: height,
-            width: double.infinity,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: child,
-            ),
+            width: width,
+            child: child,
           ),
         );
       },

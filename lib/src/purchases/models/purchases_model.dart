@@ -1,6 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 enum PurchasesLocationType { STORE, WAREHOUSE, DEPARTMENT, COLD_ROOM }
 
@@ -175,12 +176,14 @@ class PurchasesManufacturer {
   final String name;
   final String? country;
   final Map<String, dynamic>? contactInfo;
+  final String? createdByName;
 
   PurchasesManufacturer({
     this.id,
     required this.name,
     this.country,
     this.contactInfo,
+    this.createdByName,
   });
 
   factory PurchasesManufacturer.fromJson(Map<String, dynamic> json) =>
@@ -191,6 +194,11 @@ class PurchasesManufacturer {
         contactInfo: json['contactInfo'] is Map
             ? Map<String, dynamic>.from(json['contactInfo'] as Map)
             : null,
+        createdByName: formatStaffName(
+          json['createdBy'] is Map
+              ? Map<String, dynamic>.from(json['createdBy'] as Map)
+              : null,
+        ),
       );
 
   Map<String, dynamic> toJson() => {
@@ -210,6 +218,7 @@ class PurchasesSupplier {
   final int? leadTimeDays;
   final int? rating;
   final bool isBlacklisted;
+  final String? createdByName;
 
   PurchasesSupplier({
     this.id,
@@ -220,6 +229,7 @@ class PurchasesSupplier {
     this.leadTimeDays,
     this.rating,
     this.isBlacklisted = false,
+    this.createdByName,
   });
 
   factory PurchasesSupplier.fromJson(Map<String, dynamic> json) =>
@@ -238,6 +248,11 @@ class PurchasesSupplier {
             ? json['rating'] as int
             : int.tryParse(json['rating']?.toString() ?? ''),
         isBlacklisted: json['isBlacklisted'] == true,
+        createdByName: formatStaffName(
+          json['createdBy'] is Map
+              ? Map<String, dynamic>.from(json['createdBy'] as Map)
+              : null,
+        ),
       );
 
   Map<String, dynamic> toJson() => {
@@ -268,6 +283,7 @@ class PurchaseItem {
   final double? price;
   final double? sellingPrice;
   final String? manufacturerName;
+  final String? createdByName;
 
   PurchaseItem({
     this.id,
@@ -285,6 +301,7 @@ class PurchaseItem {
     this.price,
     this.sellingPrice,
     this.manufacturerName,
+    this.createdByName,
   });
 
   int get displayStock => stock ?? 0;
@@ -327,6 +344,11 @@ class PurchaseItem {
     price: _toDoubleOrNull(json['price']),
     sellingPrice: _toDoubleOrNull(json['sellingPrice']),
     manufacturerName: json['manufacturerName']?.toString(),
+    createdByName: formatStaffName(
+      json['createdBy'] is Map
+          ? Map<String, dynamic>.from(json['createdBy'] as Map)
+          : null,
+    ),
   );
 
   Map<String, dynamic> toJson() => {
@@ -460,6 +482,7 @@ class PurchaseOrder {
   final PurchaseOrderStatus status;
   final double totalAmount;
   final String createdById;
+  final String? createdByName;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final PurchasesSupplier? supplier;
@@ -470,6 +493,7 @@ class PurchaseOrder {
     this.status = PurchaseOrderStatus.DRAFT,
     required this.totalAmount,
     required this.createdById,
+    this.createdByName,
     this.createdAt,
     this.updatedAt,
     this.supplier,
@@ -480,7 +504,15 @@ class PurchaseOrder {
     supplierId: json['supplierId']?.toString() ?? '',
     status: _parsePurchaseOrderStatus(json['status']),
     totalAmount: _toDouble(json['totalAmount'], 0),
-    createdById: json['createdById']?.toString() ?? '',
+    createdById: json['createdById']?.toString() ??
+        (json['createdBy'] is Map
+            ? (json['createdBy'] as Map)['id']?.toString() ?? ''
+            : ''),
+    createdByName: formatStaffName(
+      json['createdBy'] is Map
+          ? Map<String, dynamic>.from(json['createdBy'] as Map)
+          : null,
+    ),
     createdAt: json['createdAt'] != null
         ? DateTime.tryParse(json['createdAt'].toString())
         : null,
@@ -594,6 +626,7 @@ class PurchasesStockTransfer {
   final String? requestedById;
   final String? requestedByName;
   final String? approvedById;
+  final String? createdByName;
   final DateTime? createdAt;
   final DateTime? completedAt;
   final PurchaseItem? item;
@@ -610,6 +643,7 @@ class PurchasesStockTransfer {
     this.requestedById,
     this.requestedByName,
     this.approvedById,
+    this.createdByName,
     this.createdAt,
     this.completedAt,
     this.item,
@@ -625,9 +659,15 @@ class PurchasesStockTransfer {
         itemId: json['itemId']?.toString() ?? '',
         quantity: _toInt(json['quantity'], 0),
         status: _parseStockTransferStatus(json['status']),
-        requestedById: json['requestedById']?.toString(),
-        requestedByName: json['requestedByName']?.toString(),
+        requestedById: json['requestedById']?.toString() ??
+            _nestedStaffId(json['requestedBy']),
+        requestedByName: _resolveRequestedByName(json),
         approvedById: json['approvedById']?.toString(),
+        createdByName: formatStaffName(
+          json['createdBy'] is Map
+              ? Map<String, dynamic>.from(json['createdBy'] as Map)
+              : null,
+        ),
         createdAt: json['createdAt'] != null
             ? DateTime.tryParse(json['createdAt'].toString())
             : null,
@@ -672,6 +712,7 @@ class PurchasesLocation {
   final String? staffName;
   final bool isActive;
   final DateTime? createdAt;
+  final String? createdByName;
 
   PurchasesLocation({
     this.id,
@@ -682,6 +723,7 @@ class PurchasesLocation {
     this.staffName,
     this.isActive = true,
     this.createdAt,
+    this.createdByName,
   });
 
   factory PurchasesLocation.fromJson(Map<String, dynamic> json) =>
@@ -696,6 +738,11 @@ class PurchasesLocation {
         createdAt: json['createdAt'] != null
             ? DateTime.tryParse(json['createdAt'].toString())
             : null,
+        createdByName: formatStaffName(
+          json['createdBy'] is Map
+              ? Map<String, dynamic>.from(json['createdBy'] as Map)
+              : null,
+        ),
       );
 
   Map<String, dynamic> toJson() => {
@@ -812,8 +859,9 @@ class Requisition {
     id: json['id']?.toString(),
     requestingDepartment:
         json['requestingDepartment']?.toString() ?? 'OTHER',
-    requestedById: json['requestedById']?.toString(),
-    requestedByName: json['requestedByName']?.toString(),
+    requestedById: json['requestedById']?.toString() ??
+        _nestedStaffId(json['requestedBy']),
+    requestedByName: _resolveRequestedByName(json),
     status: _parseRequisitionStatus(json['status']),
     notes: json['notes']?.toString(),
     lines: (json['lines'] as List?)
@@ -828,6 +876,24 @@ class Requisition {
         ? DateTime.tryParse(json['updatedAt'].toString())
         : null,
   );
+}
+
+String? _nestedStaffId(dynamic raw) {
+  if (raw is! Map) return null;
+  final id = raw['id']?.toString().trim();
+  return (id != null && id.isNotEmpty) ? id : null;
+}
+
+/// Prefer nested `requestedBy` staff map; fall back to flat `requestedByName`.
+String? _resolveRequestedByName(Map<String, dynamic> json) {
+  final nested = formatStaffName(
+    json['requestedBy'] is Map
+        ? Map<String, dynamic>.from(json['requestedBy'] as Map)
+        : null,
+  );
+  if (nested != null) return nested;
+  final flat = json['requestedByName']?.toString().trim();
+  return (flat != null && flat.isNotEmpty) ? flat : null;
 }
 
 class CreateRequisitionDto {

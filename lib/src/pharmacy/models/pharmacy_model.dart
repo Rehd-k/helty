@@ -1,6 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 enum PharmacyLocationType { STORE, DISPENSARY, WARD, COLD_ROOM }
 
@@ -427,14 +428,26 @@ class Manufacturer {
   final String name;
   final String? country;
   final Map<String, dynamic>? contactInfo;
+  final String? createdByName;
 
-  Manufacturer({this.id, required this.name, this.country, this.contactInfo});
+  Manufacturer({
+    this.id,
+    required this.name,
+    this.country,
+    this.contactInfo,
+    this.createdByName,
+  });
 
   factory Manufacturer.fromJson(Map<String, dynamic> json) => Manufacturer(
     id: json['id'],
     name: json['name'],
     country: json['country'],
     contactInfo: json['contactInfo'],
+    createdByName: formatStaffName(
+      json['createdBy'] is Map
+          ? Map<String, dynamic>.from(json['createdBy'] as Map)
+          : null,
+    ),
   );
 
   Map<String, dynamic> toJson() => {
@@ -454,6 +467,7 @@ class Supplier {
   final int? leadTimeDays;
   final int? rating;
   final bool isBlacklisted;
+  final String? createdByName;
 
   Supplier({
     this.id,
@@ -464,6 +478,7 @@ class Supplier {
     this.leadTimeDays,
     this.rating,
     this.isBlacklisted = false,
+    this.createdByName,
   });
 
   factory Supplier.fromJson(Map<String, dynamic> json) => Supplier(
@@ -475,6 +490,11 @@ class Supplier {
     leadTimeDays: json['leadTimeDays'],
     rating: json['rating'],
     isBlacklisted: json['isBlacklisted'] ?? false,
+    createdByName: formatStaffName(
+      json['createdBy'] is Map
+          ? Map<String, dynamic>.from(json['createdBy'] as Map)
+          : null,
+    ),
   );
 
   Map<String, dynamic> toJson() => {
@@ -513,6 +533,7 @@ class Drug {
   final double? price;
   final String? manufacturerName;
   final List<DrugPrice>? prices;
+  final String? createdByName;
 
   Drug({
     this.id,
@@ -536,6 +557,7 @@ class Drug {
     this.price,
     this.manufacturerName,
     this.prices,
+    this.createdByName,
   });
 
   /// Display stock count (from inventory or reorder quantity as fallback).
@@ -591,6 +613,11 @@ class Drug {
         : null,
     price: tryParseApiDecimal(json['price']),
     manufacturerName: json['manufacturerName']?.toString(),
+    createdByName: formatStaffName(
+      json['createdBy'] is Map
+          ? Map<String, dynamic>.from(json['createdBy'] as Map)
+          : null,
+    ),
   );
 
   Map<String, dynamic> toJson() => {
@@ -1043,7 +1070,9 @@ class StockTransfer {
   final int quantity;
   final StockTransferStatus status;
   final String? requestedById;
+  final String? requestedByName;
   final String? approvedById;
+  final String? createdByName;
   final DateTime? createdAt;
   final DateTime? completedAt;
 
@@ -1055,7 +1084,9 @@ class StockTransfer {
     required this.quantity,
     this.status = StockTransferStatus.PENDING,
     this.requestedById,
+    this.requestedByName,
     this.approvedById,
+    this.createdByName,
     this.createdAt,
     this.completedAt,
   });
@@ -1069,8 +1100,25 @@ class StockTransfer {
         ? json['quantity'] as int
         : int.tryParse(json['quantity'].toString()) ?? 0,
     status: _parseStockTransferStatus(json['status']),
-    requestedById: json['requestedById']?.toString(),
+    requestedById: json['requestedById']?.toString() ??
+        (json['requestedBy'] is Map
+            ? (json['requestedBy'] as Map)['id']?.toString()
+            : null),
+    requestedByName: formatStaffName(
+          json['requestedBy'] is Map
+              ? Map<String, dynamic>.from(json['requestedBy'] as Map)
+              : null,
+        ) ??
+        (() {
+          final flat = json['requestedByName']?.toString().trim();
+          return (flat != null && flat.isNotEmpty) ? flat : null;
+        })(),
     approvedById: json['approvedById']?.toString(),
+    createdByName: formatStaffName(
+      json['createdBy'] is Map
+          ? Map<String, dynamic>.from(json['createdBy'] as Map)
+          : null,
+    ),
     createdAt: json['createdAt'] != null
         ? DateTime.tryParse(json['createdAt'].toString())
         : null,
@@ -1173,6 +1221,7 @@ class PharmacyLocation {
   final String? staffName; // Optional display name when API returns staff
   final bool isActive;
   final DateTime? createdAt;
+  final String? createdByName;
 
   PharmacyLocation({
     this.id,
@@ -1183,6 +1232,7 @@ class PharmacyLocation {
     this.staffName,
     this.isActive = true,
     this.createdAt,
+    this.createdByName,
   });
 
   factory PharmacyLocation.fromJson(Map<String, dynamic> json) =>
@@ -1204,6 +1254,11 @@ class PharmacyLocation {
         createdAt: json['createdAt'] != null
             ? DateTime.tryParse(json['createdAt'].toString())
             : null,
+        createdByName: formatStaffName(
+          json['createdBy'] is Map
+              ? Map<String, dynamic>.from(json['createdBy'] as Map)
+              : null,
+        ),
       );
 
   static PharmacyLocationType _parseLocationType(dynamic value) {

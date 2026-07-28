@@ -468,48 +468,28 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      flex: 5,
                       child: _buildLeftPanel(colorScheme, selectedPatient),
                     ),
                     const SizedBox(width: 16),
-                    Expanded(flex: 4, child: _buildMiddlePanel(colorScheme)),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 3,
-                      child: _buildRightPanel(
-                        colorScheme,
-                        theme,
-                        selectedPatient,
-                      ),
-                    ),
+                    Expanded(child: _buildMiddlePanel(colorScheme)),
                   ],
                 );
               }
 
-              final leftH = (maxH * 0.45).clamp(320.0, 500.0);
-              final midH = (maxH * 0.35).clamp(280.0, 400.0);
-              final rightH = (maxH * 0.35).clamp(280.0, 400.0);
+              final drugsH = (maxH * 0.5).clamp(360.0, 560.0);
+              final orderH = (maxH * 0.5).clamp(360.0, 560.0);
               return SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      height: leftH,
+                      height: drugsH,
                       child: _buildLeftPanel(colorScheme, selectedPatient),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
-                      height: midH,
+                      height: orderH,
                       child: _buildMiddlePanel(colorScheme),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: rightH,
-                      child: _buildRightPanel(
-                        colorScheme,
-                        theme,
-                        selectedPatient,
-                      ),
                     ),
                   ],
                 ),
@@ -522,53 +502,113 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // LEFT PANEL: Search, Categories, Drugs Grid
+  // LEFT PANEL: Patient + price ward, Search, Categories, Drugs Grid
   // ---------------------------------------------------------------------------
   Widget _buildLeftPanel(ColorScheme colorScheme, Patient? selectedPatient) {
     final pricingWard = _effectivePricingWardName(selectedPatient);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String?>(
-              initialValue: _pricingWardOverride,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: 'Price ward',
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              hint: Text(
-                'Auto ($pricingWard)',
-                overflow: TextOverflow.ellipsis,
-              ),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('Auto (patient rules)'),
-                ),
-                ..._wards.map(
-                  (w) => DropdownMenuItem<String?>(
-                    value: w.name,
-                    child: Text(w.name, overflow: TextOverflow.ellipsis),
-                  ),
-                ),
-              ],
-              onChanged: (value) =>
-                  _onPricingWardChanged(value, selectedPatient),
+        // Patient card + Price ward (same section)
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
             ),
+          ),
+          child: Row(
+            children: [
+              selectedPatient != null
+                  ? PatientAvatar.fromPatient(
+                      selectedPatient,
+                      size: 40,
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                      foregroundColor: colorScheme.primary,
+                    )
+                  : PatientAvatar(
+                      firstName: patientName.trim(),
+                      size: 40,
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                      foregroundColor: colorScheme.primary,
+                    ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      patientId,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      patientName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      selectedPatient?.wardHmoDisplayLine ?? 'OPD',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 160,
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _pricingWardOverride,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Price ward',
+                    filled: true,
+                    fillColor: colorScheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  hint: Text(
+                    'Auto ($pricingWard)',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Auto (patient rules)'),
+                    ),
+                    ..._wards.map(
+                      (w) => DropdownMenuItem<String?>(
+                        value: w.name,
+                        child: Text(w.name, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      _onPricingWardChanged(value, selectedPatient),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
@@ -713,9 +753,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              price > 0
-                                  ? price.toFinancial(isMoney: true)
-                                  : '—',
+                              price > 0 ? price.toFinancial() : '—',
                               style: TextStyle(
                                 color: colorScheme.primary,
                                 fontWeight: FontWeight.bold,
@@ -824,7 +862,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   ),
                 ),
                 Expanded(
-                  flex: 1,
+                  flex: 2,
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Text(
@@ -920,16 +958,15 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                             ),
                           ),
                           Expanded(
-                            flex: 1,
+                            flex: 2,
                             child: Align(
                               alignment: Alignment.centerRight,
                               child: Text(
-                                lineTotal.toFinancial(isMoney: true),
+                                lineTotal.toFinancial(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ),
@@ -939,223 +976,78 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   ),
           ),
 
-          // Bottom action buttons
+          // Order summary + checkout
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  Icons.health_and_safety,
-                  'HMO SPLIT',
-                  colorScheme,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildActionButton(
-                  Icons.sync_alt,
-                  'GENERIC ALT',
-                  colorScheme,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildActionButton(
-                  Icons.percent,
-                  '% DISCOUNT',
-                  colorScheme,
-                ),
-              ),
-            ],
+          const Divider(),
+          const SizedBox(height: 8),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Order Summary',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-    IconData icon,
-    String label,
-    ColorScheme colorScheme,
-  ) {
-    return OutlinedButton(
-      onPressed: () {},
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: colorScheme.primary),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
+          _buildSummaryRow('Subtotal', subtotal.toFinancial(isMoney: true)),
+          const SizedBox(height: 12),
           Text(
-            label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // RIGHT PANEL: Summary & Payment
-  // ---------------------------------------------------------------------------
-  Widget _buildRightPanel(
-    ColorScheme colorScheme,
-    ThemeData theme,
-    Patient? selectedPatient,
-  ) {
-    return Column(
-      children: [
-        // Customer Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            'TOTAL AMOUNT',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          child: Row(
-            children: [
-              selectedPatient != null
-                  ? PatientAvatar.fromPatient(
-                      selectedPatient,
-                      size: 40,
-                      backgroundColor: colorScheme.primary.withValues(
-                        alpha: 0.2,
-                      ),
-                      foregroundColor: colorScheme.primary,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              totalAmount.toFinancial(isMoney: true),
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: cart.isEmpty || _checkoutBusy ? null : _checkout,
+              icon: _checkoutBusy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : PatientAvatar(
-                      firstName: patientName.trim(),
-                      size: 40,
-                      backgroundColor: colorScheme.primary.withValues(
-                        alpha: 0.2,
-                      ),
-                      foregroundColor: colorScheme.primary,
-                    ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    patientId,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    patientName,
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    selectedPatient?.wardHmoDisplayLine ?? 'OPD',
-                    style: TextStyle(fontSize: 12, color: colorScheme.primary),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Summary Card (scrollable to avoid overflow on small panels)
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-              ),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Order Summary',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSummaryRow(
-                    'Subtotal',
-                    subtotal.toFinancial(isMoney: true),
-                  ),
-                  const SizedBox(height: 24),
-                  // Total (FittedBox to prevent overflow on small width)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'TOTAL AMOUNT',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          totalAmount.toFinancial(isMoney: true),
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: cart.isEmpty || _checkoutBusy ? null : _checkout,
-                    icon: _checkoutBusy
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            widget.invoiceId != null &&
-                                    widget.invoiceId!.trim().isNotEmpty
-                                ? Icons.receipt_long_outlined
-                                : Icons.send_and_archive_outlined,
-                          ),
-                    label: Text(
+                  : Icon(
                       widget.invoiceId != null &&
                               widget.invoiceId!.trim().isNotEmpty
-                          ? 'Add to invoice'
-                          : 'Send To Bill',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          ? Icons.receipt_long_outlined
+                          : Icons.send_and_archive_outlined,
                     ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
+              label: Text(
+                widget.invoiceId != null && widget.invoiceId!.trim().isNotEmpty
+                    ? 'Add to invoice'
+                    : 'Send To Bill',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

@@ -31,6 +31,85 @@ void main() {
     });
   });
 
+  group('formatStaffName', () {
+    test('returns First Last from nested map', () {
+      expect(
+        formatStaffName({'firstName': 'Jane', 'lastName': 'Okonkwo'}),
+        'Jane Okonkwo',
+      );
+    });
+
+    test('returns null for null or empty', () {
+      expect(formatStaffName(null), isNull);
+      expect(formatStaffName({}), isNull);
+      expect(formatStaffName({'firstName': '  ', 'lastName': ''}), isNull);
+    });
+
+    test('falls back to displayName', () {
+      expect(formatStaffName({'displayName': 'Desk Staff'}), 'Desk Staff');
+    });
+  });
+
+  group('createdByLabel / staffRefLabel', () {
+    test('formats createdBy label', () {
+      expect(
+        createdByLabel({
+          'createdBy': {'firstName': 'Jane', 'lastName': 'Okonkwo'},
+        }),
+        'Created by: Jane Okonkwo',
+      );
+    });
+
+    test('returns null when createdBy missing', () {
+      expect(createdByLabel({}), isNull);
+      expect(createdByLabel({'createdBy': null}), isNull);
+    });
+
+    test('formats updatedBy / requestedBy / reportedBy', () {
+      expect(
+        staffRefLabel(
+          {
+            'updatedBy': {'firstName': 'Ada', 'lastName': 'Okoro'},
+          },
+          'updatedBy',
+          prefix: 'Last updated by',
+        ),
+        'Last updated by: Ada Okoro',
+      );
+      expect(
+        staffRefLabel(
+          {
+            'requestedBy': {'firstName': 'Pat', 'lastName': 'Lee'},
+          },
+          'requestedBy',
+          prefix: 'Requested by',
+        ),
+        'Requested by: Pat Lee',
+      );
+      expect(
+        staffRefLabel(
+          {
+            'reportedBy': {'firstName': 'Sam', 'lastName': 'Ng'},
+          },
+          'reportedBy',
+          prefix: 'Reported by',
+        ),
+        'Reported by: Sam Ng',
+      );
+    });
+
+    test('accepts preformatted string staff refs', () {
+      expect(
+        staffRefLabel(
+          {'uploadedBy': 'Nurse A'},
+          'uploadedBy',
+          prefix: 'By',
+        ),
+        'By: Nurse A',
+      );
+    });
+  });
+
   group('MedicationRequestStaffRef.fromJson', () {
     test('parses prescribing doctor from flat medicationOrder.doctor shape', () {
       final ref = MedicationRequestStaffRef.fromJson({

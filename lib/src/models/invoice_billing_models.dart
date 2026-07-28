@@ -1,5 +1,6 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 /// When the invoice is linked to a single active billing transaction (`billingLink` on API).
 class BillingInvoiceBillingLink {
@@ -688,11 +689,7 @@ class BillingInvoicePayment {
 }
 
 String _staffNameFromMap(Map<String, dynamic>? m) {
-  if (m == null) return '';
-  final first = _nullableString(m['firstName']) ?? '';
-  final last = _nullableString(m['lastName']) ?? '';
-  final full = '$first $last'.trim();
-  return full;
+  return formatStaffName(m) ?? '';
 }
 
 class BillingWallet {

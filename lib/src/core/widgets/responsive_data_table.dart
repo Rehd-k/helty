@@ -1,8 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../layout/app_breakpoints.dart';
 
-/// Wraps wide table content with horizontal scroll on mobile and bounded height.
+/// Wraps wide table content with horizontal scroll and bounded height.
 class ResponsiveDataTable extends StatelessWidget {
   const ResponsiveDataTable({
     super.key,
@@ -11,6 +13,7 @@ class ResponsiveDataTable extends StatelessWidget {
     this.heightFactor = 0.75,
     this.minHeight = 260,
     this.maxHeight = 2000,
+    this.horizontalScrollController,
   });
 
   final Widget child;
@@ -18,33 +21,39 @@ class ResponsiveDataTable extends StatelessWidget {
   final double heightFactor;
   final double minHeight;
   final double maxHeight;
+  final ScrollController? horizontalScrollController;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
-        final tableMinW = minWidth ?? bp.tableMinWidth;
+        final availableW =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : 0.0;
+        final configuredMin = minWidth ?? bp.tableMinWidth;
+        final tableMinW = math.max(availableW, configuredMin);
 
         final height = constraints.maxHeight.isFinite
             ? constraints.maxHeight.clamp(minHeight, double.infinity)
             : _fallbackHeight(context);
 
-        Widget table = SizedBox(
-          height: height,
-          width: double.infinity,
-          child: child,
-        );
-
-        if (tableMinW > 0 && bp.isMobile) {
-          table = SingleChildScrollView(
+        final table = Scrollbar(
+          controller: horizontalScrollController,
+          thumbVisibility: horizontalScrollController != null,
+          notificationPredicate: (n) =>
+              n.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            controller: horizontalScrollController,
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: tableMinW),
-              child: table,
+              child: SizedBox(
+                height: height,
+                child: child,
+              ),
             ),
-          );
-        }
+          ),
+        );
 
         return Card(
           elevation: 0,

@@ -136,7 +136,9 @@ class _PurchasesRequisitionHistoryScreenState
             children: [
               Text('Department: ${req.requestingDepartment}'),
               Text('Status: ${req.status.name}'),
-              Text('Requested by: ${req.requestedByName ?? '-'}'),
+              if (req.requestedByName != null &&
+                  req.requestedByName!.trim().isNotEmpty)
+                Text('Requested by: ${req.requestedByName}'),
               if (req.createdAt != null)
                 Text('Created: ${DateFormatter.dateTime(req.createdAt!)}'),
               const SizedBox(height: 12),
@@ -225,8 +227,14 @@ class _PurchasesRequisitionHistoryScreenState
                             '${req.requestingDepartment} · ${req.lines.length} item(s)',
                           ),
                           subtitle: Text(
-                            '${req.status.name} · ${req.requestedByName ?? 'Unknown'} · '
-                            '${req.createdAt != null ? DateFormatter.dateTime(req.createdAt!) : ''}',
+                            [
+                              req.status.name,
+                              if (req.requestedByName != null &&
+                                  req.requestedByName!.trim().isNotEmpty)
+                                req.requestedByName!,
+                              if (req.createdAt != null)
+                                DateFormatter.dateTime(req.createdAt!),
+                            ].join(' · '),
                           ),
                           trailing: req.status == RequisitionStatus.PENDING && isHead
                               ? Wrap(

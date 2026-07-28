@@ -211,23 +211,31 @@ class _SupportTicketDetailContentState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Requester', style: theme.textTheme.labelMedium),
-            Text(
-              d.createdBy != null && d.createdBy!.fullName.isNotEmpty
-                  ? d.createdBy!.fullName
-                  : (d.createdById != null && d.createdById!.isNotEmpty
-                      ? 'User ${d.createdById}'
-                      : 'Unknown'),
-              style: theme.textTheme.bodyMedium,
-            ),
-            if (d.createdBy != null && d.createdBy!.staffId.isNotEmpty)
+            if (d.createdBy != null && d.createdBy!.fullName.isNotEmpty) ...[
+              Text('Requester', style: theme.textTheme.labelMedium),
+              Text(
+                d.createdBy!.fullName,
+                style: theme.textTheme.bodyMedium,
+              ),
+              if (d.createdBy!.staffId.isNotEmpty)
+                Text(
+                  'Staff ID: ${d.createdBy!.staffId}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              const SizedBox(height: 12),
+            ] else if (d.createdBy != null &&
+                d.createdBy!.staffId.isNotEmpty) ...[
+              Text('Requester', style: theme.textTheme.labelMedium),
               Text(
                 'Staff ID: ${d.createdBy!.staffId}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Text('Assigned to', style: theme.textTheme.labelMedium),

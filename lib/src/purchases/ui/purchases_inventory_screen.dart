@@ -610,6 +610,15 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
+                              if (item.createdByName != null &&
+                                  item.createdByName!.trim().isNotEmpty)
+                                Text(
+                                  'Created by: ${item.createdByName}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
                             ],
                           ),
                         ],
@@ -856,6 +865,16 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
             '${item.category ?? '—'} • ID: ${item.id ?? '—'}',
             style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
+          if (item.createdByName != null &&
+              item.createdByName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Created by: ${item.createdByName}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [

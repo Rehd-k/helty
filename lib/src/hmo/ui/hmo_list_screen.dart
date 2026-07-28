@@ -153,6 +153,9 @@ class _HmoListScreenState extends State<HmoListScreen> {
                                   'Code: ${h.code}',
                                 if (h.counts != null)
                                   '${h.counts!.patients} patients · ${h.counts!.servicePrices} priced services',
+                                if (h.createdByName != null &&
+                                    h.createdByName!.trim().isNotEmpty)
+                                  'Created by: ${h.createdByName}',
                               ].join(' · '),
                               style: theme.textTheme.bodySmall,
                             ),

@@ -71,6 +71,9 @@ class HubProfileScreen extends ConsumerWidget {
                     'Registered',
                     DateFormatter.medicalDate(patient.createdAt!),
                   ),
+                if (patient.createdBy != null &&
+                    patient.createdBy!.trim().isNotEmpty)
+                  _row('Created by', patient.createdBy!.trim()),
               ]),
               if (patient.allergies.isEmpty)
                 const HubEmptyState(

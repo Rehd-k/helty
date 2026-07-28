@@ -81,6 +81,7 @@ class EncounterModel {
     this.specialtyModules,
     this.clinicalSections,
     this.editMeta,
+    this.createdBy,
     this.updatedBy,
     this.admission,
   });
@@ -143,6 +144,9 @@ class EncounterModel {
   /// Post-completion edit metadata from GET /encounters/:id.
   final EncounterEditMeta? editMeta;
 
+  /// Staff who created this encounter (nested `createdBy`).
+  final EncounterEditHistoryStaff? createdBy;
+
   /// Last staff who updated clerking on this encounter.
   final EncounterEditHistoryStaff? updatedBy;
 
@@ -179,8 +183,16 @@ class EncounterModel {
     DateTime? parseDt(dynamic v) =>
         v == null ? null : DateTime.tryParse(v.toString());
 
-    final doctorName = staffDisplayNameFromJson(json);
+    // Prefer nested `doctor` / flat doctorName — never fall back to `createdBy`.
+    String? doctorName;
     final doctorObj = json['doctor'];
+    if (doctorObj is Map) {
+      doctorName = formatStaffName(Map<String, dynamic>.from(doctorObj));
+    }
+    doctorName ??= () {
+      final flat = json['doctorName']?.toString().trim();
+      return (flat != null && flat.isNotEmpty) ? flat : null;
+    }();
     final nestedDoctorId = doctorObj is Map
         ? (doctorObj['id'] ?? doctorObj['staffId'])?.toString()
         : null;
@@ -193,7 +205,7 @@ class EncounterModel {
       patientId: str(json['patientId']),
       appointmentId: json['appointmentId']?.toString(),
       doctorId: doctorId,
-      doctorDisplayName: doctorName.isEmpty ? null : doctorName,
+      doctorDisplayName: doctorName,
       status: (json['status']?.toString()) ?? 'open',
       startedAt: parseDt(json['startedAt'] ?? json['startTime']) ??
           DateTime.now(),
@@ -239,6 +251,11 @@ class EncounterModel {
       editMeta: json['editMeta'] is Map
           ? EncounterEditMeta.fromJson(
               Map<String, dynamic>.from(json['editMeta'] as Map),
+            )
+          : null,
+      createdBy: json['createdBy'] is Map
+          ? EncounterEditHistoryStaff.fromJson(
+              Map<String, dynamic>.from(json['createdBy'] as Map),
             )
           : null,
       updatedBy: json['updatedBy'] is Map
@@ -390,6 +407,7 @@ class EncounterModel {
     List<EncounterSpecialtyModuleModel>? specialtyModules,
     List<EncounterClinicalSectionRowModel>? clinicalSections,
     EncounterEditMeta? editMeta,
+    EncounterEditHistoryStaff? createdBy,
     EncounterEditHistoryStaff? updatedBy,
     EncounterAdmissionSnapshot? admission,
   }) {
@@ -435,6 +453,7 @@ class EncounterModel {
       specialtyModules: specialtyModules ?? this.specialtyModules,
       clinicalSections: clinicalSections ?? this.clinicalSections,
       editMeta: editMeta ?? this.editMeta,
+      createdBy: createdBy ?? this.createdBy,
       updatedBy: updatedBy ?? this.updatedBy,
       admission: admission ?? this.admission,
     );

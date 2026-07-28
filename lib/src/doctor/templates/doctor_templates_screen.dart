@@ -306,6 +306,15 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
                                 ),
                               ),
                             ],
+                            if (t.createdBy?.displayName != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'Created by: ${t.createdBy!.displayName}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         trailing: PopupMenuButton<String>(

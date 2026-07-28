@@ -1,3 +1,5 @@
+import 'package:helty/src/models/staff_attribution.dart';
+
 class ConsultingRoomModel {
   const ConsultingRoomModel({
     required this.id,
@@ -7,6 +9,8 @@ class ConsultingRoomModel {
     this.capacity = 0,
     this.createdAt,
     this.updatedAt,
+    this.createdByName,
+    this.updatedByName,
   });
 
   final String id;
@@ -16,6 +20,8 @@ class ConsultingRoomModel {
   final int capacity;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? createdByName;
+  final String? updatedByName;
 
   factory ConsultingRoomModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
@@ -37,6 +43,16 @@ class ConsultingRoomModel {
           : (int.tryParse(json['capacity']?.toString() ?? '') ?? 0),
       createdAt: parseDate(json['createdAt']),
       updatedAt: parseDate(json['updatedAt']),
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
+      updatedByName: formatStaffName(
+        json['updatedBy'] is Map
+            ? Map<String, dynamic>.from(json['updatedBy'] as Map)
+            : null,
+      ),
     );
   }
 

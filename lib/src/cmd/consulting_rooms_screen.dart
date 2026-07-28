@@ -595,14 +595,28 @@ class _RoomRow extends StatelessWidget {
             children: [
               Expanded(
                 flex: 3,
-                child: Text(
-                  room.name,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: cs.onSurface.withValues(alpha: 0.9),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      room.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: cs.onSurface.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    if (room.createdByName != null &&
+                        room.createdByName!.trim().isNotEmpty)
+                      Text(
+                        'Created by: ${room.createdByName}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               Expanded(

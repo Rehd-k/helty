@@ -5,6 +5,7 @@ import 'package:helty/src/helper/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/bank_model.dart';
+import '../../models/staff_attribution.dart';
 import '../../services/bank_service.dart';
 
 @RoutePage()
@@ -232,13 +233,17 @@ class _BankManagementScreenState extends ConsumerState<BankManagementScreen> {
                                   columns: const [
                                     DataColumn(label: Text('Name')),
                                     DataColumn(label: Text('Account Number')),
+                                    DataColumn(label: Text('Created by')),
                                     DataColumn(label: Text('Actions')),
                                   ],
                                   rows: _banks.map((bank) {
+                                    final created =
+                                        formatStaffName(bank.createdBy) ?? '';
                                     return DataRow(
                                       cells: [
                                         DataCell(Text(bank.name)),
                                         DataCell(Text(bank.accountNumber)),
+                                        DataCell(Text(created)),
                                         DataCell(
                                           PopupMenuButton<String>(
                                             onSelected: (value) {

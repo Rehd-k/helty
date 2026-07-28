@@ -3,6 +3,7 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:helty/src/core/utils/patient_initials.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 import '../../providers/module_request_flow_provider.dart';
 
@@ -166,6 +167,7 @@ class DialysisSessionConsumable {
     this.invoiceItemId,
     this.createdAt,
     this.consumable,
+    this.createdByName,
   });
 
   final String id;
@@ -178,6 +180,7 @@ class DialysisSessionConsumable {
   final String? invoiceItemId;
   final DateTime? createdAt;
   final DialysisConsumableRef? consumable;
+  final String? createdByName;
 
   factory DialysisSessionConsumable.fromJson(Map<String, dynamic> json) {
     return DialysisSessionConsumable(
@@ -195,6 +198,11 @@ class DialysisSessionConsumable {
               Map<String, dynamic>.from(json['consumable'] as Map),
             )
           : null,
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
     );
   }
 }

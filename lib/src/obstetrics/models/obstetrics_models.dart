@@ -2,6 +2,7 @@
 
 import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:helty/src/core/utils/patient_initials.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 /// Pregnancy status (exact API strings).
 enum PregnancyStatus {
@@ -213,6 +214,8 @@ class Pregnancy {
     this.labourDeliveries,
     this.pregnancyId,
     this.encounterId,
+    this.createdByName,
+    this.updatedByName,
   });
 
   final String id;
@@ -244,6 +247,8 @@ class Pregnancy {
   final ObstetricsPatientRef? patient;
   final List<AntenatalVisit>? antenatalVisits;
   final List<LabourDelivery>? labourDeliveries;
+  final String? createdByName;
+  final String? updatedByName;
 
   factory Pregnancy.fromJson(Map<String, dynamic> json) {
     final id = json['id'] as String? ?? json['pregnancyId'] as String? ?? '';
@@ -289,6 +294,16 @@ class Pregnancy {
       labourDeliveries: (json['labourDeliveries'] as List<dynamic>?)
           ?.map((e) => LabourDelivery.fromJson(e as Map<String, dynamic>))
           .toList(),
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
+      updatedByName: formatStaffName(
+        json['updatedBy'] is Map
+            ? Map<String, dynamic>.from(json['updatedBy'] as Map)
+            : null,
+      ),
     );
   }
 
@@ -608,6 +623,8 @@ class Baby {
     this.resuscitation,
     this.birthOrder = 1,
     this.registeredPatientId,
+    this.createdByName,
+    this.updatedByName,
   });
 
   final String id;
@@ -621,6 +638,8 @@ class Baby {
   final String? resuscitation;
   final int birthOrder;
   final String? registeredPatientId;
+  final String? createdByName;
+  final String? updatedByName;
 
   factory Baby.fromJson(Map<String, dynamic> json) {
     return Baby(
@@ -635,6 +654,16 @@ class Baby {
       resuscitation: json['resuscitation'] as String?,
       birthOrder: (json['birthOrder'] as num?)?.toInt() ?? 1,
       registeredPatientId: json['registeredPatientId'] as String?,
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
+      updatedByName: formatStaffName(
+        json['updatedBy'] is Map
+            ? Map<String, dynamic>.from(json['updatedBy'] as Map)
+            : null,
+      ),
     );
   }
 

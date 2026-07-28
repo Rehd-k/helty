@@ -1,16 +1,25 @@
 import 'package:dio/dio.dart';
 
 import 'api_service.dart';
+import '../models/staff_attribution.dart';
 
 /// A simple Department model (for dropdowns in forms).
 class Department {
-  const Department({required this.id, required this.name, this.headId});
+  const Department({
+    required this.id,
+    required this.name,
+    this.headId,
+    this.createdByName,
+    this.createdAt,
+  });
 
   final String id;
   final String name;
 
   /// Holds the staff-id of the head of department (maps to `headId` in the API).
   final String? headId;
+  final String? createdByName;
+  final DateTime? createdAt;
 
   /// Legacy alias so existing code that reads `.description` still works.
   String? get description => headId;
@@ -19,6 +28,14 @@ class Department {
     id: json['id'] as String,
     name: json['name'] as String,
     headId: json['headId'] as String?,
+    createdByName: formatStaffName(
+      json['createdBy'] is Map
+          ? Map<String, dynamic>.from(json['createdBy'] as Map)
+          : null,
+    ),
+    createdAt: json['createdAt'] != null
+        ? DateTime.tryParse(json['createdAt'].toString())
+        : null,
   );
 
   Map<String, dynamic> toJson() => {

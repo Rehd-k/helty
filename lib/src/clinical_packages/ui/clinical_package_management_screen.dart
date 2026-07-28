@@ -348,9 +348,14 @@ class _ClinicalPackageManagementScreenState
                       return ListTile(
                         title: Text(p.name),
                         subtitle: Text(
-                          '${p.items.length} item(s)'
-                          '${p.isDefaultAntenatal ? ' · Default ANC' : ''}'
-                          '${p.active ? '' : ' · Inactive'}',
+                          [
+                            '${p.items.length} item(s)',
+                            if (p.isDefaultAntenatal) 'Default ANC',
+                            if (!p.active) 'Inactive',
+                            if (p.createdByName != null &&
+                                p.createdByName!.trim().isNotEmpty)
+                              'Created by: ${p.createdByName}',
+                          ].join(' · '),
                         ),
                         trailing: IconButton(
                           onPressed: () => _upsert(existing: p),

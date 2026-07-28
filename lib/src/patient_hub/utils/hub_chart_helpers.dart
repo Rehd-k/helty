@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import 'package:helty/src/models/staff_attribution.dart';
+
 import '../models/patient_hub_models.dart';
 
 DateTime? hubParseDate(dynamic v) {
@@ -116,6 +118,9 @@ String? hubRowSubtitle(Map<String, dynamic> item) {
 
   final notes = item['notes']?.toString() ?? item['findings']?.toString();
   if (notes != null && notes.isNotEmpty) parts.add(notes);
+
+  final created = createdByLabel(item);
+  if (created != null) parts.add(created);
 
   return parts.isEmpty ? null : parts.join(' · ');
 }

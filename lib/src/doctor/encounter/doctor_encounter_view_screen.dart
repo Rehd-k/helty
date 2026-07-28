@@ -951,6 +951,12 @@ class _DoctorEncounterViewScreenState
       insurance: insurance,
       doctorName: _resolvedDoctorName,
       doctorLabel: isSharedInpatient ? 'Admitting doctor' : 'Doctor',
+      createdByName: () {
+        final name = _encounter?.createdBy?.displayName.trim();
+        if (name == null || name.isEmpty) return null;
+        if (name == _encounter?.createdBy?.id) return null;
+        return name;
+      }(),
       lastUpdatedByName: _resolvedUpdatedByName,
       avatarUrl: patient?.avatarUrl,
       firstName: patient?.firstName,

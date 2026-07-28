@@ -1,5 +1,6 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 // Models for GET/POST/PATCH `/hmos` (see docs/hmo-service-pricing-guide.md).
 
@@ -49,6 +50,7 @@ class HmoListItem {
     this.notes,
     this.defaultCoveragePercent,
     this.counts,
+    this.createdByName,
   });
 
   final String id;
@@ -57,6 +59,7 @@ class HmoListItem {
   final String? notes;
   final double? defaultCoveragePercent;
   final HmoCounts? counts;
+  final String? createdByName;
 
   factory HmoListItem.fromJson(Map<String, dynamic> json) {
     return HmoListItem(
@@ -66,6 +69,11 @@ class HmoListItem {
       notes: json['notes']?.toString(),
       defaultCoveragePercent: _moneyFromJsonNullable(json['defaultCoveragePercent']),
       counts: HmoCounts.fromJson(json['_count'] as Map<String, dynamic>?),
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
     );
   }
 }
@@ -179,6 +187,8 @@ class HmoDetail {
     this.defaultCoveragePercent,
     this.servicePrices = const [],
     this.counts,
+    this.createdByName,
+    this.updatedByName,
   });
 
   final String id;
@@ -188,6 +198,8 @@ class HmoDetail {
   final double? defaultCoveragePercent;
   final List<HmoServicePriceRow> servicePrices;
   final HmoCounts? counts;
+  final String? createdByName;
+  final String? updatedByName;
 
   factory HmoDetail.fromJson(Map<String, dynamic> json) {
     final raw = json['servicePrices'];
@@ -207,6 +219,16 @@ class HmoDetail {
       defaultCoveragePercent: _moneyFromJsonNullable(json['defaultCoveragePercent']),
       servicePrices: prices,
       counts: HmoCounts.fromJson(json['_count'] as Map<String, dynamic>?),
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
+      updatedByName: formatStaffName(
+        json['updatedBy'] is Map
+            ? Map<String, dynamic>.from(json['updatedBy'] as Map)
+            : null,
+      ),
     );
   }
 

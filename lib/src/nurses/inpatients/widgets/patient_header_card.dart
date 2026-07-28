@@ -6,7 +6,7 @@ import 'package:helty/src/helper/theme.dart';
 import '../../../core/widgets/patient_avatar.dart';
 import 'inpatient_layout_constants.dart';
 
-class PatientHeaderCard extends StatelessWidget {
+class PatientHeaderCard extends StatefulWidget {
   final String patientName;
   final String ageGender;
   final String hospitalNumber;
@@ -15,6 +15,7 @@ class PatientHeaderCard extends StatelessWidget {
   final String attendingDoctor;
   final String diagnosis;
   final String admissionDate;
+  final String? createdBy;
 
   /// Calendar days since admission (e.g. "4 days"), or null to hide the row.
   final String? lengthOfStay;
@@ -35,6 +36,7 @@ class PatientHeaderCard extends StatelessWidget {
     required this.attendingDoctor,
     required this.diagnosis,
     required this.admissionDate,
+    this.createdBy,
     this.lengthOfStay,
     required this.allergies,
     required this.codeStatus,
@@ -44,8 +46,15 @@ class PatientHeaderCard extends StatelessWidget {
     this.surname,
   });
 
+  @override
+  State<PatientHeaderCard> createState() => _PatientHeaderCardState();
+}
+
+class _PatientHeaderCardState extends State<PatientHeaderCard> {
+  bool _expanded = false;
+
   Color _codeStatusColor(ColorScheme scheme) {
-    final lower = codeStatus.toLowerCase();
+    final lower = widget.codeStatus.toLowerCase();
     if (lower.contains('dnr') || lower.contains('no resus')) {
       return scheme.error;
     }
@@ -57,6 +66,8 @@ class PatientHeaderCard extends StatelessWidget {
     const reserved = 520.0;
     return math.min(220, math.max(140, (cardWidth - reserved) / 3));
   }
+
+  void _toggleExpanded() => setState(() => _expanded = !_expanded);
 
   @override
   Widget build(BuildContext context) {
@@ -75,31 +86,44 @@ class PatientHeaderCard extends StatelessWidget {
         final double infoItemW = math.max(72.0, rawInfoW);
 
         final infoChildren = <Widget>[
-          _infoRow(context, label: 'Ward', value: ward, width: infoItemW),
-          _infoRow(context, label: 'Bed', value: bedNumber, width: infoItemW),
+          _infoRow(context, label: 'Ward', value: widget.ward, width: infoItemW),
+          _infoRow(
+            context,
+            label: 'Bed',
+            value: widget.bedNumber,
+            width: infoItemW,
+          ),
           _infoRow(
             context,
             label: 'Attending Doctor',
-            value: attendingDoctor,
+            value: widget.attendingDoctor,
             width: infoItemW,
           ),
           _infoRow(
             context,
             label: 'Reason',
-            value: diagnosis,
+            value: widget.diagnosis,
             width: infoItemW,
           ),
           _infoRow(
             context,
             label: 'Admission Date',
-            value: admissionDate,
+            value: widget.admissionDate,
             width: infoItemW,
           ),
-          if (lengthOfStay != null && lengthOfStay!.trim().isNotEmpty)
+          if (widget.createdBy != null && widget.createdBy!.trim().isNotEmpty)
+            _infoRow(
+              context,
+              label: 'Created by',
+              value: widget.createdBy!,
+              width: infoItemW,
+            ),
+          if (widget.lengthOfStay != null &&
+              widget.lengthOfStay!.trim().isNotEmpty)
             _infoRow(
               context,
               label: 'Length of stay',
-              value: lengthOfStay!,
+              value: widget.lengthOfStay!,
               width: infoItemW,
             ),
         ];
@@ -108,24 +132,92 @@ class PatientHeaderCard extends StatelessWidget {
           margin: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(AppTheme.spaceLg),
-            child: compact
-              ? _buildCompactLayout(
-                  context,
-                  colorScheme,
-                  theme,
-                  infoChildren,
-                  innerW,
-                )
-              : _buildExpandedLayout(
-                  context,
-                  colorScheme,
-                  theme,
-                  infoChildren,
-                  maxW,
-                ),
+            child: _expanded
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          tooltip: 'Collapse patient details',
+                          onPressed: _toggleExpanded,
+                          icon: const Icon(Icons.expand_less),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      compact
+                          ? _buildCompactLayout(
+                              context,
+                              colorScheme,
+                              theme,
+                              infoChildren,
+                              innerW,
+                            )
+                          : _buildExpandedLayout(
+                              context,
+                              colorScheme,
+                              theme,
+                              infoChildren,
+                              maxW,
+                            ),
+                    ],
+                  )
+                : _buildCollapsedLayout(context, colorScheme, theme),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCollapsedLayout(
+    BuildContext context,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    return InkWell(
+      onTap: _toggleExpanded,
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        children: [
+          PatientAvatar(
+            avatarUrl: widget.avatarUrl,
+            firstName: widget.firstName,
+            surname: widget.surname,
+            size: 40,
+            backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+            foregroundColor: colorScheme.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.patientName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _metaChip(
+                  context,
+                  icon: Icons.badge_outlined,
+                  label: widget.hospitalNumber,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Expand patient details',
+            onPressed: _toggleExpanded,
+            icon: const Icon(Icons.expand_more),
+          ),
+        ],
+      ),
     );
   }
 
@@ -143,9 +235,9 @@ class PatientHeaderCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             PatientAvatar(
-              avatarUrl: avatarUrl,
-              firstName: firstName,
-              surname: surname,
+              avatarUrl: widget.avatarUrl,
+              firstName: widget.firstName,
+              surname: widget.surname,
               size: 52,
               backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
               foregroundColor: colorScheme.primary,
@@ -156,7 +248,7 @@ class PatientHeaderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    patientName,
+                    widget.patientName,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleLarge?.copyWith(
@@ -172,12 +264,12 @@ class PatientHeaderCard extends StatelessWidget {
                       _metaChip(
                         context,
                         icon: Icons.badge_outlined,
-                        label: hospitalNumber,
+                        label: widget.hospitalNumber,
                       ),
                       _metaChip(
                         context,
                         icon: Icons.person_outline,
-                        label: ageGender,
+                        label: widget.ageGender,
                       ),
                     ],
                   ),
@@ -229,9 +321,9 @@ class PatientHeaderCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               PatientAvatar(
-                avatarUrl: avatarUrl,
-                firstName: firstName,
-                surname: surname,
+                avatarUrl: widget.avatarUrl,
+                firstName: widget.firstName,
+                surname: widget.surname,
                 size: 52,
                 backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
                 foregroundColor: colorScheme.primary,
@@ -242,7 +334,7 @@ class PatientHeaderCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      patientName,
+                      widget.patientName,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleLarge?.copyWith(
@@ -258,12 +350,12 @@ class PatientHeaderCard extends StatelessWidget {
                         _metaChip(
                           context,
                           icon: Icons.badge_outlined,
-                          label: hospitalNumber,
+                          label: widget.hospitalNumber,
                         ),
                         _metaChip(
                           context,
                           icon: Icons.person_outline,
-                          label: ageGender,
+                          label: widget.ageGender,
                         ),
                       ],
                     ),
@@ -296,7 +388,7 @@ class PatientHeaderCard extends StatelessWidget {
     required bool alignEnd,
     required bool fullWidthAllergies,
   }) {
-    final allergyWidget = allergies.isNotEmpty
+    final allergyWidget = widget.allergies.isNotEmpty
         ? Container(
             width: fullWidthAllergies ? double.infinity : null,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -322,7 +414,7 @@ class PatientHeaderCard extends StatelessWidget {
                 if (fullWidthAllergies)
                   Expanded(
                     child: Text(
-                      'Allergies: ${allergies.join(', ')}',
+                      'Allergies: ${widget.allergies.join(', ')}',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: colorScheme.error,
                         fontWeight: FontWeight.w600,
@@ -332,7 +424,7 @@ class PatientHeaderCard extends StatelessWidget {
                   )
                 else
                   Text(
-                    'Allergies: ${allergies.join(', ')}',
+                    'Allergies: ${widget.allergies.join(', ')}',
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: colorScheme.error,
                       fontWeight: FontWeight.w600,
@@ -394,7 +486,7 @@ class PatientHeaderCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  codeStatus,
+                  widget.codeStatus,
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: _codeStatusColor(colorScheme),
                     fontWeight: FontWeight.w600,
@@ -405,12 +497,12 @@ class PatientHeaderCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        if (riskFlags.isNotEmpty)
+        if (widget.riskFlags.isNotEmpty)
           Wrap(
             spacing: 6,
             runSpacing: 6,
             alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
-            children: riskFlags
+            children: widget.riskFlags
                 .map(
                   (f) => Container(
                     padding: const EdgeInsets.symmetric(

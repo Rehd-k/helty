@@ -1,3 +1,5 @@
+import 'package:helty/src/models/staff_attribution.dart';
+
 class ClinicalPackageItem {
   const ClinicalPackageItem({
     this.id,
@@ -43,6 +45,7 @@ class ClinicalPackage {
     this.active = true,
     this.isDefaultAntenatal = false,
     this.items = const [],
+    this.createdByName,
   });
 
   final String id;
@@ -50,6 +53,7 @@ class ClinicalPackage {
   final bool active;
   final bool isDefaultAntenatal;
   final List<ClinicalPackageItem> items;
+  final String? createdByName;
 
   factory ClinicalPackage.fromJson(Map<String, dynamic> json) {
     final list = json['items'] as List<dynamic>? ?? [];
@@ -61,6 +65,11 @@ class ClinicalPackage {
       items: list
           .map((e) => ClinicalPackageItem.fromJson(e as Map<String, dynamic>))
           .toList(),
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
     );
   }
 }

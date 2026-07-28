@@ -343,6 +343,17 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
             padding: const EdgeInsets.all(20),
             children: [
               _sectionTitle(context, 'Identity'),
+              if (staff.createdByName != null &&
+                  staff.createdByName!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Created by: ${staff.createdByName}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
               TextFormField(
                 controller: _staffIdCtrl,
                 textInputAction: TextInputAction.next,

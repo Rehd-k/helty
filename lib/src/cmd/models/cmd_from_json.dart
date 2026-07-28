@@ -1,4 +1,5 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
+import 'package:helty/src/models/staff_attribution.dart';
 
 import 'cmd_models.dart';
 
@@ -361,6 +362,11 @@ CmdAnnouncement _announcement(Map<String, dynamic> j) => CmdAnnouncement(
       priority: _str(j['priority']),
       scheduledFor: _dtOpt(j['scheduledFor']),
       sentAt: _dtOpt(j['sentAt']),
+      createdByName: formatStaffName(
+        j['createdBy'] is Map
+            ? Map<String, dynamic>.from(j['createdBy'] as Map)
+            : null,
+      ),
     );
 
 List<CmdAnnouncement> parseCmdAnnouncementList(List<dynamic> list) =>

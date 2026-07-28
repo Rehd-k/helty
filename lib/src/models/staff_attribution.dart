@@ -64,6 +64,73 @@ String staffDisplayNameFromJson(Map<String, dynamic> json) {
   return '';
 }
 
+/// Formats a nested staff / createdBy person map as `First Last`.
+///
+/// Returns null when [staff] is null or has no usable name fields.
+String? formatStaffName(Map<String, dynamic>? staff) {
+  if (staff == null) return null;
+  final first = _str(staff['firstName'] ?? staff['first_name']).trim();
+  final last = _str(
+    staff['surname'] ?? staff['lastName'] ?? staff['last_name'],
+  ).trim();
+  final name = '$first $last'.trim();
+  if (name.isNotEmpty) return name;
+  final display = _str(staff['displayName'] ?? staff['name']).trim();
+  return display.isEmpty ? null : display;
+}
+
+/// Label like `Created by: Jane Okonkwo` from a record that may contain nested
+/// `createdBy`. Returns null when creator is missing or has no name.
+String? createdByLabel(
+  Map<String, dynamic>? record, {
+  String prefix = 'Created by',
+}) {
+  return staffRefLabel(record, 'createdBy', prefix: prefix);
+}
+
+/// Label from an arbitrary nested staff ref field (`updatedBy`, `requestedBy`,
+/// `reportedBy`, `uploadedBy`, etc.). Returns null when missing or empty.
+String? staffRefLabel(
+  Map<String, dynamic>? record,
+  String field, {
+  required String prefix,
+}) {
+  if (record == null) return null;
+  final raw = record[field];
+  if (raw is String) {
+    final t = raw.trim();
+    return t.isEmpty ? null : '$prefix: $t';
+  }
+  final name = formatStaffName(_asMap(raw));
+  return name == null ? null : '$prefix: $name';
+}
+
+/// Muted caption for creator/updater text. Builds nothing when [label] is null.
+class CreatedByCaption extends StatelessWidget {
+  const CreatedByCaption({
+    super.key,
+    this.label,
+    this.style,
+  });
+
+  final String? label;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = label?.trim();
+    if (text == null || text.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Text(
+      text,
+      style: style ??
+          theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+    );
+  }
+}
+
 /// Display name with department title from a nested staff/createdBy person map.
 ///
 /// [AccountType.physician] → `Dr. …`, [AccountType.pharmacy] → `Pharm. …`, else plain name.

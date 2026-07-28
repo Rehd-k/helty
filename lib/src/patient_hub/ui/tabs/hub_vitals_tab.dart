@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
 
 import '../../models/patient_hub_models.dart';
@@ -146,7 +147,13 @@ class _HubVitalsScreenState extends ConsumerState<HubVitalsScreen> {
     add('P', v['pulse']);
     add('SpO₂', v['spo2'] ?? v['spO2']);
     add('RR', v['respiratoryRate'] ?? v['respRate']);
-    add('BP', v['bloodPressure'] ?? '${v['systolic']}/${v['diastolic']}');
+    final bp = v['bloodPressure'] ??
+        (v['systolic'] != null || v['diastolic'] != null
+            ? '${v['systolic']}/${v['diastolic']}'
+            : null);
+    if (bp != null && bp != 'null/null') add('BP', bp);
+    final created = createdByLabel(v);
+    if (created != null) parts.add(created);
     return parts.join(' · ');
   }
 }

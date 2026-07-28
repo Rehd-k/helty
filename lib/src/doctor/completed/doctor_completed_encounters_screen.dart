@@ -382,6 +382,18 @@ class _DoctorCompletedEncountersScreenState
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+                      if (e.createdBy != null &&
+                          e.createdBy!.displayName.trim().isNotEmpty &&
+                          e.createdBy!.displayName.trim() !=
+                              e.createdBy!.id) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Created by: ${e.createdBy!.displayName.trim()}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         '${DateFormat.yMMMd().format(closed)} • ${e.primaryIcdDescription ?? e.status}',

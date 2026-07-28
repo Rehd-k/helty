@@ -843,6 +843,17 @@ class _PharmacyLocationScreenState extends State<PharmacyLocationScreen> {
                     ),
                   ],
                 ),
+                if (location.createdByName != null &&
+                    location.createdByName!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Created by: ${location.createdByName}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

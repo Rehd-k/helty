@@ -333,7 +333,14 @@ class _DialysisSessionDetailScreenState
                 (c) => Card(
                   child: ListTile(
                     title: Text(c.consumable?.name ?? c.consumableId),
-                    subtitle: Text('Qty ${c.quantity} · ${c.unitPrice} each'),
+                    subtitle: Text(
+                      [
+                        'Qty ${c.quantity} · ${c.unitPrice} each',
+                        if (c.createdByName != null &&
+                            c.createdByName!.trim().isNotEmpty)
+                          'Created by: ${c.createdByName}',
+                      ].join(' · '),
+                    ),
                   ),
                 ),
               ),

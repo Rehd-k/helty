@@ -160,7 +160,7 @@ class _PurchasesTransferHistoryScreenState
                               ),
                               DataCell(Text(r.quantity.toString())),
                               DataCell(Text(r.status.name)),
-                              DataCell(Text(r.requestedByName ?? '-')),
+                              DataCell(Text(r.requestedByName ?? '')),
                             ],
                           );
                         }).toList(),

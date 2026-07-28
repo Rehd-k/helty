@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
 
 import '../../models/patient_chart_models.dart';
@@ -152,6 +153,9 @@ class _SectionTile extends StatelessWidget {
       final txs = item['transactions'];
       if (txs is List) parts.add('${txs.length} transaction(s)');
     }
+
+    final created = createdByLabel(item);
+    if (created != null) parts.add(created);
 
     return parts.isEmpty ? null : parts.join(' · ');
   }

@@ -173,6 +173,16 @@ class _HmoDetailScreenState extends State<HmoDetailScreen> {
                           const SizedBox(height: 8),
                           if (d.code != null && d.code!.isNotEmpty)
                             Text('Code: ${d.code}', style: theme.textTheme.bodyLarge),
+                          if (d.createdByName != null &&
+                              d.createdByName!.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Created by: ${d.createdByName}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                           if (d.notes != null && d.notes!.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Text(d.notes!, style: theme.textTheme.bodyMedium),

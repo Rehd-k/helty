@@ -9,12 +9,33 @@ import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/helper/quill_content_helper.dart';
 import 'package:helty/src/models/ward_round_note_model.dart';
+import 'package:helty/src/nurses/inpatients/ward_round_note_draft.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_round_note_service.dart';
 import 'package:helty/src/shared/department_colors.dart';
 import 'package:helty/src/widgets/expandable_rich_content.dart';
+
+/// Opens the SOAP ward round note dialog. Returns whether a note was saved.
+Future<WardRoundNoteDialogResult?> showWardRoundNoteDialog({
+  required BuildContext context,
+  required String admissionId,
+  required String doctorId,
+  WardRoundNoteService? wardRoundNoteService,
+  WardRoundNoteDraft? initialDraft,
+}) {
+  return showDialog<WardRoundNoteDialogResult>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => _AddWardRoundNoteDialog(
+      admissionId: admissionId,
+      doctorId: doctorId,
+      wardRoundNoteService: wardRoundNoteService ?? WardRoundNoteService(),
+      initialDraft: initialDraft,
+    ),
+  );
+}
 
 enum _WardRoundSortField { date, author }
 
@@ -136,17 +157,29 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
       return;
     }
 
-    final result = await showDialog<bool>(
+    final existingDraft = ref.read(wardRoundNoteDraftProvider);
+    final initialDraft =
+        existingDraft?.admissionId == admissionId ? existingDraft : null;
+
+    final result = await showWardRoundNoteDialog(
       context: context,
-      builder: (ctx) => _AddWardRoundNoteDialog(
-        admissionId: admissionId,
-        doctorId: doctorId,
-        wardRoundNoteService: _wardRoundNoteService,
-      ),
+      admissionId: admissionId,
+      doctorId: doctorId,
+      wardRoundNoteService: _wardRoundNoteService,
+      initialDraft: initialDraft,
     );
-    if (result == true && mounted) {
-      final id = InpatientViewScope.of(context)?.admissionId;
-      if (id != null) _loadNotes(id);
+    if (!mounted) return;
+
+    switch (result?.outcome) {
+      case WardRoundNoteDialogOutcome.saved:
+        ref.read(wardRoundNoteDraftProvider.notifier).state = null;
+        final id = InpatientViewScope.of(context)?.admissionId;
+        if (id != null) _loadNotes(id);
+      case WardRoundNoteDialogOutcome.minimized:
+        ref.read(wardRoundNoteDraftProvider.notifier).state = result?.draft;
+      case WardRoundNoteDialogOutcome.discarded:
+      case null:
+        ref.read(wardRoundNoteDraftProvider.notifier).state = null;
     }
   }
 
@@ -934,11 +967,13 @@ class _AddWardRoundNoteDialog extends StatefulWidget {
     required this.admissionId,
     required this.doctorId,
     required this.wardRoundNoteService,
+    this.initialDraft,
   });
 
   final String admissionId;
   final String doctorId;
   final WardRoundNoteService wardRoundNoteService;
+  final WardRoundNoteDraft? initialDraft;
 
   @override
   State<_AddWardRoundNoteDialog> createState() =>
@@ -963,17 +998,18 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
 
   late final List<_SoapEditorSlot> _slots;
 
-  int _expandedIndex = 0;
+  late int _expandedIndex;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    final config = QuillControllerConfig();
-    _subjectiveCtrl = QuillController.basic(config: config);
-    _objectiveCtrl = QuillController.basic(config: config);
-    _assessmentCtrl = QuillController.basic(config: config);
-    _planCtrl = QuillController.basic(config: config);
+    final draft = widget.initialDraft;
+    _subjectiveCtrl = quillControllerFromStoredContent(draft?.subjective);
+    _objectiveCtrl = quillControllerFromStoredContent(draft?.objective);
+    _assessmentCtrl = quillControllerFromStoredContent(draft?.assessment);
+    _planCtrl = quillControllerFromStoredContent(draft?.plan);
+    _expandedIndex = (draft?.expandedIndex ?? 0).clamp(0, 3);
 
     _slots = [
       _SoapEditorSlot(
@@ -1063,6 +1099,58 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
     return plain.isEmpty ? null : encoded;
   }
 
+  WardRoundNoteDraft _captureDraft() {
+    return WardRoundNoteDraft(
+      admissionId: widget.admissionId,
+      subjective: _encodedField(_subjectiveCtrl),
+      objective: _encodedField(_objectiveCtrl),
+      assessment: _encodedField(_assessmentCtrl),
+      plan: _encodedField(_planCtrl),
+      expandedIndex: _expandedIndex,
+    );
+  }
+
+  bool get _hasAnyContent => _slots.any(_hasContent);
+
+  void _minimize() {
+    Navigator.of(context).pop(
+      WardRoundNoteDialogResult(
+        outcome: WardRoundNoteDialogOutcome.minimized,
+        draft: _captureDraft(),
+      ),
+    );
+  }
+
+  Future<void> _discardAndClose() async {
+    if (_hasAnyContent) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Discard note?'),
+          content: const Text(
+            'You have unsaved ward round notes. Discard them?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Keep editing'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Discard'),
+            ),
+          ],
+        ),
+      );
+      if (discard != true || !mounted) return;
+    }
+    Navigator.of(context).pop(
+      const WardRoundNoteDialogResult(
+        outcome: WardRoundNoteDialogOutcome.discarded,
+      ),
+    );
+  }
+
   Future<void> _save() async {
     final s = _encodedField(_subjectiveCtrl);
     final o = _encodedField(_objectiveCtrl);
@@ -1086,7 +1174,11 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
         plan: p,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(
+        const WardRoundNoteDialogResult(
+          outcome: WardRoundNoteDialogOutcome.saved,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1139,9 +1231,13 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Minimize — keep draft',
+                    onPressed: _saving ? null : _minimize,
+                    icon: const Icon(Icons.minimize),
+                  ),
+                  IconButton(
                     tooltip: 'Close',
-                    onPressed:
-                        _saving ? null : () => Navigator.of(context).pop(false),
+                    onPressed: _saving ? null : _discardAndClose,
                     icon: const Icon(Icons.close),
                   ),
                 ],
@@ -1199,8 +1295,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
                   ),
                   const Spacer(),
                   TextButton(
-                    onPressed:
-                        _saving ? null : () => Navigator.of(context).pop(false),
+                    onPressed: _saving ? null : _discardAndClose,
                     child: const Text('Cancel'),
                   ),
                   const SizedBox(width: 8),

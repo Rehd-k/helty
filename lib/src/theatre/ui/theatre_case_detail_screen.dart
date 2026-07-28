@@ -502,8 +502,13 @@ class _TheatreCaseDetailScreenState
                   child: ListTile(
                     title: Text(c.consumable?.name ?? c.consumableId),
                     subtitle: Text(
-                      'Qty ${c.quantity} · ${c.unitPrice} each'
-                      '${c.billable ? '' : ' · non-billable'}',
+                      [
+                        'Qty ${c.quantity} · ${c.unitPrice} each',
+                        if (!c.billable) 'non-billable',
+                        if (c.createdByName != null &&
+                            c.createdByName!.trim().isNotEmpty)
+                          'Created by: ${c.createdByName}',
+                      ].join(' · '),
                     ),
                     trailing: canClinical &&
                             c.invoiceItemId == null &&

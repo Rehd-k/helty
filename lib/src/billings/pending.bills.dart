@@ -11,6 +11,7 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/core/responsive.dart';
 import '../helper/date.formatter.dart';
 import '../models/invoice.dart';
+import '../models/staff_attribution.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/invoice_service.dart';
@@ -529,6 +530,26 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                                   .colorScheme
                                                   .onSurfaceVariant,
                                             ),
+                                      ),
+                                      Builder(
+                                        builder: (context) {
+                                          final created =
+                                              formatStaffName(invoice.createdBy);
+                                          if (created == null) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          return Text(
+                                            'Created by: $created',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          );
+                                        },
                                       ),
                                       const SizedBox(height: 4),
                                       Text(

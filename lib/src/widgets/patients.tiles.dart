@@ -49,6 +49,16 @@ class PatientTile extends StatelessWidget {
                     color: cs.onSurfaceVariant,
                   ),
                 ),
+                if (patient.createdBy != null &&
+                    patient.createdBy!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Created by: ${patient.createdBy}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 if (patient.phoneNumber != null &&
                     patient.phoneNumber!.isNotEmpty) ...[
                   const SizedBox(height: 2),

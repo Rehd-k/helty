@@ -84,7 +84,8 @@ bool canSubmitDailyCashRecon(Staff? staff) =>
 bool canViewFinancialApprovals(Staff? staff) => canViewAccountsHeadData(staff);
 
 /// View refund-request queue (mutations still need [canApproveItemRefundRequests]).
-bool canViewItemRefundRequests(Staff? staff) => canViewAccountsHeadData(staff);
+bool canViewItemRefundRequests(Staff? staff) =>
+    canViewAccountsHeadData(staff) || staffCanAccessPrivilegedBilling(staff);
 
 /// View fiscal periods (mutations still need [canClosePeriod]).
 bool canViewPeriodClose(Staff? staff) => canViewAccountsHeadData(staff);

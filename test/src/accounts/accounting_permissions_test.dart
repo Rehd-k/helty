@@ -75,4 +75,25 @@ void main() {
       expect(canPostJournalEntries(accountingStaff), isFalse);
     });
   });
+
+  group('Billing head item refund requests', () {
+    final billingHead = _staff(
+      accountType: AccountType.billing,
+      staffRole: 'BILLING_HEAD',
+    );
+    final billingStaff = _staff(
+      accountType: AccountType.billing,
+      staffRole: 'BILLING_STAFF',
+    );
+
+    test('Billing head can view and approve item refund requests', () {
+      expect(canViewItemRefundRequests(billingHead), isTrue);
+      expect(canApproveItemRefundRequests(billingHead), isTrue);
+    });
+
+    test('Billing staff cannot view or approve item refund requests', () {
+      expect(canViewItemRefundRequests(billingStaff), isFalse);
+      expect(canApproveItemRefundRequests(billingStaff), isFalse);
+    });
+  });
 }

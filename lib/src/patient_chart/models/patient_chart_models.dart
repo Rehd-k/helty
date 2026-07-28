@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show IconData, Icons;
 
 import '../../core/utils/patient_display_name.dart';
 import '../../core/utils/patient_initials.dart';
+import '../../models/staff_attribution.dart';
 import 'archived_encounter_models.dart';
 
 /// Known chart section keys from GET /patients/:id/chart.
@@ -160,6 +161,7 @@ class ChartPatientSummary {
     this.apiDisplayName,
     this.avatarUrl,
     this.updatedAt,
+    this.createdBy,
   });
 
   final String? id;
@@ -177,6 +179,7 @@ class ChartPatientSummary {
   final String? apiDisplayName;
   final String? avatarUrl;
   final DateTime? updatedAt;
+  final String? createdBy;
 
   String get displayName =>
       preferPatientFormattedName(displayName: apiDisplayName) ??
@@ -213,6 +216,11 @@ class ChartPatientSummary {
       ),
       avatarUrl: avatarUrlFromJson(json),
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+      createdBy: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
     );
   }
 }

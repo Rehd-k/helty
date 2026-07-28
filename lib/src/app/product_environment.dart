@@ -63,13 +63,24 @@ class ProductEnvironment {
   ///
   /// Precedence: [apiBaseUrlOverride] → `--dart-define=API_BASE_URL` →
   /// `.env` `API_BASE_URL` → [kApiCandidateBaseUrls].
+  ///
+  /// Explicit values may be a single URL or a `;`-separated list; each entry
+  /// is probed and the fastest successful `/server-time` wins.
   static List<String> apiCandidateBaseUrls({
     String? apiBaseUrlOverride,
     List<String>? fallbackCandidates,
   }) {
     final explicit = (apiBaseUrlOverride ?? resolvedApiBaseUrl).trim();
     if (explicit.isNotEmpty) {
-      return [_normalizeBaseUrl(explicit)];
+      final parts = explicit
+          .split(';')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .map(_normalizeBaseUrl)
+          .toList();
+      if (parts.isNotEmpty) {
+        return List<String>.unmodifiable(parts);
+      }
     }
     return List<String>.unmodifiable(
       fallbackCandidates ?? kApiCandidateBaseUrls,

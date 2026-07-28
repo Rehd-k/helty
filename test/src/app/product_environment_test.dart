@@ -89,6 +89,29 @@ void main() {
         ['https://api.customer.example'],
       );
     });
+
+    test('semicolon-separated list returns multiple normalized candidates', () {
+      expect(
+        ProductEnvironment.apiCandidateBaseUrls(
+          apiBaseUrlOverride:
+              'http://localhost:3000/; http://192.168.2.121:3000;http://api.imsh.ng/',
+        ),
+        [
+          'http://localhost:3000',
+          'http://192.168.2.121:3000',
+          'http://api.imsh.ng',
+        ],
+      );
+    });
+
+    test('single URL still returns a one-element list', () {
+      expect(
+        ProductEnvironment.apiCandidateBaseUrls(
+          apiBaseUrlOverride: 'http://localhost:3000',
+        ),
+        ['http://localhost:3000'],
+      );
+    });
   });
 
   group('validateReleaseConfig', () {

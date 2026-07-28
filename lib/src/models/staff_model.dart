@@ -1,6 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
 import '../nursing/ward_matching.dart';
+import 'staff_attribution.dart';
 
 /// Staff account types (mirrors backend `AccountType` — department-level).
 ///
@@ -161,6 +162,8 @@ class Staff {
     /// Present on some admin / detail API responses when a forgot-password code exists.
     this.passwordResetCode,
     this.passwordResetCodeExpiresAt,
+    this.createdByName,
+    this.updatedByName,
   });
 
   final String id;
@@ -184,6 +187,9 @@ class Staff {
 
   /// When [passwordResetCode] expires, if the API provides it.
   final DateTime? passwordResetCodeExpiresAt;
+
+  final String? createdByName;
+  final String? updatedByName;
 
   String get fullName => '$firstName $lastName';
 
@@ -322,6 +328,16 @@ class Staff {
       isActive: (json['isActive'] as bool?) ?? true,
       passwordResetCode: passwordReset?.code,
       passwordResetCodeExpiresAt: passwordReset?.expiresAt,
+      createdByName: formatStaffName(
+        json['createdBy'] is Map
+            ? Map<String, dynamic>.from(json['createdBy'] as Map)
+            : null,
+      ),
+      updatedByName: formatStaffName(
+        json['updatedBy'] is Map
+            ? Map<String, dynamic>.from(json['updatedBy'] as Map)
+            : null,
+      ),
     );
   }
 
@@ -400,6 +416,8 @@ class Staff {
     bool? isActive,
     String? passwordResetCode,
     DateTime? passwordResetCodeExpiresAt,
+    String? createdByName,
+    String? updatedByName,
     bool clearPasswordResetCode = false,
     bool clearDepartmentId = false,
     bool clearWardId = false,
@@ -426,6 +444,8 @@ class Staff {
     passwordResetCodeExpiresAt: clearPasswordResetCode
         ? null
         : (passwordResetCodeExpiresAt ?? this.passwordResetCodeExpiresAt),
+    createdByName: createdByName ?? this.createdByName,
+    updatedByName: updatedByName ?? this.updatedByName,
   );
 }
 
