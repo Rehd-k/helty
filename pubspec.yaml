@@ -157,8 +157,13 @@ msix_config:
   languages: en-us
   output_name: helty
   capabilities: internetClient, privateNetworkClientServer, documentsLibrary, picturesLibrary, removableStorage
-    # App Installer Auto-Update Configuration
+  
+  # App Installer Auto-Update Configuration
   hours_between_update_checks: 0 # 0 = check every time the app opens
   automatic_background_task: true # Check for updates in the background
   update_blocks_activation: true # Prevent the app from opening until the update finishes
   show_prompt: true # Show Windows UI when checking/installing updates
+ 
+  # Auto-update configuration
+  make_appinstaller: true
+  appinstaller_url: "http://192.168.2.120:3000/helty-desktop/updates/app.appinstaller"
