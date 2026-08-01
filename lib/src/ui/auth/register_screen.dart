@@ -4,6 +4,7 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
+import '../../app/product_module_access.dart';
 import '../../models/staff_model.dart';
 import '../../models/staff_registration_options.dart';
 import '../../nursing/ward_matching.dart';
@@ -30,10 +31,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
-  AccountType _selectedAccountType = AccountType.front_desk;
-  late StaffRoleOption _selectedRoleOption = rolesForAccountType(
-    AccountType.front_desk,
-  ).first;
+  late final List<AccountType> _accountTypes =
+      ProductModuleAccess.allowedDepartmentTypes();
+  late AccountType _selectedAccountType = _accountTypes.first;
+  late StaffRoleOption _selectedRoleOption =
+      rolesForAccountType(_selectedAccountType).first;
   String? _wardId;
 
   bool get _isChargeNurse =>
@@ -275,7 +277,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         labelText: 'Account Type *',
                         prefixIcon: Icon(Icons.manage_accounts_outlined),
                       ),
-                      items: AccountType.departmentTypes
+                      items: _accountTypes
                           .map(
                             (t) => DropdownMenuItem(
                               value: t,

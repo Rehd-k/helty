@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'package:helty/src/app/org_config.dart';
 import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
 import 'package:helty/src/printing/escpos/windows_default_raw_printer.dart';
 
@@ -11,7 +12,7 @@ Future<void> showReceiptPrinterPickerSheet(
   required Map<String, dynamic> data,
   ReceiptHospitalHeader header = const ReceiptHospitalHeader(),
   bool isCopy = false,
-  String logoAssetPath = 'assets/imsh.png',
+  String? logoAssetPath,
 }) async {
   if (!Platform.isWindows) {
     if (!context.mounted) return;
@@ -23,6 +24,8 @@ Future<void> showReceiptPrinterPickerSheet(
     return;
   }
 
+  final resolvedLogo = logoAssetPath ?? OrgConfig.instance.logoAsset;
+
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -33,7 +36,7 @@ Future<void> showReceiptPrinterPickerSheet(
       data: data,
       header: header,
       isCopy: isCopy,
-      logoAssetPath: logoAssetPath,
+      logoAssetPath: resolvedLogo,
     ),
   );
 }

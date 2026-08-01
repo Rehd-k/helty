@@ -4,7 +4,7 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
-import '../../models/super_admin_department_preview.dart';
+import '../../app/product_module_access.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/super_admin_preview_provider.dart';
 import '../../routing/initial_route_for_role.dart';
@@ -58,6 +58,8 @@ class SuperAdminHubScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
                 LayoutBuilder(
                   builder: (context, constraints) {
+                    final departments =
+                        ProductModuleAccess.allowedHubDepartments();
                     final w = constraints.maxWidth;
                     final cross = w >= 900
                         ? 4
@@ -75,9 +77,9 @@ class SuperAdminHubScreen extends ConsumerWidget {
                         crossAxisSpacing: 16,
                         childAspectRatio: w >= 640 ? 1.45 : 1.25,
                       ),
-                      itemCount: kSuperAdminHubDepartments.length,
+                      itemCount: departments.length,
                       itemBuilder: (context, index) {
-                        final dep = kSuperAdminHubDepartments[index];
+                        final dep = departments[index];
                         return _DepartmentCard(
                           title: dep.tileTitle,
                           subtitle: dep.previewBannerLabel,

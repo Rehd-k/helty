@@ -209,6 +209,14 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     guards: const [ProductModuleGuard()],
   ),
   AutoRoute(
+    page: EdEmergencyRequestsRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: EdEmergencyRequestDetailRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
     page: EdRegistrationRoute.page,
     guards: const [ProductModuleGuard()],
   ),

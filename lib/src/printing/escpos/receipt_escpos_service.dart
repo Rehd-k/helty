@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+import 'package:helty/src/app/org_config.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:image/image.dart' as img;
@@ -360,7 +361,7 @@ class ReceiptEscposService {
     required Map<String, dynamic> data,
     required ReceiptHospitalHeader header,
     required bool isCopy,
-    String logoAssetPath = 'assets/imsh.png',
+    String? logoAssetPath,
   }) async {
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm80, profile);
@@ -378,7 +379,9 @@ class ReceiptEscposService {
     final txnId = transaction['transactionID']?.toString() ?? '';
     final barcodeDigits = _barcodeDataFromTxnId(txnId);
 
-    final logo = await _loadLogoRaster(logoAssetPath);
+    final logo = await _loadLogoRaster(
+      logoAssetPath ?? OrgConfig.instance.logoAsset,
+    );
     if (logo != null) {
       bytes += generator.image(logo, align: PosAlign.center);
       bytes += generator.feed(1);
@@ -593,7 +596,7 @@ class ReceiptEscposService {
     String? printerIp,
     int printerPort = 9100,
     bool isCopy = false,
-    String logoAssetPath = 'assets/imsh.png',
+    String? logoAssetPath,
   }) async {
     final bytes = await buildBytes(
       data: data,

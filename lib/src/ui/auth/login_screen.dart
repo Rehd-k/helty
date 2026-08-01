@@ -16,6 +16,7 @@ import '../../routing/initial_route_for_role.dart';
 import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
 
+/// Helty product mark (not the org logo from `ORG_LOGO`).
 const _kLogoAsset = 'assets/logo.png';
 
 /// Side-by-side brand / form when wide enough (desktop & large tablet).

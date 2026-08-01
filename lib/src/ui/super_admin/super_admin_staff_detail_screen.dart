@@ -4,6 +4,7 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/product_module_access.dart';
 import '../../models/staff_model.dart';
 import '../../models/staff_registration_options.dart';
 import '../../models/ward_models.dart';
@@ -406,7 +407,9 @@ class _StaffEditFormState extends ConsumerState<_StaffEditForm> {
                   labelText: 'Account type *',
                   prefixIcon: Icon(Icons.manage_accounts_outlined),
                 ),
-                items: AccountType.departmentTypes
+                items: ProductModuleAccess.allowedDepartmentTypes(
+                      include: _selectedAccountType,
+                    )
                     .map(
                       (t) => DropdownMenuItem(
                         value: t,

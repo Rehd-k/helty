@@ -33,24 +33,50 @@ String? avatarUrlFromJson(Map<String, dynamic>? json) {
   return url;
 }
 
+bool _isLoopbackHost(String host) {
+  final h = host.toLowerCase();
+  return h == 'localhost' || h == '127.0.0.1' || h == '::1';
+}
+
+String _stripTrailingSlash(String origin) =>
+    origin.endsWith('/') ? origin.substring(0, origin.length - 1) : origin;
+
 /// Turns a stored or API `avatarUrl` into an absolute URL for [Image.network].
 ///
-/// Absolute `http(s)` values are returned as-is. Relative paths (e.g.
-/// `/uploads/patients/.../avatar.jpg`) are joined with [baseUrl], which defaults
-/// to [ApiService.apiBaseUrl] so the origin follows endpoint probing.
+/// Relative paths (e.g. `/uploads/patients/.../avatar.jpg`) are joined with
+/// [baseUrl], which defaults to [ApiService.apiBaseUrl] so the origin follows
+/// endpoint probing. Absolute URLs whose host is loopback (`localhost`,
+/// `127.0.0.1`, `::1`) are rewritten onto the same probed origin. Other
+/// absolute `http(s)` values are returned as-is.
 String? resolvePatientAvatarUrl(String? avatarUrl, {String? baseUrl}) {
   final trimmed = avatarUrl?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
 
+  final origin = (baseUrl ?? ApiService().apiBaseUrl).trim();
+  final base = origin.isEmpty ? '' : _stripTrailingSlash(origin);
+
   final lower = trimmed.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) {
-    return trimmed;
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || !_isLoopbackHost(uri.host) || base.isEmpty) {
+      return trimmed;
+    }
+    final baseUri = Uri.tryParse(base);
+    if (baseUri == null || baseUri.host.isEmpty) return trimmed;
+
+    // Build a new Uri so a missing base port is not inherited from localhost:3000.
+    return Uri(
+      scheme: baseUri.scheme,
+      host: baseUri.host,
+      port: baseUri.hasPort ? baseUri.port : null,
+      path: uri.path,
+      query: uri.hasQuery ? uri.query : null,
+      fragment: uri.hasFragment ? uri.fragment : null,
+    ).toString();
   }
 
-  final origin = (baseUrl ?? ApiService().apiBaseUrl).trim();
-  if (origin.isEmpty) return trimmed;
+  if (base.isEmpty) return trimmed;
 
-  final base = origin.endsWith('/') ? origin.substring(0, origin.length - 1) : origin;
   final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
   return '$base$path';
 }

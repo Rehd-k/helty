@@ -48,7 +48,7 @@ void main() {
       expect(resolvePatientAvatarUrl('  ', baseUrl: base), isNull);
     });
 
-    test('leaves absolute http(s) urls unchanged', () {
+    test('leaves non-loopback absolute http(s) urls unchanged', () {
       expect(
         resolvePatientAvatarUrl(
           'https://api.example.com/uploads/patients/x/avatar.jpg',
@@ -62,6 +62,38 @@ void main() {
           baseUrl: base,
         ),
         'http://api.example.com/avatar.jpg',
+      );
+    });
+
+    test('rewrites localhost absolute urls onto probed base', () {
+      const probed = 'http://192.168.2.121:3000';
+      expect(
+        resolvePatientAvatarUrl(
+          'http://localhost:3000/uploads/patients/66c33d2c/avatar.jpg',
+          baseUrl: probed,
+        ),
+        'http://192.168.2.121:3000/uploads/patients/66c33d2c/avatar.jpg',
+      );
+    });
+
+    test('rewrites 127.0.0.1 absolute urls onto probed base', () {
+      const probed = 'http://192.168.2.121:3000';
+      expect(
+        resolvePatientAvatarUrl(
+          'http://127.0.0.1:3000/uploads/patients/66c33d2c/avatar.jpg',
+          baseUrl: probed,
+        ),
+        'http://192.168.2.121:3000/uploads/patients/66c33d2c/avatar.jpg',
+      );
+    });
+
+    test('does not inherit localhost port onto host-only base', () {
+      expect(
+        resolvePatientAvatarUrl(
+          'http://localhost:3000/uploads/patients/x/avatar.jpg',
+          baseUrl: 'https://api.example.com',
+        ),
+        'https://api.example.com/uploads/patients/x/avatar.jpg',
       );
     });
 

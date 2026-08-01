@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/services.dart' show rootBundle;
+import 'package:helty/src/app/org_config.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
@@ -396,7 +397,7 @@ List<pw.Widget> _labBuildAstPdfWidgets(
 }
 
 Future<pw.ImageProvider> _loadLabPdfLogo() async {
-  final logoImageBytes = await rootBundle.load('assets/imsh.png');
+  final logoImageBytes = await rootBundle.load(OrgConfig.instance.logoAsset);
   return pw.MemoryImage(logoImageBytes.buffer.asUint8List());
 }
 

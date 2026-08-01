@@ -240,6 +240,12 @@ final nurses = <MenuItem>[
     icon: Icons.emergency_outlined,
     route: EdBoardRoute(),
   ),
+  MenuItem(
+    color: DepartmentColors.emergency,
+    label: 'Emergency Requests',
+    icon: Icons.sos_outlined,
+    route: EdEmergencyRequestsRoute(),
+  ),
   patientHubMenuItem,
   MenuItem(
     label: 'Waiting Patients',
@@ -326,6 +332,7 @@ List<MenuItem> nurseMenuFor(Staff? staff, NursingDashboardMe? bootstrap) {
     if (route is NursingRosterRoute) return showRoster;
     if (route is NursingAssignmentsRoute) return showAssignments;
     if (route is EdBoardRoute) return showEd;
+    if (route is EdEmergencyRequestsRoute) return showEd;
     if (route is WaitingPatientsRoute) return showWaiting;
     if (route is InpatientsListRoute) return showInpatients;
     if (route is ObstetricsDashboardRoute ||
@@ -364,6 +371,12 @@ final doctors = <MenuItem>[
     label: 'ED Board',
     icon: Icons.emergency_outlined,
     route: EdBoardRoute(),
+  ),
+  MenuItem(
+    color: DepartmentColors.emergency,
+    label: 'Emergency Requests',
+    icon: Icons.sos_outlined,
+    route: EdEmergencyRequestsRoute(),
   ),
   MenuItem(
     color: DepartmentColors.emergency,

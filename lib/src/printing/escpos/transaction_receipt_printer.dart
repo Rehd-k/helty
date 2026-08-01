@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:helty/src/app/org_config.dart';
 import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
 
 class TransactionReceiptPrinter extends StatefulWidget {
@@ -17,7 +18,7 @@ class TransactionReceiptPrinter extends StatefulWidget {
   final String hospitalPhone;
   final String hospitalEmail;
 
-  final String logoAssetPath;
+  final String? logoAssetPath;
 
   const TransactionReceiptPrinter({
     super.key,
@@ -29,7 +30,7 @@ class TransactionReceiptPrinter extends StatefulWidget {
     required this.hospitalAddress,
     required this.hospitalPhone,
     required this.hospitalEmail,
-    this.logoAssetPath = 'assets/imsh.png',
+    this.logoAssetPath,
   });
 
   @override
@@ -57,7 +58,7 @@ class _TransactionReceiptPrinterState extends State<TransactionReceiptPrinter> {
         printerIp: widget.printerIp,
         printerPort: widget.printerPort,
         isCopy: isCopy,
-        logoAssetPath: widget.logoAssetPath,
+        logoAssetPath: widget.logoAssetPath ?? OrgConfig.instance.logoAsset,
       );
     } catch (e) {
       debugPrint('Printing error: $e');

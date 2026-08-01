@@ -1,6 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 
 import '../../app_router.gr.dart';
+import '../models/staff_model.dart';
+import '../models/super_admin_department_preview.dart';
 import 'product_definition.dart';
 import 'product_environment.dart';
 
@@ -83,6 +85,37 @@ class ProductModuleAccess {
       return ProductEnvironment.currentProduct == AppProduct.hospital;
     }
     return isModuleEnabled(module);
+  }
+
+  /// Department account types selectable when creating / editing staff for the
+  /// current product build (diagnostics, pharmacy, or full hospital).
+  ///
+  /// [include] keeps an existing staff type visible when editing someone whose
+  /// type is outside the product (so the dropdown still has a valid value).
+  /// [super_admin] is always offered so admins can be created on every product.
+  static List<AccountType> allowedDepartmentTypes({AccountType? include}) {
+    final allowed = <AccountType>[];
+    for (final t in AccountType.departmentTypes) {
+      if (t == AccountType.super_admin ||
+          isAccountTypeAllowedForProduct(t.name)) {
+        allowed.add(t);
+      }
+    }
+    if (include != null &&
+        include.isDepartmentType &&
+        !allowed.contains(include)) {
+      allowed.add(include);
+    }
+    return allowed;
+  }
+
+  /// Hub preview tiles for departments enabled on the current product.
+  static List<SuperAdminHubDepartment> allowedHubDepartments() {
+    return kSuperAdminHubDepartments
+        .where(
+          (d) => isAccountTypeAllowedForProduct(d.previewAccountType),
+        )
+        .toList(growable: false);
   }
 
   /// First enabled-module dashboard when the role's natural landing is blocked.

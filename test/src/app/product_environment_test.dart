@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:helty/src/app/product_definition.dart';
 import 'package:helty/src/app/product_environment.dart';
 import 'package:helty/src/app/product_module_access.dart';
+import 'package:helty/src/models/staff_model.dart';
 
 void main() {
   tearDown(() {
@@ -213,6 +214,44 @@ void main() {
       expect(
         ProductModuleAccess.isAccountTypeAllowedForProduct('pharmacy'),
         isFalse,
+      );
+    });
+
+    test('allowedDepartmentTypes follows product modules and keeps super_admin',
+        () {
+      ProductEnvironment.bind(AppProduct.diagnostics);
+      final types = ProductModuleAccess.allowedDepartmentTypes();
+      expect(types, contains(AccountType.front_desk));
+      expect(types, contains(AccountType.billing));
+      expect(types, contains(AccountType.laboratory));
+      expect(types, contains(AccountType.radiology));
+      expect(types, contains(AccountType.super_admin));
+      expect(types, isNot(contains(AccountType.pharmacy)));
+      expect(types, isNot(contains(AccountType.physician)));
+      expect(types, isNot(contains(AccountType.nurse)));
+    });
+
+    test('allowedDepartmentTypes for pharmacy is registration+billing+pharmacy',
+        () {
+      ProductEnvironment.bind(AppProduct.pharmacy);
+      final types = ProductModuleAccess.allowedDepartmentTypes();
+      expect(
+        types.map((t) => t.name).toSet(),
+        {
+          'front_desk',
+          'billing',
+          'pharmacy',
+          'super_admin',
+        },
+      );
+    });
+
+    test('allowedHubDepartments filters to product modules', () {
+      ProductEnvironment.bind(AppProduct.diagnostics);
+      final hubs = ProductModuleAccess.allowedHubDepartments();
+      expect(
+        hubs.map((h) => h.previewAccountType).toSet(),
+        {'billing', 'laboratory', 'radiology', 'front_desk'},
       );
     });
   });

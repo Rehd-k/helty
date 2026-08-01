@@ -122,6 +122,8 @@ const Map<String, AppModule> _routeModules = {
   'DoctorWaitingPatientsRoute': AppModule.physician,
   'DoctorEmergencyStartRoute': AppModule.physician,
   'EdBoardRoute': AppModule.physician,
+  'EdEmergencyRequestsRoute': AppModule.physician,
+  'EdEmergencyRequestDetailRoute': AppModule.physician,
   'EdRegistrationRoute': AppModule.physician,
   'EdTriageRoute': AppModule.physician,
   'WardRoundsRoute': AppModule.physician,

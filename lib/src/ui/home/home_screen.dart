@@ -716,6 +716,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               .read(shellSidePanelProvider.notifier)
               .open(ShellSidePanelTab.chat);
         }
+      } else if (next.type == 'ed_emergency_request') {
+        final id = next.emergencyRequestId;
+        if (id != null && id.isNotEmpty) {
+          context.router.push(EdEmergencyRequestDetailRoute(id: id));
+        } else {
+          context.router.push(const EdEmergencyRequestsRoute());
+        }
       }
       ref.read(notificationNavigationProvider.notifier).consume();
     });

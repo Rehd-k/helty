@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 ///
 /// Multi-value fields (`ORG_ADDRESSES`, `ORG_PHONES`, `ORG_EMAILS`,
 /// `ORG_TAGLINES`) are split on `;`. Use [contactLine] to join them for
-/// display (e.g. PDF headers).
+/// display (e.g. PDF headers). Logo path is `ORG_LOGO` (Flutter asset).
 class OrgConfig {
   OrgConfig._({
     required this.name,
@@ -15,6 +15,7 @@ class OrgConfig {
     required this.website,
     required this.apiBaseUrl,
     required this.taglines,
+    required this.logoAsset,
   });
 
   static OrgConfig? _instance;
@@ -29,6 +30,11 @@ class OrgConfig {
   final String website;
   final String apiBaseUrl;
   final List<String> taglines;
+
+  /// Flutter asset path for the org logo on PDFs, receipts, and watermark.
+  /// Set via `ORG_LOGO` in `.env` (e.g. `assets/imsh.png`).
+  /// The Helty app chrome (login / sidebar) always uses `assets/logo.png`.
+  final String logoAsset;
 
   /// Joins non-empty values with `; ` for PDF / receipt display.
   static String contactLine(List<String> values) =>
@@ -56,6 +62,7 @@ class OrgConfig {
           'Pap Smear',
           'ECG',
         ],
+        logoAsset: 'assets/imsh.png',
       );
 
   /// Loads `.env` when present as an asset, otherwise `.env.example`.
@@ -83,6 +90,7 @@ class OrgConfig {
       website: _string('ORG_WEBSITE', d.website),
       apiBaseUrl: _string('API_BASE_URL', d.apiBaseUrl),
       taglines: _list('ORG_TAGLINES', d.taglines),
+      logoAsset: _string('ORG_LOGO', d.logoAsset),
     );
   }
 

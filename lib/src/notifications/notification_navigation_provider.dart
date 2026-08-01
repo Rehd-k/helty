@@ -9,11 +9,13 @@ class NotificationNavigationIntent {
     required this.type,
     this.conversationId,
     this.pendingKey,
+    this.emergencyRequestId,
   });
 
   final String type;
   final String? conversationId;
   final String? pendingKey;
+  final String? emergencyRequestId;
 
   static NotificationNavigationIntent? fromPayload(String? payload) {
     if (payload == null || payload.isEmpty) return null;
@@ -25,6 +27,7 @@ class NotificationNavigationIntent {
         type: map['type']?.toString() ?? 'unknown',
         conversationId: map['conversationId']?.toString(),
         pendingKey: map['notificationKey']?.toString(),
+        emergencyRequestId: map['id']?.toString(),
       );
     } catch (_) {
       return null;
