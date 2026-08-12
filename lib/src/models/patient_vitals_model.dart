@@ -20,6 +20,7 @@ class PatientVitalsModel {
     this.bloodGlucose,
     this.notes,
     this.recordedBy,
+    this.recordedByNurseId,
     this.recordedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -44,6 +45,9 @@ class PatientVitalsModel {
   final String? bloodGlucose;
   final String? notes;
   final String? recordedBy;
+
+  /// Staff id of the nurse who recorded these vitals (`recordedByNurseId`).
+  final String? recordedByNurseId;
 
   final DateTime? recordedAt;
   final DateTime createdAt;
@@ -94,6 +98,16 @@ class PatientVitalsModel {
         final flat = json['recordedBy']?.toString() ??
             json['recordedById']?.toString();
         return flat?.isNotEmpty == true ? flat : null;
+      }(),
+      recordedByNurseId: () {
+        final direct = json['recordedByNurseId']?.toString();
+        if (direct != null && direct.isNotEmpty) return direct;
+        final nurse = json['nurse'];
+        if (nurse is Map) {
+          final id = nurse['id']?.toString();
+          if (id != null && id.isNotEmpty) return id;
+        }
+        return null;
       }(),
       recordedAt: json['recordedAt'] != null
           ? parseDate(json['recordedAt'])
@@ -212,6 +226,8 @@ class UpdatePatientVitalsDto {
     this.pulseRate,
     this.spo2,
     this.notes,
+    this.bloodGlucose,
+    this.painScore,
     this.recordedAt,
   });
 
@@ -225,6 +241,8 @@ class UpdatePatientVitalsDto {
   final int? pulseRate;
   final double? spo2;
   final String? notes;
+  final String? bloodGlucose;
+  final String? painScore;
   final DateTime? recordedAt;
 
   Map<String, dynamic> toJson() => {
@@ -238,6 +256,8 @@ class UpdatePatientVitalsDto {
     if (pulseRate != null) 'pulseRate': pulseRate,
     if (spo2 != null) 'spo2': spo2,
     if (notes != null) 'notes': notes,
+    if (bloodGlucose != null) 'bloodGlucose': bloodGlucose,
+    if (painScore != null) 'painScore': painScore,
     if (recordedAt != null)
       'recordedAt': AppTimezone.toBackendIso(recordedAt!),
   };

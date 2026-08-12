@@ -17,6 +17,7 @@ import '../../admissions/admission_discharge_helpers.dart';
 import '../../admissions/discharge_admission_dialog.dart';
 import '../../helper/date.formatter.dart';
 import '../../../app_router.gr.dart';
+import '../../models/admission_billing_clearance_models.dart';
 import '../../models/admission_model.dart';
 import '../../models/medication_order_model.dart';
 import 'package:helty/src/pharmacy/utils/medication_workflow_patient_type.dart';
@@ -66,6 +67,7 @@ class _InpatientPatientViewScreenState
   bool _loadingPatient = false;
   String? _patientError;
   int _uiTabIndex = 0;
+  bool _clearingNurses = false;
 
   int? _routerIndexForUiTab(int uiIndex) {
     if (uiIndex == _consumablesUiTabIndex) return null;
@@ -478,9 +480,26 @@ class _InpatientPatientViewScreenState
             icon: const Icon(Icons.medical_information_outlined, size: 18),
             label: const Text('Encounter'),
           ),
-        if (!widget.readOnly)
+        if (!widget.readOnly &&
+            _admission != null &&
+            _admission!.isPendingBillingClearance &&
+            _admission!.nursesClearedAt == null)
+          FilledButton.icon(
+            onPressed: _clearingNurses ? null : _clearNursesForDischarge,
+            icon: _clearingNurses
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.check_circle_outline, size: 18),
+            label: const Text('Clear for discharge'),
+          )
+        else if (!widget.readOnly &&
+            _admission != null &&
+            _admission!.isActiveAdmission)
           FilledButton.tonalIcon(
-            onPressed: _admission == null ? null : _attemptDischarge,
+            onPressed: _attemptDischarge,
             icon: const Icon(Icons.logout, size: 18),
             label: const Text('Discharge'),
           ),
@@ -586,6 +605,119 @@ class _InpatientPatientViewScreenState
         context,
       ).showSnackBar(SnackBar(content: Text('Discharge failed: $e')));
     }
+  }
+
+  Future<void> _clearNursesForDischarge() async {
+    final admission = _admission;
+    if (admission == null || _clearingNurses) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear for discharge'),
+        content: Text(
+          admission.billingClearedAt == null
+              ? 'Record nurse clearance for ${admission.patient.displayName}? '
+                  'Discharge finalizes when billing clearance is also complete.'
+              : 'Record nurse clearance for ${admission.patient.displayName}? '
+                  'The patient will be finalized to OPD.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _clearingNurses = true);
+    try {
+      final updated = await _admissionService.nursesClearance(admission.id);
+      if (!mounted) return;
+      final finalized =
+          updated.status.isDischarged || updated.status.isDeceased;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            finalized
+                ? 'Nurse clearance recorded. Patient moved to OPD.'
+                : 'Nurse clearance recorded. Awaiting billing clearance.',
+          ),
+        ),
+      );
+      await _loadPatient();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nurse clearance failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _clearingNurses = false);
+    }
+  }
+
+  Widget _buildDischargeClearanceBanner(AdmissionModel admission) {
+    if (!admission.isPendingBillingClearance) {
+      return const SizedBox.shrink();
+    }
+
+    final awaitingPayment = admission.billingClearedAt == null;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final bg = awaitingPayment
+        ? scheme.errorContainer
+        : scheme.tertiaryContainer;
+    final fg = awaitingPayment
+        ? scheme.onErrorContainer
+        : scheme.onTertiaryContainer;
+    final message = awaitingPayment
+        ? 'Discharged — awaiting payment'
+        : 'Billing cleared — awaiting nurse clearance';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Icon(
+                awaitingPayment
+                    ? Icons.payments_outlined
+                    : Icons.local_hospital_outlined,
+                color: fg,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (!widget.readOnly &&
+                  admission.nursesClearedAt == null &&
+                  !awaitingPayment)
+                FilledButton(
+                  onPressed:
+                      _clearingNurses ? null : _clearNursesForDischarge,
+                  child: const Text('Clear for discharge'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildPatientHeader(BuildContext context) {
@@ -716,23 +848,29 @@ class _InpatientPatientViewScreenState
       if (admission.isolationRequired) 'Isolation required',
     ];
 
-    return PatientHeaderCard(
-      patientName: name,
-      ageGender: ageGender,
-      hospitalNumber: hospitalNumber,
-      ward: ward,
-      bedNumber: bed,
-      attendingDoctor: doctor,
-      diagnosis: diagnosis,
-      admissionDate: admissionDateStr,
-      createdBy: admission.createdByName,
-      lengthOfStay: lengthOfStay,
-      allergies: allergies,
-      codeStatus: codeStatus,
-      riskFlags: riskFlags,
-      avatarUrl: patient.avatarUrl,
-      firstName: patient.firstName,
-      surname: patient.surname,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildDischargeClearanceBanner(admission),
+        PatientHeaderCard(
+          patientName: name,
+          ageGender: ageGender,
+          hospitalNumber: hospitalNumber,
+          ward: ward,
+          bedNumber: bed,
+          attendingDoctor: doctor,
+          diagnosis: diagnosis,
+          admissionDate: admissionDateStr,
+          createdBy: admission.createdByName,
+          lengthOfStay: lengthOfStay,
+          allergies: allergies,
+          codeStatus: codeStatus,
+          riskFlags: riskFlags,
+          avatarUrl: patient.avatarUrl,
+          firstName: patient.firstName,
+          surname: patient.surname,
+        ),
+      ],
     );
   }
 

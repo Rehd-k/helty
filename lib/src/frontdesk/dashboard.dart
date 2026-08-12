@@ -6,6 +6,8 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
+import '../app/product_definition.dart';
+import '../app/product_environment.dart';
 import '../core/errors/user_facing_error.dart';
 import '../core/widgets/patient_avatar.dart';
 import '../helper/app_timezone.dart';
@@ -1280,52 +1282,56 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            context.router.push(NewAppointmentRoute());
-                          },
-                          icon: Icon(
-                            Icons.calendar_month,
-                            size: 18,
-                            color: colorScheme.primary,
-                          ),
-                          label: Text(
-                            'Book Appointment',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: colorScheme.onSurface,
+                        if (ProductEnvironment.currentProduct ==
+                            AppProduct.hospital) ...[
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              context.router.push(NewAppointmentRoute());
+                            },
+                            icon: Icon(
+                              Icons.calendar_month,
+                              size: 18,
+                              color: colorScheme.primary,
+                            ),
+                            label: Text(
+                              'Book Appointment',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                           ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                _openCheckInPatientDialog(context),
+                            icon: Icon(
+                              Icons.login,
+                              size: 18,
+                              color: colorScheme.primary,
+                            ),
+                            label: Text(
+                              'Check-In Patient',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () => _openCheckInPatientDialog(context),
-                          icon: Icon(
-                            Icons.login,
-                            size: 18,
-                            color: colorScheme.primary,
-                          ),
-                          label: Text(
-                            'Check-In Patient',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ),

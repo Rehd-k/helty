@@ -9,6 +9,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
 
@@ -64,6 +65,9 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final scope = InpatientViewScope.of(context);
+    final canRecord = scope?.isAdmissionActive == true && scope?.isNurse == true;
+    final staffId = scope?.staffId?.trim();
 
     return ResponsiveBody(
       expand: false,
@@ -81,7 +85,7 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
                     ),
               );
               final button = FilledButton.icon(
-                onPressed: _openRecordVitalsDialog,
+                onPressed: canRecord ? _openRecordVitalsDialog : null,
                 icon: const Icon(Icons.add_chart, size: 18),
                 label: const Text('Record Vitals'),
               );
@@ -131,26 +135,44 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
                   DataColumn(label: Text('Pain')),
                   DataColumn(label: Text('Glucose')),
                   DataColumn(label: Text('Recorded by')),
+                  DataColumn(label: Text('')),
                 ],
                 rows: _vitals
                     .map(
-                      (v) => DataRow(
-                        cells: [
-                          DataCell(Text(DateFormatter.dateTime(v.effectiveAt))),
-                          DataCell(Text(v.temperature?.toString() ?? '—')),
-                          DataCell(
-                            Text(
-                              '${v.systolic?.toString() ?? '—'}/${v.diastolic?.toString() ?? '—'}',
+                      (v) {
+                        final canEdit = canRecord &&
+                            staffId != null &&
+                            staffId.isNotEmpty &&
+                            (v.recordedByNurseId == null ||
+                                v.recordedByNurseId!.isEmpty ||
+                                v.recordedByNurseId == staffId);
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(DateFormatter.dateTime(v.effectiveAt))),
+                            DataCell(Text(v.temperature?.toString() ?? '—')),
+                            DataCell(
+                              Text(
+                                '${v.systolic?.toString() ?? '—'}/${v.diastolic?.toString() ?? '—'}',
+                              ),
                             ),
-                          ),
-                          DataCell(Text(v.pulseRate?.toString() ?? '—')),
-                          DataCell(Text(v.respRate?.toString() ?? '—')),
-                          DataCell(Text(v.spo2?.toString() ?? '—')),
-                          DataCell(Text(v.painScore ?? '—')),
-                          DataCell(Text(v.bloodGlucose ?? '—')),
-                          DataCell(Text(v.recordedBy ?? '—')),
-                        ],
-                      ),
+                            DataCell(Text(v.pulseRate?.toString() ?? '—')),
+                            DataCell(Text(v.respRate?.toString() ?? '—')),
+                            DataCell(Text(v.spo2?.toString() ?? '—')),
+                            DataCell(Text(v.painScore ?? '—')),
+                            DataCell(Text(v.bloodGlucose ?? '—')),
+                            DataCell(Text(v.recordedBy ?? '—')),
+                            DataCell(
+                              canEdit
+                                  ? IconButton(
+                                      tooltip: 'Edit vitals',
+                                      icon: const Icon(Icons.edit_outlined, size: 18),
+                                      onPressed: () => _openEditVitalsDialog(v),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          ],
+                        );
+                      },
                     )
                     .toList(),
               ),
@@ -158,8 +180,8 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Use “Record Vitals” to add observations. Adjust the recorded time '
-            'when entering vitals taken earlier.',
+            'Use “Record Vitals” to add observations. Authors can edit their own '
+            'entries. Adjust the recorded time when entering vitals taken earlier.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -191,6 +213,35 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vitals recorded successfully.')),
+      );
+    }
+  }
+
+  Future<void> _openEditVitalsDialog(PatientVitalsModel existing) async {
+    final nurseId = requireNurseIdFromScope(context);
+    if (nurseId == null) return;
+
+    final updated = await showDialog<PatientVitalsModel>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _RecordVitalsDialog(
+        admissionId: widget.admissionId,
+        nurseId: nurseId,
+        waitingService: _waitingService,
+        existing: existing,
+      ),
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        final idx = _vitals.indexWhere((v) => v.id == updated.id);
+        if (idx >= 0) {
+          _vitals[idx] = updated;
+        }
+        _sortVitals();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vitals updated.')),
       );
     }
   }
@@ -230,11 +281,13 @@ class _RecordVitalsDialog extends StatefulWidget {
     required this.admissionId,
     required this.nurseId,
     required this.waitingService,
+    this.existing,
   });
 
   final String admissionId;
   final String nurseId;
   final WaitingPatientService waitingService;
+  final PatientVitalsModel? existing;
 
   @override
   State<_RecordVitalsDialog> createState() => _RecordVitalsDialogState();
@@ -254,13 +307,28 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
   final _painCtrl = ValueNotifier<double>(0);
 
   bool _saving = false;
+  bool get _isEdit => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
+    final existing = widget.existing;
+    final at = existing?.effectiveAt ?? AppTimezone.now();
     _timeCtrl = TextEditingController(
-      text: DateFormatter.timeOnly(AppTimezone.now()),
+      text: DateFormatter.timeOnly(at),
     );
+    if (existing != null) {
+      _tempCtrl.text = existing.temperature?.toString() ?? '';
+      _sysCtrl.text = existing.systolic?.toString() ?? '';
+      _diaCtrl.text = existing.diastolic?.toString() ?? '';
+      _pulseCtrl.text = existing.pulseRate?.toString() ?? '';
+      _respCtrl.text = existing.respRate?.toString() ?? '';
+      _spo2Ctrl.text = existing.spo2?.toString() ?? '';
+      _glucoseCtrl.text = existing.bloodGlucose ?? '';
+      _notesCtrl.text = existing.notes ?? '';
+      final pain = double.tryParse(existing.painScore ?? '');
+      if (pain != null) _painCtrl.value = pain.clamp(0, 10);
+    }
   }
 
   @override
@@ -288,9 +356,12 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final baseDate = widget.existing != null
+        ? AppTimezone.toLocal(widget.existing!.effectiveAt)
+        : AppTimezone.now();
     final parsedTime = AppTimezone.parseTimeOnDate(
       _timeCtrl.text,
-      AppTimezone.now(),
+      baseDate,
     );
     if (parsedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -301,29 +372,52 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
 
     setState(() => _saving = true);
     try {
-      final result = await widget.waitingService.createPatientVitals(
-        CreatePatientVitalsDto(
-          admissionId: widget.admissionId,
-          systolic: int.tryParse(_sysCtrl.text),
-          diastolic: int.tryParse(_diaCtrl.text),
-          temperature: double.tryParse(_tempCtrl.text),
-          pulseRate: int.tryParse(_pulseCtrl.text),
-          respRate: int.tryParse(_respCtrl.text),
-          spo2: double.tryParse(_spo2Ctrl.text),
-          notes: _notesCtrl.text,
-          bloodGlucose: _glucoseCtrl.text,
-          painScore: _painCtrl.value.toInt().toString(),
-          recordedByNurseId: widget.nurseId,
-          recordedAt: parsedTime,
-        ),
-      );
+      final PatientVitalsModel result;
+      if (_isEdit) {
+        result = await widget.waitingService.updatePatientVitals(
+          widget.existing!.id,
+          UpdatePatientVitalsDto(
+            systolic: int.tryParse(_sysCtrl.text),
+            diastolic: int.tryParse(_diaCtrl.text),
+            temperature: double.tryParse(_tempCtrl.text),
+            pulseRate: int.tryParse(_pulseCtrl.text),
+            respRate: int.tryParse(_respCtrl.text),
+            spo2: double.tryParse(_spo2Ctrl.text),
+            notes: _notesCtrl.text,
+            bloodGlucose: _glucoseCtrl.text,
+            painScore: _painCtrl.value.toInt().toString(),
+            recordedAt: parsedTime,
+          ),
+        );
+      } else {
+        result = await widget.waitingService.createPatientVitals(
+          CreatePatientVitalsDto(
+            admissionId: widget.admissionId,
+            systolic: int.tryParse(_sysCtrl.text),
+            diastolic: int.tryParse(_diaCtrl.text),
+            temperature: double.tryParse(_tempCtrl.text),
+            pulseRate: int.tryParse(_pulseCtrl.text),
+            respRate: int.tryParse(_respCtrl.text),
+            spo2: double.tryParse(_spo2Ctrl.text),
+            notes: _notesCtrl.text,
+            bloodGlucose: _glucoseCtrl.text,
+            painScore: _painCtrl.value.toInt().toString(),
+            recordedByNurseId: widget.nurseId,
+            recordedAt: parsedTime,
+          ),
+        );
+      }
       if (!mounted) return;
       _close(result);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to record vitals: $e')),
+        SnackBar(
+          content: Text(
+            _isEdit ? 'Failed to update vitals: $e' : 'Failed to record vitals: $e',
+          ),
+        ),
       );
     }
   }
@@ -335,7 +429,7 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Record Vitals'),
+      title: Text(_isEdit ? 'Edit Vitals' : 'Record Vitals'),
       content: SizedBox(
         width: bodyW,
         child: Form(
@@ -537,7 +631,7 @@ class _RecordVitalsDialogState extends State<_RecordVitalsDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Submit'),
+              : Text(_isEdit ? 'Save' : 'Submit'),
         ),
       ],
     );

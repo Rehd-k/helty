@@ -16,6 +16,48 @@ class PatientDeleteException implements Exception {
   String toString() => message;
 }
 
+class SimilarPatientMatch {
+  SimilarPatientMatch({
+    required this.id,
+    this.patientId,
+    this.firstName,
+    this.surname,
+    this.otherName,
+    this.dob,
+    this.phoneNumber,
+  });
+
+  final String id;
+  final String? patientId;
+  final String? firstName;
+  final String? surname;
+  final String? otherName;
+  final DateTime? dob;
+  final String? phoneNumber;
+
+  String get displayName {
+    final parts = [
+      firstName?.trim(),
+      otherName?.trim(),
+      surname?.trim(),
+    ].whereType<String>().where((s) => s.isNotEmpty);
+    final name = parts.join(' ').trim();
+    return name.isEmpty ? 'Unknown patient' : name;
+  }
+
+  factory SimilarPatientMatch.fromJson(Map<String, dynamic> json) {
+    return SimilarPatientMatch(
+      id: json['id']?.toString() ?? '',
+      patientId: json['patientId']?.toString(),
+      firstName: json['firstName']?.toString(),
+      surname: json['surname']?.toString(),
+      otherName: json['otherName']?.toString(),
+      dob: DateTime.tryParse(json['dob']?.toString() ?? ''),
+      phoneNumber: json['phoneNumber']?.toString(),
+    );
+  }
+}
+
 class PatientService {
   PatientService() : _dio = ApiService().dio;
   final Dio _dio;
@@ -130,8 +172,58 @@ class PatientService {
 
   // ── Write ─────────────────────────────────────────────────────────────────
 
-  Future<Patient> createPatient(Patient p) async {
-    final resp = await _dio.post('/patients', data: p.toJson());
+  Future<List<SimilarPatientMatch>> findSimilarMatches({
+    required String firstName,
+    required String surname,
+    String? otherName,
+    required DateTime dob,
+  }) async {
+    final resp = await _dio.get(
+      '/patients/similar-matches',
+      queryParameters: {
+        'firstName': firstName.trim(),
+        'surname': surname.trim(),
+        if (otherName != null && otherName.trim().isNotEmpty)
+          'otherName': otherName.trim(),
+        'dob': dob.toIso8601String().split('T').first,
+      },
+    );
+    final raw = resp.data;
+    final list = raw is List
+        ? raw
+        : (raw is Map && raw['candidates'] is List
+              ? raw['candidates'] as List
+              : (raw is Map && raw['data'] is List ? raw['data'] as List : const []));
+    return list
+        .whereType<Map>()
+        .map((e) => SimilarPatientMatch.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<Patient> createPatient(Patient p, {bool forceCreate = false}) async {
+    final body = {
+      ...p.toJson(),
+      if (forceCreate) 'forceCreate': true,
+    };
+    final resp = await _dio.post(
+      '/patients',
+      data: body,
+      queryParameters: forceCreate ? {'forceCreate': true} : null,
+    );
+    return Patient.fromJson(resp.data as Map<String, dynamic>);
+  }
+
+  Future<Patient> mergePatients({
+    required String survivorId,
+    required String duplicateId,
+  }) async {
+    final resp = await _dio.post(
+      '/patients/merge',
+      data: {
+        'survivorId': survivorId,
+        'duplicateId': duplicateId,
+      },
+    );
     return Patient.fromJson(resp.data as Map<String, dynamic>);
   }
 

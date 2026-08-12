@@ -633,6 +633,35 @@ class LabApiService {
     );
   }
 
+  // ── Config transfer (SUPER_ADMIN) ───────────────────────────────────────
+
+  /// Exports categories, tests, versions, fields, antibiotics, and AST options.
+  Future<Map<String, dynamic>> exportLabConfig() async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '$_prefix/config/export',
+    );
+    final data = response.data;
+    if (data == null) {
+      throw StateError('Export lab config returned no data');
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
+  /// Replaces the lab catalog with [payload] from a prior [exportLabConfig].
+  Future<Map<String, dynamic>> importLabConfig(
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '$_prefix/config/import',
+      data: payload,
+    );
+    final data = response.data;
+    if (data == null) {
+      throw StateError('Import lab config returned no data');
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
   // ── Investigations (receptionist reporting) ─────────────────────────────
 
   Future<InvestigationSummary> getInvestigationsSummary(

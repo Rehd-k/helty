@@ -19,3 +19,15 @@ final pendingBillingClearanceProvider =
         take: query.take,
       );
     });
+
+final pendingNursesClearanceProvider =
+    FutureProvider.family<PendingNursesClearancePage, PendingClearanceQuery>((
+      ref,
+      query,
+    ) async {
+      final service = ref.watch(admissionServiceProvider);
+      return service.listPendingNursesClearance(
+        skip: query.skip,
+        take: query.take,
+      );
+    });

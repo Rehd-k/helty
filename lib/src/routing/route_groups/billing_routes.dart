@@ -4,7 +4,10 @@ import 'package:helty/app_router.gr.dart';
 import '../product_module_guard.dart';
 
 /// Billing, invoices, payments, and service-catalog routes.
-List<AutoRoute> billingRoutes({bool initial = false}) => [
+List<AutoRoute> billingRoutes({
+  bool initial = false,
+  bool isHospital = true,
+}) => [
   AutoRoute(
     page: PendingBillsRoute.page,
     initial: initial,
@@ -78,20 +81,35 @@ List<AutoRoute> billingRoutes({bool initial = false}) => [
     page: InpatientBillsListRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: BillingWardInpatientsRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-  AutoRoute(
-    page: AwaitingBillingClearanceRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  if (isHospital) ...[
+    AutoRoute(
+      page: BillingWardInpatientsRoute.page,
+      guards: const [ProductModuleGuard()],
+    ),
+    AutoRoute(
+      page: AwaitingBillingClearanceRoute.page,
+      guards: const [ProductModuleGuard()],
+    ),
+  ],
   AutoRoute(
     page: PatientBillingRoute.page,
     guards: const [ProductModuleGuard()],
   ),
   AutoRoute(
     page: PatientWalletHistoryRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  // Available on diagnostics + hospital (billing head menu).
+  AutoRoute(
+    page: AccountsRevenueByServiceRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: AccountsRevenueByServiceDetailRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: AccountsRefundRequestsRoute.page,
     guards: const [ProductModuleGuard()],
   ),
 ];

@@ -30,9 +30,11 @@ class ProductRoutes {
       if (modules.contains(AppModule.registration))
         ...registrationRoutes(
           initial: !isHospital,
+          isHospital: isHospital,
           enabledModules: modules,
         ),
-      if (modules.contains(AppModule.billing)) ...billingRoutes(),
+      if (modules.contains(AppModule.billing))
+        ...billingRoutes(isHospital: isHospital),
       if (modules.contains(AppModule.pharmacy)) ...pharmacyRoutes(),
       if (modules.contains(AppModule.laboratory)) ...laboratoryRoutes(),
       if (modules.contains(AppModule.radiology)) ...radiologyRoutes(),

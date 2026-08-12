@@ -5,13 +5,164 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
 import '../../app/product_module_access.dart';
+import '../../paitients/patient_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/super_admin_preview_provider.dart';
 import '../../routing/initial_route_for_role.dart';
+import '../../services/db_backup_service.dart';
 
 @RoutePage()
 class SuperAdminHubScreen extends ConsumerWidget {
   const SuperAdminHubScreen({super.key});
+
+  Future<void> _createDbBackup(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create database backup'),
+        content: const Text(
+          'Create a gzipped database backup on the server now? '
+          'This can take a while on large databases.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Create backup'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Creating database backup…')),
+    );
+    try {
+      final result = await DbBackupService().createBackup();
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Backup saved as ${result.filename}',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Backup failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _openMergePatients(BuildContext context) async {
+    final survivorCtrl = TextEditingController();
+    final duplicateCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Merge patients'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Reassign all records from the duplicate patient onto the survivor, then delete the duplicate. Survivor keeps their hospital ID and phone.',
+                style: Theme.of(ctx).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: survivorCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Survivor patient UUID',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: duplicateCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Duplicate patient UUID',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Merge'),
+          ),
+        ],
+      ),
+    );
+    final survivorId = survivorCtrl.text.trim();
+    final duplicateId = duplicateCtrl.text.trim();
+    survivorCtrl.dispose();
+    duplicateCtrl.dispose();
+    if (confirmed != true) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (survivorId.isEmpty || duplicateId.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Enter both survivor and duplicate IDs.')),
+      );
+      return;
+    }
+    if (survivorId == duplicateId) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Survivor and duplicate must differ.')),
+      );
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm merge'),
+        content: Text(
+          'Merge $duplicateId into $survivorId? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm merge'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final survivor = await PatientService().mergePatients(
+        survivorId: survivorId,
+        duplicateId: duplicateId,
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Merged into ${survivor.displayName} (${survivor.patientId}).',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Merge failed: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,6 +191,40 @@ class SuperAdminHubScreen extends ConsumerWidget {
                       'password reset codes when the API provides them.',
                   icon: Icons.groups_outlined,
                   onTap: () => context.router.push(const SuperAdminStaffListRoute()),
+                ),
+                const SizedBox(height: 12),
+                _HubActionBanner(
+                  title: 'Merge patients',
+                  subtitle:
+                      'Combine a duplicate patient record into a survivor. '
+                      'All clinical and billing links move to the survivor.',
+                  icon: Icons.merge_type_outlined,
+                  onTap: () => _openMergePatients(context),
+                ),
+                const SizedBox(height: 12),
+                _HubActionBanner(
+                  title: 'Create database backup',
+                  subtitle:
+                      'Write a dated gzipped backup on the server. '
+                      'Nightly backups also run automatically at 11:59 PM.',
+                  icon: Icons.backup_outlined,
+                  onTap: () => _createDbBackup(context),
+                ),
+                const SizedBox(height: 12),
+                _HubActionBanner(
+                  title: 'Health campaigns',
+                  subtitle: 'Create and publish patient health campaigns.',
+                  icon: Icons.campaign_outlined,
+                  onTap: () =>
+                      context.router.push(const HealthCampaignsAdminRoute()),
+                ),
+                const SizedBox(height: 12),
+                _HubActionBanner(
+                  title: 'Health news',
+                  subtitle: 'Manage health news articles shown to patients.',
+                  icon: Icons.newspaper_outlined,
+                  onTap: () =>
+                      context.router.push(const HealthNewsAdminRoute()),
                 ),
                 const SizedBox(height: 28),
                 Text(

@@ -11,6 +11,7 @@ import '../services/hmo_service.dart';
 import '../services/ward_service.dart';
 import 'patient_model.dart';
 import 'patient_providers.dart';
+import 'patient_service.dart';
 import '../widgets/responsive_grid.dart';
 
 @RoutePage()
@@ -537,14 +538,47 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     super.dispose();
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool forceCreate = false}) async {
     if (_formKey.currentState?.validate() ?? false) {
       final payload = _buildPatientForSave();
       final service = ref.read(patientServiceProvider);
       final routeKey = widget.patient?.id ?? widget.patient?.patientId;
       try {
         if (widget.patient == null) {
-          final savedPatient = await service.createPatient(payload);
+          if (!forceCreate) {
+            final matches = await service.findSimilarMatches(
+              firstName: payload.firstName,
+              surname: payload.surname,
+              otherName: payload.otherName,
+              dob: payload.dob,
+            );
+            if (matches.isNotEmpty) {
+              if (!mounted) return;
+              final decision = await _showSimilarMatchesDialog(
+                matches,
+                formPhone: payload.phoneNumber?.trim() ?? '',
+              );
+              if (decision == null) return;
+              if (decision == false) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'This phone number is already registered to an existing patient.',
+                    ),
+                  ),
+                );
+                return;
+              }
+              // decision == true → force create
+              await _save(forceCreate: true);
+              return;
+            }
+          }
+          final savedPatient = await service.createPatient(
+            payload,
+            forceCreate: forceCreate,
+          );
           await _showSuccessModal(
             isUpdate: false,
             patientId: savedPatient.patientId,
@@ -565,6 +599,88 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
+  }
+
+  /// Returns `true` to force-create, `false` when blocked (same phone),
+  /// `null` when user cancels.
+  Future<bool?> _showSimilarMatchesDialog(
+    List<SimilarPatientMatch> matches, {
+    required String formPhone,
+  }) async {
+    final normalizedForm = formPhone.replaceAll(RegExp(r'\s+'), '');
+    final samePhone = matches.any((m) {
+      final p = (m.phoneNumber ?? '').replaceAll(RegExp(r'\s+'), '');
+      return p.isNotEmpty &&
+          normalizedForm.isNotEmpty &&
+          p == normalizedForm;
+    });
+
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return AlertDialog(
+          title: const Text('Similar patients found'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  samePhone
+                      ? 'An existing patient already uses this phone number. You cannot force a new registration.'
+                      : 'Patients with a similar name and the same date of birth already exist. Review them before registering a new record.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 240),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: matches.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final m = matches[i];
+                      return ListTile(
+                        dense: true,
+                        title: Text(m.displayName),
+                        subtitle: Text(
+                          [
+                            if (m.patientId != null && m.patientId!.isNotEmpty)
+                              'ID ${m.patientId}',
+                            if (m.phoneNumber != null &&
+                                m.phoneNumber!.trim().isNotEmpty)
+                              m.phoneNumber,
+                          ].join(' · '),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            if (!samePhone)
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Force register new patient'),
+              )
+            else
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('OK'),
+              ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showSuccessModal({

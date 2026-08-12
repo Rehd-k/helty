@@ -7,6 +7,7 @@ import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
 import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/services/ward_service.dart';
 
 bool _looksLikeUuid(String s) {
@@ -19,6 +20,12 @@ bool _looksLikeUuid(String s) {
 
 bool _wardExcludedFromInpatientList(Ward w) {
   return w.name.trim().toUpperCase() == 'OPD';
+}
+
+String _admissionDateLabel(InpatientCensus row) {
+  final d = row.admissionDate;
+  if (d == null) return '${row.daysAdmitted} days';
+  return '${DateFormatter.shortDate(d)} · ${row.daysAdmitted}d';
 }
 
 @RoutePage()
@@ -359,7 +366,7 @@ class _BillingWardInpatientsScreenState
                 _HeaderCell('WARD', flex: 2),
                 _HeaderCell('BED', flex: 1),
                 _HeaderCell('DIAGNOSIS', flex: 3),
-                _HeaderCell('DAYS ADMITTED', flex: 2),
+                _HeaderCell('ADMITTED', flex: 2),
                 _HeaderCell('BILLING', flex: 2, alignRight: true),
               ],
             ),
@@ -442,7 +449,7 @@ class _BillingWardInpatientsScreenState
                 Expanded(
                   flex: 2,
                   child: Text(
-                    '${row.daysAdmitted} days',
+                    _admissionDateLabel(row),
                     style: TextStyle(
                       color: colorScheme.onSurface.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w600,
@@ -557,7 +564,7 @@ class _BillingWardInpatientsScreenState
                         ),
                       ),
                       Text(
-                        '${row.daysAdmitted} d',
+                        _admissionDateLabel(row),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: colorScheme.primary,

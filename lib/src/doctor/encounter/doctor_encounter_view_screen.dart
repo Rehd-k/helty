@@ -23,6 +23,7 @@ import 'package:helty/src/doctor/templates/widgets/encounter_template_picker_she
 import 'package:helty/src/doctor/templates/widgets/save_encounter_template_dialog.dart';
 import 'package:helty/src/pharmacy/utils/medication_workflow_patient_type.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/models/super_admin_department_preview.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/staff_service.dart';
@@ -605,7 +606,29 @@ class _DoctorEncounterViewScreenState
     context.router.maybePop();
   }
 
-  Future<void> _completeEncounter() async {
+  Future<void> _completeEncounter({bool asSuperAdmin = false}) async {
+    if (asSuperAdmin) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('End encounter'),
+          content: const Text(
+            'End this encounter as super admin? The treating doctor edit check is skipped and you will not be stamped as lastUpdatedBy.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('End encounter'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
     setState(() => _completing = true);
     try {
       await _encounterService.complete(widget.encounterId);
@@ -614,8 +637,12 @@ class _DoctorEncounterViewScreenState
       if (!mounted) return;
       setState(() => _completing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Encounter completed. Patient file closed.'),
+        SnackBar(
+          content: Text(
+            asSuperAdmin
+                ? 'Encounter ended by super admin.'
+                : 'Encounter completed. Patient file closed.',
+          ),
         ),
       );
       context.router.maybePop();
@@ -683,6 +710,9 @@ class _DoctorEncounterViewScreenState
     final meta = enc?.editMeta;
     final versionedEdits =
         isAmend || meta?.requiresVersionedEdits == true;
+    final isSuperAdmin = staffIsSuperAdmin(ref.watch(authProvider).staff);
+    final canSuperAdminEnd =
+        isSuperAdmin && !isCompleted && !isAmend && !canEdit;
 
     return ResponsiveToolbar(
       leading: Column(
@@ -825,7 +855,7 @@ class _DoctorEncounterViewScreenState
                 ? null
                 : isEm
                 ? _openDisposition
-                : _completeEncounter,
+                : () => _completeEncounter(),
             icon: _completing
                 ? const SizedBox(
                     width: 18,
@@ -839,6 +869,20 @@ class _DoctorEncounterViewScreenState
                     isEm ? Icons.call_split_rounded : Icons.done_all,
                     size: 18,
                   ),
+          )
+        else if (canSuperAdminEnd)
+          IconButton.filledTonal(
+            tooltip: _completing ? 'Ending…' : 'End encounter (super admin)',
+            onPressed: _completing
+                ? null
+                : () => _completeEncounter(asSuperAdmin: true),
+            icon: _completing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.stop_circle_outlined, size: 18),
           ),
         Tooltip(
           message: isEm

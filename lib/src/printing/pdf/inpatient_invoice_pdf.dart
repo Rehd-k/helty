@@ -325,12 +325,17 @@ Future<List<int>> buildInpatientInvoicePdf({
                     ),
                     kv(
                       'Total Paid',
-                      totalPayments.toFinancial(isMoney: true),
+                      (totalPayments + walletBalance)
+                          .toFinancial(isMoney: true),
+                      strong: true,
                     ),
-                    kv('Total Owed', balanceDue.toFinancial(isMoney: true)),
                     kv(
-                      'Wallet Balance',
-                      walletBalance.toFinancial(isMoney: true),
+                      'Currently Owing',
+                      ((balanceDue - walletBalance) > 0
+                              ? (balanceDue - walletBalance)
+                              : 0.0)
+                          .toFinancial(isMoney: true),
+                      strong: true,
                     ),
                   ],
                 ),

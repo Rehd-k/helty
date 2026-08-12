@@ -12,3 +12,11 @@ final appointmentListProvider =
       final svc = ref.read(appointmentServiceProvider);
       return svc.fetchAppointments(query: query);
     });
+
+/// REQUESTED portal appointments awaiting Medical Records / Front Desk action.
+final appointmentRequestsProvider =
+    FutureProvider.autoDispose<List<Appointment>>((ref) async {
+      final svc = ref.watch(appointmentServiceProvider);
+      final page = await svc.listRequests(status: 'REQUESTED');
+      return page.items;
+    });

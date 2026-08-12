@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
+import 'package:helty/src/models/super_admin_department_preview.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
 import 'package:helty/src/printing/pdf/report_template_picker.dart';
 import 'package:helty/src/providers/auth_provider.dart';
@@ -120,10 +123,118 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     invalidateLabOrderCaches(ref, listParams: _ordersParams());
   }
 
+  Future<void> _exportLabConfig() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final payload = await ref.read(labApiServiceProvider).exportLabConfig();
+      final bytes = utf8.encode(
+        const JsonEncoder.withIndent('  ').convert(payload),
+      );
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save lab configuration',
+        fileName: 'helty-lab-config.json',
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+        bytes: Uint8List.fromList(bytes),
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            path == null
+                ? 'Export cancelled'
+                : 'Lab configuration saved',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _importLabConfig() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Replace lab configuration?'),
+        content: const Text(
+          'This replaces all lab categories, tests, versions, fields, '
+          'antibiotics, and AST options, and removes order lines/results '
+          'tied to the current catalog.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Replace'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        dialogTitle: 'Import lab configuration',
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+        withData: true,
+      );
+      if (picked == null || picked.files.isEmpty) return;
+
+      final file = picked.files.first;
+      final bytes = file.bytes;
+      if (bytes == null) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Could not read file contents')),
+        );
+        return;
+      }
+
+      final decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is! Map) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Invalid lab config file')),
+        );
+        return;
+      }
+
+      await ref
+          .read(labApiServiceProvider)
+          .importLabConfig(Map<String, dynamic>.from(decoded));
+
+      ref.invalidate(labCategoriesFutureProvider);
+      ref.invalidate(labTestsFutureProvider);
+      ref.invalidate(labAntibioticsFutureProvider);
+      ref.invalidate(labAstResultOptionsFutureProvider);
+      invalidateLabOrderCaches(ref, listParams: _ordersParams());
+
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Lab configuration imported')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Import failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final staff = ref.watch(currentStaffProvider);
+    final isSuperAdmin = staffIsSuperAdmin(staff);
     final isLabManager =
         staff?.staffRole.toLowerCase() == 'admin' ||
         staff?.accountType?.name.toLowerCase() == 'laboratory' ||
@@ -133,7 +244,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(context, theme, isLabManager),
+          _buildAppBar(context, theme, isLabManager, isSuperAdmin),
           SliverToBoxAdapter(
             child: ResponsiveBody(
               builder: (context, bp) => ordersAsync.when(
@@ -259,6 +370,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     BuildContext context,
     ThemeData theme,
     bool isLabManager,
+    bool isSuperAdmin,
   ) {
     return SliverAppBar(
       expandedHeight: 140,
@@ -302,6 +414,18 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
       ),
       actions: [
         const ReportTemplatePickerButton(),
+        if (isSuperAdmin) ...[
+          TextButton.icon(
+            onPressed: _exportLabConfig,
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('Export config'),
+          ),
+          TextButton.icon(
+            onPressed: _importLabConfig,
+            icon: const Icon(Icons.upload_rounded),
+            label: const Text('Import config'),
+          ),
+        ],
         if (isLabManager)
           TextButton.icon(
             onPressed: () => context.router.push(const LabConfigRoute()),

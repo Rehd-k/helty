@@ -199,6 +199,8 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
                 children: [
                   _buildTitleSection(colorScheme, totalCount, compact),
                   SizedBox(height: compact ? 16 : 24),
+                  _buildClearanceQueueBanner(colorScheme, compact),
+                  SizedBox(height: compact ? 12 : 16),
                   _buildFilterSection(colorScheme, compact),
                   const SizedBox(height: 16),
                   Expanded(
@@ -277,6 +279,57 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
         Expanded(child: titleBlock),
         countBadge,
       ],
+    );
+  }
+
+  Widget _buildClearanceQueueBanner(ColorScheme colorScheme, bool compact) {
+    return Material(
+      color: colorScheme.secondaryContainer.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.router.push(const AwaitingNursesClearanceRoute()),
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 12 : 16),
+          child: Row(
+            children: [
+              Icon(
+                Icons.fact_check_outlined,
+                color: colorScheme.onSecondaryContainer,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Awaiting nurses clearance',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSecondaryContainer,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Open the dedicated queue to review discharged patients and clear them',
+                      style: TextStyle(
+                        color: colorScheme.onSecondaryContainer
+                            .withValues(alpha: 0.85),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: colorScheme.onSecondaryContainer,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -159,6 +159,10 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     guards: const [ProductModuleGuard()],
   ),
   AutoRoute(
+    page: AwaitingNursesClearanceRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
     page: InpatientPatientViewRoute.page,
     guards: const [ProductModuleGuard()],
     children: [
@@ -246,6 +250,22 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
   ),
   AutoRoute(
     page: ConsultationPaymentReportRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HospitalReportsHubRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HospitalReportRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HealthCampaignsAdminRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HealthNewsAdminRoute.page,
     guards: const [ProductModuleGuard()],
   ),
   AutoRoute(
@@ -490,14 +510,7 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     page: AccountsCashFlowRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: AccountsRevenueByServiceRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-  AutoRoute(
-    page: AccountsRevenueByServiceDetailRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  // Revenue-by-service + refund requests live in billingRoutes (diagnostics too).
   AutoRoute(
     page: AccountsExpenseVsBudgetRoute.page,
     guards: const [ProductModuleGuard()],
@@ -552,10 +565,6 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
   ),
   AutoRoute(
     page: AccountsApprovalsRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-  AutoRoute(
-    page: AccountsRefundRequestsRoute.page,
     guards: const [ProductModuleGuard()],
   ),
   AutoRoute(

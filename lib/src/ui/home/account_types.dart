@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../../app_router.gr.dart';
+import '../../app/product_definition.dart';
+import '../../app/product_environment.dart';
 import '../../auth/nursing_permissions.dart';
 import '../../models/staff_model.dart';
 import '../../nursing/models/nursing_models.dart';
+import '../../reports/services/hospital_reports_service.dart';
 import '../../shared/department_colors.dart';
 import 'home_screen.dart';
+
+bool get _isHospitalProduct =>
+    ProductEnvironment.currentProduct == AppProduct.hospital;
 
 /// Clinical unified patient lookup — all clinical departments except medical records billing chart.
 const patientHubMenuItem = MenuItem(
@@ -14,19 +20,20 @@ const patientHubMenuItem = MenuItem(
   route: PatientHubSearchRoute(),
 );
 
-final frontDesk = <MenuItem>[
+List<MenuItem> get frontDesk => [
   MenuItem(
     color: DepartmentColors.frontDesk,
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
     route: FrontDeskDashboardRoute(),
   ),
-  MenuItem(
-    color: DepartmentColors.frontDesk,
-    label: 'View Waiting Patients',
-    icon: Icons.add_alarm_outlined,
-    route: NewPatientRoute(use: 'For Register'),
-  ),
+  if (_isHospitalProduct)
+    MenuItem(
+      color: DepartmentColors.frontDesk,
+      label: 'View Waiting Patients',
+      icon: Icons.add_alarm_outlined,
+      route: NewPatientRoute(use: 'For Register'),
+    ),
   MenuItem(
     color: DepartmentColors.frontDesk,
     label: 'Add New Patient',
@@ -45,34 +52,36 @@ final frontDesk = <MenuItem>[
     icon: Icons.today_outlined,
     route: TodayPatientsRoute(),
   ),
-  MenuItem(
-    color: DepartmentColors.frontDesk,
-    label: 'Add New Appointment',
-    icon: Icons.view_agenda_outlined,
-    route: NewAppointmentRoute(),
-  ),
-  MenuItem(
-    color: DepartmentColors.frontDesk,
-    label: 'View Appointments',
-    icon: Icons.add_alarm_outlined,
-    route: AppointmentListRoute(),
-  ),
-  MenuItem(
-    color: DepartmentColors.frontDesk,
-    label: 'Device approvals',
-    icon: Icons.phonelink_lock_outlined,
-    route: PendingDeviceApprovalsRoute(),
-  ),
-  MenuItem(
-    color: DepartmentColors.frontDesk,
-    label: 'Family links',
-    icon: Icons.family_restroom,
-    route: FamilyLinksRoute(),
-  ),
+  if (_isHospitalProduct) ...[
+    MenuItem(
+      color: DepartmentColors.frontDesk,
+      label: 'Add New Appointment',
+      icon: Icons.view_agenda_outlined,
+      route: NewAppointmentRoute(),
+    ),
+    MenuItem(
+      color: DepartmentColors.frontDesk,
+      label: 'View Appointments',
+      icon: Icons.add_alarm_outlined,
+      route: AppointmentListRoute(),
+    ),
+    MenuItem(
+      color: DepartmentColors.frontDesk,
+      label: 'Device approvals',
+      icon: Icons.phonelink_lock_outlined,
+      route: PendingDeviceApprovalsRoute(),
+    ),
+    MenuItem(
+      color: DepartmentColors.frontDesk,
+      label: 'Family links',
+      icon: Icons.family_restroom,
+      route: FamilyLinksRoute(),
+    ),
+  ],
 ];
 
 /// Same entries as [frontDesk] plus completed encounters (medical records only).
-final medicalRecordsMenu = <MenuItem>[
+List<MenuItem> get medicalRecordsMenu => [
   ...frontDesk,
   MenuItem(
     color: DepartmentColors.medicalRecords,
@@ -92,9 +101,35 @@ final medicalRecordsMenu = <MenuItem>[
     icon: Icons.receipt_long_outlined,
     route: ConsultationPaymentReportRoute(),
   ),
+  if (_isHospitalProduct) ...[
+    MenuItem(
+      color: DepartmentColors.medicalRecords,
+      label: 'Appointment Requests',
+      icon: Icons.event_available_outlined,
+      route: AppointmentRequestsRoute(),
+    ),
+    MenuItem(
+      color: DepartmentColors.medicalRecords,
+      label: 'Hospital reports',
+      icon: Icons.assessment_outlined,
+      route: HospitalReportsHubRoute(),
+    ),
+    const MenuItem(
+      color: DepartmentColors.medicalRecords,
+      label: 'Health campaigns',
+      icon: Icons.campaign_outlined,
+      route: HealthCampaignsAdminRoute(),
+    ),
+    const MenuItem(
+      color: DepartmentColors.medicalRecords,
+      label: 'Health news',
+      icon: Icons.newspaper_outlined,
+      route: HealthNewsAdminRoute(),
+    ),
+  ],
 ];
 
-final bills = <MenuItem>[
+List<MenuItem> get bills => [
   MenuItem(
     color: DepartmentColors.billing,
     label: 'Dashboard',
@@ -113,24 +148,26 @@ final bills = <MenuItem>[
     icon: Icons.dataset_outlined,
     route: EnlistPaitientRoute(serviceName: 'OPD'),
   ),
-  MenuItem(
-    color: DepartmentColors.billing,
-    label: 'Process Ward Payment',
-    icon: Icons.access_time_filled_outlined,
-    route: EnlistPaitientRoute(serviceName: 'inpatient'),
-  ),
-  MenuItem(
-    color: DepartmentColors.billing,
-    label: 'Admitted Patients',
-    icon: Icons.bed_outlined,
-    route: BillingWardInpatientsRoute(),
-  ),
-  MenuItem(
-    color: DepartmentColors.billing,
-    label: 'Awaiting Billing Clearance',
-    icon: Icons.fact_check_outlined,
-    route: AwaitingBillingClearanceRoute(),
-  ),
+  if (_isHospitalProduct) ...[
+    MenuItem(
+      color: DepartmentColors.billing,
+      label: 'Process Ward Payment',
+      icon: Icons.access_time_filled_outlined,
+      route: EnlistPaitientRoute(serviceName: 'inpatient'),
+    ),
+    MenuItem(
+      color: DepartmentColors.billing,
+      label: 'Admitted Patients',
+      icon: Icons.bed_outlined,
+      route: BillingWardInpatientsRoute(),
+    ),
+    MenuItem(
+      color: DepartmentColors.billing,
+      label: 'Awaiting Billing Clearance',
+      icon: Icons.fact_check_outlined,
+      route: AwaitingBillingClearanceRoute(),
+    ),
+  ],
   MenuItem(
     color: DepartmentColors.billing,
     label: 'Add Service',
@@ -148,6 +185,13 @@ final bills = <MenuItem>[
     icon: Icons.list_outlined,
     route: TransactionsRoute(),
   ),
+  if (_isHospitalProduct)
+    MenuItem(
+      color: DepartmentColors.billing,
+      label: 'Hospital reports',
+      icon: Icons.assessment_outlined,
+      route: HospitalReportsHubRoute(),
+    ),
 ];
 
 /// Extra entries for billing head only (reports + refund approvals).
@@ -164,10 +208,16 @@ final billingHeadExtraMenu = <MenuItem>[
     icon: Icons.category_rounded,
     route: AccountsRevenueByServiceRoute(),
   ),
+  MenuItem(
+    color: DepartmentColors.billing,
+    label: 'Hospital reports',
+    icon: Icons.assessment_outlined,
+    route: HospitalReportsHubRoute(),
+  ),
 ];
 
 /// HMO desk — same enlist → render-service workflow as billing (narrower than [bills]).
-final hmoDeskMenu = <MenuItem>[
+List<MenuItem> get hmoDeskMenu => [
   patientHubMenuItem,
   MenuItem(
     label: 'HMO plans',
@@ -194,11 +244,12 @@ final hmoDeskMenu = <MenuItem>[
     icon: Icons.dataset_outlined,
     route: EnlistPaitientRoute(serviceName: 'OPD'),
   ),
-  MenuItem(
-    label: 'Process Ward Payment',
-    icon: Icons.access_time_filled_outlined,
-    route: EnlistPaitientRoute(serviceName: 'inpatient'),
-  ),
+  if (_isHospitalProduct)
+    MenuItem(
+      label: 'Process Ward Payment',
+      icon: Icons.access_time_filled_outlined,
+      route: EnlistPaitientRoute(serviceName: 'inpatient'),
+    ),
   const MenuItem(
     label: 'Receivables',
     icon: Icons.receipt_long_outlined,
@@ -218,7 +269,7 @@ final hmoDeskMenu = <MenuItem>[
   ),
 ];
 
-final nurses = <MenuItem>[
+List<MenuItem> get nurses => [
   MenuItem(
     label: 'Dashboard',
     icon: Icons.dashboard_outlined,
@@ -258,9 +309,19 @@ final nurses = <MenuItem>[
     route: InpatientsListRoute(),
   ),
   MenuItem(
+    label: 'Awaiting Nurses Clearance',
+    icon: Icons.fact_check_outlined,
+    route: AwaitingNursesClearanceRoute(),
+  ),
+  MenuItem(
     label: 'Consumables',
     icon: Icons.medical_information_outlined,
     route: EnlistPaitientRoute(serviceName: 'Consumables'),
+  ),
+  MenuItem(
+    label: 'Hospital reports',
+    icon: Icons.assessment_outlined,
+    route: HospitalReportsHubRoute(),
   ),
   MenuItem(
     color: DepartmentColors.obgyn,
@@ -286,23 +347,24 @@ final nurses = <MenuItem>[
     icon: Icons.radar_rounded,
     route: RadiologyDashboardRoute(),
   ),
-  MenuItem(
-    label: 'Appointments',
-    icon: Icons.calendar_month,
-    route: AppointmentListRoute(),
-    children: [
-      MenuItem(
-        label: 'Add New Appointment',
-        icon: Icons.view_agenda_outlined,
-        route: NewAppointmentRoute(),
-      ),
-      MenuItem(
-        label: 'View Appointments',
-        icon: Icons.add_alarm_outlined,
-        route: AppointmentListRoute(),
-      ),
-    ],
-  ),
+  if (_isHospitalProduct)
+    MenuItem(
+      label: 'Appointments',
+      icon: Icons.calendar_month,
+      route: AppointmentListRoute(),
+      children: [
+        MenuItem(
+          label: 'Add New Appointment',
+          icon: Icons.view_agenda_outlined,
+          route: NewAppointmentRoute(),
+        ),
+        MenuItem(
+          label: 'View Appointments',
+          icon: Icons.add_alarm_outlined,
+          route: AppointmentListRoute(),
+        ),
+      ],
+    ),
 ];
 
 /// Role-filtered nursing menu (see docs/nursing-roles-frontend-guide.md).
@@ -335,6 +397,8 @@ List<MenuItem> nurseMenuFor(Staff? staff, NursingDashboardMe? bootstrap) {
     if (route is EdEmergencyRequestsRoute) return showEd;
     if (route is WaitingPatientsRoute) return showWaiting;
     if (route is InpatientsListRoute) return showInpatients;
+    if (route is AwaitingNursesClearanceRoute) return showInpatients;
+    if (route is HospitalReportsHubRoute) return charge || matron;
     if (route is ObstetricsDashboardRoute ||
         route is ObstetricsPatientSelectRoute ||
         route is ObstetricsGynaeProceduresRoute) {
@@ -390,6 +454,11 @@ final doctors = <MenuItem>[
     route: WardRoundsRoute(),
   ),
   MenuItem(label: 'Inpatients', icon: Icons.bed, route: InpatientsListRoute()),
+  MenuItem(
+    label: 'Awaiting Nurses Clearance',
+    icon: Icons.fact_check_outlined,
+    route: AwaitingNursesClearanceRoute(),
+  ),
   MenuItem(
     label: 'Consumables',
     icon: Icons.medical_information_outlined,
@@ -456,6 +525,15 @@ final pharmacyHeadExtraMenu = <MenuItem>[
     label: 'Inventory Valuation',
     icon: Icons.warehouse_outlined,
     route: PharmacyInventoryValuationRoute(),
+  ),
+  MenuItem(
+    color: DepartmentColors.pharmacy,
+    label: 'Ward requests report',
+    icon: Icons.account_tree_outlined,
+    route: HospitalReportRoute(
+      kind: HospitalReportKind.requestsByWard,
+      initialRequestType: 'pharmacy',
+    ),
   ),
 ];
 
@@ -712,6 +790,15 @@ final labMenu = <MenuItem>[
       categoryQueries: const ['Laboratory', 'Laboratory Tests'],
     ),
   ),
+  MenuItem(
+    color: DepartmentColors.laboratory,
+    label: 'Ward requests report',
+    icon: Icons.assessment_outlined,
+    route: HospitalReportRoute(
+      kind: HospitalReportKind.requestsByWard,
+      initialRequestType: 'lab',
+    ),
+  ),
 ];
 
 final theatreMenu = <MenuItem>[
@@ -795,6 +882,15 @@ final radiologyMenu = <MenuItem>[
     route: NewPatientRoute(
       use: 'Radiology',
       categoryQueries: const ['Radiology & Imaging'],
+    ),
+  ),
+  MenuItem(
+    color: DepartmentColors.radiology,
+    label: 'Ward requests report',
+    icon: Icons.assessment_outlined,
+    route: HospitalReportRoute(
+      kind: HospitalReportKind.requestsByWard,
+      initialRequestType: 'radiology',
     ),
   ),
 ];

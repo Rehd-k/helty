@@ -7,7 +7,7 @@ import 'package:helty/src/services/admission_service.dart';
 String dischargeSuccessMessage(AdmissionModel admission) {
   final status = admission.status.normalized;
   if (status == 'PENDING_BILLING_CLEARANCE') {
-    return 'Sent to billing clearance.';
+    return 'Clinical discharge recorded. Awaiting billing and nurse clearance.';
   }
   if (status == 'DISCHARGED') {
     return 'Patient discharged.';

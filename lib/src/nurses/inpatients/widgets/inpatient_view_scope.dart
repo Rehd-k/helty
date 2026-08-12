@@ -61,10 +61,19 @@ class InpatientViewScope extends InheritedWidget {
   final bool isNurse;
 
   /// Whether nursing/clinical actions are allowed on this admission.
+  /// Includes [PENDING_BILLING_CLEARANCE] so nurses can finish documentation
+  /// and clear the patient after clinical discharge.
   bool get isAdmissionActive {
     if (readOnly) return false;
     final st = (admissionStatus ?? '').toUpperCase();
-    return st == 'ACTIVE' || st == 'ADMITTED';
+    return st == 'ACTIVE' ||
+        st == 'ADMITTED' ||
+        st == 'PENDING_BILLING_CLEARANCE';
+  }
+
+  bool get isPendingBillingClearance {
+    final st = (admissionStatus ?? '').toUpperCase();
+    return st == 'PENDING_BILLING_CLEARANCE';
   }
 
   static InpatientViewScope? of(BuildContext context) =>

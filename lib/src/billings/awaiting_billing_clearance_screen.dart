@@ -135,8 +135,8 @@ class _AwaitingBillingClearanceScreenState
       builder: (ctx) => AlertDialog(
         title: const Text('Clear billing'),
         content: Text(
-          'Finalize discharge for ${effective.patientDisplayName}? '
-          'The patient will be moved to OPD.',
+          'Record billing clearance for ${effective.patientDisplayName}? '
+          'Discharge finalizes when nursing clearance is also complete.',
         ),
         actions: [
           TextButton(
@@ -156,7 +156,7 @@ class _AwaitingBillingClearanceScreenState
     try {
       await _admissionService.billingClearance(row.id);
       if (!mounted) return;
-      _showSnack('Billing cleared. Patient moved to OPD.');
+      _showSnack('Billing cleared. Awaiting nurse clearance if still pending.');
       _reload();
     } on BillingClearanceBlockedException catch (e) {
       if (!mounted) return;

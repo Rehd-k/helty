@@ -79,8 +79,11 @@ class AdmissionModel {
     this.encounter,
     this.attendingDoctor,
     this.clinicallyDischargedBy,
+    this.clinicallyDischargedAt,
     this.billingClearedAt,
     this.billingClearedBy,
+    this.nursesClearedAt,
+    this.nursesClearedBy,
     this.billing,
     this.encounterMedicationOrders = const [],
   });
@@ -149,10 +152,17 @@ class AdmissionModel {
   /// Set on clinical discharge.
   final AttendingDoctorSummary? clinicallyDischargedBy;
 
+  final DateTime? clinicallyDischargedAt;
+
   /// Set when billing clears (or auto-finalizes when already paid).
   final DateTime? billingClearedAt;
 
   final AttendingDoctorSummary? billingClearedBy;
+
+  /// Set when nursing clears the patient for physical discharge.
+  final DateTime? nursesClearedAt;
+
+  final AttendingDoctorSummary? nursesClearedBy;
 
   /// Billing snapshot when included on admission responses.
   final AdmissionBillingSummary? billing;
@@ -215,6 +225,7 @@ class AdmissionModel {
     final clinicallyDischargedBy =
         parseDoctorSummary(json['clinicallyDischargedBy']);
     final billingClearedBy = parseDoctorSummary(json['billingClearedBy']);
+    final nursesClearedBy = parseDoctorSummary(json['nursesClearedBy']);
 
     AdmissionBillingSummary? billing;
     final billingRaw = json['billing'];
@@ -317,8 +328,11 @@ class AdmissionModel {
       encounter: encounterMap,
       attendingDoctor: attendingDoctor,
       clinicallyDischargedBy: clinicallyDischargedBy,
+      clinicallyDischargedAt: parseDt(json['clinicallyDischargedAt']),
       billingClearedAt: parseDt(json['billingClearedAt']),
       billingClearedBy: billingClearedBy,
+      nursesClearedAt: parseDt(json['nursesClearedAt']),
+      nursesClearedBy: nursesClearedBy,
       billing: billing,
       encounterMedicationOrders: encounterMedicationOrders,
     );

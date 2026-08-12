@@ -151,6 +151,7 @@ class InpatientCensus {
     required this.bedLabel,
     required this.diagnosis,
     required this.daysAdmitted,
+    this.admissionDate,
     this.encounterId,
     this.avatarUrl,
   });
@@ -163,6 +164,9 @@ class InpatientCensus {
   final String bedLabel;
   final String diagnosis;
   final int daysAdmitted;
+
+  /// Parsed from `admissionDateTime` / `admissionDate` / `admittedAt` when present.
+  final DateTime? admissionDate;
 
   /// Linked encounter for this admission, when returned by the ward API.
   final String? encounterId;
@@ -228,6 +232,7 @@ class InpatientCensus {
       encounterId = encounterRaw['id']?.toString();
     }
 
+    final admissionDate = _parseAdmissionDate(json);
     final days = _daysAdmittedFromJson(json);
 
     return InpatientCensus(
@@ -245,6 +250,7 @@ class InpatientCensus {
       bedLabel: bedLabel.toString(),
       diagnosis: diagnosis.toString(),
       daysAdmitted: days,
+      admissionDate: admissionDate,
       encounterId: encounterId,
       avatarUrl: avatarUrlFromJson(patient) ?? avatarUrlFromJson(json),
     );

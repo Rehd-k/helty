@@ -264,6 +264,54 @@ class AdmissionService {
     }
   }
 
+  /// GET /admissions/pending-nurses-clearance — nursing discharge clearance queue.
+  Future<PendingNursesClearancePage> listPendingNursesClearance({
+    int skip = 0,
+    int take = 20,
+  }) async {
+    try {
+      final response = await _dio.get<dynamic>(
+        '/admissions/pending-nurses-clearance',
+        queryParameters: {
+          'skip': skip,
+          'take': take > 100 ? 100 : take,
+        },
+      );
+      final data = response.data;
+      if (data is Map) {
+        return PendingNursesClearancePage.fromJson(
+          Map<String, dynamic>.from(data),
+        );
+      }
+      return const PendingNursesClearancePage(
+        admissions: [],
+        total: 0,
+        skip: 0,
+        take: 0,
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load nurses clearance queue: ${_dioMessage(e)}',
+      );
+    }
+  }
+
+  /// POST /admissions/:id/nurses-clearance — nurse clear for physical discharge.
+  Future<AdmissionModel> nursesClearance(String admissionId) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/admissions/$admissionId/nurses-clearance',
+      );
+      final data = response.data;
+      if (data == null) {
+        throw StateError('Nurses clearance returned no data');
+      }
+      return _parseAdmissionFromResponse(data);
+    } on DioException catch (e) {
+      throw Exception('Failed to clear for discharge: ${_dioMessage(e)}');
+    }
+  }
+
   String _dioMessage(DioException e) {
     final payload = e.response?.data;
     if (payload is Map && payload['message'] != null) {

@@ -255,6 +255,71 @@ class AppointmentService {
     }
   }
 
+  /// `GET /appointments/requests` — MR/front-desk appointment request queue.
+  Future<({List<Appointment> items, int total})> listRequests({
+    String status = 'REQUESTED',
+  }) async {
+    try {
+      final resp = await _dio.get(
+        '/appointments/requests',
+        queryParameters: {'status': status},
+      );
+      final raw = resp.data;
+      if (raw is List) {
+        final items = raw.map((e) => Appointment.fromJson(_asMap(e))).toList();
+        return (items: items, total: items.length);
+      }
+      if (raw is Map) {
+        final m = Map<String, dynamic>.from(raw);
+        final listRaw = m['data'] ?? m['appointments'] ?? m['items'];
+        final total =
+            (m['total'] as num?)?.toInt() ?? (m['count'] as num?)?.toInt();
+        final list = listRaw is List
+            ? listRaw.map((e) => Appointment.fromJson(_asMap(e))).toList()
+            : <Appointment>[];
+        return (items: list, total: total ?? list.length);
+      }
+      return (items: <Appointment>[], total: 0);
+    } on DioException catch (e) {
+      throw Exception(_message(e));
+    }
+  }
+
+  /// `POST /appointments/:id/confirm` — assign physician and confirm request.
+  Future<Appointment> confirmRequest(
+    String id, {
+    required String staffId,
+    DateTime? date,
+  }) async {
+    try {
+      final resp = await _dio.post(
+        '/appointments/$id/confirm',
+        data: {
+          'staffId': staffId,
+          if (date != null) 'date': AppTimezone.toBackendIso(date),
+        },
+      );
+      return Appointment.fromJson(_asMap(resp.data));
+    } on DioException catch (e) {
+      throw Exception(_message(e));
+    }
+  }
+
+  /// `POST /appointments/:id/deny` — cancel a REQUESTED appointment.
+  Future<Appointment> denyRequest(String id, {String? notes}) async {
+    try {
+      final resp = await _dio.post(
+        '/appointments/$id/deny',
+        data: {
+          if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        },
+      );
+      return Appointment.fromJson(_asMap(resp.data));
+    } on DioException catch (e) {
+      throw Exception(_message(e));
+    }
+  }
+
   // ── Legacy method names (keep callers working) ───────────────────────────
 
   Future<List<Appointment>> fetchAppointments({

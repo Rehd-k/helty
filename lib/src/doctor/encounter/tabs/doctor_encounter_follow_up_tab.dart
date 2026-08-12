@@ -5,6 +5,7 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/appointment_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
@@ -158,7 +159,7 @@ class _DoctorEncounterFollowUpTabState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Follow-up date',
+            'Follow-up date & time',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
@@ -168,20 +169,35 @@ class _DoctorEncounterFollowUpTabState
           ListTile(
             title: Text(
               _followUpDate == null
-                  ? 'Select date'
-                  : '${_followUpDate!.day}/${_followUpDate!.month}/${_followUpDate!.year}',
+                  ? 'Select date & time'
+                  : DateFormatter.dateTime(_followUpDate!),
             ),
-            trailing: const Icon(Icons.calendar_today),
+            trailing: const Icon(Icons.event_available_outlined),
             onTap: () async {
+              final initial =
+                  _followUpDate ?? DateTime.now().add(const Duration(days: 7));
               final date = await showDatePicker(
                 context: context,
-                initialDate:
-                    _followUpDate ??
-                    DateTime.now().add(const Duration(days: 7)),
+                initialDate: initial,
                 firstDate: DateTime.now(),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
               );
-              if (date != null && mounted) setState(() => _followUpDate = date);
+              if (date == null || !mounted) return;
+              if (!context.mounted) return;
+              final time = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay.fromDateTime(initial),
+              );
+              if (time == null || !mounted) return;
+              setState(() {
+                _followUpDate = DateTime(
+                  date.year,
+                  date.month,
+                  date.day,
+                  time.hour,
+                  time.minute,
+                );
+              });
             },
           ),
           const SizedBox(height: 16),

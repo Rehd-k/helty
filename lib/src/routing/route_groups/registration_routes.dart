@@ -7,6 +7,7 @@ import '../product_module_guard.dart';
 /// Patient registration / front-desk / patient hub routes.
 List<AutoRoute> registrationRoutes({
   bool initial = false,
+  bool isHospital = true,
   Set<AppModule> enabledModules = const {},
 }) {
   final modules = enabledModules.isEmpty ? kAllAppModules : enabledModules;
@@ -36,18 +37,20 @@ List<AutoRoute> registrationRoutes({
       initial: initial,
       guards: const [ProductModuleGuard()],
     ),
-    AutoRoute(
-      page: PendingDeviceApprovalsRoute.page,
-      guards: const [ProductModuleGuard()],
-    ),
+    if (isHospital)
+      AutoRoute(
+        page: PendingDeviceApprovalsRoute.page,
+        guards: const [ProductModuleGuard()],
+      ),
     AutoRoute(
       page: PatientDevicesRoute.page,
       guards: const [ProductModuleGuard()],
     ),
-    AutoRoute(
-      page: FamilyLinksRoute.page,
-      guards: const [ProductModuleGuard()],
-    ),
+    if (isHospital)
+      AutoRoute(
+        page: FamilyLinksRoute.page,
+        guards: const [ProductModuleGuard()],
+      ),
     AutoRoute(
       page: PatientListRoute.page,
       guards: const [ProductModuleGuard()],
@@ -73,18 +76,25 @@ List<AutoRoute> registrationRoutes({
       guards: const [ProductModuleGuard()],
       children: hubChildren,
     ),
-    AutoRoute(
-      page: AppointmentListRoute.page,
-      guards: const [ProductModuleGuard()],
-    ),
+    if (isHospital)
+      AutoRoute(
+        page: AppointmentListRoute.page,
+        guards: const [ProductModuleGuard()],
+      ),
+    if (isHospital)
+      AutoRoute(
+        page: AppointmentRequestsRoute.page,
+        guards: const [ProductModuleGuard()],
+      ),
     AutoRoute(
       page: TodayPatientsRoute.page,
       guards: const [ProductModuleGuard()],
     ),
-    AutoRoute(
-      page: NewAppointmentRoute.page,
-      guards: const [ProductModuleGuard()],
-    ),
+    if (isHospital)
+      AutoRoute(
+        page: NewAppointmentRoute.page,
+        guards: const [ProductModuleGuard()],
+      ),
     AutoRoute(
       page: NewPatientRoute.page,
       guards: const [ProductModuleGuard()],

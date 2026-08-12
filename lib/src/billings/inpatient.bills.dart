@@ -8,6 +8,7 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/discount_policy_models.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/billings/pay.bill.dart';
+import 'package:helty/src/billings/widgets/purchases_consumable_billing_panel.dart';
 import 'package:helty/src/printing/core/display_id.dart';
 import 'package:helty/src/printing/pdf/inpatient_invoice_pdf.dart';
 import 'package:helty/src/auth/billing_permissions.dart';
@@ -20,6 +21,7 @@ import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/admissions/admission_discharge_helpers.dart';
 import 'package:helty/src/admissions/discharge_admission_dialog.dart';
+import 'package:helty/src/purchases/models/purchases_model.dart';
 import 'package:helty/src/services/admission_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/shared/department_colors.dart';
@@ -1680,6 +1682,23 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                     _showAddOtherBillsModal(context);
                   },
                 ),
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.orange.shade100,
+                    child: Icon(
+                      Icons.inventory_2_outlined,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                  title: const Text('Add consumables'),
+                  subtitle: const Text(
+                    'Purchases store items — price and quantity',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showAddConsumablesModal(context);
+                  },
+                ),
               ],
             ),
           ),
@@ -2041,6 +2060,28 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => _AddOtherBillsSheet(
+        invoiceId: invoiceId,
+        invoiceService: _invoiceService,
+        onClose: () => Navigator.pop(ctx),
+        onAdded: () {
+          Navigator.pop(ctx);
+          _loadBillingData();
+        },
+      ),
+    );
+  }
+
+  void _showAddConsumablesModal(BuildContext context) {
+    final invoiceId = widget.invoiceId.trim();
+    if (invoiceId.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _AddConsumablesSheet(
         invoiceId: invoiceId,
         invoiceService: _invoiceService,
         onClose: () => Navigator.pop(ctx),
@@ -3378,5 +3419,125 @@ class _AddOtherBillsSheetState extends ConsumerState<_AddOtherBillsSheet> {
         );
       }
     }
+  }
+}
+
+// ==========================================
+// Add consumables modal (purchases catalog)
+// ==========================================
+
+class _AddConsumablesSheet extends StatefulWidget {
+  const _AddConsumablesSheet({
+    required this.invoiceId,
+    required this.invoiceService,
+    required this.onClose,
+    required this.onAdded,
+  });
+
+  final String invoiceId;
+  final InvoiceService invoiceService;
+  final VoidCallback onClose;
+  final VoidCallback onAdded;
+
+  @override
+  State<_AddConsumablesSheet> createState() => _AddConsumablesSheetState();
+}
+
+class _AddConsumablesSheetState extends State<_AddConsumablesSheet> {
+  bool _busy = false;
+
+  Future<void> _onConfirm(
+    PurchaseItem item,
+    String locationId,
+    int qty,
+    double unitPrice,
+  ) async {
+    final itemId = item.id?.trim() ?? '';
+    if (itemId.isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      await widget.invoiceService.addBillingItem(
+        invoiceId: widget.invoiceId,
+        payload: AddInvoiceItemPayload(
+          purchaseItemId: itemId,
+          purchasesLocationId: locationId,
+          unitPrice: unitPrice,
+          quantity: qty,
+        ),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${item.itemName} x$qty added to bill')),
+      );
+      widget.onAdded();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add consumable: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottom),
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.45,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) {
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Text(
+                      'Add consumables',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: widget.onClose,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  children: [
+                    Text(
+                      'Select a purchases store, search items, set unit price and quantity, then add to this invoice.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    PurchasesConsumableBillingPanel(
+                      confirmButtonLabel: 'Add to bill',
+                      busy: _busy,
+                      onConfirm: _onConfirm,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }

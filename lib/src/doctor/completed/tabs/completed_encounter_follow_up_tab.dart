@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/encounter_model.dart';
 
 @RoutePage()
@@ -11,11 +12,14 @@ class CompletedEncounterFollowUpTab extends StatelessWidget {
   static String? _dateLine(EncounterModel e) {
     final ap = e.followUpAppointment;
     if (ap != null) {
-      final d = ap.appointmentDate.toLocal();
-      return '${d.day}/${d.month}/${d.year}';
+      return DateFormatter.dateTime(ap.appointmentDate);
     }
     final raw = e.followUpDate;
-    if (raw != null && raw.isNotEmpty) return raw;
+    if (raw != null && raw.isNotEmpty) {
+      final parsed = DateTime.tryParse(raw);
+      if (parsed != null) return DateFormatter.dateTime(parsed);
+      return raw;
+    }
     return null;
   }
 
@@ -68,7 +72,7 @@ class CompletedEncounterFollowUpTab extends StatelessWidget {
         children: [
           if (dateLine != null && dateLine.isNotEmpty)
             _Block(
-              title: 'Follow-up date',
+              title: 'Follow-up date & time',
               content: dateLine,
               theme: theme,
               colorScheme: colorScheme,

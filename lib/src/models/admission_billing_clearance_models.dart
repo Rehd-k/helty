@@ -214,6 +214,50 @@ class PendingBillingClearanceAdmission {
   }
 }
 
+/// Paginated response from `GET /admissions/pending-nurses-clearance`.
+class PendingNursesClearancePage {
+  const PendingNursesClearancePage({
+    required this.admissions,
+    required this.total,
+    required this.skip,
+    required this.take,
+  });
+
+  final List<AdmissionModel> admissions;
+  final int total;
+  final int skip;
+  final int take;
+
+  factory PendingNursesClearancePage.fromJson(Map<String, dynamic> json) {
+    final admissionsRaw = json['admissions'];
+    final admissions = admissionsRaw is List
+        ? admissionsRaw
+              .whereType<Map>()
+              .map((e) {
+                final map = Map<String, dynamic>.from(e);
+                // Queue payload may omit top-level patientId / status.
+                final patient = map['patient'];
+                if ((map['patientId'] == null ||
+                        map['patientId'].toString().isEmpty) &&
+                    patient is Map &&
+                    patient['id'] != null) {
+                  map['patientId'] = patient['id'].toString();
+                }
+                map['status'] ??= 'PENDING_BILLING_CLEARANCE';
+                return AdmissionModel.fromJson(map);
+              })
+              .toList()
+        : <AdmissionModel>[];
+
+    return PendingNursesClearancePage(
+      admissions: admissions,
+      total: (json['total'] as num?)?.toInt() ?? admissions.length,
+      skip: (json['skip'] as num?)?.toInt() ?? 0,
+      take: (json['take'] as num?)?.toInt() ?? admissions.length,
+    );
+  }
+}
+
 /// Paginated response from `GET /admissions/pending-billing-clearance`.
 class PendingBillingClearancePage {
   const PendingBillingClearancePage({

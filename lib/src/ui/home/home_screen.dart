@@ -162,6 +162,24 @@ const cmacExecutiveMenuItems = <MenuItem>[
 final cmdUnifiedMenuItems = <MenuItem>[
   ...cmacExecutiveMenuItems,
   ...accountsHeadMenu,
+  MenuItem(
+    label: 'Hospital reports',
+    icon: Icons.assessment_outlined,
+    route: HospitalReportsHubRoute(),
+    color: DepartmentColors.administration,
+  ),
+  const MenuItem(
+    label: 'Health campaigns',
+    icon: Icons.campaign_outlined,
+    route: HealthCampaignsAdminRoute(),
+    color: DepartmentColors.medicalRecords,
+  ),
+  const MenuItem(
+    label: 'Health news',
+    icon: Icons.newspaper_outlined,
+    route: HealthNewsAdminRoute(),
+    color: DepartmentColors.medicalRecords,
+  ),
 ];
 
 /// CMD (chief medical director) executive sidebar — top-level for CMD logins;
@@ -356,21 +374,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final common = <MenuItem>[];
     bool moduleOn(AppModule module) => ProductModuleAccess.isModuleEnabled(module);
 
-    if (staffIsSuperAdmin(staff) && moduleOn(AppModule.administration)) {
+    if (staffIsSuperAdmin(staff)) {
+      if (moduleOn(AppModule.administration)) {
+        common.add(
+          const MenuItem(
+            label: 'Super Admin hub',
+            icon: Icons.admin_panel_settings_outlined,
+            route: SuperAdminHubRoute(),
+          ),
+        );
+        common.add(
+          const MenuItem(
+            label: 'Staff directory',
+            icon: Icons.groups_outlined,
+            route: SuperAdminStaffListRoute(),
+          ),
+        );
+      }
+      // Available on every product (Register is shared; services need billing).
       common.add(
         const MenuItem(
-          label: 'Super Admin hub',
-          icon: Icons.admin_panel_settings_outlined,
-          route: SuperAdminHubRoute(),
+          label: 'Register',
+          icon: Icons.verified_user_rounded,
+          route: RegisterRoute(),
+          color: DepartmentColors.administration,
         ),
       );
-      common.add(
-        const MenuItem(
-          label: 'Staff directory',
-          icon: Icons.groups_outlined,
-          route: SuperAdminStaffListRoute(),
-        ),
-      );
+      // Hospital already exposes this under System Setup; slim products need a
+      // top-level entry because administration routes are not registered.
+      if (moduleOn(AppModule.billing) &&
+          !moduleOn(AppModule.administration)) {
+        common.add(
+          const MenuItem(
+            label: 'Add Service',
+            icon: Icons.add_box_outlined,
+            route: SystemSetupRoute(),
+            color: DepartmentColors.itDepartment,
+          ),
+        );
+      }
     }
     final r = role.toLowerCase();
     final at = accountType.toLowerCase();
@@ -583,14 +625,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: cmdExecutiveMenuItems,
           ),
         );
-        common.add(
-          const MenuItem(
-            label: 'Register',
-            icon: Icons.verified_user_rounded,
-            route: RegisterRoute(),
-            color: DepartmentColors.administration,
-          ),
-        );
+        // Super admin already has Register from the dedicated block above.
+        if (!staffIsSuperAdmin(staff)) {
+          common.add(
+            const MenuItem(
+              label: 'Register',
+              icon: Icons.verified_user_rounded,
+              route: RegisterRoute(),
+              color: DepartmentColors.administration,
+            ),
+          );
+        }
       }
       if (moduleOn(AppModule.laboratory)) {
         common.add(
