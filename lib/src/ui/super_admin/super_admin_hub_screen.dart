@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
 import '../../app/product_module_access.dart';
+import '../../paitients/patient_model.dart';
 import '../../paitients/patient_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/super_admin_preview_provider.dart';
@@ -61,76 +62,42 @@ class SuperAdminHubScreen extends ConsumerWidget {
   }
 
   Future<void> _openMergePatients(BuildContext context) async {
-    final survivorCtrl = TextEditingController();
-    final duplicateCtrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final selection = await showDialog<_MergeSelection>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Merge patients'),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Reassign all records from the duplicate patient onto the survivor, then delete the duplicate. Survivor keeps their hospital ID and phone.',
-                style: Theme.of(ctx).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: survivorCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Survivor patient UUID',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: duplicateCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Duplicate patient UUID',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Merge'),
-          ),
-        ],
-      ),
+      builder: (ctx) => const _MergePatientsDialog(),
     );
-    final survivorId = survivorCtrl.text.trim();
-    final duplicateId = duplicateCtrl.text.trim();
-    survivorCtrl.dispose();
-    duplicateCtrl.dispose();
-    if (confirmed != true) return;
+    if (selection == null || !context.mounted) return;
+
     final messenger = ScaffoldMessenger.of(context);
-    if (survivorId.isEmpty || duplicateId.isEmpty) {
+    final survivor = selection.survivor;
+    final duplicate = selection.duplicate;
+    final survivorUuid = survivor.id?.trim() ?? '';
+    final duplicateUuid = duplicate.id?.trim() ?? '';
+    if (survivorUuid.isEmpty || duplicateUuid.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Enter both survivor and duplicate IDs.')),
+        const SnackBar(
+          content: Text('Select both survivor and duplicate patients.'),
+        ),
       );
       return;
     }
-    if (survivorId == duplicateId) {
+    if (survivorUuid == duplicateUuid) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Survivor and duplicate must differ.')),
       );
       return;
     }
+
+    final survivorLabel =
+        '${survivor.displayName} (${survivor.patientId})';
+    final duplicateLabel =
+        '${duplicate.displayName} (${duplicate.patientId})';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm merge'),
         content: Text(
-          'Merge $duplicateId into $survivorId? This cannot be undone.',
+          'Merge $duplicateLabel into $survivorLabel? This cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -146,14 +113,14 @@ class SuperAdminHubScreen extends ConsumerWidget {
     );
     if (ok != true) return;
     try {
-      final survivor = await PatientService().mergePatients(
-        survivorId: survivorId,
-        duplicateId: duplicateId,
+      final merged = await PatientService().mergePatients(
+        survivorId: survivorUuid,
+        duplicateId: duplicateUuid,
       );
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'Merged into ${survivor.displayName} (${survivor.patientId}).',
+            'Merged into ${merged.displayName} (${merged.patientId}).',
           ),
         ),
       );
@@ -430,6 +397,230 @@ class _DepartmentCardState extends State<_DepartmentCard> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MergeSelection {
+  const _MergeSelection({required this.survivor, required this.duplicate});
+
+  final Patient survivor;
+  final Patient duplicate;
+}
+
+class _MergePatientsDialog extends StatefulWidget {
+  const _MergePatientsDialog();
+
+  @override
+  State<_MergePatientsDialog> createState() => _MergePatientsDialogState();
+}
+
+class _MergePatientsDialogState extends State<_MergePatientsDialog> {
+  final _patientService = PatientService();
+  Patient? _survivor;
+  Patient? _duplicate;
+
+  @override
+  Widget build(BuildContext context) {
+    final canMerge = _survivor != null && _duplicate != null;
+    return AlertDialog(
+      title: const Text('Merge patients'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Search by name or hospital patient ID. Reassign all records from the duplicate onto the survivor, then delete the duplicate. Survivor keeps their hospital ID and phone.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            _PatientSearchPicker(
+              label: 'Survivor (keep)',
+              selected: _survivor,
+              onSelected: (p) => setState(() => _survivor = p),
+              onClear: () => setState(() => _survivor = null),
+              search: _patientService.searchPatients,
+            ),
+            const SizedBox(height: 12),
+            _PatientSearchPicker(
+              label: 'Duplicate (merge away)',
+              selected: _duplicate,
+              onSelected: (p) => setState(() => _duplicate = p),
+              onClear: () => setState(() => _duplicate = null),
+              search: _patientService.searchPatients,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: canMerge
+              ? () => Navigator.pop(
+                    context,
+                    _MergeSelection(
+                      survivor: _survivor!,
+                      duplicate: _duplicate!,
+                    ),
+                  )
+              : null,
+          child: const Text('Merge'),
+        ),
+      ],
+    );
+  }
+}
+
+class _PatientSearchPicker extends StatefulWidget {
+  const _PatientSearchPicker({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+    required this.onClear,
+    required this.search,
+  });
+
+  final String label;
+  final Patient? selected;
+  final ValueChanged<Patient> onSelected;
+  final VoidCallback onClear;
+  final Future<List<Patient>> Function(String query, bool isAscending) search;
+
+  @override
+  State<_PatientSearchPicker> createState() => _PatientSearchPickerState();
+}
+
+class _PatientSearchPickerState extends State<_PatientSearchPicker> {
+  final _controller = TextEditingController();
+  List<Patient> _results = const [];
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runSearch(String value) async {
+    final q = value.trim();
+    if (q.isEmpty) {
+      setState(() {
+        _results = const [];
+        _error = null;
+        _loading = false;
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final rows = await widget.search(q, true);
+      if (!mounted) return;
+      setState(() {
+        _results = rows;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+        _results = const [];
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = widget.selected;
+    if (selected != null) {
+      return InputDecorator(
+        decoration: InputDecoration(
+          labelText: widget.label,
+          border: const OutlineInputBorder(),
+          suffixIcon: IconButton(
+            tooltip: 'Clear',
+            onPressed: widget.onClear,
+            icon: const Icon(Icons.clear),
+          ),
+        ),
+        child: Text(
+          '${selected.displayName} · ${selected.patientId}',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _controller,
+          decoration: InputDecoration(
+            labelText: widget.label,
+            hintText: 'Search name or patient ID',
+            border: const OutlineInputBorder(),
+            suffixIcon: _loading
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : IconButton(
+                    onPressed: () => _runSearch(_controller.text),
+                    icon: const Icon(Icons.search),
+                  ),
+          ),
+          textInputAction: TextInputAction.search,
+          onChanged: (v) {
+            if (v.trim().length >= 2) _runSearch(v);
+          },
+          onSubmitted: _runSearch,
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+        if (_results.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 180),
+            child: Material(
+              type: MaterialType.transparency,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _results.length,
+                itemBuilder: (context, index) {
+                  final p = _results[index];
+                  return ListTile(
+                    dense: true,
+                    title: Text(p.displayName),
+                    subtitle: Text(p.patientId),
+                    onTap: () {
+                      widget.onSelected(p);
+                      _controller.clear();
+                      setState(() => _results = const []);
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

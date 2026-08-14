@@ -95,6 +95,9 @@ class EnlistPaitientState extends ConsumerState<EnlistPaitientScreen> {
     } else if (serviceName == 'inpatient') {
       moduleFlowNotifier.state = defaultOrHmo;
       context.router.push(InpatientBillsListRoute());
+    } else if (serviceName == 'billing_account') {
+      moduleFlowNotifier.state = defaultOrHmo;
+      context.router.push(const PatientBillingAccountRoute());
     } else if (serviceName == 'OPD') {
       moduleFlowNotifier.state = defaultOrHmo;
       context.router.push(RenderServiceRoute());

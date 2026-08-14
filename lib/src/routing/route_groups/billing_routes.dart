@@ -81,6 +81,10 @@ List<AutoRoute> billingRoutes({
     page: InpatientBillsListRoute.page,
     guards: const [ProductModuleGuard()],
   ),
+  AutoRoute(
+    page: PatientBillingAccountRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
   if (isHospital) ...[
     AutoRoute(
       page: BillingWardInpatientsRoute.page,

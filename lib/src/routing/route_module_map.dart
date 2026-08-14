@@ -45,6 +45,7 @@ const Map<String, AppModule> _routeModules = {
   'AddCategoryRoute': AppModule.billing,
   'AddDepartmentRoute': AppModule.billing,
   'InpatientBillsListRoute': AppModule.billing,
+  'PatientBillingAccountRoute': AppModule.billing,
   'BillingWardInpatientsRoute': AppModule.billing,
   'AwaitingBillingClearanceRoute': AppModule.billing,
   'PatientBillingRoute': AppModule.billing,
@@ -274,8 +275,6 @@ const Map<String, AppModule> _routeModules = {
 
   // Administration / CMD / CMAC / super admin
   'SuperAdminHubRoute': AppModule.administration,
-  'SuperAdminStaffListRoute': AppModule.administration,
-  'SuperAdminStaffDetailRoute': AppModule.administration,
   'CMDDashboardRoute': AppModule.administration,
   'CMDHospitalOverviewRoute': AppModule.administration,
   'CMDFinancialCommandRoute': AppModule.administration,

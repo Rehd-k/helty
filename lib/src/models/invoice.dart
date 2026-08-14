@@ -31,6 +31,12 @@ abstract class Invoice with _$Invoice {
 
     /// Human-facing bill code (`invoiceID` from API), when present.
     String? invoiceDisplayId,
+
+    /// `OUTPATIENT` | `INPATIENT` from staff invoice detail.
+    String? billType,
+
+    /// Ward name when [billType] is inpatient.
+    String? wardName,
   }) = _Invoice;
 
   // Custom getter — now allowed
@@ -101,6 +107,14 @@ abstract class Invoice with _$Invoice {
       encounterId: json['encounterId'] as String?,
       createdBy: json['createdBy'] as Map<String, dynamic>?,
       count: json['_count'] as Map<String, dynamic>?,
+      billType: () {
+        final raw = json['billType']?.toString().trim();
+        return raw != null && raw.isNotEmpty ? raw : null;
+      }(),
+      wardName: () {
+        final raw = json['wardName']?.toString().trim();
+        return raw != null && raw.isNotEmpty ? raw : null;
+      }(),
     );
   }
 }

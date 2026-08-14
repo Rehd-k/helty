@@ -21,6 +21,8 @@ void main() {
       expect(moduleForRouteName('HelpCenterRoute'), isNull);
       expect(moduleForRouteName('StaffChatRoute'), isNull);
       expect(moduleForRouteName('LoginRoute'), isNull);
+      expect(moduleForRouteName('SuperAdminStaffListRoute'), isNull);
+      expect(moduleForRouteName('SuperAdminStaffDetailRoute'), isNull);
     });
   });
 
@@ -35,6 +37,8 @@ void main() {
       expect(names, contains('CMDDashboardRoute'));
       expect(names, contains('FrontDeskDashboardRoute'));
       expect(names, contains('BillingDashboardRoute'));
+      expect(names, contains('SuperAdminStaffListRoute'));
+      expect(names, contains('SuperAdminStaffDetailRoute'));
     });
 
     test('pharmacy omits lab, radiology, doctor, nursing, cmd', () {
@@ -51,6 +55,8 @@ void main() {
       expect(names, isNot(contains('DialysisDashboardRoute')));
       expect(names, isNot(contains('HubLabsRoute')));
       expect(names, contains('HubMedsRoute'));
+      expect(names, contains('SuperAdminStaffListRoute'));
+      expect(names, contains('SuperAdminStaffDetailRoute'));
     });
 
     test('diagnostics omits pharmacy, doctor, nursing, cmd', () {
@@ -66,6 +72,8 @@ void main() {
       expect(names, isNot(contains('HubMedsRoute')));
       expect(names, isNot(contains('DoctorDashboardRoute')));
       expect(names, isNot(contains('CMDDashboardRoute')));
+      expect(names, contains('SuperAdminStaffListRoute'));
+      expect(names, contains('SuperAdminStaffDetailRoute'));
     });
 
     test('exactly one initial Home child per product', () {
@@ -124,6 +132,13 @@ void main() {
       expect(
         ProductRoutes.isRouteAllowed(
           'LabDashboardRoute',
+          AppProduct.diagnostics,
+        ),
+        isTrue,
+      );
+      expect(
+        ProductRoutes.isRouteAllowed(
+          'SuperAdminStaffListRoute',
           AppProduct.diagnostics,
         ),
         isTrue,

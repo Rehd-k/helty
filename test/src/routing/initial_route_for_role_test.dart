@@ -62,5 +62,21 @@ void main() {
         isA<FrontDeskDashboardRoute>(),
       );
     });
+
+    test('diagnostics super admin lands on staff directory', () {
+      ProductEnvironment.bind(AppProduct.diagnostics);
+      expect(
+        initialRouteForRole('SUPER_ADMIN', 'super_admin'),
+        isA<SuperAdminStaffListRoute>(),
+      );
+    });
+
+    test('pharmacy super admin lands on staff directory', () {
+      ProductEnvironment.bind(AppProduct.pharmacy);
+      expect(
+        initialRouteForRole('admin', 'admin'),
+        isA<SuperAdminStaffListRoute>(),
+      );
+    });
   });
 }

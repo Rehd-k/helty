@@ -10,6 +10,12 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
   final at = accountType.toLowerCase();
   final r = role.toUpperCase();
 
+  if (at == 'super_admin' || at == 'admin') {
+    if (!ProductModuleAccess.isModuleEnabled(AppModule.administration)) {
+      return const SuperAdminStaffListRoute();
+    }
+  }
+
   final blocked = _landingBlockedByProduct(at, r);
   if (blocked) {
     return ProductModuleAccess.fallbackInitialRoute();

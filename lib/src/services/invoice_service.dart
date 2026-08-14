@@ -255,6 +255,46 @@ class InvoiceService {
     }
   }
 
+  /// Patient billing account: invoices plus nested payment history from the same payload.
+  Future<({List<Invoice> invoices, List<PatientAccountPayment> payments})>
+  getPatientBillingAccount(String patientId) async {
+    try {
+      final response = await _dio.get('/invoices/patient/$patientId');
+      final list = _extractList(response.data, key: 'invoices');
+      final invoices = <Invoice>[];
+      final payments = <PatientAccountPayment>[];
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final map = Map<String, dynamic>.from(raw);
+        final invoice = Invoice.fromJson(map);
+        invoices.add(invoice);
+        final paysRaw = map['payments'];
+        if (paysRaw is! List) continue;
+        for (final payRaw in paysRaw) {
+          if (payRaw is! Map) continue;
+          final payMap = Map<String, dynamic>.from(payRaw);
+          payMap['invoice'] ??= {
+            'id': invoice.id,
+            'invoiceID': invoice.invoiceDisplayId,
+            'status': invoice.status,
+            'invoiceItems': map['invoiceItems'],
+          };
+          payments.add(PatientAccountPayment.fromJson(payMap));
+        }
+      }
+      payments.sort((a, b) {
+        final aAt = a.paidAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bAt = b.paidAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bAt.compareTo(aAt);
+      });
+      return (invoices: invoices, payments: payments);
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load patient billing account: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
   Future<BillingInvoiceDetail> getBillingInvoice(String invoiceId) async {
     try {
       final response = await _dio.get('/invoices/$invoiceId');
@@ -648,6 +688,37 @@ class InvoiceService {
     } on DioException catch (e) {
       throw Exception(
         'Failed to load payments: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
+  /// Staff ledger payments for one patient (`GET /invoices/payments?patientId=`).
+  /// Omits date params so the API returns full history.
+  Future<List<PatientAccountPayment>> getPatientPayments(
+    String patientId, {
+    int skip = 0,
+    int take = 500,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/invoices/payments',
+        queryParameters: {
+          'patientId': patientId,
+          'skip': skip,
+          'take': take,
+        },
+      );
+      final list = _extractList(response.data, key: 'payments');
+      return list
+          .whereType<Map>()
+          .map(
+            (e) =>
+                PatientAccountPayment.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        'Failed to load patient payments: ${_dioMessage(e, 'Unknown error')}',
       );
     }
   }

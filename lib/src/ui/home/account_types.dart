@@ -144,6 +144,12 @@ List<MenuItem> get bills => [
   ),
   MenuItem(
     color: DepartmentColors.billing,
+    label: 'Patient billing account',
+    icon: Icons.account_balance_wallet_outlined,
+    route: EnlistPaitientRoute(serviceName: 'billing_account'),
+  ),
+  MenuItem(
+    color: DepartmentColors.billing,
     label: 'Render Service',
     icon: Icons.dataset_outlined,
     route: EnlistPaitientRoute(serviceName: 'OPD'),
@@ -238,6 +244,11 @@ List<MenuItem> get hmoDeskMenu => [
     label: 'Pending Transaction',
     icon: Icons.pending_actions_outlined,
     route: PendingBillsRoute(),
+  ),
+  MenuItem(
+    label: 'Patient billing account',
+    icon: Icons.account_balance_wallet_outlined,
+    route: EnlistPaitientRoute(serviceName: 'billing_account'),
   ),
   MenuItem(
     label: 'Render Service',

@@ -688,6 +688,95 @@ class BillingInvoicePayment {
   }
 }
 
+/// Payment row from `GET /invoices/payments?patientId=` for the patient billing account.
+class PatientAccountPayment {
+  PatientAccountPayment({
+    required this.id,
+    required this.amount,
+    required this.source,
+    this.method,
+    this.reference,
+    this.paidAt,
+    this.invoiceId,
+    this.invoiceNumber,
+    this.invoiceStatus,
+    this.paidForSummary,
+    this.receivedByName,
+  });
+
+  final String id;
+  final double amount;
+  final String source;
+  final String? method;
+  final String? reference;
+  final DateTime? paidAt;
+  final String? invoiceId;
+  final String? invoiceNumber;
+  final String? invoiceStatus;
+  final String? paidForSummary;
+  final String? receivedByName;
+
+  factory PatientAccountPayment.fromJson(Map<String, dynamic> json) {
+    final invoiceRaw = json['invoice'];
+    final invoice = invoiceRaw is Map
+        ? Map<String, dynamic>.from(invoiceRaw)
+        : null;
+    final receivedByRaw = json['receivedBy'];
+    final receivedBy = receivedByRaw is Map
+        ? Map<String, dynamic>.from(receivedByRaw)
+        : null;
+    final receivedByName = _staffNameFromMap(receivedBy);
+    final itemsRaw = invoice?['invoiceItems'];
+    final summaries = <String>[];
+    if (itemsRaw is List) {
+      for (final raw in itemsRaw.take(4)) {
+        if (raw is! Map) continue;
+        final item = Map<String, dynamic>.from(raw);
+        final custom = _nullableString(item['customDescription']);
+        final serviceRaw = item['service'];
+        final service = serviceRaw is Map
+            ? Map<String, dynamic>.from(serviceRaw)
+            : null;
+        final drugRaw = item['drug'];
+        final drug = drugRaw is Map
+            ? Map<String, dynamic>.from(drugRaw)
+            : null;
+        final purchaseRaw = item['purchaseItem'];
+        final purchase = purchaseRaw is Map
+            ? Map<String, dynamic>.from(purchaseRaw)
+            : null;
+        final label =
+            custom ??
+            _nullableString(service?['name']) ??
+            _nullableString(drug?['genericName']) ??
+            _nullableString(drug?['brandName']) ??
+            _nullableString(purchase?['itemName']);
+        if (label != null && label.isNotEmpty) summaries.add(label);
+      }
+    }
+    final more = itemsRaw is List && itemsRaw.length > 4
+        ? ' +${itemsRaw.length - 4} more'
+        : '';
+    final paidFor = summaries.isEmpty
+        ? null
+        : '${summaries.join(', ')}$more';
+
+    return PatientAccountPayment(
+      id: _asString(json['id']),
+      amount: _asDouble(json['amount']),
+      source: _asString(json['source'], fallback: 'CASH'),
+      method: _nullableString(json['method']),
+      reference: _nullableString(json['reference']),
+      paidAt: _asDate(json['paidAt']),
+      invoiceId: _nullableString(invoice?['id'] ?? json['invoiceId']),
+      invoiceNumber: _nullableString(invoice?['invoiceID']),
+      invoiceStatus: _nullableString(invoice?['status']),
+      paidForSummary: paidFor,
+      receivedByName: receivedByName.isNotEmpty ? receivedByName : null,
+    );
+  }
+}
+
 String _staffNameFromMap(Map<String, dynamic>? m) {
   return formatStaffName(m) ?? '';
 }

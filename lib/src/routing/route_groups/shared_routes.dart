@@ -42,4 +42,12 @@ List<AutoRoute> sharedHomeChildren() => [
     page: RegisterRoute.page,
     guards: const [ProductModuleGuard()],
   ),
+  AutoRoute(
+    page: SuperAdminStaffListRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: SuperAdminStaffDetailRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
 ];

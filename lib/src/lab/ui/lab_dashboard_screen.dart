@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -127,25 +129,30 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final payload = await ref.read(labApiServiceProvider).exportLabConfig();
-      final bytes = utf8.encode(
-        const JsonEncoder.withIndent('  ').convert(payload),
+      final bytes = Uint8List.fromList(
+        utf8.encode(const JsonEncoder.withIndent('  ').convert(payload)),
       );
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'Save lab configuration',
         fileName: 'helty-lab-config.json',
         type: FileType.custom,
         allowedExtensions: const ['json'],
-        bytes: Uint8List.fromList(bytes),
+        bytes: bytes,
       );
       if (!mounted) return;
+      if (path == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Export cancelled')),
+        );
+        return;
+      }
+      // Desktop file_picker only returns a path; bytes are written on web only.
+      if (!kIsWeb) {
+        await File(path).writeAsBytes(bytes, flush: true);
+      }
+      if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            path == null
-                ? 'Export cancelled'
-                : 'Lab configuration saved',
-          ),
-        ),
+        SnackBar(content: Text('Lab configuration saved to $path')),
       );
     } catch (e) {
       if (!mounted) return;

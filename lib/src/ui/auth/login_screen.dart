@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_router.gr.dart';
+import '../../app/product_definition.dart';
 import '../../app/product_environment.dart';
 import '../../core/storage/saved_login_storage.dart';
 import '../../models/saved_login.dart';
@@ -178,7 +179,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final staffRole = staff?.staffRole ?? '';
       final accountType = staff?.accountType?.name ?? '';
       final PageRouteInfo initialChild = staffIsSuperAdmin(staff)
-          ? const SuperAdminHubRoute()
+          ? (ProductEnvironment.isModuleEnabled(AppModule.administration)
+              ? const SuperAdminHubRoute()
+              : const SuperAdminStaffListRoute())
           : initialRouteForRole(staffRole, accountType);
       context.router.replaceAll([
         HomeRoute(children: [initialChild]),

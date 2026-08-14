@@ -383,14 +383,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             route: SuperAdminHubRoute(),
           ),
         );
-        common.add(
-          const MenuItem(
-            label: 'Staff directory',
-            icon: Icons.groups_outlined,
-            route: SuperAdminStaffListRoute(),
-          ),
-        );
       }
+      // Staff directory is shared-platform (all products), not hospital-only.
+      common.add(
+        const MenuItem(
+          label: 'Staff directory',
+          icon: Icons.groups_outlined,
+          route: SuperAdminStaffListRoute(),
+        ),
+      );
       // Available on every product (Register is shared; services need billing).
       common.add(
         const MenuItem(
