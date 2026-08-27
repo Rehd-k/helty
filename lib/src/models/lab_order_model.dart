@@ -38,6 +38,7 @@ class LabOrderModel {
     this.createdAt,
     this.resultValues,
     this.resultLines,
+    this.printableLabOrderId,
   });
 
   final String id;
@@ -53,19 +54,31 @@ class LabOrderModel {
   /// Structured results from `invoiceItem.labOrder.items[].results[]` (or top-level `labOrder`).
   final List<LabOrderResultLine>? resultLines;
 
-  static List<LabOrderResultLine>? _parseNestedItemResults(
-    Map<String, dynamic> json,
-  ) {
-    Map<String, dynamic>? labOrderMap;
+  /// Nested structured [LabOrder] id for PDF printing via lab module API.
+  final String? printableLabOrderId;
+
+  static Map<String, dynamic>? _nestedLabOrderMap(Map<String, dynamic> json) {
     final inv = json['invoiceItem'];
     if (inv is Map<String, dynamic>) {
       final lo = inv['labOrder'];
-      if (lo is Map<String, dynamic>) labOrderMap = lo;
+      if (lo is Map<String, dynamic>) return lo;
     }
-    labOrderMap ??=
-        json['labOrder'] is Map<String, dynamic>
-            ? json['labOrder'] as Map<String, dynamic>
-            : null;
+    final lo = json['labOrder'];
+    if (lo is Map<String, dynamic>) return lo;
+    return null;
+  }
+
+  static String? _printableLabOrderIdFromJson(Map<String, dynamic> json) {
+    final lo = _nestedLabOrderMap(json);
+    final id = lo?['id']?.toString().trim();
+    if (id != null && id.isNotEmpty) return id;
+    return null;
+  }
+
+  static List<LabOrderResultLine>? _parseNestedItemResults(
+    Map<String, dynamic> json,
+  ) {
+    final labOrderMap = _nestedLabOrderMap(json);
     if (labOrderMap == null) return null;
 
     final items = labOrderMap['items'];
@@ -160,6 +173,7 @@ class LabOrderModel {
             )
           : null,
       resultLines: nestedLines,
+      printableLabOrderId: _printableLabOrderIdFromJson(json),
     );
   }
 }

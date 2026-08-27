@@ -256,13 +256,21 @@ class AppTheme {
   /// This centralizes component theme definitions.
   static ThemeData _buildTheme(ColorScheme colorScheme) {
     final shell = AppShellTheme.fromColorScheme(colorScheme);
-    final textTheme =
-        GoogleFonts.interTextTheme(
-          ThemeData(brightness: colorScheme.brightness).textTheme,
-        ).apply(
-          bodyColor: colorScheme.onSurface,
-          displayColor: colorScheme.onSurface,
-        );
+    final fallbackTextTheme =
+        ThemeData(brightness: colorScheme.brightness).textTheme;
+    TextTheme textTheme;
+    try {
+      textTheme = GoogleFonts.interTextTheme(fallbackTextTheme);
+    } catch (_) {
+      // Font cache under AppData can be unreadable when another Windows user
+      // (or an elevated run) created it. Fall back so the first frame still
+      // rasterizes and the window can be shown.
+      textTheme = fallbackTextTheme;
+    }
+    textTheme = textTheme.apply(
+      bodyColor: colorScheme.onSurface,
+      displayColor: colorScheme.onSurface,
+    );
 
     final shapeMd = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(radiusMd),

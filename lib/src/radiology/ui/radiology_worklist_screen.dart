@@ -503,6 +503,12 @@ class _OrderCard extends StatelessWidget {
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    Text(
+                      'Ward: ${order.wardDisplayLabel}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     if (requestedByName.isNotEmpty)
                       Text(
                         'Requested by: $requestedByName',

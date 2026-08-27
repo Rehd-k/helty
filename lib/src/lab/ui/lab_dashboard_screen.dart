@@ -642,6 +642,18 @@ class _PatientOrderGroup {
 
   int get totalTests =>
       orders.fold(0, (sum, order) => sum + order.items.length);
+
+  /// Ward at request time; unique labels joined when a patient has mixed wards.
+  String get wardDisplayLabel {
+    final labels = <String>[];
+    final seen = <String>{};
+    for (final order in orders) {
+      final label = order.wardDisplayLabel;
+      if (seen.add(label)) labels.add(label);
+    }
+    if (labels.isEmpty) return 'OPD';
+    return labels.join(', ');
+  }
 }
 
 List<_PatientOrderGroup> _groupOrdersByPatient(List<LabOrder> orders) {
@@ -946,6 +958,7 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
             ),
           ),
           subtitle: Text(
+            'Ward: ${group.wardDisplayLabel} · '
             '${group.orders.length} order${group.orders.length == 1 ? '' : 's'} · '
             '${group.totalTests} test${group.totalTests == 1 ? '' : 's'}',
             style: theme.textTheme.bodySmall?.copyWith(

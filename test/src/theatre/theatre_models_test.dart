@@ -42,6 +42,21 @@ void main() {
               'billable': true,
             },
           ],
+          'operativeNoteRecords': [
+            {
+              'id': 'note-1',
+              'narrative': 'Procedure: Appendectomy',
+              'additionalNotes': 'Uneventful',
+              'answersJson': {
+                'procedure': {'name': 'Appendectomy'},
+              },
+              'authoredBy': {
+                'id': 's-1',
+                'firstName': 'Ada',
+                'lastName': 'Okeke',
+              },
+            },
+          ],
         },
       });
 
@@ -53,6 +68,11 @@ void main() {
       expect(request.schedule?.theatreRoom?.name, 'OT 1');
       expect(request.theatreCase?.findings, 'Inflamed appendix');
       expect(request.theatreCase?.consumables.length, 1);
+      expect(request.theatreCase?.operativeNoteRecords.length, 1);
+      expect(
+        request.theatreCase?.operativeNoteRecords.first.narrative,
+        'Procedure: Appendectomy',
+      );
     });
   });
 
@@ -96,6 +116,40 @@ void main() {
       );
       expect(canBookSurgeryRequests(doctor), isTrue);
       expect(canAccessTheatreModule(doctor), isFalse);
+    });
+
+    test('resident can book surgery from an encounter', () {
+      final resident = staffWithRole(
+        'RESIDENT',
+        accountType: AccountType.physician,
+      );
+      expect(canBookSurgeryRequests(resident), isTrue);
+    });
+
+    test('medical student cannot book surgery', () {
+      final student = staffWithRole(
+        'MEDICAL_STUDENT',
+        accountType: AccountType.physician,
+      );
+      expect(canBookSurgeryRequests(student), isFalse);
+      expect(canWriteOperativeNotes(student), isFalse);
+    });
+
+    test('consultant can write operative notes', () {
+      final doctor = staffWithRole(
+        'CONSULTANT',
+        accountType: AccountType.physician,
+      );
+      expect(canWriteOperativeNotes(doctor), isTrue);
+      expect(canManageTheatreClinical(doctor), isFalse);
+    });
+
+    test('theatre nurse can write operative notes', () {
+      final nurse = staffWithRole(
+        'THEATRE_NURSE',
+        accountType: AccountType.theatre,
+      );
+      expect(canWriteOperativeNotes(nurse), isTrue);
     });
   });
 

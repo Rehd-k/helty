@@ -211,6 +211,23 @@ class _DoctorEncounterViewScreenState
   String? _activeAdmissionId;
   String? _patientWard;
 
+  /// Built once so parent [setState]s (patient, vitals, doctor name) do not
+  /// recreate AutoTabsRouter routes and remount Chart (scroll snap + reload).
+  late final List<PageRouteInfo> _encounterTabRoutes = [
+    const DoctorEncounterChartTab(),
+    DoctorEncounterHistoryTab(),
+    DoctorEncounterExaminationTab(),
+    DoctorEncounterDiagnosisTab(),
+    DoctorEncounterInvestigationsTab(),
+    DoctorEncounterImagingTab(),
+    DoctorEncounterSurgeryTab(),
+    DoctorEncounterPrescriptionTab(),
+    DoctorEncounterProceduresTab(),
+    DoctorEncounterNotesTab(),
+    DoctorEncounterAdmissionTab(),
+    DoctorEncounterFollowUpTab(),
+  ];
+
   void _notifyTemplateApplied() {
     setState(() => _reloadGeneration++);
   }
@@ -232,9 +249,9 @@ class _DoctorEncounterViewScreenState
       encounterType: _encounter?.encounterType,
     );
     if (!mounted || created == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Saved template "${created.name}"')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Saved template "${created.name}"')));
   }
 
   @override
@@ -259,7 +276,9 @@ class _DoctorEncounterViewScreenState
         unawaited(_promptAmendReason());
         return;
       }
-      if (_isEmergency || _specialtyGateDismissed || _specialtyGateOverlayScheduled) {
+      if (_isEmergency ||
+          _specialtyGateDismissed ||
+          _specialtyGateOverlayScheduled) {
         return;
       }
       final enc = _encounter;
@@ -478,19 +497,7 @@ class _DoctorEncounterViewScreenState
         : enc?.doctorId;
 
     return AutoTabsRouter(
-      routes: const [
-        DoctorEncounterHistoryTab(),
-        DoctorEncounterExaminationTab(),
-        DoctorEncounterDiagnosisTab(),
-        DoctorEncounterInvestigationsTab(),
-        DoctorEncounterImagingTab(),
-        DoctorEncounterSurgeryTab(),
-        DoctorEncounterPrescriptionTab(),
-        DoctorEncounterProceduresTab(),
-        DoctorEncounterNotesTab(),
-        DoctorEncounterAdmissionTab(),
-        DoctorEncounterFollowUpTab(),
-      ],
+      routes: _encounterTabRoutes,
       builder: (context, child) {
         final tabsRouter = AutoTabsRouter.of(context);
 
@@ -575,8 +582,8 @@ class _DoctorEncounterViewScreenState
     final enc = _encounter;
     if (enc == null) return;
 
-    final hasDiagnosis = (enc.primaryIcdCode != null &&
-            enc.primaryIcdCode!.trim().isNotEmpty) ||
+    final hasDiagnosis =
+        (enc.primaryIcdCode != null && enc.primaryIcdCode!.trim().isNotEmpty) ||
         enc.linkedDiagnoses.isNotEmpty;
 
     final result = await showEdDispositionDialog(
@@ -589,7 +596,7 @@ class _DoctorEncounterViewScreenState
 
     if (result.navigateToAdmissionTab) {
       final tabsRouter = AutoTabsRouter.of(context);
-      tabsRouter.setActiveIndex(9);
+      tabsRouter.setActiveIndex(10);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Complete admission details on the Admission tab.'),
@@ -600,9 +607,9 @@ class _DoctorEncounterViewScreenState
 
     await _loadEncounter();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('ED disposition recorded.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('ED disposition recorded.')));
     context.router.maybePop();
   }
 
@@ -690,9 +697,7 @@ class _DoctorEncounterViewScreenState
         children: [
           Icon(icon, size: 20, color: scheme.onSurface),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(message, style: theme.textTheme.bodySmall),
-          ),
+          Expanded(child: Text(message, style: theme.textTheme.bodySmall)),
         ],
       ),
     );
@@ -708,8 +713,7 @@ class _DoctorEncounterViewScreenState
     final isSharedInpatient = enc?.isSharedInpatient == true;
     final canEdit = encounterCanEdit(enc);
     final meta = enc?.editMeta;
-    final versionedEdits =
-        isAmend || meta?.requiresVersionedEdits == true;
+    final versionedEdits = isAmend || meta?.requiresVersionedEdits == true;
     final isSuperAdmin = staffIsSuperAdmin(ref.watch(authProvider).staff);
     final canSuperAdminEnd =
         isSuperAdmin && !isCompleted && !isAmend && !canEdit;
@@ -964,9 +968,7 @@ class _DoctorEncounterViewScreenState
     }
 
     final patient = _patient;
-    final name = patient != null
-        ? patient.displayName
-        : 'Unknown Patient';
+    final name = patient != null ? patient.displayName : 'Unknown Patient';
     final ageYears = patient != null
         ? DateTime.now().year - patient.dob.year
         : null;
@@ -1013,6 +1015,7 @@ class _DoctorEncounterViewScreenState
     final scheme = theme.colorScheme;
 
     const labels = [
+      'Chart',
       'History',
       'Examination',
       'Diagnosis',
@@ -1059,9 +1062,7 @@ class _DoctorEncounterViewScreenState
                     label,
                     style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected
-                          ? scheme.onPrimary
-                          : scheme.onSurface,
+                      color: selected ? scheme.onPrimary : scheme.onSurface,
                     ),
                   ),
                 ),

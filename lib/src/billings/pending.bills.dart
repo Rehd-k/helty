@@ -11,11 +11,13 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/core/responsive.dart';
 import '../helper/date.formatter.dart';
 import '../models/invoice.dart';
+import '../models/invoice_billing_models.dart';
 import '../models/staff_attribution.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/invoice_service.dart';
 import '../widgets/filter.patients.dart';
+import 'hmo_coverage_ui.dart';
 import 'pay.bill.dart';
 import 'summary.bills.dart';
 
@@ -327,9 +329,9 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                             secondary: !isSelectable
                                 ? Icon(
                                     Icons.lock_outline,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   )
                                 : null,
                           );
@@ -418,201 +420,162 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
         builder: (context, bp) => Column(
           children: [
             PatientsFilterWidget(
-            searchCategories: const [
-              {'name': 'patientId', 'value': 'Patient ID'},
-              {'name': 'services', 'value': 'Services'},
-              {'name': 'fullName', 'value': 'Patient Name'},
-            ],
-            onFilterChanged: _onInvoiceFilterChanged,
-            doRefresh: _loadInvoices,
-            dateFilter: true,
-          ),
-          Expanded(
-            child: ResponsiveRowColumn(
-              firstFlex: 2,
-              secondFlex: 1,
-              gap: bp.isMobile ? 12 : 16,
-              first: Builder(
-                    builder: (context) {
-                      if (_isLoading) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: CircularProgressIndicator(),
+              searchCategories: const [
+                {'name': 'patientId', 'value': 'Patient ID'},
+                {'name': 'services', 'value': 'Services'},
+                {'name': 'fullName', 'value': 'Patient Name'},
+              ],
+              onFilterChanged: _onInvoiceFilterChanged,
+              doRefresh: _loadInvoices,
+              dateFilter: true,
+            ),
+            Expanded(
+              child: ResponsiveRowColumn(
+                firstFlex: 2,
+                secondFlex: 1,
+                gap: bp.isMobile ? 12 : 16,
+                first: Builder(
+                  builder: (context) {
+                    if (_isLoading) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+
+                    if (_error != null) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'Failed to load invoices: $_error',
+                            textAlign: TextAlign.center,
                           ),
-                        );
-                      }
+                        ),
+                      );
+                    }
 
-                      if (_error != null) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              'Failed to load invoices: $_error',
-                              textAlign: TextAlign.center,
-                            ),
+                    if (_invoices.isEmpty) {
+                      return const Center(child: Text('No pending invoices'));
+                    }
+
+                    return ListView.builder(
+                      itemCount: _invoices.length,
+                      itemBuilder: (context, index) {
+                        final invoice = _invoices[index];
+
+                        return Slidable(
+                          key: Key(invoice.id),
+                          startActionPane: ActionPane(
+                            motion: const ScrollMotion(),
+                            children: [
+                              SlidableAction(
+                                onPressed: (_) {},
+                                backgroundColor:
+                                    DepartmentColors.outpatientClinic,
+                                icon: Icons.edit,
+                                label: 'Edit',
+                              ),
+                              SlidableAction(
+                                onPressed: (_) {},
+                                backgroundColor: DepartmentColors.billing,
+                                icon: Icons.archive,
+                                label: 'Archive',
+                              ),
+                              SlidableAction(
+                                onPressed: (_) {},
+                                backgroundColor: DepartmentColors.emergency,
+                                icon: Icons.delete,
+                                label: 'Delete',
+                              ),
+                            ],
                           ),
-                        );
-                      }
-
-                      if (_invoices.isEmpty) {
-                        return const Center(child: Text('No pending invoices'));
-                      }
-
-                      return ListView.builder(
-                        itemCount: _invoices.length,
-                        itemBuilder: (context, index) {
-                          final invoice = _invoices[index];
-
-                          return Slidable(
-                            key: Key(invoice.id),
-                            startActionPane: ActionPane(
-                              motion: const ScrollMotion(),
-                              children: [
-                                SlidableAction(
-                                  onPressed: (_) {},
-                                  backgroundColor: DepartmentColors.outpatientClinic,
-                                  icon: Icons.edit,
-                                  label: 'Edit',
-                                ),
-                                SlidableAction(
-                                  onPressed: (_) {},
-                                  backgroundColor: DepartmentColors.billing,
-                                  icon: Icons.archive,
-                                  label: 'Archive',
-                                ),
-                                SlidableAction(
-                                  onPressed: (_) {},
-                                  backgroundColor: DepartmentColors.emergency,
-                                  icon: Icons.delete,
-                                  label: 'Delete',
-                                ),
-                              ],
-                            ),
-                            child: GestureDetector(
-                              onTap: () => _handleSelect(invoice),
-                              onSecondaryTapDown: (details) {
-                                _showContextMenu(
-                                  context,
-                                  details.globalPosition,
-                                  invoice,
-                                  auth,
-                                  _handleSelect,
-                                );
-                              },
-                              child: Card(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(16),
-                                  title: Text(
-                                    invoice.patient.displayName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
+                          child: GestureDetector(
+                            onTap: () => _handleSelect(invoice),
+                            onSecondaryTapDown: (details) {
+                              _showContextMenu(
+                                context,
+                                details.globalPosition,
+                                invoice,
+                                auth,
+                                _handleSelect,
+                                onHmoChanged: _loadInvoices,
+                              );
+                            },
+                            child: Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.all(16),
+                                title: Text(
+                                  invoice.patient.displayName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
                                   ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 4),
-                                      Text("Status: ${invoice.status}"),
-                                      Text(
-                                        "Initiator: ${invoice.staff['firstName']} ${invoice.staff['lastName']}",
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
-                                            ),
-                                      ),
-                                      Builder(
-                                        builder: (context) {
-                                          final created =
-                                              formatStaffName(invoice.createdBy);
-                                          if (created == null) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          return Text(
-                                            'Created by: $created',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                          );
-                                        },
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        DateFormatter.dateTime(
-                                          invoice.createdAt,
-                                        ),
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Row(
-                                        children: [
-                                          if (_canDeleteInvoice(
-                                            invoice,
-                                            currentStaffId,
-                                          ))
-                                            FilledButton.icon(
-                                              onPressed:
-                                                  _deletingInvoiceIds.contains(
-                                                    invoice.id,
-                                                  )
-                                                  ? null
-                                                  : () =>
-                                                        _deleteInvoice(invoice),
-                                              icon:
-                                                  _deletingInvoiceIds.contains(
-                                                    invoice.id,
-                                                  )
-                                                  ? const SizedBox(
-                                                      width: 14,
-                                                      height: 14,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                          ),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.delete_outline,
-                                                      size: 16,
-                                                    ),
-                                              label: const Text('Delete'),
-                                              style: FilledButton.styleFrom(
-                                                backgroundColor: Theme.of(context)
-                                                    .colorScheme
-                                                    .error,
-                                                minimumSize: const Size(0, 34),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 10,
-                                                    ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 4),
+                                    Text("Status: ${invoice.status}"),
+                                    Text(
+                                      "Initiator: ${invoice.staff['firstName']} ${invoice.staff['lastName']}",
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                    Builder(
+                                      builder: (context) {
+                                        final created = formatStaffName(
+                                          invoice.createdBy,
+                                        );
+                                        if (created == null) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Text(
+                                          'Created by: $created',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                               ),
-                                            ),
-                                          const SizedBox(width: 8),
-                                          OutlinedButton.icon(
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      DateFormatter.dateTime(invoice.createdAt),
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        if (_canDeleteInvoice(
+                                          invoice,
+                                          currentStaffId,
+                                        ))
+                                          FilledButton.icon(
                                             onPressed:
-                                                _splittingInvoiceIds.contains(
+                                                _deletingInvoiceIds.contains(
                                                   invoice.id,
                                                 )
                                                 ? null
-                                                : () => _showSplitInvoiceDialog(
-                                                    invoice,
-                                                  ),
+                                                : () => _deleteInvoice(invoice),
                                             icon:
-                                                _splittingInvoiceIds.contains(
+                                                _deletingInvoiceIds.contains(
                                                   invoice.id,
                                                 )
                                                 ? const SizedBox(
@@ -624,11 +587,14 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                                         ),
                                                   )
                                                 : const Icon(
-                                                    Icons.call_split,
+                                                    Icons.delete_outline,
                                                     size: 16,
                                                   ),
-                                            label: const Text('Split'),
-                                            style: OutlinedButton.styleFrom(
+                                            label: const Text('Delete'),
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: Theme.of(
+                                                context,
+                                              ).colorScheme.error,
                                               minimumSize: const Size(0, 34),
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -636,36 +602,70 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
                                                   ),
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  trailing: Text(
-                                    invoice.total.toFinancial(isMoney: true),
-                                    style: TextStyle(
-                                      color: FinanceStatusColors.success(
-                                        Theme.of(context).colorScheme,
-                                      ),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                        const SizedBox(width: 8),
+                                        OutlinedButton.icon(
+                                          onPressed:
+                                              _splittingInvoiceIds.contains(
+                                                invoice.id,
+                                              )
+                                              ? null
+                                              : () => _showSplitInvoiceDialog(
+                                                  invoice,
+                                                ),
+                                          icon:
+                                              _splittingInvoiceIds.contains(
+                                                invoice.id,
+                                              )
+                                              ? const SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : const Icon(
+                                                  Icons.call_split,
+                                                  size: 16,
+                                                ),
+                                          label: const Text('Split'),
+                                          style: OutlinedButton.styleFrom(
+                                            minimumSize: const Size(0, 34),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
+                                  ],
+                                ),
+                                trailing: Text(
+                                  invoice.total.toFinancial(isMoney: true),
+                                  style: TextStyle(
+                                    color: FinanceStatusColors.success(
+                                      Theme.of(context).colorScheme,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ),
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-              second: selectedInvoice == null
-                  ? const Center(
-                      child: Text('Please Select Bill To See Details'),
-                    )
-                  : SummaryBills(invoice: selectedInvoice!),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                second: selectedInvoice == null
+                    ? const Center(
+                        child: Text('Please Select Bill To See Details'),
+                      )
+                    : SummaryBills(invoice: selectedInvoice!),
+              ),
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -701,8 +701,9 @@ void _showContextMenu(
   Offset position,
   Invoice invoice,
   AuthState auth,
-  void Function(Invoice) handleSelect,
-) async {
+  void Function(Invoice) handleSelect, {
+  Future<void> Function()? onHmoChanged,
+}) async {
   // Position menu with its top-left at the cursor so it appears right next to the mouse.
   final selected = await showMenu<String>(
     context: context,
@@ -758,31 +759,99 @@ void _showContextMenu(
     ],
   );
 
+  if (!context.mounted) return;
+
   //   // Menu is now fully dismissed — safe to update state.
   if (selected == 'View Details') {
     handleSelect(invoice);
   } else if (selected == 'HMO') {
-    final hmoId = invoice.patient.hmoId?.trim() ?? '';
-    if (hmoId.isEmpty) {
+    await _handlePendingHmoAction(context, invoice, onHmoChanged);
+  }
+}
+
+Future<void> _handlePendingHmoAction(
+  BuildContext context,
+  Invoice invoice,
+  Future<void> Function()? onHmoChanged,
+) async {
+  final hmoId = invoice.patient.hmoId?.trim() ?? '';
+  if (hmoId.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Patient has no registered HMO')),
+    );
+    return;
+  }
+
+  final invoiceService = InvoiceService();
+  late final BillingInvoiceDetail detail;
+  try {
+    detail = await invoiceService.getBillingInvoice(invoice.id);
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(e.toString())));
+    return;
+  }
+  if (!context.mounted) return;
+
+  final active = activeHmoInvoiceCoverage(detail.coverages);
+  if (active != null) {
+    if (!isHmoCoverageReversibleWithin24h(active)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Patient has no registered HMO')),
+        SnackBar(
+          content: Text(
+            formatHmoReverseWindowLabel(active).isEmpty
+                ? 'HMO coverage can only be reversed within 24 hours of apply.'
+                : formatHmoReverseWindowLabel(active),
+          ),
+        ),
       );
       return;
     }
-    InvoiceService()
-        .applyHmoCoverage(invoiceId: invoice.id, scope: 'INVOICE')
-        .then((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('HMO coverage applied. Refresh list.'),
-            ),
-          );
-        })
-        .catchError((e) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.toString())));
-        });
+    final confirmed = await showUncoverHmoDialog(context);
+    if (confirmed == null || !context.mounted) return;
+    try {
+      await invoiceService.reverseCoverage(
+        invoiceId: invoice.id,
+        coverageId: active.id,
+        reason: confirmed.reason,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('HMO coverage removed.')));
+      await onHmoChanged?.call();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+    return;
+  }
+
+  final percent = await showApplyHmoPercentDialog(
+    context,
+    defaultPercent: detail.patientHmoDefaultCoveragePercent,
+  );
+  if (percent == null || !context.mounted) return;
+  try {
+    await invoiceService.applyHmoCoverage(
+      invoiceId: invoice.id,
+      scope: 'INVOICE',
+      percentOverride: percent,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('HMO coverage applied.')));
+    await onHmoChanged?.call();
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(e.toString())));
   }
 }
 

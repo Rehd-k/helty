@@ -15,6 +15,7 @@ import 'package:helty/src/services/ward_round_note_service.dart';
 
 import '../../admissions/admission_discharge_helpers.dart';
 import '../../admissions/discharge_admission_dialog.dart';
+import '../../admissions/discharge_summary_dialog.dart';
 import '../../helper/date.formatter.dart';
 import '../../../app_router.gr.dart';
 import '../../models/admission_billing_clearance_models.dart';
@@ -469,11 +470,29 @@ class _InpatientPatientViewScreenState
     final hasEncounter =
         encounterId != null && encounterId.isNotEmpty;
 
+    final admission = _admission;
+    final showDischargeSummary = admission != null &&
+        (admission.isPendingBillingClearance ||
+            admission.status.isDischarged ||
+            admission.status.isDeceased ||
+            (admission.dischargeSummary?.trim().isNotEmpty ?? false) ||
+            admission.clinicallyDischargedAt != null);
+
     final actions = Wrap(
       spacing: 8,
       runSpacing: 8,
       alignment: compact ? WrapAlignment.start : WrapAlignment.end,
       children: [
+        if (admission != null && showDischargeSummary)
+          OutlinedButton.icon(
+            onPressed: () => showDischargeSummaryDialog(
+              context: context,
+              admission: admission,
+              onOpenEncounter: hasEncounter ? _openEncounter : null,
+            ),
+            icon: const Icon(Icons.description_outlined, size: 18),
+            label: const Text('Discharge summary'),
+          ),
         if (!widget.readOnly && isDoctor && hasEncounter)
           OutlinedButton.icon(
             onPressed: _openEncounter,

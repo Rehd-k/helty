@@ -1,12 +1,18 @@
+import 'dart:typed_data';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/lab/models/lab_models.dart';
+import 'package:helty/src/lab/services/lab_api_service.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
 import 'package:helty/src/lab/widgets/lab_order_results_dialog.dart';
 import 'package:helty/src/models/lab_order_model.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
 import 'package:helty/src/services/lab_order_service.dart';
+import 'package:printing/printing.dart';
 
 @RoutePage()
 class InpatientLabResultsScreen extends StatefulWidget {
@@ -19,9 +25,12 @@ class InpatientLabResultsScreen extends StatefulWidget {
 
 class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
   final _labOrderService = LabOrderService();
+  final _labApi = LabApiService();
 
   List<LabOrderModel> _orders = [];
   bool _loading = true;
+  bool _printing = false;
+  String? _printingOrderId;
 
   /// `false` = all labs for patient (default). `true` = this encounter only.
   bool _encounterOnly = false;
@@ -71,6 +80,84 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
     }
   }
 
+  Future<void> _printOrder(LabOrderModel row) async {
+    final orderId = row.printableLabOrderId?.trim();
+    if (orderId == null || orderId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No printable lab order linked to this request.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _printingOrderId = row.id);
+    try {
+      final order = await _labApi.getOrderById(orderId);
+      if (!mounted) return;
+      await Printing.layoutPdf(
+        onLayout: (format) async {
+          final bytes = await buildLabOrderPdf(order, format);
+          return Uint8List.fromList(bytes);
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Print failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _printingOrderId = null);
+    }
+  }
+
+  Future<void> _printAllPatientResults() async {
+    final scope = InpatientViewScope.of(context);
+    final patientId = scope?.patientId.trim();
+    if (patientId == null || patientId.isEmpty) return;
+
+    setState(() => _printing = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final response = await _labApi.getOrders(
+        patientId: patientId,
+        take: 100,
+      );
+      final entries = <({LabOrder order, LabOrderItem item})>[];
+      LabOrderPatient? patient;
+      for (final order in response.data) {
+        patient ??= order.patient;
+        for (final item in order.items) {
+          if (labOrderItemHasPrintableResults(item)) {
+            entries.add((order: order, item: item));
+          }
+        }
+      }
+      if (entries.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('No printable lab results for this patient.')),
+        );
+        return;
+      }
+      patient ??= LabOrderPatient(id: patientId);
+      if (!mounted) return;
+      await Printing.layoutPdf(
+        onLayout: (format) async {
+          final bytes = await buildLabPatientItemsPdf(
+            patient: patient!,
+            entries: entries,
+            format: format,
+          );
+          return Uint8List.fromList(bytes);
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Print failed: $e')));
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scope = InpatientViewScope.of(context);
@@ -85,6 +172,7 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
       'Priority',
       'Status',
       'Result Summary',
+      'Print',
       if (isDoctor) 'Doctor actions',
     ];
 
@@ -92,95 +180,108 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
         child: SectionCard(
-        title: 'Lab Results',
-        subtitle: 'Read-only view of investigations',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (hasEncounter) ...[
-              LayoutBuilder(
-                builder: (context, c) {
-                  final narrow = c.maxWidth < 520;
-                  return SegmentedButton<bool>(
-                    segments: narrow
-                        ? const [
-                            ButtonSegment<bool>(
-                              value: false,
-                              label: Text('All'),
-                            ),
-                            ButtonSegment<bool>(
-                              value: true,
-                              label: Text('Visit'),
-                            ),
-                          ]
-                        : const [
-                            ButtonSegment<bool>(
-                              value: false,
-                              label: Text('All patient'),
-                              icon: Icon(Icons.person_outline, size: 16),
-                            ),
-                            ButtonSegment<bool>(
-                              value: true,
-                              label: Text('This encounter'),
-                              icon: Icon(Icons.event_note_outlined, size: 16),
-                            ),
-                          ],
-                    selected: {_encounterOnly},
-                    onSelectionChanged: (s) {
-                      if (s.isEmpty) return;
-                      setState(() => _encounterOnly = s.first);
-                      _load();
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_orders.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  _encounterOnly
-                      ? 'No lab results for this encounter yet.'
-                      : 'No lab results for this patient yet.',
-                ),
-              )
-            else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columns: columns
-                      .map(
-                        (c) => DataColumn(
-                          label: Text(
-                            c,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  rows: _orders
-                      .map(
-                        (o) => _row(
-                          context,
-                          o,
-                          isDoctor,
-                          showVisitCol: showVisitCol,
-                          admissionEncounterId: scope?.encounterId,
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
+          title: 'Lab Results',
+          subtitle: 'Read-only view of investigations',
+          actions: [
+            FilledButton.tonalIcon(
+              onPressed: _loading || _printing ? null : _printAllPatientResults,
+              icon: _printing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.print_outlined, size: 18),
+              label: const Text('Print results'),
+            ),
           ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (hasEncounter) ...[
+                LayoutBuilder(
+                  builder: (context, c) {
+                    final narrow = c.maxWidth < 520;
+                    return SegmentedButton<bool>(
+                      segments: narrow
+                          ? const [
+                              ButtonSegment<bool>(
+                                value: false,
+                                label: Text('All'),
+                              ),
+                              ButtonSegment<bool>(
+                                value: true,
+                                label: Text('Visit'),
+                              ),
+                            ]
+                          : const [
+                              ButtonSegment<bool>(
+                                value: false,
+                                label: Text('All patient'),
+                                icon: Icon(Icons.person_outline, size: 16),
+                              ),
+                              ButtonSegment<bool>(
+                                value: true,
+                                label: Text('This encounter'),
+                                icon: Icon(Icons.event_note_outlined, size: 16),
+                              ),
+                            ],
+                      selected: {_encounterOnly},
+                      onSelectionChanged: (s) {
+                        if (s.isEmpty) return;
+                        setState(() => _encounterOnly = s.first);
+                        _load();
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_orders.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    _encounterOnly
+                        ? 'No lab results for this encounter yet.'
+                        : 'No lab results for this patient yet.',
+                  ),
+                )
+              else
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: columns
+                        .map(
+                          (c) => DataColumn(
+                            label: Text(
+                              c,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    rows: _orders
+                        .map(
+                          (o) => _row(
+                            context,
+                            o,
+                            isDoctor,
+                            showVisitCol: showVisitCol,
+                            admissionEncounterId: scope?.encounterId,
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -195,6 +296,9 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
     final lines = order.resultLines;
     final hasResults = (lines != null && lines.isNotEmpty) ||
         (order.resultValues != null && order.resultValues!.isNotEmpty);
+    final canPrint = (order.printableLabOrderId?.isNotEmpty ?? false) &&
+        hasResults;
+    final printingThis = _printingOrderId == order.id;
 
     final onThisAdmission = admissionEncounterId != null &&
         admissionEncounterId.isNotEmpty &&
@@ -220,6 +324,21 @@ class _InpatientLabResultsScreenState extends State<InpatientLabResultsScreen> {
         DataCell(Text(order.priority ?? '-')),
         DataCell(Text(order.status)),
         DataCell(_ResultSummaryCell(order: order)),
+        DataCell(
+          IconButton(
+            tooltip: canPrint ? 'Print result' : 'No printable result',
+            onPressed: canPrint && !printingThis && !_printing
+                ? () => _printOrder(order)
+                : null,
+            icon: printingThis
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.print_outlined, size: 20),
+          ),
+        ),
         if (isDoctor)
           DataCell(
             TextButton(

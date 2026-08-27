@@ -10,6 +10,8 @@ import '../chat/services/chat_notification_coordinator.dart';
 import '../core/providers/app_lifecycle_provider.dart';
 import '../helper/app_timezone.dart';
 import '../helper/theme.dart';
+import '../printing/pdf/report_template_preference.dart';
+import '../printing/pdf/report_templates/report_pdf_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_mode_provider.dart';
 import '../services/navigation.service.dart';
@@ -19,7 +21,6 @@ import '../widgets/notifications/app_notification_host.dart';
 import 'org_config.dart';
 import 'product_definition.dart';
 import 'product_environment.dart';
-import '../printing/pdf/report_template_preference.dart';
 
 /// Shared app startup for hospital, pharmacy, and diagnostics entry points.
 Future<void> bootstrapHeltyApp({AppProduct? product}) async {
@@ -33,10 +34,22 @@ Future<void> bootstrapHeltyApp({AppProduct? product}) async {
   ProductEnvironment.validateReleaseConfig();
 
   await AppTimezone.initialize();
-  final prefs = await SharedPreferences.getInstance();
-  final initialThemeMode = ThemeModePersistence.read(prefs);
-  final initialReportTemplate =
-      ReportTemplatePersistence.read(prefs);
+
+  // On multi-user Windows PCs, SharedPreferences lives under AppData. If the
+  // app was previously launched elevated, that folder/file can be unreadable
+  // for a normal user (`Access denied`) and used to abort before [runApp].
+  SharedPreferences? prefs;
+  try {
+    prefs = await SharedPreferences.getInstance();
+  } catch (e, st) {
+    debugPrint('SharedPreferences unavailable at startup: $e\n$st');
+  }
+  final initialThemeMode = prefs != null
+      ? ThemeModePersistence.read(prefs)
+      : ThemeMode.system;
+  final initialReportTemplate = prefs != null
+      ? ReportTemplatePersistence.read(prefs)
+      : ReportPdfTemplateId.classicNavy;
 
   runApp(
     ProviderScope(
@@ -52,14 +65,27 @@ Future<void> bootstrapHeltyApp({AppProduct? product}) async {
     ),
   );
 
-  if (Platform.isWindows) {
-    doWhenWindowReady(() {
-      final win = appWindow;
-      win.maximize();
-      win.title = ProductEnvironment.displayName;
-      win.show();
-    });
+  _revealWindowsWindow();
+}
+
+void _revealWindowsWindow() {
+  if (!Platform.isWindows) return;
+
+  var revealed = false;
+  void reveal() {
+    if (revealed) return;
+    revealed = true;
+    final win = appWindow;
+    win.minSize = const Size(1024, 640);
+    win.maximize();
+    win.title = ProductEnvironment.displayName;
+    win.show();
   }
+
+  doWhenWindowReady(reveal);
+  // If the first frame never rasterizes (some GPU / fast-user-switch sessions),
+  // still try to show rather than leaving a hidden process.
+  Future<void>.delayed(const Duration(seconds: 2), reveal);
 }
 
 class HeltyApp extends ConsumerStatefulWidget {

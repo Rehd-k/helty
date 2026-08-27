@@ -161,10 +161,12 @@ msix_config:
   capabilities: internetClient, privateNetworkClientServer, documentsLibrary, picturesLibrary, removableStorage
   
   # App Installer Auto-Update Configuration
-  hours_between_update_checks: 0 # 0 = check every time the app opens
+  # On shared hospital PCs, MSIX updates often need admin (and fail if another
+  # Windows user still has the package open). Never block launch for that.
+  hours_between_update_checks: 8
   automatic_background_task: true # Check for updates in the background
-  update_blocks_activation: true # Prevent the app from opening until the update finishes
-  show_prompt: true # Show Windows UI when checking/installing updates
+  update_blocks_activation: false # Always allow the app to open
+  show_prompt: false # Do not stall startup behind App Installer UI
  
   # Auto-update configuration
   make_appinstaller: true

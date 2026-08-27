@@ -1,6 +1,5 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
@@ -8,11 +7,14 @@ import 'package:helty/src/doctor/encounter/questionnaire/encounter_narrative_com
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_question_models.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_questionnaire_section.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/examination_questionnaire_defs.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
 class DoctorEncounterExaminationTab extends StatefulWidget {
-  const DoctorEncounterExaminationTab({super.key});
+  const DoctorEncounterExaminationTab({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<DoctorEncounterExaminationTab> createState() =>
@@ -69,21 +71,28 @@ class _DoctorEncounterExaminationTabState
     final scope = EncounterScope.of(context);
     final v = scope?.patientVitals;
     if (v == null) return;
-    setState(() {
-      _vitals = {
-        if (v.systolic != null || v.diastolic != null)
-          'BP': '${v.systolic ?? '—'}/${v.diastolic ?? '—'}',
-        if (v.pulseRate != null) 'HR': '${v.pulseRate}',
-        if (v.respRate != null) 'RR': '${v.respRate}',
-        if (v.temperature != null) 'Temp': '${v.temperature}°C',
-        if (v.spo2 != null) 'SpO2': '${v.spo2}%',
-        if (v.painScore != null && v.painScore!.isNotEmpty)
-          'Pain': v.painScore!,
-        if (v.height != null) 'Height': '${v.height} cm',
-        if (v.weight != null) 'Weight': '${v.weight} kg',
-        if (v.bmi != null) 'BMI': v.bmi!.toStringAsFixed(1),
-      };
-    });
+    final next = <String, String?>{
+      if (v.systolic != null || v.diastolic != null)
+        'BP': '${v.systolic ?? '—'}/${v.diastolic ?? '—'}',
+      if (v.pulseRate != null) 'HR': '${v.pulseRate}',
+      if (v.respRate != null) 'RR': '${v.respRate}',
+      if (v.temperature != null) 'Temp': '${v.temperature}°C',
+      if (v.spo2 != null) 'SpO2': '${v.spo2}%',
+      if (v.painScore != null && v.painScore!.isNotEmpty) 'Pain': v.painScore!,
+      if (v.height != null) 'Height': '${v.height} cm',
+      if (v.weight != null) 'Weight': '${v.weight} kg',
+      if (v.bmi != null) 'BMI': v.bmi!.toStringAsFixed(1),
+    };
+    if (_mapEquals(_vitals, next)) return;
+    setState(() => _vitals = next);
+  }
+
+  bool _mapEquals(Map<String, String?> a, Map<String, String?> b) {
+    if (a.length != b.length) return false;
+    for (final e in a.entries) {
+      if (b[e.key] != e.value) return false;
+    }
+    return true;
   }
 
   @override
@@ -198,14 +207,16 @@ class _DoctorEncounterExaminationTabState
     final readOnly = !scope.canEdit;
 
     if (_loading && !_loaded) {
-      return const Center(child: CircularProgressIndicator());
+      return widget.embedded
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          : const Center(child: CircularProgressIndicator());
     }
 
-    return ResponsiveBody(
-      center: false,
-      expand: false,
-      builder: (context, bp) => SingleChildScrollView(
-        padding: EdgeInsets.zero,
+    return EncounterTabScrollShell(
+      embedded: widget.embedded,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -294,7 +305,6 @@ class _DoctorEncounterExaminationTabState
             ),
         ],
       ),
-    ),
     );
   }
 }

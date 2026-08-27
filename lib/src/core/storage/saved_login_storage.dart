@@ -10,11 +10,11 @@ const _kMaxSavedLogins = 5;
 /// Persists recent staff login identifiers (never passwords).
 abstract final class SavedLoginStorage {
   static Future<List<SavedLogin>> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_kSavedLoginsKey);
-    if (raw == null || raw.isEmpty) return [];
-
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kSavedLoginsKey);
+      if (raw == null || raw.isEmpty) return [];
+
       final list = jsonDecode(raw) as List<dynamic>;
       return list
           .map((e) => SavedLogin.fromJson(e as Map<String, dynamic>))

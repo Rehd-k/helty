@@ -7,11 +7,14 @@ import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_question_models.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_questionnaire_section.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/history_questionnaire_defs.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
 class DoctorEncounterHistoryTab extends StatefulWidget {
-  const DoctorEncounterHistoryTab({super.key});
+  const DoctorEncounterHistoryTab({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<DoctorEncounterHistoryTab> createState() =>
@@ -149,45 +152,48 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
     final readOnly = !scope.canEdit;
 
     if (_loading && !_loaded) {
-      return const Center(child: CircularProgressIndicator());
+      return widget.embedded
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          : const Center(child: CircularProgressIndicator());
     }
 
-    return ResponsiveBody(
-      center: false,
-      expand: false,
-      builder: (context, bp) => SingleChildScrollView(
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ResponsiveToolbar(
-              actions: [
-                if (!readOnly)
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Voice typing not yet integrated')),
-                      );
-                    },
-                    icon: const Icon(Icons.mic_none, size: 18),
-                    label: const Text('Voice typing'),
-                  ),
-                if (!readOnly)
-                  FilledButton.icon(
-                    onPressed: _loading ? null : _saveDraft,
-                    icon: _loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined, size: 18),
-                    label: const Text('Save draft'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 24),
+    return EncounterTabScrollShell(
+      embedded: widget.embedded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ResponsiveToolbar(
+            actions: [
+              if (!readOnly)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Voice typing not yet integrated'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.mic_none, size: 18),
+                  label: const Text('Voice typing'),
+                ),
+              if (!readOnly)
+                FilledButton.icon(
+                  onPressed: _loading ? null : _saveDraft,
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined, size: 18),
+                  label: const Text('Save draft'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
           for (final section in historyQuestionnaireSections)
             EncounterQuestionnaireSection(
               key: ValueKey(section.id),
@@ -206,7 +212,6 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
             ),
         ],
       ),
-    ),
     );
   }
 }

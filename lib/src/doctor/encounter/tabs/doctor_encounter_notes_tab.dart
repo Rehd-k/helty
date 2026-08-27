@@ -4,11 +4,14 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
 class DoctorEncounterNotesTab extends StatefulWidget {
-  const DoctorEncounterNotesTab({super.key});
+  const DoctorEncounterNotesTab({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<DoctorEncounterNotesTab> createState() =>
@@ -112,8 +115,9 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
           'soapAssessment': _assessmentCtrl.text.trim().isEmpty
               ? null
               : _assessmentCtrl.text.trim(),
-          'soapPlan':
-              _planCtrl.text.trim().isEmpty ? null : _planCtrl.text.trim(),
+          'soapPlan': _planCtrl.text.trim().isEmpty
+              ? null
+              : _planCtrl.text.trim(),
         }),
       );
       if (!mounted) return;
@@ -148,8 +152,9 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
           'soapAssessment': _assessmentCtrl.text.trim().isEmpty
               ? null
               : _assessmentCtrl.text.trim(),
-          'soapPlan':
-              _planCtrl.text.trim().isEmpty ? null : _planCtrl.text.trim(),
+          'soapPlan': _planCtrl.text.trim().isEmpty
+              ? null
+              : _planCtrl.text.trim(),
           'soapLockedAt': now.toIso8601String(),
         }),
       );
@@ -187,11 +192,8 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
     final readOnly = !scope.canEdit;
     final fieldsReadOnly = locked || readOnly;
 
-    return ResponsiveBody(
-      center: false,
-      expand: false,
-      builder: (context, bp) => SingleChildScrollView(
-        padding: EdgeInsets.zero,
+    return EncounterTabScrollShell(
+      embedded: widget.embedded,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -205,7 +207,10 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.lock_outline, color: theme.colorScheme.onPrimaryContainer),
+                  Icon(
+                    Icons.lock_outline,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Note locked (after $_lockAfterMinutes min). Add addendum below.',
@@ -266,12 +271,10 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
             ),
         ],
       ),
-    ),
     );
   }
 
-  Widget _soapSection(
-      String label, TextEditingController ctrl, bool readOnly) {
+  Widget _soapSection(String label, TextEditingController ctrl, bool readOnly) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),

@@ -10,13 +10,15 @@ import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/obstetrics/ui/widgets/antenatal_package_scope.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
-import 'package:helty/src/radiology/ui/widgets/radiology_image_viewer.dart';
+import 'package:helty/src/radiology/ui/widgets/radiology_order_results_dialog.dart';
 import 'package:helty/src/services/service_category_service.dart';
 import 'package:helty/src/services/service_service.dart';
 
 @RoutePage()
 class DoctorEncounterImagingTab extends StatefulWidget {
-  const DoctorEncounterImagingTab({super.key});
+  const DoctorEncounterImagingTab({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<DoctorEncounterImagingTab> createState() =>
@@ -85,7 +87,9 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     if (result == null || result.selected == null || !mounted) return;
 
     final service = result.selected!;
-    final serviceId = service.serviceId.isNotEmpty ? service.serviceId : service.id;
+    final serviceId = service.serviceId.isNotEmpty
+        ? service.serviceId
+        : service.id;
     _studyNamesByServiceId[serviceId] = service.name;
     final pregnancyId = scope.pregnancyId;
     final itemPayload = {
@@ -190,23 +194,17 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
   void _showImagingOrderResults(
     BuildContext context,
     RadiologyOrder order,
-    ThemeData theme,
     EncounterScope scope,
   ) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => _ImagingOrderResultsDialog(
-        order: order,
-        orderService: _orderService,
-        theme: theme,
-        scope: scope,
-        studyNamesByServiceId: _studyNamesByServiceId,
-        canDelete: _canDeleteRadiologyOrder(order, scope),
-        onDelete: () async {
-          Navigator.of(ctx).pop();
-          await _deleteRadiologyOrder(order);
-        },
-      ),
+    final canDelete = _canDeleteRadiologyOrder(order, scope);
+    showRadiologyOrderResultsDialog(
+      context,
+      service: _orderService,
+      order: order,
+      studyNamesByServiceId: _studyNamesByServiceId,
+      showEncounterId: true,
+      canDelete: canDelete,
+      onDelete: canDelete ? () => _deleteRadiologyOrder(order) : null,
     );
   }
 
@@ -244,12 +242,13 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
       expanded: _sidePanelExpanded,
       onToggleExpanded: () =>
           setState(() => _sidePanelExpanded = !_sidePanelExpanded),
+      forceStacked: widget.embedded,
       subtitle: _orders.isEmpty
           ? (_encounterOnly
-              ? 'No imaging orders yet for this encounter'
-              : 'No imaging history for this patient')
+                ? 'No imaging orders yet for this encounter'
+                : 'No imaging history for this patient')
           : '${_orders.length} order${_orders.length == 1 ? '' : 's'}'
-              '${_encounterOnly ? ' on this encounter' : ''}',
+                '${_encounterOnly ? ' on this encounter' : ''}',
       controls: SegmentedButton<bool>(
         segments: const [
           ButtonSegment<bool>(
@@ -319,49 +318,65 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
     );
 
     final list = _orders.isEmpty
-        ? _ImagingEmptyState(encounterOnly: _encounterOnly, theme: theme)
+        ? _ImagingEmptyState(
+            encounterOnly: _encounterOnly,
+            theme: theme,
+            compact: widget.embedded,
+          )
+        : widget.embedded
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final o in _orders)
+                _imagingOrderCard(context, o, scope, theme),
+            ],
+          )
         : ListView.builder(
             itemCount: _orders.length,
-            itemBuilder: (_, i) {
-              final o = _orders[i];
-              final otherVisit =
-                  !_encounterOnly &&
-                  o.encounterId != null &&
-                  o.encounterId!.isNotEmpty &&
-                  o.encounterId != scope.encounterId;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  title: Text(
-                    o.items.isNotEmpty
-                        ? _itemStudyLabel(o.items.first)
-                        : 'Order with no items',
-                  ),
-                  subtitle: Text(
-                    '${otherVisit ? 'Other visit • ' : ''}'
-                    '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.items.length} item(s) • ${o.status.name}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  trailing: Chip(
-                    label: Text(o.status.name),
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                  ),
-                  onTap: () => _showImagingOrderResults(
-                    context,
-                    o,
-                    theme,
-                    scope,
-                  ),
-                ),
-              );
-            },
+            itemBuilder: (_, i) =>
+                _imagingOrderCard(context, _orders[i], scope, theme),
           );
 
-    return ResponsiveBody(
-      center: false,
-      builder: (context, bp) => EncounterTabLayout(
-        sidePanel: sidePanel,
-        child: list,
+    final layout = EncounterTabLayout(
+      embedded: widget.embedded,
+      sidePanel: sidePanel,
+      child: list,
+    );
+
+    if (widget.embedded) return layout;
+
+    return ResponsiveBody(center: false, builder: (context, bp) => layout);
+  }
+
+  Widget _imagingOrderCard(
+    BuildContext context,
+    RadiologyOrder o,
+    EncounterScope scope,
+    ThemeData theme,
+  ) {
+    final otherVisit =
+        !_encounterOnly &&
+        o.encounterId != null &&
+        o.encounterId!.isNotEmpty &&
+        o.encounterId != scope.encounterId;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        title: Text(
+          o.items.isNotEmpty
+              ? _itemStudyLabel(o.items.first)
+              : 'Order with no items',
+        ),
+        subtitle: Text(
+          '${otherVisit ? 'Other visit • ' : ''}'
+          '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.items.length} item(s) • ${o.status.name}',
+          style: theme.textTheme.bodySmall,
+        ),
+        trailing: Chip(
+          label: Text(o.status.name),
+          backgroundColor: theme.colorScheme.primaryContainer,
+        ),
+        onTap: () => _showImagingOrderResults(context, o, scope),
       ),
     );
   }
@@ -371,54 +386,64 @@ class _ImagingEmptyState extends StatelessWidget {
   const _ImagingEmptyState({
     required this.encounterOnly,
     required this.theme,
+    this.compact = false,
   });
 
   final bool encounterOnly;
   final ThemeData theme;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final cs = theme.colorScheme;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: cs.primaryContainer.withValues(alpha: 0.45),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.medical_services_outlined,
-                size: 32,
-                color: cs.onPrimaryContainer,
-              ),
+    final content = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: cs.primaryContainer.withValues(alpha: 0.45),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 16),
-            Text(
-              encounterOnly ? 'No imaging orders yet' : 'No imaging history',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            child: Icon(
+              Icons.medical_services_outlined,
+              size: 32,
+              color: cs.onPrimaryContainer,
             ),
-            const SizedBox(height: 8),
-            Text(
-              encounterOnly
-                  ? 'Order imaging for this encounter using the panel on the right.'
-                  : 'This patient has no imaging orders on file. Use "Order Imaging" to request one.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            encounterOnly ? 'No imaging orders yet' : 'No imaging history',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            encounterOnly
+                ? 'Order imaging for this encounter using the panel on the right.'
+                : 'This patient has no imaging orders on file. Use "Order Imaging" to request one.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
+
+    if (compact) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: content,
+      );
+    }
+
+    return Center(child: content);
   }
 }
 
@@ -692,8 +717,9 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
                         itemCount: _suggestions.length,
                         itemBuilder: (_, i) {
                           final s = _suggestions[i];
-                          final serviceId =
-                              s.serviceId.isNotEmpty ? s.serviceId : s.id;
+                          final serviceId = s.serviceId.isNotEmpty
+                              ? s.serviceId
+                              : s.id;
                           return ListTile(
                             dense: true,
                             title: Row(
@@ -819,213 +845,6 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
         ),
         FilledButton(onPressed: _submitOrder, child: const Text('Order')),
       ],
-    );
-  }
-}
-
-class _ImagingOrderResultsDialog extends StatefulWidget {
-  const _ImagingOrderResultsDialog({
-    required this.order,
-    required this.orderService,
-    required this.theme,
-    required this.scope,
-    required this.studyNamesByServiceId,
-    required this.canDelete,
-    required this.onDelete,
-  });
-
-  final RadiologyOrder order;
-  final RadiologyService orderService;
-  final ThemeData theme;
-  final EncounterScope scope;
-  final Map<String, String> studyNamesByServiceId;
-  final bool canDelete;
-  final Future<void> Function() onDelete;
-
-  @override
-  State<_ImagingOrderResultsDialog> createState() =>
-      _ImagingOrderResultsDialogState();
-}
-
-class _ImagingOrderResultsDialogState
-    extends State<_ImagingOrderResultsDialog> {
-  bool _loadingImages = true;
-  String? _imagesError;
-  List<RadiologyImage> _images = [];
-  Map<String, String> _itemLabels = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _loadImages();
-  }
-
-  Future<void> _loadImages() async {
-    setState(() {
-      _loadingImages = true;
-      _imagesError = null;
-    });
-    try {
-      final full = await widget.orderService.getOrder(widget.order.id);
-      if (!mounted) return;
-      _itemLabels = radiologyOrderItemLabels(
-        full,
-        studyNamesByServiceId: widget.studyNamesByServiceId,
-      );
-      final images = await fetchRadiologyOrderImages(widget.orderService, full);
-      if (!mounted) return;
-      setState(() {
-        _images = images;
-        _loadingImages = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _imagesError = e.toString();
-        _loadingImages = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final order = widget.order;
-    final theme = widget.theme;
-    final firstItem = order.items.isNotEmpty ? order.items.first : null;
-    final viewportHeight = MediaQuery.sizeOf(context).height;
-    final maxContentHeight = (viewportHeight * 0.62).clamp(360.0, 560.0);
-    final carouselHeight =
-        (maxContentHeight * 0.42).clamp(150.0, 200.0);
-    final detailsMaxHeight = maxContentHeight - carouselHeight - 88;
-
-    return AlertDialog(
-      title: Text('Order ${order.id.substring(0, 8)}'),
-      content: SizedBox(
-        width: 520,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxContentHeight),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: detailsMaxHeight),
-                child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _ResultRow(
-                      label: 'Ordered',
-                      value: DateFormatter.formatFromBackend(
-                        order.createdAt,
-                        DateFormatter.dateTime,
-                      ),
-                    ),
-                    if (order.encounterId != null &&
-                        order.encounterId!.trim().isNotEmpty)
-                      _ResultRow(label: 'Encounter', value: order.encounterId!),
-                    _ResultRow(label: 'Status', value: order.status.name),
-                    _ResultRow(label: 'Items', value: '${order.items.length}'),
-                    if (firstItem != null) ...[
-                      _ResultRow(
-                        label: 'Study',
-                        value: firstItem.studyLabel(
-                          namesByServiceId: widget.studyNamesByServiceId,
-                        ),
-                      ),
-                      if (firstItem.bodyPart != null &&
-                          firstItem.bodyPart!.trim().isNotEmpty)
-                        _ResultRow(label: 'Area', value: firstItem.bodyPart!),
-                      if (firstItem.contrast != null)
-                        _ResultRow(
-                          label: 'Contrast',
-                          value: firstItem.contrast! ? 'Yes' : 'No',
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Results',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (_loadingImages)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_imagesError != null)
-              Text(
-                'Could not load images: $_imagesError',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              )
-            else
-              RadiologyImageCarousel(
-                service: widget.orderService,
-                images: _images,
-                itemLabels: _itemLabels,
-                height: carouselHeight,
-              ),
-          ],
-        ),
-        ),
-      ),
-      actions: [
-        if (widget.canDelete)
-          TextButton(
-            onPressed: widget.onDelete,
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
-        ),
-      ],
-    );
-  }
-}
-
-class _ResultRow extends StatelessWidget {
-  const _ResultRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -59,6 +59,31 @@ class WardRoundNoteService {
         .toList();
   }
 
+  /// PATCH /ward-round-notes/:id — update own ward round note.
+  Future<WardRoundNoteModel> update({
+    required String id,
+    DateTime? roundDate,
+    String? subjective,
+    String? objective,
+    String? assessment,
+    String? plan,
+  }) async {
+    final body = <String, dynamic>{
+      if (roundDate != null) 'roundDate': _dateOnly(roundDate),
+      if (subjective != null) 'subjective': subjective,
+      if (objective != null) 'objective': objective,
+      if (assessment != null) 'assessment': assessment,
+      if (plan != null) 'plan': plan,
+    };
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/ward-round-notes/$id',
+      data: body,
+    );
+    final data = response.data;
+    if (data == null) throw StateError('Update ward round note returned no data');
+    return WardRoundNoteModel.fromJson(data);
+  }
+
   static String _dateOnly(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }

@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:helty/src/core/extensions/capitalizer.extention.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:helty/src/core/utils/patient_initials.dart';
+import 'package:helty/src/core/utils/request_ward_ref.dart';
 import 'package:helty/src/models/staff_model.dart';
 
 /// Lab category (e.g. Hematology, Biochemistry).
@@ -300,6 +301,8 @@ class LabOrder {
     required this.status,
     this.patient,
     this.doctor,
+    this.wardId,
+    this.ward,
     this.items = const [],
     this.createdAt,
   });
@@ -308,8 +311,13 @@ class LabOrder {
   final LabOrderStatus status;
   final LabOrderPatient? patient;
   final LabOrderStaff? doctor;
+  final String? wardId;
+  final RequestWardRef? ward;
   final List<LabOrderItem> items;
   final DateTime? createdAt;
+
+  String get wardDisplayLabel =>
+      RequestWardRef.labelFrom(ward: ward, wardId: wardId);
 
   factory LabOrder.fromJson(Map<String, dynamic> json) => LabOrder(
         id: (json['id'] as String?) ?? '',
@@ -320,6 +328,12 @@ class LabOrder {
             : null,
         doctor: json['doctor'] != null
             ? LabOrderStaff.fromJson(json['doctor'] as Map<String, dynamic>)
+            : null,
+        wardId: json['wardId']?.toString(),
+        ward: json['ward'] is Map
+            ? RequestWardRef.fromJson(
+                Map<String, dynamic>.from(json['ward'] as Map),
+              )
             : null,
         items: (json['items'] as List<dynamic>?)
                 ?.map((e) => LabOrderItem.fromJson(e as Map<String, dynamic>))
@@ -335,6 +349,8 @@ class LabOrder {
         'status': status.apiValue,
         if (patient != null) 'patient': patient!.toJson(),
         if (doctor != null) 'doctor': doctor!.toJson(),
+        if (wardId != null) 'wardId': wardId,
+        if (ward != null) 'ward': {'id': ward!.id, 'name': ward!.name},
         'items': items.map((e) => e.toJson()).toList(),
         if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       };
@@ -344,6 +360,8 @@ class LabOrder {
         status: status,
         patient: patient,
         doctor: doctor,
+        wardId: wardId,
+        ward: ward,
         items: items ?? this.items,
         createdAt: createdAt,
       );

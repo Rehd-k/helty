@@ -2,6 +2,7 @@
 
 import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:helty/src/core/utils/patient_initials.dart';
+import 'package:helty/src/core/utils/request_ward_ref.dart';
 
 enum RadiologyPriority {
   ROUTINE,
@@ -246,6 +247,8 @@ class RadiologyOrder {
     required this.items,
     this.encounterId,
     this.departmentId,
+    this.wardId,
+    this.ward,
     this.status = RadiologyOrderStatus.PENDING,
     this.createdAt,
     this.updatedAt,
@@ -258,12 +261,17 @@ class RadiologyOrder {
   final String requestedById;
   final String? encounterId;
   final String? departmentId;
+  final String? wardId;
+  final RequestWardRef? ward;
   final RadiologyOrderStatus status;
   final String? createdAt;
   final String? updatedAt;
   final List<RadiologyOrderItem> items;
   final RadiologyPatientRef? patient;
   final RadiologyStaffRef? requestedBy;
+
+  String get wardDisplayLabel =>
+      RequestWardRef.labelFrom(ward: ward, wardId: wardId);
 
   factory RadiologyOrder.fromJson(Map<String, dynamic> json) {
     final rawItems = (json['items'] as List<dynamic>?) ?? const [];
@@ -273,6 +281,12 @@ class RadiologyOrder {
       requestedById: json['requestedById'] as String? ?? '',
       encounterId: json['encounterId'] as String?,
       departmentId: json['departmentId'] as String?,
+      wardId: json['wardId']?.toString(),
+      ward: json['ward'] is Map
+          ? RequestWardRef.fromJson(
+              Map<String, dynamic>.from(json['ward'] as Map),
+            )
+          : null,
       status: RadiologyOrderStatus.fromString(json['status'] as String?) ??
           RadiologyOrderStatus.PENDING,
       createdAt: json['createdAt'] as String?,

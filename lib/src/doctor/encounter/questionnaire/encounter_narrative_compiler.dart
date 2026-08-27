@@ -126,3 +126,36 @@ String buildExaminationNotesBlob({
   }
   return parts.join('\n\n');
 }
+
+String buildOperativeNoteNarrative({
+  required Map<String, String> sectionTexts,
+  String? additionalNotes,
+}) {
+  const order = [
+    ('procedure', 'Procedure'),
+    ('team', 'Team'),
+    ('diagnoses', 'Diagnoses'),
+    ('consent', 'Consent'),
+    ('anaesthesia', 'Anaesthesia'),
+    ('preparation', 'Preparation'),
+    ('findings', 'Findings'),
+    ('details', 'Procedure details'),
+    ('closure', 'Closure'),
+    ('counts', 'Counts'),
+    ('complications', 'Complications'),
+    ('outcome', 'Outcome'),
+  ];
+
+  final parts = <String>[];
+  for (final e in order) {
+    final text = sectionTexts[e.$1]?.trim();
+    if (text != null && text.isNotEmpty) {
+      parts.add('${e.$2}: $text');
+    }
+  }
+  final extra = additionalNotes?.trim();
+  if (extra != null && extra.isNotEmpty) {
+    parts.add(extra);
+  }
+  return parts.join('\n\n');
+}

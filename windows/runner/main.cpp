@@ -6,7 +6,11 @@
 #include "flutter_window.h"
 #include "utils.h"
 
-auto bdw = bitsdojo_window_configure(BDW_CUSTOM_FRAME | BDW_HIDE_ON_STARTUP);
+// Custom frame only. Do not use BDW_HIDE_ON_STARTUP: if Dart never reaches
+// doWhenWindowReady (prefs/ACL errors, first-frame never rasterizes on a
+// switched-user session), the process would sit in the tray with no window
+// until someone relaunches as Administrator.
+auto bdw = bitsdojo_window_configure(BDW_CUSTOM_FRAME);
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command)
 {

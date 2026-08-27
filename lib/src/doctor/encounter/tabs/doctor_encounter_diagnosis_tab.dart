@@ -4,18 +4,20 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/core/errors/app_exception.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/models/icd10_model.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/icd10_service.dart';
 
 @RoutePage()
 class DoctorEncounterDiagnosisTab extends StatefulWidget {
-  const DoctorEncounterDiagnosisTab({super.key});
+  const DoctorEncounterDiagnosisTab({super.key, this.embedded = false});
+
+  final bool embedded;
 
   /// Stored as [Icd10Model.code] when the doctor enters a narrative diagnosis
   /// instead of choosing an ICD-10 row.
@@ -189,15 +191,11 @@ class _DoctorEncounterDiagnosisTabState
             .toList(),
       );
 
-      await _encounterService.saveDiagnosis(
-        scope.encounterId,
-        {
-          'primaryIcdCode': _primary!.code,
-          'primaryIcdDescription': _primary!.description,
-          'secondaryDiagnosesJson': secondaryJson,
-        },
-        editReason: amendEditReason(scope),
-      );
+      await _encounterService.saveDiagnosis(scope.encounterId, {
+        'primaryIcdCode': _primary!.code,
+        'primaryIcdDescription': _primary!.description,
+        'secondaryDiagnosesJson': secondaryJson,
+      }, editReason: amendEditReason(scope));
       await scope.onEncounterUpdated?.call();
       if (!mounted) return;
       showEncounterSaveSnackBar(
@@ -241,7 +239,12 @@ class _DoctorEncounterDiagnosisTabState
     }
 
     if (_loading && !_loaded) {
-      return const Center(child: CircularProgressIndicator());
+      return widget.embedded
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          : const Center(child: CircularProgressIndicator());
     }
 
     final showSearchHint =
@@ -252,155 +255,151 @@ class _DoctorEncounterDiagnosisTabState
 
     final readOnly = !scope.canEdit;
 
-    return ResponsiveBody(
-      center: false,
-      expand: false,
-      builder: (context, bp) => SingleChildScrollView(
-        padding: EdgeInsets.zero,
-        child: AbsorbPointer(
+    return EncounterTabScrollShell(
+      embedded: widget.embedded,
+      child: AbsorbPointer(
         absorbing: readOnly,
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Primary diagnosis (required)',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _primarySearchCtrl,
-            decoration: InputDecoration(
-              hintText: 'Search ICD-10 by code or description',
-              prefixIcon: _searching
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-            ),
-            onChanged: _onPrimarySearchChanged,
-          ),
-          if (showSearchHint) ...[
-            const SizedBox(height: 8),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Text(
-              'Type a code or description to search ICD-10',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontStyle: FontStyle.italic,
-                color: theme.colorScheme.onSurfaceVariant,
+              'Primary diagnosis (required)',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
               ),
             ),
-          ],
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () => _showCustomPrimaryDialog(context),
-              icon: const Icon(Icons.edit_note_outlined, size: 18),
-              label: const Text('Other — custom diagnosis'),
-            ),
-          ),
-          if (_primary != null) ...[
             const SizedBox(height: 8),
-            ListTile(
-              tileColor: theme.colorScheme.primaryContainer.withValues(
-                alpha: 0.3,
+            TextField(
+              controller: _primarySearchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Search ICD-10 by code or description',
+                prefixIcon: _searching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              title: Text(
-                _primary!.code ==
-                        DoctorEncounterDiagnosisTab.customDiagnosisCode
-                    ? 'Custom diagnosis'
-                    : _primary!.code,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
+              onChanged: _onPrimarySearchChanged,
+            ),
+            if (showSearchHint) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Type a code or description to search ICD-10',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              subtitle: Text(_primary!.description),
-              trailing: IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () => setState(() => _primary = null),
-              ),
-            ),
-          ],
-          if (_searchResults.isNotEmpty && _primary == null) ...[
+            ],
             const SizedBox(height: 8),
-            ..._searchResults.map(
-              (e) => _icd10ResultTile(e, () {
-                setState(() {
-                  _primary = e;
-                  _primarySearchCtrl.clear();
-                  _searchResults = [];
-                  _searching = false;
-                });
-              }),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => _showCustomPrimaryDialog(context),
+                icon: const Icon(Icons.edit_note_outlined, size: 18),
+                label: const Text('Other — custom diagnosis'),
+              ),
             ),
+            if (_primary != null) ...[
+              const SizedBox(height: 8),
+              ListTile(
+                tileColor: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.3,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                title: Text(
+                  _primary!.code ==
+                          DoctorEncounterDiagnosisTab.customDiagnosisCode
+                      ? 'Custom diagnosis'
+                      : _primary!.code,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                subtitle: Text(_primary!.description),
+                trailing: IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => setState(() => _primary = null),
+                ),
+              ),
+            ],
+            if (_searchResults.isNotEmpty && _primary == null) ...[
+              const SizedBox(height: 8),
+              ..._searchResults.map(
+                (e) => _icd10ResultTile(e, () {
+                  setState(() {
+                    _primary = e;
+                    _primarySearchCtrl.clear();
+                    _searchResults = [];
+                    _searching = false;
+                  });
+                }),
+              ),
+            ],
+            const SizedBox(height: 24),
+            Text(
+              'Secondary diagnoses (optional)',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._secondaries.map(
+              (e) => ListTile(
+                title: Text(
+                  e.code == DoctorEncounterDiagnosisTab.customDiagnosisCode
+                      ? e.description
+                      : e.displayLabel,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: () => setState(() => _secondaries.remove(e)),
+                ),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _showAddSecondary(context),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add secondary diagnosis (ICD-10)'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => _showCustomSecondaryDialog(context),
+              icon: const Icon(Icons.edit_note_outlined, size: 18),
+              label: const Text('Other — custom secondary'),
+            ),
+            const SizedBox(height: 24),
+            if (!readOnly)
+              FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined, size: 18),
+                label: const Text('Save diagnosis'),
+              ),
           ],
-          const SizedBox(height: 24),
-          Text(
-            'Secondary diagnoses (optional)',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ..._secondaries.map(
-            (e) => ListTile(
-              title: Text(
-                e.code == DoctorEncounterDiagnosisTab.customDiagnosisCode
-                    ? e.description
-                    : e.displayLabel,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: () => setState(() => _secondaries.remove(e)),
-              ),
-            ),
-          ),
-          OutlinedButton.icon(
-            onPressed: () => _showAddSecondary(context),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add secondary diagnosis (ICD-10)'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => _showCustomSecondaryDialog(context),
-            icon: const Icon(Icons.edit_note_outlined, size: 18),
-            label: const Text('Other — custom secondary'),
-          ),
-          const SizedBox(height: 24),
-          if (!readOnly)
-            FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined, size: 18),
-              label: const Text('Save diagnosis'),
-            ),
-        ],
         ),
       ),
-    ),
     );
   }
 

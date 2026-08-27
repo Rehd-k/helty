@@ -24,6 +24,7 @@ Future<WardRoundNoteDialogResult?> showWardRoundNoteDialog({
   required String doctorId,
   WardRoundNoteService? wardRoundNoteService,
   WardRoundNoteDraft? initialDraft,
+  WardRoundNoteModel? existingNote,
 }) {
   return showDialog<WardRoundNoteDialogResult>(
     context: context,
@@ -33,6 +34,7 @@ Future<WardRoundNoteDialogResult?> showWardRoundNoteDialog({
       doctorId: doctorId,
       wardRoundNoteService: wardRoundNoteService ?? WardRoundNoteService(),
       initialDraft: initialDraft,
+      existingNote: existingNote,
     ),
   );
 }
@@ -183,6 +185,34 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
     }
   }
 
+  bool _canEditNote(WardRoundNoteModel note, InpatientViewScope? scope) {
+    if (scope == null || !scope.isDoctor || !scope.isAdmissionActive) {
+      return false;
+    }
+    final staffId = scope.staffId?.trim();
+    if (staffId == null || staffId.isEmpty) return false;
+    return note.doctorId.trim() == staffId;
+  }
+
+  Future<void> _showEditNoteDialog(WardRoundNoteModel note) async {
+    final scope = InpatientViewScope.of(context);
+    final admissionId = scope?.admissionId?.trim() ?? '';
+    final doctorId = scope?.staffId?.trim() ?? '';
+    if (admissionId.isEmpty || doctorId.isEmpty) return;
+
+    final result = await showWardRoundNoteDialog(
+      context: context,
+      admissionId: admissionId,
+      doctorId: doctorId,
+      wardRoundNoteService: _wardRoundNoteService,
+      existingNote: note,
+    );
+    if (!mounted) return;
+    if (result?.outcome == WardRoundNoteDialogOutcome.saved) {
+      _loadNotes(admissionId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -305,6 +335,7 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
     }
 
     final sorted = _sortedNotes;
+    final scope = InpatientViewScope.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -317,7 +348,13 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
               setState(() => _sortAscending = !_sortAscending),
         ),
         const SizedBox(height: 16),
-        ...sorted.map((n) => _NoteTile(note: n)),
+        ...sorted.map(
+          (n) => _NoteTile(
+            note: n,
+            canEdit: _canEditNote(n, scope),
+            onEdit: () => _showEditNoteDialog(n),
+          ),
+        ),
       ],
     );
   }
@@ -466,9 +503,15 @@ class _WardRoundSortBar extends StatelessWidget {
 }
 
 class _NoteTile extends StatelessWidget {
-  const _NoteTile({required this.note});
+  const _NoteTile({
+    required this.note,
+    this.canEdit = false,
+    this.onEdit,
+  });
 
   final WardRoundNoteModel note;
+  final bool canEdit;
+  final VoidCallback? onEdit;
 
   static const _soapSections = [
     _SoapSectionDef(
@@ -605,6 +648,18 @@ class _NoteTile extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (canEdit && onEdit != null)
+                      IconButton(
+                        tooltip: 'Edit note',
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -968,12 +1023,16 @@ class _AddWardRoundNoteDialog extends StatefulWidget {
     required this.doctorId,
     required this.wardRoundNoteService,
     this.initialDraft,
+    this.existingNote,
   });
 
   final String admissionId;
   final String doctorId;
   final WardRoundNoteService wardRoundNoteService;
   final WardRoundNoteDraft? initialDraft;
+  final WardRoundNoteModel? existingNote;
+
+  bool get isEditing => existingNote != null;
 
   @override
   State<_AddWardRoundNoteDialog> createState() =>
@@ -1004,11 +1063,20 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
   @override
   void initState() {
     super.initState();
-    final draft = widget.initialDraft;
-    _subjectiveCtrl = quillControllerFromStoredContent(draft?.subjective);
-    _objectiveCtrl = quillControllerFromStoredContent(draft?.objective);
-    _assessmentCtrl = quillControllerFromStoredContent(draft?.assessment);
-    _planCtrl = quillControllerFromStoredContent(draft?.plan);
+    final note = widget.existingNote;
+    final draft = note == null ? widget.initialDraft : null;
+    _subjectiveCtrl = quillControllerFromStoredContent(
+      note?.subjective ?? draft?.subjective,
+    );
+    _objectiveCtrl = quillControllerFromStoredContent(
+      note?.objective ?? draft?.objective,
+    );
+    _assessmentCtrl = quillControllerFromStoredContent(
+      note?.assessment ?? draft?.assessment,
+    );
+    _planCtrl = quillControllerFromStoredContent(
+      note?.plan ?? draft?.plan,
+    );
     _expandedIndex = (draft?.expandedIndex ?? 0).clamp(0, 3);
 
     _slots = [
@@ -1113,6 +1181,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
   bool get _hasAnyContent => _slots.any(_hasContent);
 
   void _minimize() {
+    if (widget.isEditing) return;
     Navigator.of(context).pop(
       WardRoundNoteDialogResult(
         outcome: WardRoundNoteDialogOutcome.minimized,
@@ -1122,7 +1191,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
   }
 
   Future<void> _discardAndClose() async {
-    if (_hasAnyContent) {
+    if (_hasAnyContent && !widget.isEditing) {
       final discard = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -1164,15 +1233,27 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
     }
     setState(() => _saving = true);
     try {
-      await widget.wardRoundNoteService.create(
-        admissionId: widget.admissionId,
-        doctorId: widget.doctorId,
-        roundDate: DateTime.now(),
-        subjective: s,
-        objective: o,
-        assessment: a,
-        plan: p,
-      );
+      final existing = widget.existingNote;
+      if (existing != null) {
+        await widget.wardRoundNoteService.update(
+          id: existing.id,
+          roundDate: existing.roundDate,
+          subjective: s ?? '',
+          objective: o ?? '',
+          assessment: a ?? '',
+          plan: p ?? '',
+        );
+      } else {
+        await widget.wardRoundNoteService.create(
+          admissionId: widget.admissionId,
+          doctorId: widget.doctorId,
+          roundDate: DateTime.now(),
+          subjective: s,
+          objective: o,
+          assessment: a,
+          plan: p,
+        );
+      }
       if (!mounted) return;
       Navigator.of(context).pop(
         const WardRoundNoteDialogResult(
@@ -1215,7 +1296,9 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Add ward round note',
+                          widget.isEditing
+                              ? 'Edit ward round note'
+                              : 'Add ward round note',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -1230,11 +1313,12 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Minimize — keep draft',
-                    onPressed: _saving ? null : _minimize,
-                    icon: const Icon(Icons.minimize),
-                  ),
+                  if (!widget.isEditing)
+                    IconButton(
+                      tooltip: 'Minimize — keep draft',
+                      onPressed: _saving ? null : _minimize,
+                      icon: const Icon(Icons.minimize),
+                    ),
                   IconButton(
                     tooltip: 'Close',
                     onPressed: _saving ? null : _discardAndClose,

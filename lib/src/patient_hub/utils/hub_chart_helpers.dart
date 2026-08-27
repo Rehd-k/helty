@@ -91,6 +91,17 @@ String hubRowTitle(String sectionKey, Map<String, dynamic> item) {
       return item['name']?.toString() ??
           item['substance']?.toString() ??
           'Allergy';
+    case 'labOrders':
+      return hubLabOrderTitle(item);
+    case 'labRequests':
+      return item['title']?.toString() ??
+          item['notes']?.toString() ??
+          'Lab request';
+    case 'labReports':
+      return item['title']?.toString() ??
+          item['testName']?.toString() ??
+          item['name']?.toString() ??
+          'Lab report';
     default:
       return item['title']?.toString() ??
           item['name']?.toString() ??
@@ -99,6 +110,45 @@ String hubRowTitle(String sectionKey, Map<String, dynamic> item) {
           item['procedureName']?.toString() ??
           sectionKey;
   }
+}
+
+/// Test names from nested LabOrder items, or a count fallback.
+String hubLabOrderTitle(Map<String, dynamic> item) {
+  final names = hubLabOrderTestNames(item);
+  if (names.isEmpty) {
+    final status = item['status']?.toString();
+    if (status != null && status.isNotEmpty) return 'Lab order · $status';
+    return 'Lab order';
+  }
+  if (names.length == 1) return names.first;
+  if (names.length <= 3) return names.join(', ');
+  return '${names.take(2).join(', ')} +${names.length - 2} more';
+}
+
+List<String> hubLabOrderTestNames(Map<String, dynamic> item) {
+  final raw = item['items'];
+  if (raw is! List) return const [];
+  final names = <String>[];
+  for (final entry in raw) {
+    if (entry is! Map) continue;
+    final name = hubLabOrderItemTestName(Map<String, dynamic>.from(entry));
+    if (name != null && name.isNotEmpty) names.add(name);
+  }
+  return names;
+}
+
+String? hubLabOrderItemTestName(Map<String, dynamic> item) {
+  final tv = item['testVersion'];
+  if (tv is Map) {
+    final test = tv['test'];
+    if (test is Map) {
+      final name = test['name']?.toString().trim();
+      if (name != null && name.isNotEmpty) return name;
+    }
+    final versionName = tv['name']?.toString().trim();
+    if (versionName != null && versionName.isNotEmpty) return versionName;
+  }
+  return item['testName']?.toString() ?? item['name']?.toString();
 }
 
 String? hubRowSubtitle(Map<String, dynamic> item) {

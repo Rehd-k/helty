@@ -805,6 +805,7 @@ class _MedicationRequestsScreenState
             avatarUrl: group.avatarUrl,
             patientName: group.patientName,
             hospitalNumber: group.hospitalNumber,
+            wardLabel: group.requests.first.wardDisplayLabel,
             requestCount: group.requests.length,
             colorScheme: colorScheme,
             isExpanded: isExpanded,
@@ -851,6 +852,7 @@ class _PatientGroupHeader extends StatelessWidget {
     this.avatarUrl,
     required this.patientName,
     required this.hospitalNumber,
+    required this.wardLabel,
     required this.requestCount,
     required this.colorScheme,
     required this.isExpanded,
@@ -862,6 +864,7 @@ class _PatientGroupHeader extends StatelessWidget {
   final String? avatarUrl;
   final String patientName;
   final String? hospitalNumber;
+  final String wardLabel;
   final int requestCount;
   final ColorScheme colorScheme;
   final bool isExpanded;
@@ -922,7 +925,7 @@ class _PatientGroupHeader extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     Text(
-                      '$requestCount request${requestCount == 1 ? '' : 's'}',
+                      'Ward: $wardLabel · $requestCount request${requestCount == 1 ? '' : 's'}',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -1111,6 +1114,11 @@ class _MedicationRequestCard extends StatelessWidget {
                             colorScheme,
                             showCourseQty,
                           ),
+                          _EncounterChip(
+                            label: 'Ward: ${request.wardDisplayLabel}',
+                            status: null,
+                            colorScheme: colorScheme,
+                          ),
                           if (encounter != null)
                             _EncounterChip(
                               label: encounter.typeLabel,
@@ -1241,6 +1249,16 @@ class _MedicationRequestCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+              Text(
+                'Ward: ${request.wardDisplayLabel}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
         ),

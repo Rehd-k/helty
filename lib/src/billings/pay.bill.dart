@@ -14,6 +14,7 @@ import '../providers/auth_provider.dart';
 import '../services/bank_service.dart';
 import '../services/invoice_service.dart';
 import '../services/transaction_service.dart';
+import 'hmo_coverage_ui.dart';
 import '../widgets/patient_consultation_credits_panel.dart';
 import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
 import 'package:helty/src/printing/escpos/receipt_printer_picker_sheet.dart';
@@ -207,6 +208,7 @@ class PayBillState extends ConsumerState<PayBill> {
   /// Set from last loaded invoice; used to gate HMO-desk Pay when patient has no HMO.
   String? _invoicePatientHmoId;
   bool _hasActiveInvoiceHmoCoverage = false;
+  InvoiceCoverage? _activeHmoCoverage;
   double? _invoiceHmoCoveragePercent;
   double _invoiceCoveredAmount = 0;
   bool _isApplyingHmoCover = false;
@@ -334,27 +336,11 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   bool _hasActiveHmoInvoiceCoverage(BillingInvoiceDetail detail) {
-    for (final c in detail.coverages) {
-      if (c.kind.trim().toUpperCase() != 'HMO') continue;
-      if (c.scope.trim().toUpperCase() != 'INVOICE') continue;
-      final s = c.status.trim().toUpperCase();
-      if (s == 'REVERSED' || s == 'CANCELLED' || s == 'VOIDED') continue;
-      return true;
-    }
-    // Fallback for payloads where coverage rows lag but amounts are already split.
-    if (detail.coveredAmount > 0.005) return true;
-    return false;
+    return activeHmoInvoiceCoverage(detail.coverages) != null;
   }
 
   InvoiceCoverage? _activeHmoInvoiceCoverage(BillingInvoiceDetail detail) {
-    for (final c in detail.coverages) {
-      if (c.kind.trim().toUpperCase() != 'HMO') continue;
-      if (c.scope.trim().toUpperCase() != 'INVOICE') continue;
-      final s = c.status.trim().toUpperCase();
-      if (s == 'REVERSED' || s == 'CANCELLED' || s == 'VOIDED') continue;
-      return c;
-    }
-    return null;
+    return activeHmoInvoiceCoverage(detail.coverages);
   }
 
   /// Re-fetch after each reversal so remaining DISCOUNT rows are current.
@@ -394,10 +380,12 @@ class PayBillState extends ConsumerState<PayBill> {
       _insurance = 'None';
     }
     final activeHmo = _activeHmoInvoiceCoverage(detail);
-    _hasActiveInvoiceHmoCoverage =
-        activeHmo != null || detail.coveredAmount > 0.005;
+    _activeHmoCoverage = activeHmo;
+    _hasActiveInvoiceHmoCoverage = activeHmo != null;
     _invoiceHmoCoveragePercent =
-        activeHmo?.percent ?? detail.patientHmoDefaultCoveragePercent;
+        activeHmo?.percent ??
+        activeHmo?.value ??
+        detail.patientHmoDefaultCoveragePercent;
     _invoiceCoveredAmount = _moneyRound(detail.coveredAmount);
   }
 
@@ -423,6 +411,13 @@ class PayBillState extends ConsumerState<PayBill> {
       _isHmoInvoiceFlow &&
       _hasPatientHmoOnInvoice &&
       !_hasActiveInvoiceHmoCoverage;
+
+  bool get _canShowUncoverButton {
+    if (!_isHmoInvoiceFlow || !_hasActiveInvoiceHmoCoverage) return false;
+    final coverage = _activeHmoCoverage;
+    if (coverage == null) return false;
+    return isHmoCoverageReversibleWithin24h(coverage);
+  }
 
   bool get _canShowPaymentMethods => !_isHmoStaff;
 
@@ -521,6 +516,7 @@ class PayBillState extends ConsumerState<PayBill> {
           _insurance = '-';
           _invoicePatientHmoId = null;
           _hasActiveInvoiceHmoCoverage = false;
+          _activeHmoCoverage = null;
           _invoiceHmoCoveragePercent = null;
           _invoiceCoveredAmount = 0;
           _discounts = ['None'];
@@ -566,6 +562,7 @@ class PayBillState extends ConsumerState<PayBill> {
         _insurance = '-';
         _invoicePatientHmoId = null;
         _hasActiveInvoiceHmoCoverage = false;
+        _activeHmoCoverage = null;
         _invoiceHmoCoveragePercent = null;
         _invoiceCoveredAmount = 0;
         _discounts = ['None'];
@@ -586,15 +583,20 @@ class PayBillState extends ConsumerState<PayBill> {
       return;
     }
 
+    final percent = await showApplyHmoPercentDialog(
+      context,
+      defaultPercent: _invoiceHmoCoveragePercent,
+    );
+    if (percent == null || !mounted) return;
+
     setState(() => _isApplyingHmoCover = true);
     try {
       var detail = await _invoiceService.getBillingInvoice(invId);
       if (!_hasActiveHmoInvoiceCoverage(detail)) {
-        final percentOverride = detail.patientHmoDefaultCoveragePercent;
         await _invoiceService.applyHmoCoverage(
           invoiceId: invId,
           scope: 'INVOICE',
-          percentOverride: percentOverride,
+          percentOverride: percent,
         );
         // Always re-fetch after apply so UI uses authoritative invoice state.
         detail = await _invoiceService.getBillingInvoice(invId);
@@ -621,6 +623,60 @@ class PayBillState extends ConsumerState<PayBill> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to apply HMO coverage: $e')),
       );
+    }
+  }
+
+  Future<void> _uncoverHmo() async {
+    final invId = widget.invoiceId?.trim();
+    final coverage = _activeHmoCoverage;
+    if (invId == null || invId.isEmpty || coverage == null) return;
+    if (_isApplyingHmoCover || _isSubmitting) return;
+    if (!isHmoCoverageReversibleWithin24h(coverage)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'HMO coverage can only be reversed within 24 hours of apply.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showUncoverHmoDialog(context);
+    if (confirmed == null || !mounted) return;
+
+    setState(() => _isApplyingHmoCover = true);
+    try {
+      final detail = await _invoiceService.reverseCoverage(
+        invoiceId: invId,
+        coverageId: coverage.id,
+        reason: confirmed.reason,
+      );
+      if (!mounted) return;
+      final use = _payAmountFromDetail(detail);
+      setState(() {
+        _basePayable = use;
+        _originalAmount = use;
+        _amountToPay = use;
+        _syncFromInvoiceDetail(detail);
+        _mixedAmounts.clear();
+        _paymentMethod = null;
+        _selectedBankId = null;
+        _isApplyingHmoCover = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'HMO coverage removed. You can re-apply or leave it uncovered.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isApplyingHmoCover = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to uncover HMO: $e')));
     }
   }
 
@@ -849,7 +905,9 @@ class PayBillState extends ConsumerState<PayBill> {
             return Container(
               decoration: BoxDecoration(
                 color: colorScheme.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
               padding: EdgeInsets.only(
                 left: 20,
@@ -1275,6 +1333,44 @@ class PayBillState extends ConsumerState<PayBill> {
                                   ),
                                 if (_canShowCoverButton)
                                   const SizedBox(height: 12),
+                                if (_canShowUncoverButton)
+                                  _buildUncoverButton(
+                                    Theme.of(context).colorScheme.secondary,
+                                  ),
+                                if (_canShowUncoverButton) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    formatHmoReverseWindowLabel(
+                                      _activeHmoCoverage!,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                                if (_isHmoInvoiceFlow &&
+                                    _hasActiveInvoiceHmoCoverage &&
+                                    !_canShowUncoverButton) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _activeHmoCoverage == null
+                                        ? 'HMO coverage applied.'
+                                        : formatHmoReverseWindowLabel(
+                                            _activeHmoCoverage!,
+                                          ),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                                 if (_canShowPayButton)
                                   _buildPayButton(
                                     Theme.of(context).primaryColor,
@@ -1428,7 +1524,11 @@ class PayBillState extends ConsumerState<PayBill> {
     ];
     return Row(
       children: [
-        Icon(Icons.discount_outlined, size: 18, color: DepartmentColors.billing),
+        Icon(
+          Icons.discount_outlined,
+          size: 18,
+          color: DepartmentColors.billing,
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: DropdownButtonHideUnderline(
@@ -1509,10 +1609,7 @@ class PayBillState extends ConsumerState<PayBill> {
                       isExpanded: true,
                       hint: const Text('Select Discount'),
                       value: _selectedDiscount ?? 'None',
-                      style: TextStyle(
-                        color: scheme.onSurface,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: scheme.onSurface, fontSize: 14),
                       items: _discounts
                           .map(
                             (d) => DropdownMenuItem(value: d, child: Text(d)),
@@ -1632,7 +1729,9 @@ class PayBillState extends ConsumerState<PayBill> {
                   children: [
                     Icon(
                       _methodIcons[m],
-                      color: isSelected ? primaryColor : scheme.onSurfaceVariant,
+                      color: isSelected
+                          ? primaryColor
+                          : scheme.onSurfaceVariant,
                       size: 22,
                     ),
                     const SizedBox(height: 4),
@@ -1641,7 +1740,9 @@ class PayBillState extends ConsumerState<PayBill> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? primaryColor : scheme.onSurfaceVariant,
+                        color: isSelected
+                            ? primaryColor
+                            : scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1679,7 +1780,9 @@ class PayBillState extends ConsumerState<PayBill> {
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: primaryColor,
-          disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          disabledBackgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -1703,7 +1806,9 @@ class PayBillState extends ConsumerState<PayBill> {
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: buttonColor,
-          disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          disabledBackgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -1726,6 +1831,35 @@ class PayBillState extends ConsumerState<PayBill> {
     );
   }
 
+  Widget _buildUncoverButton(Color buttonColor) {
+    return SizedBox(
+      height: 50,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: buttonColor,
+          side: BorderSide(color: buttonColor),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: _isApplyingHmoCover || _isSubmitting ? null : _uncoverHmo,
+        child: _isApplyingHmoCover
+            ? SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(buttonColor),
+                ),
+              )
+            : const Text(
+                'Uncover',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+      ),
+    );
+  }
+
   Widget _buildSuccessView() {
     final scheme = Theme.of(context).colorScheme;
     return Center(
@@ -1741,7 +1875,11 @@ class PayBillState extends ConsumerState<PayBill> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.check_circle, color: DepartmentColors.pharmacy, size: 64),
+                Icon(
+                  Icons.check_circle,
+                  color: DepartmentColors.pharmacy,
+                  size: 64,
+                ),
                 const SizedBox(height: 20),
                 const Text(
                   'Payment Confirmed',

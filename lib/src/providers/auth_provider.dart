@@ -187,14 +187,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // ── Restore session ────────────────────────────────────────────────────────
 
   Future<void> restoreSession() async {
-    final hasToken = await _repo.isAuthenticated();
-    if (!hasToken) return;
     try {
+      final hasToken = await _repo.isAuthenticated();
+      if (!hasToken) return;
       final staff = await _repo.getMe();
       state = state.copyWith(staff: staff);
     } catch (_) {
-      // Token may be expired; silently clear so guard redirects to login.
-      await _repo.logout();
+      // Token may be expired or the Windows credential file unreadable
+      // (elevated/other-user ACL). Clear locally so the guard shows login.
+      try {
+        await _repo.logout();
+      } catch (_) {}
     }
   }
 

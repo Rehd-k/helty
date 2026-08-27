@@ -13,7 +13,7 @@ import 'home_screen.dart';
 bool get _isHospitalProduct =>
     ProductEnvironment.currentProduct == AppProduct.hospital;
 
-/// Clinical unified patient lookup — all clinical departments except medical records billing chart.
+/// Clinical unified patient lookup for clinical departments.
 const patientHubMenuItem = MenuItem(
   label: 'Patient Hub',
   icon: Icons.hub_outlined,
@@ -82,6 +82,7 @@ List<MenuItem> get frontDesk => [
 
 /// Same entries as [frontDesk] plus completed encounters (medical records only).
 List<MenuItem> get medicalRecordsMenu => [
+  patientHubMenuItem,
   ...frontDesk,
   MenuItem(
     color: DepartmentColors.medicalRecords,

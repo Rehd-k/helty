@@ -27,10 +27,12 @@ const _bookSurgeryRoles = {
   ..._theatreRoles,
 };
 
+String _normalizedRole(Staff staff) =>
+    staff.staffRole.trim().toUpperCase().replaceAll('-', '_');
+
 bool _hasRole(Staff? staff, Set<String> roles) {
   if (staff == null) return false;
-  final r = staff.staffRole.trim().toUpperCase().replaceAll('-', '_');
-  return roles.contains(r);
+  return roles.contains(_normalizedRole(staff));
 }
 
 bool _isTheatreAccount(Staff? staff) {
@@ -38,11 +40,19 @@ bool _isTheatreAccount(Staff? staff) {
   return staff.accountType == AccountType.theatre;
 }
 
+/// Mirrors backend `ONG` / `INPATIENT_DOCTOR` tokens: any physician except
+/// medical students may book surgery from an encounter.
+bool _isEncounterPhysician(Staff staff) {
+  if (staff.accountType != AccountType.physician) return false;
+  return _normalizedRole(staff) != 'MEDICAL_STUDENT';
+}
+
 /// Book / view surgery requests (doctor + theatre staff).
 bool canBookSurgeryRequests(Staff? staff) {
   if (staff == null) return false;
   if (staffIsSuperAdmin(staff)) return true;
   if (_isTheatreAccount(staff)) return true;
+  if (_isEncounterPhysician(staff)) return true;
   return _hasRole(staff, _bookSurgeryRoles);
 }
 
@@ -54,11 +64,20 @@ bool canAccessTheatreModule(Staff? staff) {
   return _hasRole(staff, _theatreRoles);
 }
 
-/// Start/complete cases, notes, consumables, transfer.
+/// Start/complete cases, consumables, transfer (not OP notes).
 bool canManageTheatreClinical(Staff? staff) {
   if (staff == null) return false;
   if (staffIsSuperAdmin(staff)) return true;
   return _hasRole(staff, _theatreClinicalRoles);
+}
+
+/// Doctors (except medical students) and theatre clinical staff may write OP notes.
+bool canWriteOperativeNotes(Staff? staff) {
+  if (staff == null) return false;
+  if (staffIsSuperAdmin(staff)) return true;
+  if (canManageTheatreClinical(staff)) return true;
+  if (_isEncounterPhysician(staff)) return true;
+  return _hasRole(staff, {'CONSULTANT', 'INPATIENT_DOCTOR', 'ONG'});
 }
 
 /// Send completed case to billing.

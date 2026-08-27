@@ -13,11 +13,14 @@ import 'package:helty/src/services/service_service.dart';
 import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
 import 'package:helty/src/theatre/widgets/surgery_request_dialog.dart';
+import 'package:helty/src/theatre/widgets/operative_notes_panel.dart';
 import 'package:helty/src/theatre/widgets/theatre_status_chip.dart';
 
 @RoutePage()
 class DoctorEncounterSurgeryTab extends ConsumerStatefulWidget {
-  const DoctorEncounterSurgeryTab({super.key});
+  const DoctorEncounterSurgeryTab({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<DoctorEncounterSurgeryTab> createState() =>
@@ -88,16 +91,18 @@ class _DoctorEncounterSurgeryTabState
 
     setState(() => _submitting = true);
     try {
-      await ref.read(theatreApiServiceProvider).createSurgeryRequest(
-        encounterId: scope.encounterId,
-        patientId: scope.patientId,
-        requestedById: staff!.id,
-        serviceId: serviceId,
-        admissionId: scope.activeAdmissionId,
-        priority: result.priority,
-        clinicalNotes: result.clinicalNotes,
-        preferredDate: result.preferredDate,
-      );
+      await ref
+          .read(theatreApiServiceProvider)
+          .createSurgeryRequest(
+            encounterId: scope.encounterId,
+            patientId: scope.patientId,
+            requestedById: staff!.id,
+            serviceId: serviceId,
+            admissionId: scope.activeAdmissionId,
+            priority: result.priority,
+            clinicalNotes: result.clinicalNotes,
+            preferredDate: result.preferredDate,
+          );
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -107,9 +112,9 @@ class _DoctorEncounterSurgeryTabState
     } on AppException catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -144,10 +149,12 @@ class _DoctorEncounterSurgeryTabState
     if (confirmed != true || !mounted) return;
 
     try {
-      await ref.read(theatreApiServiceProvider).patchSurgeryRequest(
-        request.id,
-        status: SurgeryRequestStatus.cancelled,
-      );
+      await ref
+          .read(theatreApiServiceProvider)
+          .patchSurgeryRequest(
+            request.id,
+            status: SurgeryRequestStatus.cancelled,
+          );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Surgery request cancelled')),
@@ -155,9 +162,9 @@ class _DoctorEncounterSurgeryTabState
       await _load();
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -180,92 +187,139 @@ class _DoctorEncounterSurgeryTabState
       return const Center(child: CircularProgressIndicator());
     }
 
-    return ResponsiveBody(
-      center: false,
-      builder: (context, bp) => Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ResponsiveToolbar(
-          leading: Text(
-            'Surgery requests',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          actions: [
-            if (canBook && canEdit)
-              FilledButton.icon(
-                onPressed: _submitting ? null : _openRequestDialog,
-                icon: _submitting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add_rounded),
-                label: const Text('Request surgery'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (_requests.isEmpty)
-          Expanded(
-            child: Center(
-              child: Text(
-                'No surgery requests for this encounter.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+    final list = _requests.isEmpty
+        ? Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(
+              'No surgery requests for this encounter.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           )
-        else
-          Expanded(
-            child: ListView.separated(
-              itemCount: _requests.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final request = _requests[index];
-                return Card(
-                  child: ListTile(
-                    title: Text(request.service?.name ?? 'Surgery'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (request.priority != null)
-                          Text('Priority: ${request.priority!.displayLabel}'),
-                        if (request.preferredDate != null)
-                          Text(
-                            'Preferred: ${DateFormatter.dateTime(request.preferredDate!)}',
-                          ),
-                        if (request.schedule?.scheduledAt != null)
-                          Text(
-                            'Scheduled: ${DateFormatter.dateTime(request.schedule!.scheduledAt!)}',
-                          ),
-                        if (request.clinicalNotes != null &&
-                            request.clinicalNotes!.isNotEmpty)
-                          Text(request.clinicalNotes!),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TheatreStatusChip(status: request.status),
-                        if (_canCancel(request))
-                          IconButton(
-                            icon: const Icon(Icons.cancel_outlined),
-                            tooltip: 'Cancel',
-                            onPressed: () => _cancelRequest(request),
-                          ),
-                      ],
+        : widget.embedded
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < _requests.length; i++) ...[
+                if (i > 0) const SizedBox(height: 8),
+                _surgeryRequestTile(_requests[i]),
+              ],
+            ],
+          )
+        : ListView.separated(
+            itemCount: _requests.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) =>
+                _surgeryRequestTile(_requests[index]),
+          );
+
+    final requestButton = FilledButton.icon(
+      onPressed: _submitting ? null : _openRequestDialog,
+      icon: _submitting
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.add_rounded),
+      label: const Text('Request surgery'),
+    );
+
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.embedded)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: canBook && canEdit
+                ? requestButton
+                : Text(
+                    'No permission to request surgery for this encounter.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                );
-              },
+          )
+        else
+          ResponsiveToolbar(
+            leading: Text(
+              'Surgery requests',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
+            actions: [if (canBook && canEdit) requestButton],
           ),
+        const SizedBox(height: 16),
+        if (widget.embedded) list else Expanded(child: list),
       ],
-    ),
+    );
+
+    if (widget.embedded) return body;
+
+    return ResponsiveBody(center: false, builder: (context, bp) => body);
+  }
+
+  Widget _surgeryRequestTile(SurgeryRequest request) {
+    final staff = ref.read(authProvider).staff;
+    final scope = EncounterScope.of(context);
+    final canEdit = scope?.canEdit ?? false;
+    final canWriteNotes =
+        canWriteOperativeNotes(staff) && canEdit;
+    final notes = request.theatreCase?.operativeNoteRecords ?? const [];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(request.service?.name ?? 'Surgery'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (request.priority != null)
+                    Text('Priority: ${request.priority!.displayLabel}'),
+                  if (request.preferredDate != null)
+                    Text(
+                      'Preferred: ${DateFormatter.dateTime(request.preferredDate!)}',
+                    ),
+                  if (request.schedule?.scheduledAt != null)
+                    Text(
+                      'Scheduled: ${DateFormatter.dateTime(request.schedule!.scheduledAt!)}',
+                    ),
+                  if (request.clinicalNotes != null &&
+                      request.clinicalNotes!.isNotEmpty)
+                    Text(request.clinicalNotes!),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TheatreStatusChip(status: request.status),
+                  if (_canCancel(request))
+                    IconButton(
+                      icon: const Icon(Icons.cancel_outlined),
+                      tooltip: 'Cancel',
+                      onPressed: () => _cancelRequest(request),
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 16),
+            OperativeNotesPanel(
+              request: request,
+              notes: notes,
+              canWrite: canWriteNotes,
+              compact: true,
+              onChanged: _load,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

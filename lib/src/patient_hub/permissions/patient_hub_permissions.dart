@@ -88,9 +88,11 @@ bool canAccessPatientHub(Staff? staff) {
   if (staff.accountType == AccountType.cmac) return true;
   if (staff.accountType == AccountType.cmd) return true;
   if (staff.accountType == AccountType.hmo) return true;
+  if (staff.accountType == AccountType.medical_records) return true;
   final r = staff.staffRole.toLowerCase();
   if (r == 'cmac' || r == 'cmd') return true;
   if (r == 'hmo_staff' || r == 'hmo_desk') return true;
+  if (r == 'medical_records' || r == 'records_officer') return true;
 
   return false;
 }

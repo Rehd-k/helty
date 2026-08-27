@@ -341,6 +341,7 @@ class _RequestCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(request.patient?.displayName ?? request.patientId),
+            Text('Ward: ${request.wardDisplayLabel}'),
             if (request.priority != null)
               Text('Priority: ${request.priority!.displayLabel}'),
             if (request.preferredDate != null)

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:helty/src/core/layout/app_breakpoints.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
@@ -12,6 +13,8 @@ void showRadiologyOrderResultsDialog(
   String? orderId,
   Map<String, String> studyNamesByServiceId = const {},
   bool showEncounterId = false,
+  bool canDelete = false,
+  Future<void> Function()? onDelete,
 }) {
   assert(order != null || (orderId != null && orderId.isNotEmpty));
   showDialog<void>(
@@ -22,6 +25,8 @@ void showRadiologyOrderResultsDialog(
       orderId: orderId,
       studyNamesByServiceId: studyNamesByServiceId,
       showEncounterId: showEncounterId,
+      canDelete: canDelete,
+      onDelete: onDelete,
     ),
   );
 }
@@ -34,6 +39,8 @@ class RadiologyOrderResultsDialog extends StatefulWidget {
     this.orderId,
     this.studyNamesByServiceId = const {},
     this.showEncounterId = false,
+    this.canDelete = false,
+    this.onDelete,
   });
 
   final RadiologyService service;
@@ -41,6 +48,8 @@ class RadiologyOrderResultsDialog extends StatefulWidget {
   final String? orderId;
   final Map<String, String> studyNamesByServiceId;
   final bool showEncounterId;
+  final bool canDelete;
+  final Future<void> Function()? onDelete;
 
   @override
   State<RadiologyOrderResultsDialog> createState() =>
@@ -102,6 +111,9 @@ class _RadiologyOrderResultsDialogState
     final maxContentHeight = (viewportHeight * 0.62).clamp(360.0, 560.0);
     final carouselHeight = (maxContentHeight * 0.42).clamp(150.0, 200.0);
     final detailsMaxHeight = maxContentHeight - carouselHeight - 88;
+    final bp = AppBreakpoints.of(context);
+    final dialogWidth = bp.dialogWidth(context, max: 720);
+    final contentWidth = (dialogWidth - 40).clamp(320.0, 680.0);
 
     return AlertDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -110,7 +122,7 @@ class _RadiologyOrderResultsDialogState
       contentPadding: EdgeInsets.zero,
       content: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: 560,
+          maxWidth: dialogWidth,
           maxHeight: MediaQuery.sizeOf(context).height * 0.85,
         ),
         child: Column(
@@ -194,7 +206,7 @@ class _RadiologyOrderResultsDialogState
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: SizedBox(
-                  width: 520,
+                  width: contentWidth,
                   child: _loading
                       ? const Padding(
                           padding: EdgeInsets.symmetric(vertical: 32),
@@ -357,12 +369,26 @@ class _RadiologyOrderResultsDialogState
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Close'),
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (widget.canDelete && widget.onDelete != null)
+                    TextButton(
+                      onPressed: () async {
+                        await widget.onDelete!();
+                        if (context.mounted) Navigator.of(context).pop();
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                      ),
+                      child: const Text('Delete'),
+                    ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
               ),
             ),
           ],

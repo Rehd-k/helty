@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
@@ -12,7 +13,6 @@ import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/services/medication_order_service.dart';
 import 'package:helty/src/shared/department_colors.dart';
-import 'package:helty/src/widgets/date.filter.dart';
 
 import '../models/pharmacy_queue_models.dart';
 import '../services/pharmacy_queue_service.dart';
@@ -23,6 +23,8 @@ import '../widgets/prescription_drug_form_dialog.dart';
 // -----------------------------------------------------------------------------
 // MAIN UI – Pharmacy prescription queue (drugs sent on patients' behalf)
 // -----------------------------------------------------------------------------
+
+enum _QueueQuickRange { today, last7, thisMonth }
 
 @RoutePage()
 class WaitingPatientScreen extends StatefulWidget {
@@ -72,18 +74,35 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   bool _loadingDispensaryLocations = false;
   String? _dispensaryLoadError;
   bool _deepLinkHandled = false;
+  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _queueService = widget.queueService ?? PharmacyQueueApiService();
+    final now = DateTime.now();
+    _fromDate = _queueStartOfDay(now);
+    _toDate = _queueEndOfDay(now);
     _loadDispensaryLocations();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshOrders(reset: true);
+    });
     final invoiceId = widget.invoiceId?.trim();
     if (invoiceId != null && invoiceId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadDeepLinkedInvoice(invoiceId);
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _sortOrdersInPlace() {
+    _orders.sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
 
   Future<void> _loadDeepLinkedInvoice(String invoiceId) async {
@@ -103,6 +122,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         } else {
           _orders = [order, ..._orders];
         }
+        _sortOrdersInPlace();
         _selectedOrder = order;
         _loading = false;
       });
@@ -407,11 +427,13 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     }
 
     try {
+      final searchQuery = _searchCtrl.text.trim();
       final page = await _queueService.listInvoiceDrugs(
         fromDate: f.toIso8601String(),
         toDate: t.toIso8601String(),
         skip: reset ? 0 : _orders.length,
         take: _pageSize,
+        query: searchQuery.isEmpty ? null : searchQuery,
       );
       if (!mounted) return;
 
@@ -437,6 +459,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         } else {
           _orders = [..._orders, ...page.orders];
         }
+        _sortOrdersInPlace();
         _totalFromServer = page.total;
         final batchLen = page.orders.length;
         _listExhausted =
@@ -510,6 +533,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         final idx = _orders.indexWhere((o) => o.id == order.id);
         if (idx >= 0) _orders[idx] = updated;
         if (_selectedOrder?.id == order.id) _selectedOrder = updated;
+        _sortOrdersInPlace();
       });
       await _loadStocksForOrder(updated);
       if (!mounted) return;
@@ -631,6 +655,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         final idx = _orders.indexWhere((o) => o.id == order.id);
         if (idx >= 0) _orders[idx] = updated;
         if (_selectedOrder?.id == order.id) _selectedOrder = updated;
+        _sortOrdersInPlace();
       });
       await _enrichSelectedOrder(updated);
       if (mounted) {
@@ -699,6 +724,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             nextSelected = updated;
           }
         }
+        _sortOrdersInPlace();
       });
 
       if (nextSelected != null) {
@@ -923,7 +949,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                         children: [
                           SizedBox(
                             height: 220,
-                            child: _buildQueueList(colorScheme),
+                            child: _buildQueueList(context, colorScheme),
                           ),
                           Expanded(
                             child: _selectedOrder == null
@@ -961,7 +987,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                                 minWidth: 200,
                                 maxWidth: 280,
                               ),
-                              child: _buildQueueList(colorScheme),
+                              child: _buildQueueList(context, colorScheme),
                             ),
                           ),
                           Expanded(
@@ -998,30 +1024,160 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                         ],
                       ),
               ),
-            FromToDateFilter(
-              doRefresh: () {},
-              dateFilter: true,
-              labelStyle: DateFilterLabelStyle.shortUs,
-              onFilterChanged: (query, category, from, to) {
-                setState(() {
-                  _fromDate = from;
-                  _toDate = to;
-                  _selectedTabIndex = 0;
-                });
-                _refreshOrders(reset: true, from: from, to: to);
-              },
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildQueueList(ColorScheme colorScheme) {
+  Future<void> _pickQueueDateRange() async {
+    final from = _fromDate ?? DateTime.now();
+    final to = _toDate ?? from;
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime.now().subtract(const Duration(days: 3650)),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      initialDateRange: DateTimeRange(start: from, end: to),
+    );
+    if (range == null) return;
+    setState(() {
+      _fromDate = _queueStartOfDay(range.start);
+      _toDate = _queueEndOfDay(range.end);
+      _selectedTabIndex = 0;
+    });
+    await _refreshOrders(reset: true);
+  }
+
+  void _applyQueueQuickRange(_QueueQuickRange quickRange) {
+    final now = DateTime.now();
+    switch (quickRange) {
+      case _QueueQuickRange.today:
+        _fromDate = _queueStartOfDay(now);
+        _toDate = _queueEndOfDay(now);
+        break;
+      case _QueueQuickRange.last7:
+        _fromDate = _queueStartOfDay(now.subtract(const Duration(days: 6)));
+        _toDate = _queueEndOfDay(now);
+        break;
+      case _QueueQuickRange.thisMonth:
+        _fromDate = DateTime(now.year, now.month, 1);
+        _toDate = _queueEndOfDay(now);
+        break;
+    }
+    setState(() => _selectedTabIndex = 0);
+    _refreshOrders(reset: true);
+  }
+
+  Widget _buildQueueToolbar(ColorScheme colorScheme, AppBreakpoints bp) {
+    final from = _fromDate ?? DateTime.now();
+    final to = _toDate ?? from;
+
+    return Material(
+      color: colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _loading || _loadingMore ? null : _pickQueueDateRange,
+                  icon: const Icon(Icons.date_range, size: 18),
+                  label: Text(
+                    '${DateFormat('dd MMM yyyy').format(from)} - ${DateFormat('dd MMM yyyy').format(to)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                FilledButton.tonal(
+                  onPressed: _loading || _loadingMore
+                      ? null
+                      : () => _applyQueueQuickRange(_QueueQuickRange.today),
+                  child: const Text('Today'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _loading || _loadingMore
+                      ? null
+                      : () => _applyQueueQuickRange(_QueueQuickRange.last7),
+                  child: const Text('Last 7 days'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _loading || _loadingMore
+                      ? null
+                      : () => _applyQueueQuickRange(_QueueQuickRange.thisMonth),
+                  child: const Text('This month'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (bp.stackPanels)
+              TextField(
+                controller: _searchCtrl,
+                decoration: InputDecoration(
+                  hintText: 'Search by patient hospital number, name, or drug…',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  filled: true,
+                  fillColor: colorScheme.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                onSubmitted: (_) => _refreshOrders(reset: true),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchCtrl,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Search by patient hospital number, name, or drug…',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        filled: true,
+                        fillColor: colorScheme.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      onSubmitted: (_) => _refreshOrders(reset: true),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Search',
+                    onPressed: _loading || _loadingMore
+                        ? null
+                        : () => _refreshOrders(reset: true),
+                    icon: const Icon(Icons.search),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQueueList(BuildContext context, ColorScheme colorScheme) {
+    final bp = AppBreakpoints.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildQueueToolbar(colorScheme, bp),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
           child: Column(
@@ -2209,3 +2365,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     );
   }
 }
+
+DateTime _queueStartOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
+
+DateTime _queueEndOfDay(DateTime d) =>
+    DateTime(d.year, d.month, d.day, 23, 59, 59, 999);

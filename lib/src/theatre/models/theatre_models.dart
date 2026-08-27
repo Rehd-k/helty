@@ -3,6 +3,7 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:helty/src/core/utils/patient_initials.dart';
+import 'package:helty/src/core/utils/request_ward_ref.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 
 enum SurgeryRequestStatus {
@@ -55,6 +56,10 @@ enum SurgeryRequestStatus {
         return 'Cancelled';
     }
   }
+
+  bool get allowsOperativeNotes =>
+      this == SurgeryRequestStatus.inProgress ||
+      this == SurgeryRequestStatus.completed;
 }
 
 enum SurgeryPriority {
@@ -208,7 +213,7 @@ class TheatreStaffRef {
     return TheatreStaffRef(
       id: json['id']?.toString() ?? '',
       firstName: json['firstName']?.toString(),
-      surname: json['surname']?.toString(),
+      surname: (json['surname'] ?? json['lastName'])?.toString(),
     );
   }
 }
@@ -350,6 +355,65 @@ class TheatreCaseConsumable {
   }
 }
 
+class TheatreOperativeNote {
+  const TheatreOperativeNote({
+    required this.id,
+    this.theatreCaseId,
+    this.authoredById,
+    this.schemaVersion = 1,
+    this.answersJson = const {},
+    this.narrative = '',
+    this.additionalNotes,
+    this.authoredBy,
+    this.updatedBy,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  final String id;
+  final String? theatreCaseId;
+  final String? authoredById;
+  final int schemaVersion;
+  final Map<String, dynamic> answersJson;
+  final String narrative;
+  final String? additionalNotes;
+  final TheatreStaffRef? authoredBy;
+  final TheatreStaffRef? updatedBy;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  String get authorName => authoredBy?.displayName ?? authoredById ?? 'Unknown';
+
+  factory TheatreOperativeNote.fromJson(Map<String, dynamic> json) {
+    final rawAnswers = json['answersJson'] ?? json['answers'];
+    return TheatreOperativeNote(
+      id: json['id']?.toString() ?? '',
+      theatreCaseId: json['theatreCaseId']?.toString(),
+      authoredById: json['authoredById']?.toString(),
+      schemaVersion: json['schemaVersion'] is int
+          ? json['schemaVersion'] as int
+          : int.tryParse(json['schemaVersion']?.toString() ?? '') ?? 1,
+      answersJson: rawAnswers is Map
+          ? Map<String, dynamic>.from(rawAnswers)
+          : const {},
+      narrative: json['narrative']?.toString() ?? '',
+      additionalNotes: json['additionalNotes']?.toString(),
+      authoredBy: json['authoredBy'] is Map
+          ? TheatreStaffRef.fromJson(
+              Map<String, dynamic>.from(json['authoredBy'] as Map),
+            )
+          : null,
+      updatedBy: json['updatedBy'] is Map
+          ? TheatreStaffRef.fromJson(
+              Map<String, dynamic>.from(json['updatedBy'] as Map),
+            )
+          : null,
+      createdAt: _parseDate(json['createdAt']),
+      updatedAt: _parseDate(json['updatedAt']),
+    );
+  }
+}
+
 class TheatreCase {
   const TheatreCase({
     required this.id,
@@ -361,6 +425,7 @@ class TheatreCase {
     this.performedBy,
     this.team = const [],
     this.consumables = const [],
+    this.operativeNoteRecords = const [],
     this.startedAt,
     this.endedAt,
     this.createdAt,
@@ -376,6 +441,7 @@ class TheatreCase {
   final TheatreStaffRef? performedBy;
   final List<TheatreTeamMember> team;
   final List<TheatreCaseConsumable> consumables;
+  final List<TheatreOperativeNote> operativeNoteRecords;
   final DateTime? startedAt;
   final DateTime? endedAt;
   final DateTime? createdAt;
@@ -384,12 +450,16 @@ class TheatreCase {
   factory TheatreCase.fromJson(Map<String, dynamic> json) {
     final rawTeam = json['team'];
     final rawConsumables = json['consumables'];
+    final rawNotes =
+        json['operativeNoteRecords'] ?? json['operativeNotes'];
     return TheatreCase(
       id: json['id']?.toString() ?? '',
       surgeryRequestId: json['surgeryRequestId']?.toString(),
       findings: json['findings']?.toString(),
       complications: json['complications']?.toString(),
-      operativeNotes: json['operativeNotes']?.toString(),
+      operativeNotes: json['operativeNotes'] is String
+          ? json['operativeNotes']?.toString()
+          : null,
       performedById: json['performedById']?.toString(),
       performedBy: json['performedBy'] is Map
           ? TheatreStaffRef.fromJson(
@@ -411,6 +481,16 @@ class TheatreCase {
               .whereType<Map>()
               .map(
                 (e) => TheatreCaseConsumable.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList()
+          : const [],
+      operativeNoteRecords: rawNotes is List
+          ? rawNotes
+              .whereType<Map>()
+              .map(
+                (e) => TheatreOperativeNote.fromJson(
                   Map<String, dynamic>.from(e),
                 ),
               )
@@ -537,6 +617,8 @@ class SurgeryRequest {
     this.requestedById,
     this.serviceId,
     this.admissionId,
+    this.wardId,
+    this.ward,
     this.priority,
     this.clinicalNotes,
     this.preferredDate,
@@ -558,6 +640,8 @@ class SurgeryRequest {
   final String? requestedById;
   final String? serviceId;
   final String? admissionId;
+  final String? wardId;
+  final RequestWardRef? ward;
   final SurgeryPriority? priority;
   final String? clinicalNotes;
   final DateTime? preferredDate;
@@ -571,6 +655,9 @@ class SurgeryRequest {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  String get wardDisplayLabel =>
+      RequestWardRef.labelFrom(ward: ward, wardId: wardId);
+
   factory SurgeryRequest.fromJson(Map<String, dynamic> json) {
     return SurgeryRequest(
       id: json['id']?.toString() ?? '',
@@ -582,6 +669,12 @@ class SurgeryRequest {
       requestedById: json['requestedById']?.toString(),
       serviceId: json['serviceId']?.toString(),
       admissionId: json['admissionId']?.toString(),
+      wardId: json['wardId']?.toString(),
+      ward: json['ward'] is Map
+          ? RequestWardRef.fromJson(
+              Map<String, dynamic>.from(json['ward'] as Map),
+            )
+          : null,
       priority: SurgeryPriority.fromString(json['priority']?.toString()),
       clinicalNotes: json['clinicalNotes']?.toString(),
       preferredDate: _parseDate(json['preferredDate']),

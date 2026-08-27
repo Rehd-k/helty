@@ -53,6 +53,7 @@ class PrescribedMedication {
   /// Titled prescriber from invoice line `createdBy` (Dr. / Pharm. / plain).
   final String createdByDisplayName;
   final double unitPrice;
+  final DateTime? createdAt;
 
   double get lineTotal => quantity * unitPrice;
 
@@ -102,6 +103,7 @@ class PrescribedMedication {
     this.dispensaryLocation,
     this.createdByDisplayName = '',
     this.unitPrice = 0,
+    this.createdAt,
   });
 
   /// Enough stock to dispense the prescribed line quantity.
@@ -135,6 +137,7 @@ class PrescribedMedication {
             : null,
       ),
       unitPrice: _parseDouble(json['unitPrice']),
+      createdAt: _parseDateTime(json['createdAt']),
     );
   }
 
@@ -210,6 +213,7 @@ class PrescribedMedication {
             : null,
       ),
       unitPrice: _parseDouble(json['unitPrice']),
+      createdAt: _parseDateTime(json['createdAt']),
     );
   }
 
@@ -533,8 +537,7 @@ class QueueOrder {
       medications.fold(0, (sum, m) => sum + m.lineTotal);
 
   /// Medications ordered for display:
-  /// 1. Pending (not yet dispensed) lines first, kept in their original
-  ///    chronological invoice order (earliest added at the top).
+  /// 1. Pending (not yet dispensed) lines first, newest added at the top.
   /// 2. Dispensed lines after, from latest dispensed to earliest.
   List<PrescribedMedication> get medicationsSorted {
     bool dispensed(PrescribedMedication m) => m.isDispensed || m.settled;
@@ -544,6 +547,15 @@ class QueueOrder {
     for (final m in medications) {
       (dispensed(m) ? done : pending).add(m);
     }
+
+    pending.sort((a, b) {
+      final ca = a.createdAt;
+      final cb = b.createdAt;
+      if (ca == null && cb == null) return 0;
+      if (ca == null) return 1;
+      if (cb == null) return -1;
+      return cb.compareTo(ca);
+    });
 
     done.sort((a, b) {
       final da = a.dispensedAt ?? a.substitutedAt;
@@ -579,6 +591,27 @@ class QueueOrder {
       return DateTime.tryParse(v) ?? DateTime.now();
     }
     return DateTime.now();
+  }
+
+  static DateTime _queueTimestampFromInvoiceJson(
+    Map<String, dynamic> json,
+    List<PrescribedMedication> medications,
+  ) {
+    final updatedAt = json['updatedAt'];
+    if (updatedAt is String && updatedAt.isNotEmpty) {
+      final parsed = DateTime.tryParse(updatedAt);
+      if (parsed != null) return parsed;
+    }
+    DateTime? latestLine;
+    for (final med in medications) {
+      final lineAt = med.createdAt;
+      if (lineAt != null &&
+          (latestLine == null || lineAt.isAfter(latestLine))) {
+        latestLine = lineAt;
+      }
+    }
+    if (latestLine != null) return latestLine;
+    return _parseDate(json['createdAt']);
   }
 
   factory QueueOrder.fromInvoiceJson(Map<String, dynamic> json) {
@@ -617,7 +650,7 @@ class QueueOrder {
         _invoiceStaffPerson(json),
       ),
       department: '',
-      timestamp: _parseDate(json['createdAt']),
+      timestamp: _queueTimestampFromInvoiceJson(json, medications),
       urgency: UrgencyLevel.standard,
       doctorNotes: null,
       medications: medications,

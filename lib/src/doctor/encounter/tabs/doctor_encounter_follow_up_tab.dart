@@ -1,18 +1,20 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/appointment_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
 class DoctorEncounterFollowUpTab extends ConsumerStatefulWidget {
-  const DoctorEncounterFollowUpTab({super.key});
+  const DoctorEncounterFollowUpTab({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<DoctorEncounterFollowUpTab> createState() =>
@@ -149,94 +151,92 @@ class _DoctorEncounterFollowUpTabState
 
     final readOnly = !scope.canEdit;
 
-    return ResponsiveBody(
-      center: false,
-      builder: (context, bp) => AbsorbPointer(
-      absorbing: readOnly,
-      child: SingleChildScrollView(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Follow-up date & time',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
+    return EncounterTabScrollShell(
+      embedded: widget.embedded,
+      child: AbsorbPointer(
+        absorbing: readOnly,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Follow-up date & time',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          ListTile(
-            title: Text(
-              _followUpDate == null
-                  ? 'Select date & time'
-                  : DateFormatter.dateTime(_followUpDate!),
-            ),
-            trailing: const Icon(Icons.event_available_outlined),
-            onTap: () async {
-              final initial =
-                  _followUpDate ?? DateTime.now().add(const Duration(days: 7));
-              final date = await showDatePicker(
-                context: context,
-                initialDate: initial,
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 365)),
-              );
-              if (date == null || !mounted) return;
-              if (!context.mounted) return;
-              final time = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay.fromDateTime(initial),
-              );
-              if (time == null || !mounted) return;
-              setState(() {
-                _followUpDate = DateTime(
-                  date.year,
-                  date.month,
-                  date.day,
-                  time.hour,
-                  time.minute,
+            const SizedBox(height: 8),
+            ListTile(
+              title: Text(
+                _followUpDate == null
+                    ? 'Select date & time'
+                    : DateFormatter.dateTime(_followUpDate!),
+              ),
+              trailing: const Icon(Icons.event_available_outlined),
+              onTap: () async {
+                final initial =
+                    _followUpDate ??
+                    DateTime.now().add(const Duration(days: 7));
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: initial,
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
                 );
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _instructionsCtrl,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Follow-up instructions',
-              border: OutlineInputBorder(),
-              hintText: 'e.g. Review LFT, continue medications',
+                if (date == null || !mounted) return;
+                if (!context.mounted) return;
+                final time = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.fromDateTime(initial),
+                );
+                if (time == null || !mounted) return;
+                setState(() {
+                  _followUpDate = DateTime(
+                    date.year,
+                    date.month,
+                    date.day,
+                    time.hour,
+                    time.minute,
+                  );
+                });
+              },
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _referralCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Referral (if needed)',
-              border: OutlineInputBorder(),
-              hintText: 'e.g. Refer to Cardiology',
+            const SizedBox(height: 16),
+            TextField(
+              controller: _instructionsCtrl,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Follow-up instructions',
+                border: OutlineInputBorder(),
+                hintText: 'e.g. Review LFT, continue medications',
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          if (!readOnly)
-            FilledButton.icon(
-              onPressed: _loading ? null : _save,
-              icon: _loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined, size: 18),
-              label: const Text('Save follow-up'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _referralCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Referral (if needed)',
+                border: OutlineInputBorder(),
+                hintText: 'e.g. Refer to Cardiology',
+              ),
             ),
-        ],
+            const SizedBox(height: 24),
+            if (!readOnly)
+              FilledButton.icon(
+                onPressed: _loading ? null : _save,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined, size: 18),
+                label: const Text('Save follow-up'),
+              ),
+          ],
+        ),
       ),
-    ),
-    ),
     );
   }
 }

@@ -63,42 +63,24 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     page: CMDSystemControlRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: CmacOverviewRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-  AutoRoute(
-    page: CmacInsightsRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: CmacOverviewRoute.page, guards: const [ProductModuleGuard()]),
+  AutoRoute(page: CmacInsightsRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: CmacPatientActivityRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: CmacClinicalRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: CmacClinicalRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: CmacLaboratoryRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: CmacPharmacyRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: CmacPharmacyRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: CmacOperationsRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: CmacQualityRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-  AutoRoute(
-    page: CmacStaffRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: CmacQualityRoute.page, guards: const [ProductModuleGuard()]),
+  AutoRoute(page: CmacStaffRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: CmacQualitySafetyHubRoute.page,
     guards: const [ProductModuleGuard()],
@@ -200,10 +182,7 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     page: DoctorEmergencyStartRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: EdBoardRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: EdBoardRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: EdEmergencyRequestsRoute.page,
     guards: const [ProductModuleGuard()],
@@ -216,14 +195,8 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     page: EdRegistrationRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: EdTriageRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-  AutoRoute(
-    page: WardRoundsRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: EdTriageRoute.page, guards: const [ProductModuleGuard()]),
+  AutoRoute(page: WardRoundsRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: DoctorPendingLabsRoute.page,
     guards: const [ProductModuleGuard()],
@@ -283,6 +256,7 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
       AutoRoute(page: CompletedEncounterDiagnosisTab.page),
       AutoRoute(page: CompletedEncounterLabsTab.page),
       AutoRoute(page: CompletedEncounterImagingTab.page),
+      AutoRoute(page: CompletedEncounterSurgeryTab.page),
       AutoRoute(page: CompletedEncounterPrescriptionsTab.page),
       AutoRoute(page: CompletedEncounterAppointmentsTab.page),
       AutoRoute(page: CompletedEncounterFollowUpTab.page),
@@ -292,7 +266,8 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     page: DoctorEncounterViewRoute.page,
     guards: const [ProductModuleGuard()],
     children: [
-      AutoRoute(page: DoctorEncounterHistoryTab.page, initial: true),
+      AutoRoute(page: DoctorEncounterChartTab.page, initial: true),
+      AutoRoute(page: DoctorEncounterHistoryTab.page),
       AutoRoute(page: DoctorEncounterExaminationTab.page),
       AutoRoute(page: DoctorEncounterDiagnosisTab.page),
       AutoRoute(page: DoctorEncounterInvestigationsTab.page),
@@ -468,10 +443,7 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     page: TheatreCaseDetailRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: TheatreRoomsRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: TheatreRoomsRoute.page, guards: const [ProductModuleGuard()]),
 
   // Accounts
   AutoRoute(
@@ -589,18 +561,12 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     page: StoreCategoriesRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: StoreItemsRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: StoreItemsRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: StoreLocationsRoute.page,
     guards: const [ProductModuleGuard()],
   ),
-  AutoRoute(
-    page: StoreStockRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: StoreStockRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: StoreMovementsRoute.page,
     guards: const [ProductModuleGuard()],
@@ -624,26 +590,14 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
   ),
 
   // HMO
-  AutoRoute(
-    page: HmoListRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-  AutoRoute(
-    page: HmoDetailRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-  AutoRoute(
-    page: HmoFormRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: HmoListRoute.page, guards: const [ProductModuleGuard()]),
+  AutoRoute(page: HmoDetailRoute.page, guards: const [ProductModuleGuard()]),
+  AutoRoute(page: HmoFormRoute.page, guards: const [ProductModuleGuard()]),
   AutoRoute(
     page: HmoServicePricingRoute.page,
     guards: const [ProductModuleGuard()],
   ),
 
   // ICT
-  AutoRoute(
-    page: DashboardRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
+  AutoRoute(page: DashboardRoute.page, guards: const [ProductModuleGuard()]),
 ];

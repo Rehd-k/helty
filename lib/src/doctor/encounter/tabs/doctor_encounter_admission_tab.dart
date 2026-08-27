@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/emergency/models/emergency_visit_model.dart';
 import 'package:helty/src/emergency/services/emergency_service.dart';
 import 'package:helty/src/admissions/admission_discharge_helpers.dart';
@@ -17,7 +18,9 @@ import 'package:helty/src/services/ward_service.dart';
 
 @RoutePage()
 class DoctorEncounterAdmissionTab extends StatefulWidget {
-  const DoctorEncounterAdmissionTab({super.key});
+  const DoctorEncounterAdmissionTab({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<DoctorEncounterAdmissionTab> createState() =>
@@ -119,15 +122,15 @@ class _DoctorEncounterAdmissionTabState
         payload: payload,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(dischargeSuccessMessage(updated))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(dischargeSuccessMessage(updated))));
       await _loadPatient();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Discharge failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Discharge failed: $e')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -335,7 +338,9 @@ class _DoctorEncounterAdmissionTabState
           provisionalDiagnosis: _diagnosisCtrl.text.trim().isEmpty
               ? null
               : _diagnosisCtrl.text.trim(),
-          expectedLOS: _losCtrl.text.trim().isEmpty ? null : _losCtrl.text.trim(),
+          expectedLOS: _losCtrl.text.trim().isEmpty
+              ? null
+              : _losCtrl.text.trim(),
           isolationRequired: _isolationRequired,
           specialInstructions: _instructionsCtrl.text.trim().isEmpty
               ? null
@@ -427,60 +432,53 @@ class _DoctorEncounterAdmissionTabState
   Widget _buildWardBedRow(ThemeData theme, ColorScheme cs) {
     return ResponsiveRowColumn(
       first: DropdownButtonFormField<String>(
-            initialValue: _selectedWard?.id,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Ward *',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            items: _wards
-                .map(
-                  (w) => DropdownMenuItem<String>(
-                    value: w.id,
-                    child: Text(w.name),
-                  ),
-                )
-                .toList(),
-            onChanged: _loadingWards
-                ? null
-                : (value) {
-                    if (value == null) return;
-                    final ward = _wards.firstWhere((w) => w.id == value);
-                    setState(() => _selectedWard = ward);
-                    final keepBedId = _isAdmittedPatientStatus(_patient?.status)
-                        ? (_activeAdmission?.bedId ?? _patient?.bedId)
-                        : null;
-                    _loadBedsForWard(ward.id, includeBedId: keepBedId);
-                  },
-          ),
+        initialValue: _selectedWard?.id,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: 'Ward *',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        items: _wards
+            .map(
+              (w) => DropdownMenuItem<String>(value: w.id, child: Text(w.name)),
+            )
+            .toList(),
+        onChanged: _loadingWards
+            ? null
+            : (value) {
+                if (value == null) return;
+                final ward = _wards.firstWhere((w) => w.id == value);
+                setState(() => _selectedWard = ward);
+                final keepBedId = _isAdmittedPatientStatus(_patient?.status)
+                    ? (_activeAdmission?.bedId ?? _patient?.bedId)
+                    : null;
+                _loadBedsForWard(ward.id, includeBedId: keepBedId);
+              },
+      ),
       second: DropdownButtonFormField<String>(
-            initialValue: _selectedBed?.id,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Bed *',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+        initialValue: _selectedBed?.id,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: 'Bed *',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        items: _beds
+            .map(
+              (b) => DropdownMenuItem<String>(
+                value: b.id,
+                child: Text(b.bedNumber),
               ),
-            ),
-            items: _beds
-                .map(
-                  (b) => DropdownMenuItem<String>(
-                    value: b.id,
-                    child: Text(b.bedNumber),
-                  ),
-                )
-                .toList(),
-            onChanged: _loadingBeds
-                ? null
-                : (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _selectedBed = _beds.firstWhere((b) => b.id == value);
-                    });
-                  },
-          ),
+            )
+            .toList(),
+        onChanged: _loadingBeds
+            ? null
+            : (value) {
+                if (value == null) return;
+                setState(() {
+                  _selectedBed = _beds.firstWhere((b) => b.id == value);
+                });
+              },
+      ),
     );
   }
 
@@ -503,10 +501,7 @@ class _DoctorEncounterAdmissionTabState
           const SizedBox(width: 8),
           Text(
             _loadingWards ? 'Loading wards...' : 'Loading available beds...',
-            style: TextStyle(
-              fontSize: 12,
-              color: cs.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
           ),
         ],
       ),
@@ -524,10 +519,7 @@ class _DoctorEncounterAdmissionTabState
     if (_selectedWard != null && _beds.isEmpty) {
       return Text(
         'No available beds in this ward.',
-        style: TextStyle(
-          fontSize: 12,
-          color: cs.onSurfaceVariant,
-        ),
+        style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
       );
     }
     return const SizedBox.shrink();
@@ -538,137 +530,136 @@ class _DoctorEncounterAdmissionTabState
     ColorScheme cs, {
     bool readOnly = false,
   }) {
-    return ResponsiveBody(
-      center: false,
-      builder: (context, bp) => AbsorbPointer(
-      absorbing: readOnly,
-      child: SingleChildScrollView(
-      padding: EdgeInsets.zero,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-          boxShadow: [
-            BoxShadow(
-              color: cs.surfaceContainerHighest,
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Update ward location',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: cs.onSurface,
+    return EncounterTabScrollShell(
+      embedded: widget.embedded,
+      child: AbsorbPointer(
+        absorbing: readOnly,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: cs.surfaceContainerHighest,
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Update ward location',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: cs.onSurface,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Transfer the patient to another ward or bed (e.g. ICU, surgical).',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Transfer the patient to another ward or bed (e.g. ICU, surgical).',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Icon(Icons.swap_horiz, color: cs.primary),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.place_outlined, color: cs.primary, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Current location',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Ward: $_currentWardLabel  ·  Bed: $_currentBedLabel',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                Icon(Icons.swap_horiz, color: cs.primary),
+              ),
+              if (_loadingAdmission) ...[
+                const SizedBox(height: 20),
+                const Center(child: CircularProgressIndicator()),
+              ] else if (_activeAdmission == null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Patient is admitted but no active admission record was found. Ward update may not save.',
+                  style: TextStyle(fontSize: 12, color: cs.error),
+                ),
               ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: cs.primaryContainer.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.place_outlined, color: cs.primary, size: 22),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Current location',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Ward: $_currentWardLabel  ·  Bed: $_currentBedLabel',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+              const SizedBox(height: 16),
+              _buildWardBedRow(theme, cs),
+              _buildWardBedLoadingHint(cs),
+              const SizedBox(height: 4),
+              _buildWardBedAvailabilityHint(cs),
+              const SizedBox(height: 24),
+              if (!readOnly)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (_canDischarge)
+                      OutlinedButton.icon(
+                        onPressed: _submitting ? null : _attemptDischarge,
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: const Text('Discharge'),
+                      ),
+                    if (_canDischarge) const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: _canSubmitTransfer
+                          ? _updateAdmissionLocation
+                          : null,
+                      icon: _submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.swap_horiz, size: 18),
+                      label: const Text('Update location'),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            if (_loadingAdmission) ...[
-              const SizedBox(height: 20),
-              const Center(child: CircularProgressIndicator()),
-            ] else if (_activeAdmission == null) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Patient is admitted but no active admission record was found. Ward update may not save.',
-                style: TextStyle(fontSize: 12, color: cs.error),
-              ),
+                  ],
+                ),
             ],
-            const SizedBox(height: 16),
-            _buildWardBedRow(theme, cs),
-            _buildWardBedLoadingHint(cs),
-            const SizedBox(height: 4),
-            _buildWardBedAvailabilityHint(cs),
-            const SizedBox(height: 24),
-            if (!readOnly)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (_canDischarge)
-                    OutlinedButton.icon(
-                      onPressed: _submitting ? null : _attemptDischarge,
-                      icon: const Icon(Icons.logout, size: 18),
-                      label: const Text('Discharge'),
-                    ),
-                  if (_canDischarge) const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: _canSubmitTransfer ? _updateAdmissionLocation : null,
-                    icon: _submitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.swap_horiz, size: 18),
-                    label: const Text('Update location'),
-                  ),
-                ],
-              ),
-          ],
+          ),
         ),
       ),
-    ),
-    ),
     );
   }
 
@@ -698,131 +689,129 @@ class _DoctorEncounterAdmissionTabState
       return _buildTransferForm(theme, cs, readOnly: admissionReadOnly);
     }
 
-    return ResponsiveBody(
-      center: false,
-      builder: (context, bp) => AbsorbPointer(
-      absorbing: admissionReadOnly,
-      child: SingleChildScrollView(
-      padding: EdgeInsets.zero,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-          boxShadow: [
-            BoxShadow(
-              color: cs.surfaceContainerHighest,
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Admit patient',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: cs.onSurface,
+    return EncounterTabScrollShell(
+      embedded: widget.embedded,
+      child: AbsorbPointer(
+        absorbing: admissionReadOnly,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: cs.surfaceContainerHighest,
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Admit patient',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: cs.onSurface,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Choose ward and bed, then confirm admission.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Choose ward and bed, then confirm admission.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                Icon(Icons.local_hospital_outlined, color: cs.primary),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _reasonCtrl,
-              maxLines: 2,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: 'Admission reason *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                    ],
+                  ),
+                  Icon(Icons.local_hospital_outlined, color: cs.primary),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _reasonCtrl,
+                maxLines: 2,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: 'Admission reason *',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _buildWardBedRow(theme, cs),
-            _buildWardBedLoadingHint(cs),
-            const SizedBox(height: 4),
-            _buildWardBedAvailabilityHint(cs),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _diagnosisCtrl,
-              decoration: InputDecoration(
-                labelText: 'Provisional diagnosis',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 12),
+              _buildWardBedRow(theme, cs),
+              _buildWardBedLoadingHint(cs),
+              const SizedBox(height: 4),
+              _buildWardBedAvailabilityHint(cs),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _diagnosisCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Provisional diagnosis',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _losCtrl,
-              decoration: InputDecoration(
-                labelText: 'Expected length of stay',
-                hintText: 'e.g. 3 days',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _losCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Expected length of stay',
+                  hintText: 'e.g. 3 days',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            CheckboxListTile(
-              value: _isolationRequired,
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Isolation required?'),
-              onChanged: (v) => setState(() => _isolationRequired = v ?? false),
-            ),
-            TextField(
-              controller: _instructionsCtrl,
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: 'Special instructions',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                value: _isolationRequired,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Isolation required?'),
+                onChanged: (v) =>
+                    setState(() => _isolationRequired = v ?? false),
+              ),
+              TextField(
+                controller: _instructionsCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Special instructions',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            if (!admissionReadOnly)
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.icon(
-                  onPressed: _canSubmit ? _admitPatient : null,
-                  icon: _submitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.add_circle_outline, size: 18),
-                  label: const Text('Admit patient'),
+              const SizedBox(height: 24),
+              if (!admissionReadOnly)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _canSubmit ? _admitPatient : null,
+                    icon: _submitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.add_circle_outline, size: 18),
+                    label: const Text('Admit patient'),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-    ),
     );
   }
 }

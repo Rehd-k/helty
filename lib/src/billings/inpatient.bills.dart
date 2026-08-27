@@ -12,6 +12,7 @@ import 'package:helty/src/billings/widgets/purchases_consumable_billing_panel.da
 import 'package:helty/src/printing/core/display_id.dart';
 import 'package:helty/src/printing/pdf/inpatient_invoice_pdf.dart';
 import 'package:helty/src/auth/billing_permissions.dart';
+import 'package:helty/src/billings/hmo_coverage_ui.dart';
 import 'package:helty/src/billings/widgets/invoice_item_refund_dialogs.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/app_router.gr.dart';
@@ -696,16 +697,17 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     final blockReason = _recurringEditBlockReason(line);
     if (blockReason != null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(blockReason)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(blockReason)));
       return;
     }
 
     final invoice = _billingDetail;
     if (invoice == null || !mounted) return;
 
-    final currentStart = _recurringLineStartDate(line) ?? _dateOnlyLocal(DateTime.now());
+    final currentStart =
+        _recurringLineStartDate(line) ?? _dateOnlyLocal(DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: currentStart,
@@ -736,9 +738,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             children: [
               Text(
                 charge.description,
-                style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               Text('Current start: ${_formatDate(currentStart)}'),
@@ -826,9 +828,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_invoiceDeleteErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_invoiceDeleteErrorMessage(e))));
     } finally {
       if (mounted) {
         setState(() => _replacingRecurringLineIds.remove(line.id));
@@ -1012,14 +1014,17 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (nothingPaid) ColoredBox(color: colorScheme.error.withValues(alpha: 0.10)),
+        if (nothingPaid)
+          ColoredBox(color: colorScheme.error.withValues(alpha: 0.10)),
         Align(
           alignment: Alignment.centerLeft,
           child: FractionallySizedBox(
             widthFactor: full ? 1.0 : progress,
             heightFactor: 1,
             child: ColoredBox(
-              color: DepartmentColors.pharmacy.withValues(alpha: full ? 0.26 : 0.22),
+              color: DepartmentColors.pharmacy.withValues(
+                alpha: full ? 0.26 : 0.22,
+              ),
             ),
           ),
         ),
@@ -1103,11 +1108,17 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
       );
       return;
     }
+    final percent = await showApplyHmoPercentDialog(
+      context,
+      defaultPercent: detail.patientHmoDefaultCoveragePercent,
+    );
+    if (percent == null || !mounted) return;
     setState(() => _coverageBusy = true);
     try {
       await _invoiceService.applyHmoCoverage(
         invoiceId: detail.id,
         scope: 'INVOICE',
+        percentOverride: percent,
       );
       await _loadBillingData();
       if (!mounted) return;
@@ -1156,6 +1167,41 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     final detail = _billingDetail;
     final staff = ref.read(authProvider).staff;
     if (detail == null || !canReverseCoverage(staff)) return;
+    final isHmo = coverage.kind.trim().toUpperCase() == 'HMO';
+    if (isHmo && !isHmoCoverageReversibleWithin24h(coverage)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'HMO coverage can only be reversed within 24 hours of apply.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    final confirmed = isHmo
+        ? await showUncoverHmoDialog(context)
+        : await _confirmDiscountReverse();
+    if (confirmed == null || !mounted) return;
+    setState(() => _coverageBusy = true);
+    try {
+      await _invoiceService.reverseCoverage(
+        invoiceId: detail.id,
+        coverageId: coverage.id,
+        reason: confirmed.reason,
+      );
+      await _loadBillingData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _coverageBusy = false);
+    }
+  }
+
+  Future<UncoverHmoResult?> _confirmDiscountReverse() async {
     final reasonCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -1177,24 +1223,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         ],
       ),
     );
-    if (ok != true) return;
-    setState(() => _coverageBusy = true);
-    try {
-      await _invoiceService.reverseCoverage(
-        invoiceId: detail.id,
-        coverageId: coverage.id,
-        reason: reasonCtrl.text,
-      );
-      await _loadBillingData();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      reasonCtrl.dispose();
-      if (mounted) setState(() => _coverageBusy = false);
-    }
+    final reason = reasonCtrl.text.trim();
+    reasonCtrl.dispose();
+    if (ok != true) return null;
+    return UncoverHmoResult(reason: reason.isEmpty ? null : reason);
   }
 
   List<PopupMenuEntry<String>> _lineRefundMenuEntries(BillingInvoiceItem line) {
@@ -1636,8 +1668,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 ),
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: DepartmentColors.outpatientClinic.withValues(alpha: 0.15),
-                    child: Icon(Icons.radar, color: DepartmentColors.outpatientClinic),
+                    backgroundColor: DepartmentColors.outpatientClinic
+                        .withValues(alpha: 0.15),
+                    child: Icon(
+                      Icons.radar,
+                      color: DepartmentColors.outpatientClinic,
+                    ),
                   ),
                   title: const Text('Radiology'),
                   subtitle: const Text('Add radiology services'),
@@ -1667,7 +1703,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 ),
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: DepartmentColors.billing.withValues(alpha: 0.15),
+                    backgroundColor: DepartmentColors.billing.withValues(
+                      alpha: 0.15,
+                    ),
                     child: Icon(
                       Icons.receipt_long,
                       color: DepartmentColors.billing,
@@ -1894,28 +1932,28 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         builder: (context, bp) => Column(
           children: [
             _buildFinancialSummary(
-            colorScheme,
-            balanceDue: balanceDue,
-            totalCharges: totalCharges,
-            totalPayments: totalPayments,
-            coveredAmount: invoiceDetail?.coveredAmount ?? 0,
-            effectivePayable: invoiceDetail?.effectivePayable ?? balanceDue,
-            walletBalance: walletBalance,
-            patientHmoName: invoiceDetail?.patientHmoName,
-            patientHmoDefaultCoveragePercent:
-                invoiceDetail?.patientHmoDefaultCoveragePercent,
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildChargesTab(colorScheme, charges, invoiceDetail),
-                _buildPaymentsTab(colorScheme),
-                _buildRefundRequestsTab(colorScheme, invoiceDetail),
-              ],
+              colorScheme,
+              balanceDue: balanceDue,
+              totalCharges: totalCharges,
+              totalPayments: totalPayments,
+              coveredAmount: invoiceDetail?.coveredAmount ?? 0,
+              effectivePayable: invoiceDetail?.effectivePayable ?? balanceDue,
+              walletBalance: walletBalance,
+              patientHmoName: invoiceDetail?.patientHmoName,
+              patientHmoDefaultCoveragePercent:
+                  invoiceDetail?.patientHmoDefaultCoveragePercent,
             ),
-          ),
-        ],
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildChargesTab(colorScheme, charges, invoiceDetail),
+                  _buildPaymentsTab(colorScheme),
+                  _buildRefundRequestsTab(colorScheme, invoiceDetail),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -2145,7 +2183,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                   displayBalanceDue.toFinancial(isMoney: true),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: isPaidOff ? DepartmentColors.pharmacy : colorScheme.error,
+                    color: isPaidOff
+                        ? DepartmentColors.pharmacy
+                        : colorScheme.error,
                   ),
                 ),
                 if (isPaidOff)
@@ -2711,10 +2751,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
   Widget _buildCoveragePanel(BillingInvoiceDetail? detail) {
     if (detail == null) return const SizedBox.shrink();
     final staff = ref.read(authProvider).staff;
+    final hasActiveHmo = activeHmoInvoiceCoverage(detail.coverages) != null;
     final canSplit =
         canSplitWithHmo(staff) &&
         detail.status.toUpperCase() != 'PAID' &&
-        (detail.patientHmoId ?? '').trim().isNotEmpty;
+        (detail.patientHmoId ?? '').trim().isNotEmpty &&
+        !hasActiveHmo;
     final canDiscount =
         canApplyDiscount(staff) && detail.status.toUpperCase() != 'PAID';
     final canReverse = canReverseCoverage(staff);
@@ -2780,22 +2822,33 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             if (detail.coverages.isEmpty)
               const Text('No coverage/discount applied yet.')
             else
-              ...detail.coverages.map(
-                (c) => ListTile(
+              ...detail.coverages.map((c) {
+                final isHmo = c.kind.trim().toUpperCase() == 'HMO';
+                final status = c.status.toUpperCase();
+                final canUndoThis =
+                    canReverse &&
+                    status != 'SETTLED' &&
+                    status != 'REVERSED' &&
+                    (!isHmo || isHmoCoverageReversibleWithin24h(c));
+                final windowLabel = isHmo ? formatHmoReverseWindowLabel(c) : '';
+                return ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: Text('${c.kind} · ${c.scope} · ${c.status}'),
                   subtitle: Text(
-                    '${c.mode ?? '-'} ${c.value ?? c.percent ?? ''} · ${c.appliedByName ?? c.appliedById ?? 'N/A'}',
+                    [
+                      '${c.mode ?? '-'} ${c.value ?? c.percent ?? ''} · ${c.appliedByName ?? c.appliedById ?? 'N/A'}',
+                      if (windowLabel.isNotEmpty) windowLabel,
+                    ].join('\n'),
                   ),
                   trailing: Wrap(
                     spacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(c.computedAmount.toFinancial(isMoney: true)),
-                      if (canReverse && c.status.toUpperCase() != 'SETTLED')
+                      if (canUndoThis)
                         IconButton(
-                          tooltip: 'Reverse coverage',
+                          tooltip: isHmo ? 'Uncover HMO' : 'Reverse coverage',
                           onPressed: _coverageBusy
                               ? null
                               : () => _reverseCoverage(c),
@@ -2803,8 +2856,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                         ),
                     ],
                   ),
-                ),
-              ),
+                );
+              }),
           ],
         ),
       ),
@@ -2828,7 +2881,10 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: Theme.of(context).colorScheme.surface,
-              child: const Icon(Icons.check_circle, color: DepartmentColors.pharmacy),
+              child: const Icon(
+                Icons.check_circle,
+                color: DepartmentColors.pharmacy,
+              ),
             ),
             title: Text(
               row.method != null && row.method!.trim().isNotEmpty

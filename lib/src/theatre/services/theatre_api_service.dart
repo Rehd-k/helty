@@ -386,6 +386,95 @@ class TheatreApiService {
     }
   }
 
+  Future<List<TheatreOperativeNote>> getOperativeNotes(
+    String surgeryRequestId,
+  ) async {
+    try {
+      final response = await _dio.get<dynamic>(
+        '$_theatrePrefix/cases/$surgeryRequestId/operative-notes',
+      );
+      final data = response.data;
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map(
+              (e) => TheatreOperativeNote.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList();
+      }
+      if (data is Map) {
+        final raw = data['notes'] ?? data['data'] ?? data['items'];
+        if (raw is List) {
+          return raw
+              .whereType<Map>()
+              .map(
+                (e) => TheatreOperativeNote.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList();
+        }
+      }
+      return const [];
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
+  Future<TheatreOperativeNote> createOperativeNote(
+    String surgeryRequestId, {
+    required Map<String, dynamic> answersJson,
+    required String narrative,
+    String? additionalNotes,
+    int schemaVersion = 1,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '$_theatrePrefix/cases/$surgeryRequestId/operative-notes',
+        data: {
+          'answersJson': answersJson,
+          'narrative': narrative,
+          'schemaVersion': schemaVersion,
+          if (additionalNotes != null && additionalNotes.isNotEmpty)
+            'additionalNotes': additionalNotes,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw const UnknownException('Empty response');
+      return TheatreOperativeNote.fromJson(data);
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
+  Future<TheatreOperativeNote> updateOperativeNote(
+    String surgeryRequestId,
+    String noteId, {
+    required Map<String, dynamic> answersJson,
+    required String narrative,
+    String? additionalNotes,
+    int schemaVersion = 1,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        '$_theatrePrefix/cases/$surgeryRequestId/operative-notes/$noteId',
+        data: {
+          'answersJson': answersJson,
+          'narrative': narrative,
+          'schemaVersion': schemaVersion,
+          if (additionalNotes != null) 'additionalNotes': additionalNotes,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw const UnknownException('Empty response');
+      return TheatreOperativeNote.fromJson(data);
+    } on DioException catch (e) {
+      _handleError(e);
+    }
+  }
+
   Future<SurgeryRequest> completeCase(String surgeryRequestId) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(

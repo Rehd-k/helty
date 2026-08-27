@@ -23,6 +23,8 @@ abstract class IPharmacyQueueService {
     String? toDate,
     int skip = 0,
     int take = 20,
+    String? query,
+    String? category,
   });
 
   /// Get a single invoice-drug order by ID.
@@ -71,6 +73,8 @@ class PharmacyQueueApiService implements IPharmacyQueueService {
     String? toDate,
     int skip = 0,
     int take = 20,
+    String? query,
+    String? category,
   }) async {
     try {
       final response = await _dio.get(
@@ -80,6 +84,9 @@ class PharmacyQueueApiService implements IPharmacyQueueService {
           if (toDate != null) 'toDate': toDate,
           'skip': skip,
           'take': take,
+          if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
+          if (category != null && category.trim().isNotEmpty)
+            'category': category.trim(),
         },
       );
       final data = response.data;
@@ -258,6 +265,8 @@ class MockPharmacyQueueService implements IPharmacyQueueService {
     String? toDate,
     int skip = 0,
     int take = 20,
+    String? query,
+    String? category,
   }) async {
     final all = _buildMockOrders();
     final slice = all.skip(skip).take(take).toList();

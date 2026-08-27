@@ -1,6 +1,7 @@
 import 'package:helty/src/core/utils/api_decimal.dart';
 import 'package:helty/src/core/utils/patient_display_name.dart';
 import 'package:helty/src/core/utils/patient_initials.dart';
+import 'package:helty/src/core/utils/request_ward_ref.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 
 enum MedicationRequestStatus {
@@ -401,6 +402,8 @@ class MedicationRequestModel {
     required this.status,
     this.notes,
     this.createdAt,
+    this.wardId,
+    this.ward,
     this.requestedByNurse,
     this.invoiceItem,
     this.medicationOrder,
@@ -414,6 +417,8 @@ class MedicationRequestModel {
   final MedicationRequestStatus status;
   final String? notes;
   final DateTime? createdAt;
+  final String? wardId;
+  final RequestWardRef? ward;
   final MedicationRequestStaffRef? requestedByNurse;
   final MedicationRequestInvoiceItemRef? invoiceItem;
   final MedicationRequestOrderSummary? medicationOrder;
@@ -421,6 +426,9 @@ class MedicationRequestModel {
   final MedicationRequestEncounterRef? encounter;
 
   bool get isRequested => status == MedicationRequestStatus.requested;
+
+  String get wardDisplayLabel =>
+      RequestWardRef.labelFrom(ward: ward, wardId: wardId);
 
   String? get encounterId =>
       encounter?.id ?? medicationOrder?.encounterId;
@@ -450,6 +458,7 @@ class MedicationRequestModel {
     final orderRaw = map(json['medicationOrder']);
     final patientRaw = map(json['patient']);
     final encounterRaw = map(json['encounter']);
+    final wardRaw = map(json['ward']);
 
     return MedicationRequestModel(
       id: json['id']?.toString() ?? '',
@@ -462,6 +471,8 @@ class MedicationRequestModel {
       createdAt:
           DateTime.tryParse(json['createdAtLocal']?.toString() ?? '') ??
           DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      wardId: json['wardId']?.toString(),
+      ward: wardRaw != null ? RequestWardRef.fromJson(wardRaw) : null,
       requestedByNurse: nurseRaw != null
           ? MedicationRequestStaffRef.fromJson(nurseRaw)
           : null,

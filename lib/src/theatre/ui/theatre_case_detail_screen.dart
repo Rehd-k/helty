@@ -11,6 +11,7 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
+import 'package:helty/src/theatre/widgets/operative_notes_panel.dart';
 import 'package:helty/src/theatre/widgets/theatre_add_consumable_sheet.dart';
 import 'package:helty/src/theatre/widgets/theatre_status_chip.dart';
 
@@ -35,22 +36,10 @@ class _TheatreCaseDetailScreenState
   bool _updating = false;
   String? _error;
 
-  final _findingsCtrl = TextEditingController();
-  final _complicationsCtrl = TextEditingController();
-  final _operativeNotesCtrl = TextEditingController();
-
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _findingsCtrl.dispose();
-    _complicationsCtrl.dispose();
-    _operativeNotesCtrl.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -67,7 +56,6 @@ class _TheatreCaseDetailScreenState
         _request = request;
         _loading = false;
       });
-      _syncNotesFromCase(request.theatreCase);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -75,13 +63,6 @@ class _TheatreCaseDetailScreenState
         _loading = false;
       });
     }
-  }
-
-  void _syncNotesFromCase(TheatreCase? theatreCase) {
-    if (theatreCase == null) return;
-    _findingsCtrl.text = theatreCase.findings ?? '';
-    _complicationsCtrl.text = theatreCase.complications ?? '';
-    _operativeNotesCtrl.text = theatreCase.operativeNotes ?? '';
   }
 
   Future<void> _runAction(Future<SurgeryRequest> Function() action) async {
@@ -93,7 +74,6 @@ class _TheatreCaseDetailScreenState
         _request = updated;
         _updating = false;
       });
-      _syncNotesFromCase(updated.theatreCase);
       invalidateTheatreCase(ref, widget.surgeryRequestId);
     } on AppException catch (e) {
       if (!mounted) return;
@@ -120,23 +100,7 @@ class _TheatreCaseDetailScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Surgery started')),
     );
-  }
-
-  Future<void> _saveNotes() async {
-    final staffId = ref.read(authProvider).staff?.id;
-    await _runAction(
-      () => ref.read(theatreApiServiceProvider).patchCase(
-        widget.surgeryRequestId,
-        findings: _findingsCtrl.text.trim(),
-        complications: _complicationsCtrl.text.trim(),
-        operativeNotes: _operativeNotesCtrl.text.trim(),
-        performedById: staffId,
-      ),
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Operative notes saved')),
-    );
+    await _load();
   }
 
   Future<void> _completeCase() async {
@@ -325,10 +289,8 @@ class _TheatreCaseDetailScreenState
     final procedureName = request.service?.name ?? 'Surgery';
     final theatreCase = request.theatreCase;
     final consumables = theatreCase?.consumables ?? const [];
-    final canEditNotes =
-        canClinical &&
-        (request.status == SurgeryRequestStatus.inProgress ||
-            request.status == SurgeryRequestStatus.completed);
+    final notes = theatreCase?.operativeNoteRecords ?? const [];
+    final canWriteNotes = canWriteOperativeNotes(staff);
 
     return Scaffold(
       appBar: AppBar(
@@ -409,65 +371,12 @@ class _TheatreCaseDetailScreenState
               canBill: canBill,
             ),
             const SizedBox(height: 24),
-            Text(
-              'Operative documentation',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            OperativeNotesPanel(
+              request: request,
+              notes: notes,
+              canWrite: canWriteNotes,
+              onChanged: _load,
             ),
-            const SizedBox(height: 12),
-            if (canEditNotes) ...[
-              TextField(
-                controller: _findingsCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Findings',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _complicationsCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Complications',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _operativeNotesCtrl,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Operative notes',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.tonal(
-                  onPressed: _updating ? null : _saveNotes,
-                  child: const Text('Save notes'),
-                ),
-              ),
-            ] else if (theatreCase != null) ...[
-              if (theatreCase.findings != null &&
-                  theatreCase.findings!.isNotEmpty)
-                Text('Findings: ${theatreCase.findings}'),
-              if (theatreCase.complications != null &&
-                  theatreCase.complications!.isNotEmpty)
-                Text('Complications: ${theatreCase.complications}'),
-              if (theatreCase.operativeNotes != null &&
-                  theatreCase.operativeNotes!.isNotEmpty)
-                Text('Operative notes: ${theatreCase.operativeNotes}'),
-            ] else
-              Text(
-                'No operative notes yet.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -47,6 +47,7 @@ class EncounterSidePanel extends StatelessWidget {
     this.addTooltip,
     this.expandedWidth = 260,
     this.collapsedWidth = 60,
+    this.forceStacked = false,
   });
 
   final String title;
@@ -62,10 +63,13 @@ class EncounterSidePanel extends StatelessWidget {
   final double expandedWidth;
   final double collapsedWidth;
 
+  /// Stack the summary above content (chart embed or mobile).
+  final bool forceStacked;
+
   @override
   Widget build(BuildContext context) {
     final bp = AppBreakpoints.of(context);
-    if (bp.isMobile) return _buildMobile(context);
+    if (bp.isMobile || forceStacked) return _buildMobile(context);
     return _buildSide(context);
   }
 
@@ -222,13 +226,22 @@ class EncounterTabLayout extends StatelessWidget {
     super.key,
     required this.sidePanel,
     required this.child,
+    this.embedded = false,
   });
 
   final Widget sidePanel;
   final Widget child;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [sidePanel, const SizedBox(height: 12), child],
+      );
+    }
+
     final bp = AppBreakpoints.of(context);
     if (bp.isMobile) {
       return Column(
@@ -275,10 +288,7 @@ class _PanelBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (controls != null) ...[
-          controls!,
-          const SizedBox(height: 12),
-        ],
+        if (controls != null) ...[controls!, const SizedBox(height: 12)],
         if (subtitle != null)
           Text(
             subtitle!,
@@ -292,11 +302,13 @@ class _PanelBody extends StatelessWidget {
             spacing: 8,
             runSpacing: 6,
             children: chips
-                .map((chip) => _SummaryChip(
-                      icon: chip.icon,
-                      label: chip.label,
-                      color: chip.color,
-                    ))
+                .map(
+                  (chip) => _SummaryChip(
+                    icon: chip.icon,
+                    label: chip.label,
+                    color: chip.color,
+                  ),
+                )
                 .toList(),
           ),
         ],
