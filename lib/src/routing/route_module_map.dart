@@ -38,6 +38,7 @@ const Map<String, AppModule> _routeModules = {
   'BankManagementRoute': AppModule.billing,
   'ConsultingRoomsRoute': AppModule.billing,
   'WardManagementRoute': AppModule.billing,
+  'AnnouncementManagementRoute': AppModule.administration,
   'EnlistServiceRoute': AppModule.billing,
   'RenderServiceRoute': AppModule.billing,
   'ViewServiceRoute': AppModule.billing,

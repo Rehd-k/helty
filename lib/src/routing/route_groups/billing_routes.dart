@@ -54,6 +54,10 @@ List<AutoRoute> billingRoutes({
     guards: const [ProductModuleGuard()],
   ),
   AutoRoute(
+    page: AnnouncementManagementRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
     page: EnlistServiceRoute.page,
     guards: const [ProductModuleGuard()],
   ),

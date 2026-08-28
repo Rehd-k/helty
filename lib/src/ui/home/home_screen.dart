@@ -33,6 +33,7 @@ import 'desktop_shell_side_panel.dart';
 import 'shell_side_panel_provider.dart';
 import '../../services/helty_desktop_update_service.dart';
 import '../../services/title_bar.dart';
+import '../../system_announcements/widgets/announcement_banner_host.dart';
 import 'account_types.dart';
 
 // ---------------------------------------------------------------------------
@@ -699,6 +700,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 route: BankManagementRoute(),
                 color: DepartmentColors.accountingFinance,
               ),
+              MenuItem(
+                label: 'Announcements',
+                icon: Icons.campaign_outlined,
+                route: AnnouncementManagementRoute(),
+                color: DepartmentColors.itDepartment,
+              ),
             ],
           ),
         );
@@ -902,6 +909,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onStaffChat: openStaffChat,
                 ),
               if (previewBanner != null) previewBanner,
+              const AnnouncementBannerHost(),
               Expanded(
                 child: ColoredBox(
                   color: AppShellTheme.of(context).contentBackground,
@@ -935,6 +943,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onStaffChat: openStaffChat,
             ),
             if (previewBanner != null) previewBanner,
+            const AnnouncementBannerHost(),
             const Expanded(child: AutoRouter()),
           ],
         ),

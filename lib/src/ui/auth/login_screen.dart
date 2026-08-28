@@ -16,6 +16,9 @@ import '../../providers/auth_provider.dart';
 import '../../routing/initial_route_for_role.dart';
 import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
+import '../../system_announcements/providers/system_announcement_providers.dart';
+import '../../system_announcements/services/system_announcement_service.dart';
+import '../../system_announcements/widgets/announcement_modal.dart';
 
 /// Helty product mark (not the org logo from `ORG_LOGO`).
 const _kLogoAsset = 'assets/logo.png';
@@ -60,11 +63,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   List<SavedLogin> _savedLogins = [];
   String? _selectedLoginKey;
+  bool _announcementModalShown = false;
 
   @override
   void initState() {
     super.initState();
     _loadSavedLogins();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowAnnouncements());
+  }
+
+  Future<void> _maybeShowAnnouncements() async {
+    if (!mounted || _announcementModalShown) return;
+    try {
+      final service = SystemAnnouncementService();
+      final active = await service.listActive();
+      if (!mounted || active.isEmpty) return;
+
+      final activeIds = active.map((a) => a.id).toSet();
+      await AnnouncementDismissalStorage.pruneStaleIds(activeIds);
+
+      final toShow = await AnnouncementDismissalStorage.filterForLoginModal(active);
+      if (!mounted || toShow.isEmpty) return;
+
+      _announcementModalShown = true;
+      await AnnouncementModal.show(
+        context,
+        announcements: toShow,
+      );
+      await AnnouncementDismissalStorage.markModalSeenIds(
+        toShow.map((a) => a.id).toSet(),
+      );
+    } catch (_) {
+      // Public endpoint may fail offline; login should still work.
+    }
   }
 
   Future<void> _loadSavedLogins() async {
