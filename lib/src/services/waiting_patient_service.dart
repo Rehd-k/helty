@@ -42,8 +42,9 @@ class WaitingPatientQuery {
       'consultingRoomId': consultingRoomId,
     if (unassignedOnly != null) 'unassignedOnly': unassignedOnly,
     if (seen != null) 'seen': seen,
-    'skip': skip,
-    'take': take,
+    // Explicit strings so Dio never drops/coerces paging params oddly.
+    'skip': '$skip',
+    'take': '$take',
     if (fromDate != null) 'fromDate': fromDate!.toIso8601String(),
     if (toDate != null) 'toDate': toDate!.toIso8601String(),
     if (sortBy != null && sortBy!.isNotEmpty) 'sortBy': sortBy,
@@ -73,6 +74,7 @@ class PaginatedWaitingPatients {
     required this.total,
     this.skip = 0,
     this.take = 20,
+    this.hasMore = false,
   });
 
   final List<WaitingPatientModel> data;
@@ -80,7 +82,15 @@ class PaginatedWaitingPatients {
   final int skip;
   final int take;
 
-  bool get hasMore => skip + data.length < total;
+  /// True when another page of [take] rows may exist.
+  final bool hasMore;
+}
+
+int _readInt(dynamic value, {int fallback = 0}) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value.trim()) ?? fallback;
+  return fallback;
 }
 
 /// Network operations for the nursing / triage flow.
@@ -215,25 +225,56 @@ class WaitingPatientService {
     WaitingPatientQuery? query,
   ]) async {
     final q = query ?? const WaitingPatientQuery();
+    final take = q.take.clamp(1, 20);
+    final skip = q.skip < 0 ? 0 : q.skip;
     final resp = await _dio.get(
       '/waiting-patients',
-      queryParameters: q.toQueryParameters(),
+      queryParameters: WaitingPatientQuery(
+        q: q.q,
+        patientId: q.patientId,
+        consultingRoomId: q.consultingRoomId,
+        unassignedOnly: q.unassignedOnly,
+        seen: q.seen,
+        skip: skip,
+        take: take,
+        sortBy: q.sortBy,
+        sortOrder: q.sortOrder,
+        fromDate: q.fromDate,
+        toDate: q.toDate,
+      ).toQueryParameters(),
     );
-    final body = resp.data as Map<String, dynamic>? ?? {};
+    final raw = resp.data;
+    final body = raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : <String, dynamic>{};
+
     final rawList = body['data'] is List
         ? body['data'] as List
-        : resp.data is List
-        ? resp.data as List
+        : raw is List
+        ? raw
         : <dynamic>[];
-    final total = (body['total'] as num?)?.toInt() ?? rawList.length;
+
+    final reported = body['total'] ?? body['count'];
+    var total = reported != null
+        ? _readInt(reported, fallback: skip + rawList.length)
+        : skip + rawList.length;
+    if (total < skip + rawList.length) {
+      total = skip + rawList.length;
+    }
+
+    // Page rule from product: full page of [take] → Next on; fewer → Next off.
+    final hasMore = rawList.length >= take;
 
     return PaginatedWaitingPatients(
       data: rawList
-          .map((e) => WaitingPatientModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => WaitingPatientModel.fromJson(
+                Map<String, dynamic>.from(e as Map),
+              ))
           .toList(),
       total: total,
-      skip: q.skip,
-      take: q.take,
+      skip: _readInt(body['skip'], fallback: skip),
+      take: _readInt(body['take'], fallback: take),
+      hasMore: hasMore,
     );
   }
 

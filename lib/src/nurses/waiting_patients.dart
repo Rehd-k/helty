@@ -1,7 +1,9 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:math';
 
 import '../auth/nursing_permissions.dart';
 import '../helper/date.formatter.dart';
@@ -59,6 +61,9 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
   int _currentPage = 0;
   bool _sending = false;
   bool _loading = true; // cleared when FromToDateFilter triggers first load
+  bool _hasMore = false;
+  int _loadSeq = 0;
+  Timer? _searchDebounce;
 
   // --- FORM CONTROLLERS ---
   final _sysCtrl = TextEditingController();
@@ -82,6 +87,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     _sysCtrl.dispose();
     _diaCtrl.dispose();
@@ -93,6 +99,40 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
     _spo2Ctrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String _) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      _loadPage(reset: true);
+    });
+  }
+
+  void _onSearchSubmitted(String _) {
+    _searchDebounce?.cancel();
+    _loadPage(reset: true);
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    if (_searchCtrl.text.isEmpty) return;
+    _searchCtrl.clear();
+    _loadPage(reset: true);
+  }
+
+  /// Status filter for the API. While searching, ignore Unassigned/Assigned so
+  /// name/ID lookups are not silently limited to one queue slice.
+  bool? get _unassignedOnlyParam {
+    if (_searchCtrl.text.trim().isNotEmpty) return null;
+    switch (_statusFilter) {
+      case 'Unassigned':
+        return true;
+      case 'Assigned':
+        return false;
+      default:
+        return null;
+    }
   }
 
   void _calculateBMI() {
@@ -108,48 +148,94 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
     }
   }
 
-  int get _totalPages => _total == 0 ? 1 : (_total / _rowsPerPage).ceil();
+  int get _totalPages {
+    if (_total == 0) return 1;
+    final pages = (_total / _rowsPerPage).ceil();
+    if (_hasMore && _currentPage + 1 >= pages) return _currentPage + 2;
+    return pages < 1 ? 1 : pages;
+  }
 
-  Future<void> _loadPage({bool reset = false}) async {
+  bool get _canGoPrev => !_loading && _currentPage > 0;
+
+  /// Next stays enabled only while the current response filled a full page (20).
+  bool get _canGoNext => !_loading && _hasMore;
+
+  Future<void> _goToPage(int page) async {
+    if (_loading) return;
+    if (page < 0) return;
+    if (page > _currentPage && !_canGoNext) return;
+    if (page < _currentPage && !_canGoPrev) return;
+    // Don't let a pending search debounce reset the page after we navigate.
+    _searchDebounce?.cancel();
+    await _loadPage(page: page);
+  }
+
+  Future<void> _loadPage({bool reset = false, int? page}) async {
     if (reset) {
       _currentPage = 0;
+      _hasMore = false;
+    } else if (page != null) {
+      _currentPage = page;
     }
 
-    final skip = _currentPage * _rowsPerPage;
+    final seq = ++_loadSeq;
+    final pageRequested = _currentPage < 0 ? 0 : _currentPage;
+    // Page N → skip N*20, always take exactly 20.
+    final skip = pageRequested * _rowsPerPage;
     final queryText = _searchCtrl.text.trim();
 
-    setState(() {
-      _loading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _currentPage = pageRequested;
+      });
+    }
 
     try {
+      final searching = queryText.isNotEmpty;
       final resp = await _waitingService.fetchWaitingPatients(
         WaitingPatientQuery(
-          q: queryText.isEmpty ? null : queryText,
+          q: searching ? queryText : null,
           consultingRoomId: _filterRoom?.id,
-          unassignedOnly: _statusFilter == 'Unassigned' ? true : null,
-          fromDate: _fromDate,
-          toDate: _toDate,
+          unassignedOnly: _unassignedOnlyParam,
+          fromDate: searching ? null : _fromDate,
+          toDate: searching ? null : _toDate,
           skip: skip,
           take: _rowsPerPage,
         ),
       );
 
-      // For "Assigned" filter, restrict to rows that have a consulting room.
-      List<WaitingPatientModel> rows = resp.data;
-      if (_statusFilter == 'Assigned') {
-        rows = rows.where((p) => p.consultingRoomId != 'Waiting').toList();
+      if (!mounted || seq != _loadSeq) return;
+
+      // Empty page past the start → snap back.
+      if (resp.data.isEmpty && pageRequested > 0) {
+        _hasMore = false;
+        _total = skip;
+        await _loadPage(page: pageRequested - 1);
+        return;
       }
 
+      var total = resp.total;
+      if (total < skip + resp.data.length) {
+        total = skip + resp.data.length;
+      }
+
+      // Strict rule: fewer than 20 rows → Next disabled; full page of 20 →
+      // Next enabled so the client can request skip+=20 for the next chunk.
+      final hasMore = resp.data.length >= _rowsPerPage;
+
       setState(() {
-        _visiblePatients = rows;
-        _total = resp.total;
+        _visiblePatients = resp.data;
+        _total = total;
+        _hasMore = hasMore;
+        _currentPage = pageRequested;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _loadSeq) return;
       setState(() {
         _loading = false;
+        _hasMore = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load waiting patients: $e')),
@@ -346,6 +432,26 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
           size: 18,
           color: colorScheme.onSurfaceVariant,
         ),
+        suffixIcon: _searchCtrl.text.isNotEmpty
+            ? IconButton(
+                tooltip: 'Clear search',
+                icon: Icon(
+                  Icons.clear,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                onPressed: _clearSearch,
+              )
+            : (_loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
@@ -369,7 +475,12 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
         ),
       ),
       style: const TextStyle(fontSize: 13),
-      onChanged: (_) => _loadPage(reset: true),
+      onChanged: (value) {
+        setState(() {}); // refresh clear/loading suffix
+        _onSearchChanged(value);
+      },
+      onSubmitted: _onSearchSubmitted,
+      textInputAction: TextInputAction.search,
     );
   }
 
@@ -837,11 +948,14 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                       color: colorScheme.outline.withValues(alpha: 0.1),
                     ),
 
-                    // Patient List
+                    // Patient List — keep rows visible while refreshing so
+                    // search does not wipe the table into a spinner.
                     Expanded(
-                      child: _loading
+                      child: _loading && _visiblePatients.isEmpty
                           ? const Center(child: CircularProgressIndicator())
-                          : ListView.separated(
+                          : Stack(
+                              children: [
+                                ListView.separated(
                               itemCount: _visiblePatients.length,
                               separatorBuilder: (_, __) => Divider(
                                 height: 1,
@@ -1001,6 +1115,17 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                                 );
                               },
                             ),
+                                if (_loading)
+                                  const Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: LinearProgressIndicator(
+                                      minHeight: 2,
+                                    ),
+                                  ),
+                              ],
+                            ),
                     ),
 
                     // Pagination footer
@@ -1029,14 +1154,10 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.chevron_left),
+                                tooltip: 'Previous page',
                                 visualDensity: VisualDensity.compact,
-                                onPressed: _currentPage > 0
-                                    ? () {
-                                        setState(() {
-                                          _currentPage--;
-                                        });
-                                        _loadPage();
-                                      }
+                                onPressed: _canGoPrev
+                                    ? () => _goToPage(_currentPage - 1)
                                     : null,
                               ),
                               Text(
@@ -1050,14 +1171,10 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.chevron_right),
+                                tooltip: 'Next page',
                                 visualDensity: VisualDensity.compact,
-                                onPressed: (_currentPage + 1) < _totalPages
-                                    ? () {
-                                        setState(() {
-                                          _currentPage++;
-                                        });
-                                        _loadPage();
-                                      }
+                                onPressed: _canGoNext
+                                    ? () => _goToPage(_currentPage + 1)
                                     : null,
                               ),
                             ],

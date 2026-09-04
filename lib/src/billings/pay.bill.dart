@@ -108,6 +108,7 @@ class PayBill extends ConsumerStatefulWidget {
     required this.selectedItems,
     required this.total,
     required this.staffId,
+    this.patientDisplayName,
     this.invoiceId,
 
     /// Human-facing bill code (`invoiceID` from API) for receipt transaction ID.
@@ -123,6 +124,9 @@ class PayBill extends ConsumerStatefulWidget {
   final String firstName;
   final String lastName;
   final String patientId;
+
+  /// Full formatted patient label for UI and receipts (title + all name parts).
+  final String? patientDisplayName;
   final List<ServiceModel> selectedItems;
   final double total;
   final String staffId;
@@ -222,8 +226,17 @@ class PayBillState extends ConsumerState<PayBill> {
   @override
   void initState() {
     super.initState();
-    _patientName =
-        '${_capitalize(widget.lastName)} ${_capitalize(widget.firstName)}';
+    final formatted = widget.patientDisplayName?.trim();
+    if (formatted != null && formatted.isNotEmpty) {
+      _patientName = formatted;
+    } else {
+      _patientName =
+          '${_capitalize(widget.lastName)} ${_capitalize(widget.firstName)}'
+              .trim();
+    }
+    if (_patientName.isEmpty) {
+      _patientName = 'Patient';
+    }
     _patientId = widget.patientId;
     _staffId = widget.staffId;
     _originalAmount = widget.total;

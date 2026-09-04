@@ -17,7 +17,6 @@ import '../providers/theme_mode_provider.dart';
 import '../services/navigation.service.dart';
 import '../widgets/clock_sync_gate.dart';
 import '../widgets/helty_desktop_update_layer.dart';
-import '../widgets/intro_splash.dart';
 import '../widgets/notifications/app_notification_host.dart';
 import 'org_config.dart';
 import 'product_definition.dart';
@@ -62,9 +61,7 @@ Future<void> bootstrapHeltyApp({AppProduct? product}) async {
           (ref) => ReportTemplateNotifier(initialReportTemplate),
         ),
       ],
-      child: const IntroSplash(
-        child: ClockSyncGate(child: HeltyApp()),
-      ),
+      child: const ClockSyncGate(child: HeltyApp()),
     ),
   );
 

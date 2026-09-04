@@ -125,11 +125,12 @@ class _EdEmergencyRequestsScreenState
                             ),
                           ),
                           title: Text(
-                            item.patient?.displayName ?? 'Unknown patient',
+                            item.callerDisplayName,
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           subtitle: Text(
                             [
+                              if (item.isGuest) 'Guest (not signed in)',
                               item.status.label,
                               if (item.description?.isNotEmpty == true)
                                 item.description!,

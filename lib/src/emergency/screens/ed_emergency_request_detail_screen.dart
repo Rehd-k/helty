@@ -87,7 +87,7 @@ class _EdEmergencyRequestDetailScreenState
                 children: [
                   Expanded(
                     child: Text(
-                      request.patient?.displayName ?? 'Unknown patient',
+                      request.callerDisplayName,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
@@ -95,13 +95,22 @@ class _EdEmergencyRequestDetailScreenState
                   Chip(label: Text(request.status.label)),
                 ],
               ),
+              if (request.isGuest) ...[
+                const Gap(4),
+                Text(
+                  'Guest caller (not signed in)',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               if (request.patient?.patientId != null) ...[
                 const Gap(4),
                 Text('MRN / ID: ${request.patient!.patientId}'),
               ],
-              if (request.patient?.phoneNumber != null) ...[
+              if (request.callerPhone != null) ...[
                 const Gap(4),
-                Text('Phone: ${request.patient!.phoneNumber}'),
+                Text('Phone: ${request.callerPhone}'),
               ],
               const Gap(16),
               Text(

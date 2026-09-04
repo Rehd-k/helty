@@ -265,8 +265,7 @@ class ReceiptEscposService {
         'createdAt': DateTime.now().toIso8601String(),
       },
       'patient': {
-        'firstName': patientName,
-        'surname': '',
+        'patientName': patientName,
         'patientId': patientId,
       },
       'staff': {'firstName': cashierFirst, 'lastName': cashierLast},

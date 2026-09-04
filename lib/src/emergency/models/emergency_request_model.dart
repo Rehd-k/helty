@@ -101,6 +101,8 @@ class StaffEmergencyRequest {
     this.videoUrl,
     this.staffNote,
     this.patient,
+    this.guestName,
+    this.guestPhone,
     this.respondedBy,
     this.acknowledgedAt,
     this.dispatchedAt,
@@ -121,6 +123,8 @@ class StaffEmergencyRequest {
   final String? videoUrl;
   final String? staffNote;
   final EmergencyRequestPatient? patient;
+  final String? guestName;
+  final String? guestPhone;
   final EmergencyRequestResponder? respondedBy;
   final DateTime? acknowledgedAt;
   final DateTime? dispatchedAt;
@@ -131,6 +135,21 @@ class StaffEmergencyRequest {
 
   bool get hasVoice => voiceUrl != null && voiceUrl!.isNotEmpty;
   bool get hasVideo => videoUrl != null && videoUrl!.isNotEmpty;
+
+  bool get isGuest => patient == null;
+
+  String get callerDisplayName {
+    if (patient != null) return patient!.displayName;
+    final guest = guestName?.trim();
+    if (guest != null && guest.isNotEmpty) return guest;
+    return 'Guest caller';
+  }
+
+  String? get callerPhone {
+    final guest = guestPhone?.trim();
+    if (guest != null && guest.isNotEmpty) return guest;
+    return patient?.phoneNumber;
+  }
 
   factory StaffEmergencyRequest.fromJson(Map<String, dynamic> json) {
     DateTime? parseDate(dynamic v) {
@@ -154,6 +173,8 @@ class StaffEmergencyRequest {
               json['patient'] as Map<String, dynamic>,
             )
           : null,
+      guestName: json['guestName'] as String?,
+      guestPhone: json['guestPhone'] as String?,
       respondedBy: json['respondedBy'] is Map<String, dynamic>
           ? EmergencyRequestResponder.fromJson(
               json['respondedBy'] as Map<String, dynamic>,

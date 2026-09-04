@@ -265,6 +265,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           patientId: patient.patientId,
           firstName: patient.firstName,
           lastName: patient.surname,
+          patientDisplayName: patient.displayName,
           selectedItems: selectedItems,
           total: outstanding,
           staffId: staffId,

@@ -915,6 +915,7 @@ Future<void> openCustomModal(
                   patientId: invoice.patientId,
                   firstName: invoice.patient.firstName,
                   lastName: invoice.patient.surname,
+                  patientDisplayName: invoice.patient.displayName,
                   total: invoice.total,
                   staffId: staffId,
                   invoiceId: invoice.id,

@@ -970,11 +970,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     showDialog<void>(
       context: context,
       barrierColor: Colors.transparent,
-      builder: (ctx) => PayBill(
-        patientId: detail.patientId,
-        firstName: name,
-        lastName: '',
-        selectedItems: models,
+        builder: (ctx) => PayBill(
+          patientId: detail.patientId,
+          firstName: name,
+          lastName: '',
+          patientDisplayName: name,
+          selectedItems: models,
         total: total,
         staffId: staff.id,
         isInvoice: true,
@@ -1867,7 +1868,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${effectivePatientName.split(' ').first.toUpperCase()} ${effectivePatientName.split(' ').last.toUpperCase()}',
+              effectivePatientName.toUpperCase(),
               style: TextStyle(
                 fontSize: 18,
                 color: colorScheme.onSurfaceVariant,

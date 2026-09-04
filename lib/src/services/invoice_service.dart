@@ -95,6 +95,8 @@ class InvoiceService {
     DateTime? fromDate,
     DateTime? toDate,
     String? search,
+    int skip = 0,
+    int take = 20,
   }) async {
     try {
       final now = DateTime.now();
@@ -102,6 +104,8 @@ class InvoiceService {
       final to =
           toDate ?? DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       final q = search?.trim() ?? '';
+      final pageTake = take.clamp(1, 20);
+      final pageSkip = skip < 0 ? 0 : skip;
 
       final response = await _dio.get(
         '/invoices/by-service-categories',
@@ -109,12 +113,10 @@ class InvoiceService {
           'category': category.trim(),
           'fromDate': from.toUtc().toIso8601String(),
           'toDate': to.toUtc().toIso8601String(),
-          if (q.isNotEmpty) ...{
-            'transactionId': q,
-            'patientName': q,
-            'invoiceId': q,
-            'invoiceID': q,
-          },
+          'skip': '$pageSkip',
+          'take': '$pageTake',
+          // Single OR search — do not AND transactionId/patientName/invoiceId.
+          if (q.isNotEmpty) 'search': q,
         },
       );
 

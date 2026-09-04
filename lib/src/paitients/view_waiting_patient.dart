@@ -51,6 +51,12 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  static const int _rowsPerPage = 20;
+  int _currentPage = 0;
+  int _total = 0;
+  bool _hasMore = false;
+  int _loadSeq = 0;
+
   bool get _isRegisterUse => widget.use.trim().toLowerCase() == 'for register';
   bool get _isNursingQueueUse =>
       widget.use.trim().toLowerCase() == 'nursingqueue';
@@ -60,6 +66,16 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
       : _isNursingQueueUse
       ? '/waiting-patients'
       : '/invoices/by-service-categories';
+
+  bool get _canGoPrev => !_isLoading && _currentPage > 0;
+  bool get _canGoNext => !_isLoading && _hasMore;
+
+  int get _totalPages {
+    if (_total == 0) return 1;
+    final pages = (_total / _rowsPerPage).ceil();
+    if (_hasMore && _currentPage + 1 >= pages) return _currentPage + 2;
+    return pages < 1 ? 1 : pages;
+  }
 
   String get _primaryButtonLabel => _isRegisterUse
       ? 'Register Patient'
@@ -116,19 +132,43 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
     if (picked != null && picked != _selectedDateRange) {
       setState(() {
         _selectedDateRange = picked;
+        _currentPage = 0;
       });
-      await _fetchPatients();
+      await _fetchPatients(reset: true);
     }
   }
 
-  Future<void> _fetchPatients() async {
+  Future<void> _goToPage(int page) async {
+    if (_isLoading) return;
+    if (page < 0) return;
+    if (page > _currentPage && !_canGoNext) return;
+    if (page < _currentPage && !_canGoPrev) return;
+    await _fetchPatients(page: page);
+  }
+
+  Future<void> _fetchPatients({bool reset = false, int? page}) async {
+    if (reset) {
+      _currentPage = 0;
+      _hasMore = false;
+    } else if (page != null) {
+      _currentPage = page;
+    }
+
+    final seq = ++_loadSeq;
+    final pageRequested = _currentPage < 0 ? 0 : _currentPage;
+    final skip = pageRequested * _rowsPerPage;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _currentPage = pageRequested;
     });
 
     try {
-      final query = <String, dynamic>{};
+      final query = <String, dynamic>{
+        'skip': '$skip',
+        'take': '$_rowsPerPage',
+      };
       final search = _searchController.text.trim();
       final range = _selectedDateRange;
       final now = DateTime.now();
@@ -137,23 +177,31 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
           range?.end ?? DateTime(now.year, now.month, now.day, 23, 59, 59);
 
       if (search.isNotEmpty) {
-        // Invoice API: bill number, internal id, or patient name.
-        query['transactionId'] = search;
-        query['patientName'] = search;
-        query['invoiceId'] = search;
-        query['invoiceID'] = search;
+        // Backend ORs name / invoice # / payment ref via a single `search` param.
+        // Do NOT send transactionId+patientName+invoiceId together — those AND
+        // and almost never match a name-only query like "victor".
+        query['search'] = search;
       }
 
       if (_isNursingQueueUse) {
         final queue = await _waitingService.fetchWaitingPatients(
-          WaitingPatientQuery(skip: 0, take: 100, fromDate: from, toDate: to),
+          WaitingPatientQuery(
+            q: search.isEmpty ? null : search,
+            skip: skip,
+            take: _rowsPerPage,
+            fromDate: from,
+            toDate: to,
+          ),
         );
-        if (!mounted) return;
+        if (!mounted || seq != _loadSeq) return;
         final patients = queue.data
             .map(_UnregisteredPatientTxn.fromWaitingQueue)
             .toList();
+        final hasMore = patients.length >= _rowsPerPage;
         setState(() {
           _patients = patients;
+          _total = queue.total;
+          _hasMore = hasMore;
           _selectedPatient = patients.isNotEmpty ? patients.first : null;
         });
         return;
@@ -168,24 +216,20 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
           // Dio serializes list values as repeated query params by default.
           query['category'] = categories;
         }
-        // Do not force status here: backend shapes vary; unpaid rows should still
-        // appear so staff can see the queue. "Open Patient" requires payment for OPD only.
       }
 
       query['fromDate'] = from.toUtc().toIso8601String();
       query['toDate'] = to.toUtc().toIso8601String();
-      // if (!_isNursingQueueUse) {
-      //   query['status'] = 'PAID';
-      // }
 
       final resp = await _dio.get(_endpoint, queryParameters: query);
 
-      if (!mounted) return;
+      if (!mounted || seq != _loadSeq) return;
 
       final raw = resp.data;
-      final list = _extractUnregisteredList(
-        raw is Map ? Map<String, dynamic>.from(raw) : raw,
-      );
+      final body = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : <String, dynamic>{};
+      final list = _extractUnregisteredList(body.isEmpty ? raw : body);
       var patients = <_UnregisteredPatientTxn>[];
       for (final e in list) {
         if (e is! Map) continue;
@@ -197,27 +241,51 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
           // Skip malformed rows; keep the rest of the table usable.
         }
       }
+
+      // Empty page past the start → snap back.
+      if (patients.isEmpty && pageRequested > 0) {
+        _hasMore = false;
+        _total = skip;
+        await _fetchPatients(page: pageRequested - 1);
+        return;
+      }
+
+      final reportedTotal = body['total'] ?? body['count'];
+      var total = reportedTotal is num
+          ? reportedTotal.toInt()
+          : (reportedTotal is String
+                ? int.tryParse(reportedTotal) ?? skip + patients.length
+                : skip + patients.length);
+      if (total < skip + patients.length) {
+        total = skip + patients.length;
+      }
+
       setState(() {
         _patients = patients;
+        _total = total;
+        // Full page of 20 → Next enabled; fewer → Next disabled.
+        _hasMore = patients.length >= _rowsPerPage;
         _selectedPatient = patients.isNotEmpty ? patients.first : null;
       });
     } on DioException catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _loadSeq) return;
       final msg = _dioErrorMessage(e);
       setState(() {
         _errorMessage = msg;
         _patients = [];
         _selectedPatient = null;
+        _hasMore = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _loadSeq) return;
       setState(() {
         _errorMessage = 'Failed to load unregistered patients: $e';
         _patients = [];
         _selectedPatient = null;
+        _hasMore = false;
       });
     } finally {
-      if (mounted) {
+      if (mounted && seq == _loadSeq) {
         setState(() {
           _isLoading = false;
         });
@@ -334,7 +402,8 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
   Widget _buildSearchField(ColorScheme colorScheme) {
     return TextField(
       controller: _searchController,
-      onSubmitted: (_) => _fetchPatients(),
+      onSubmitted: (_) => _fetchPatients(reset: true),
+      textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: "Search bill #, invoice id, or patient name...",
         hintStyle: TextStyle(
@@ -346,6 +415,17 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
           size: 20,
           color: colorScheme.onSurface.withValues(alpha: 0.5),
         ),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                tooltip: 'Clear search',
+                icon: const Icon(Icons.clear, size: 18),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {});
+                  _fetchPatients(reset: true);
+                },
+              )
+            : null,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
@@ -368,6 +448,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
         ),
       ),
       style: const TextStyle(fontSize: 13),
+      onChanged: (_) => setState(() {}),
     );
   }
 
@@ -398,8 +479,9 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
       onPressed: () {
         setState(() {
           _searchController.clear();
+          _currentPage = 0;
         });
-        _fetchPatients();
+        _fetchPatients(reset: true);
       },
       icon: const Icon(Icons.clear_all, size: 18),
       label: const Text("Clear", style: TextStyle(fontSize: 13)),
@@ -663,7 +745,8 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Showing ${_patients.length} results",
+                  "Showing ${_patients.length} of $_total · "
+                  "${_currentPage + 1} / $_totalPages",
                   style: TextStyle(
                     fontSize: 12,
                     color: colorScheme.onSurface.withValues(alpha: 0.5),
@@ -672,7 +755,9 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                 Row(
                   children: [
                     OutlinedButton(
-                      onPressed: () {},
+                      onPressed: _canGoPrev
+                          ? () => _goToPage(_currentPage - 1)
+                          : null,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         minimumSize: const Size(0, 32),
@@ -684,7 +769,9 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton(
-                      onPressed: () {},
+                      onPressed: _canGoNext
+                          ? () => _goToPage(_currentPage + 1)
+                          : null,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         minimumSize: const Size(0, 32),

@@ -24,8 +24,6 @@ import '../widgets/prescription_drug_form_dialog.dart';
 // MAIN UI – Pharmacy prescription queue (drugs sent on patients' behalf)
 // -----------------------------------------------------------------------------
 
-enum _QueueQuickRange { today, last7, thisMonth }
-
 @RoutePage()
 class WaitingPatientScreen extends StatefulWidget {
   const WaitingPatientScreen({
@@ -1049,26 +1047,6 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     await _refreshOrders(reset: true);
   }
 
-  void _applyQueueQuickRange(_QueueQuickRange quickRange) {
-    final now = DateTime.now();
-    switch (quickRange) {
-      case _QueueQuickRange.today:
-        _fromDate = _queueStartOfDay(now);
-        _toDate = _queueEndOfDay(now);
-        break;
-      case _QueueQuickRange.last7:
-        _fromDate = _queueStartOfDay(now.subtract(const Duration(days: 6)));
-        _toDate = _queueEndOfDay(now);
-        break;
-      case _QueueQuickRange.thisMonth:
-        _fromDate = DateTime(now.year, now.month, 1);
-        _toDate = _queueEndOfDay(now);
-        break;
-    }
-    setState(() => _selectedTabIndex = 0);
-    _refreshOrders(reset: true);
-  }
-
   Widget _buildQueueToolbar(ColorScheme colorScheme, AppBreakpoints bp) {
     final from = _fromDate ?? DateTime.now();
     final to = _toDate ?? from;
@@ -1091,24 +1069,6 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                     '${DateFormat('dd MMM yyyy').format(from)} - ${DateFormat('dd MMM yyyy').format(to)}',
                     style: const TextStyle(fontSize: 12),
                   ),
-                ),
-                FilledButton.tonal(
-                  onPressed: _loading || _loadingMore
-                      ? null
-                      : () => _applyQueueQuickRange(_QueueQuickRange.today),
-                  child: const Text('Today'),
-                ),
-                FilledButton.tonal(
-                  onPressed: _loading || _loadingMore
-                      ? null
-                      : () => _applyQueueQuickRange(_QueueQuickRange.last7),
-                  child: const Text('Last 7 days'),
-                ),
-                FilledButton.tonal(
-                  onPressed: _loading || _loadingMore
-                      ? null
-                      : () => _applyQueueQuickRange(_QueueQuickRange.thisMonth),
-                  child: const Text('This month'),
                 ),
               ],
             ),
