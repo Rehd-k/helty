@@ -899,6 +899,9 @@ class WalletDepositResponse {
   }
 }
 
+/// Same response shape as [WalletDepositResponse] (wallet + transaction).
+typedef WalletAdjustResponse = WalletDepositResponse;
+
 class WalletChartPage {
   WalletChartPage({
     required this.wallet,
@@ -1254,6 +1257,28 @@ class WalletDepositPayload {
   Map<String, dynamic> toJson() => {
     'amount': amount,
     if (reference != null && reference!.isNotEmpty) 'reference': reference,
+    if (staffId != null && staffId!.trim().isNotEmpty) 'staffId': staffId,
+  };
+}
+
+class WalletAdjustPayload {
+  WalletAdjustPayload({
+    required this.amount,
+    required this.type,
+    required this.reference,
+    this.staffId,
+  });
+
+  final double amount;
+  /// `CREDIT` or `DEBIT`
+  final String type;
+  final String reference;
+  final String? staffId;
+
+  Map<String, dynamic> toJson() => {
+    'amount': amount,
+    'type': type,
+    'reference': reference,
     if (staffId != null && staffId!.trim().isNotEmpty) 'staffId': staffId,
   };
 }

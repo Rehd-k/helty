@@ -199,6 +199,20 @@ class InvoiceNotifier extends StateNotifier<AsyncValue<Invoice?>> {
     return response;
   }
 
+  Future<WalletAdjustResponse> adjustWallet({
+    required String patientId,
+    required WalletAdjustPayload payload,
+  }) async {
+    final service = ref.read(invoiceServiceProvider);
+    final response = await service.adjustWallet(
+      patientId: patientId,
+      payload: payload,
+    );
+    ref.invalidate(patientWalletProvider(patientId));
+    ref.invalidate(walletTransactionsProvider(patientId));
+    return response;
+  }
+
   void _invalidateInvoiceState(
     BillingInvoiceDetail invoice, {
     bool includeWallet = false,

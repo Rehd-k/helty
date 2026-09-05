@@ -755,6 +755,30 @@ class InvoiceService {
     }
   }
 
+  Future<WalletAdjustResponse> adjustWallet({
+    required String patientId,
+    required WalletAdjustPayload payload,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/invoices/wallets/$patientId/adjustments',
+        data: payload.toJson(),
+      );
+      return WalletDepositResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        throw Exception(
+          'You do not have permission to adjust this patient wallet.',
+        );
+      }
+      throw Exception(
+        'Failed to adjust wallet: ${_dioMessage(e, 'Unknown error')}',
+      );
+    }
+  }
+
   Future<BillingPaymentDetail> getPaymentDetail(String paymentId) async {
     try {
       final response = await _dio.get('/invoices/payments/$paymentId');

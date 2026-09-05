@@ -107,6 +107,12 @@ bool isBillingHead(Staff? staff) {
   return r == 'BILLING_HEAD' || r == 'SUPER_ADMIN';
 }
 
+/// Manual wallet CREDIT/DEBIT adjustments (not routine deposits).
+///
+/// Allowed: Super Admin, Billing Head, Account Head.
+bool canAdjustPatientWallet(Staff? staff) =>
+    isBillingHead(staff) || isAccountHead(staff);
+
 /// Billing department staff who may edit recurring line start dates.
 bool canEditRecurringInvoiceItemStartDateForStaff(Staff? staff) {
   if (staff == null) return false;

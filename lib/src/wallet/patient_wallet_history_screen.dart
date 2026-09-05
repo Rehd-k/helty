@@ -6,10 +6,13 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/accounts/widgets/accounts_data_table_box.dart';
 import 'package:helty/src/accounts/widgets/accounts_money_format.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/auth/billing_permissions.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
+import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/wallet/wallet_adjust_dialog.dart';
 import 'package:helty/src/wallet/wallet_deposit_dialog.dart';
 import 'package:helty/src/wallet/wallet_payment_resolver.dart';
 import 'package:helty/src/wallet/wallet_providers.dart';
@@ -181,11 +184,25 @@ class _PatientWalletHistoryScreenState
     _invalidate();
   }
 
+  Future<void> _adjustWallet(double currentBalance) async {
+    await WalletAdjustDialog.show(
+      context,
+      ref: ref,
+      patientUuid: widget.patientUuid,
+      patientName: widget.patientName,
+      currentBalance: currentBalance,
+      onSuccess: _invalidate,
+    );
+    _invalidate();
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(patientWalletHistoryProvider(_query));
     final fmt = accountsNairaFormat();
     final theme = Theme.of(context);
+    final staff = ref.watch(authProvider).staff;
+    final canAdjust = canAdjustPatientWallet(staff);
     final title = widget.patientName.trim().isNotEmpty
         ? 'Wallet — ${widget.patientName}'
         : 'Patient wallet';
@@ -253,6 +270,12 @@ class _PatientWalletHistoryScreenState
                             icon: const Icon(Icons.add_card_outlined),
                             label: const Text('Fund wallet'),
                           ),
+                          if (canAdjust)
+                            OutlinedButton.icon(
+                              onPressed: () => _adjustWallet(balance),
+                              icon: const Icon(Icons.tune_outlined),
+                              label: const Text('Adjust wallet'),
+                            ),
                         ],
                       ),
                     ],
