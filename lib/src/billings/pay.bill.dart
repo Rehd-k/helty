@@ -409,7 +409,8 @@ class PayBillState extends ConsumerState<PayBill> {
 
   bool get _isHmoStaff {
     final staff = ref.read(authProvider).staff;
-    return canSplitWithHmo(staff);
+    // Desk-only: super admin canSplitWithHmo but must still take payments.
+    return isHmoDeskStaff(staff);
   }
 
   bool get _isHmoInvoiceFlow =>

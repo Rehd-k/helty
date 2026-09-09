@@ -38,6 +38,39 @@ BillingInvoiceItem _recurringLine({
 }
 
 void main() {
+  group('isHmoDeskStaff', () {
+    test('hmo account and desk roles are desk staff', () {
+      expect(
+        isHmoDeskStaff(_staff(accountType: AccountType.hmo)),
+        isTrue,
+      );
+      expect(isHmoDeskStaff(_staff(staffRole: 'HMO_STAFF')), isTrue);
+      expect(isHmoDeskStaff(_staff(staffRole: 'HMO_DESK')), isTrue);
+      expect(isHmoDeskStaff(_staff(staffRole: 'HMO')), isTrue);
+    });
+
+    test('super admin can split HMO but is not desk staff', () {
+      expect(
+        canSplitWithHmo(_staff(accountType: AccountType.super_admin)),
+        isTrue,
+      );
+      expect(
+        isHmoDeskStaff(_staff(accountType: AccountType.super_admin)),
+        isFalse,
+      );
+      expect(isHmoDeskStaff(_staff(staffRole: 'SUPER_ADMIN')), isFalse);
+    });
+
+    test('billing staff is not HMO desk', () {
+      expect(
+        isHmoDeskStaff(
+          _staff(accountType: AccountType.billing, staffRole: 'BILLING_HEAD'),
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('canDeleteInpatientInvoice', () {
     test('super admin can delete', () {
       expect(

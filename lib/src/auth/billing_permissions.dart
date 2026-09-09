@@ -18,6 +18,19 @@ bool canSplitWithHmo(Staff? staff) =>
     _hasAccountType(staff, {AccountType.hmo, AccountType.super_admin}) ||
     _hasRole(staff, {'HMO', 'HMO_STAFF', 'SUPER_ADMIN'});
 
+/// HMO desk operators only (not super admin).
+///
+/// Used to hide cash/card payment UI — desk staff apply cover instead.
+/// Prefer [canSplitWithHmo] when the action is applying/reversing HMO cover.
+bool isHmoDeskStaff(Staff? staff) {
+  if (staff == null) return false;
+  if (staff.accountType == AccountType.super_admin) return false;
+  final r = staff.staffRole.trim().toUpperCase().replaceAll('-', '_');
+  if (r == 'SUPER_ADMIN') return false;
+  return _hasAccountType(staff, {AccountType.hmo}) ||
+      _hasRole(staff, {'HMO', 'HMO_STAFF', 'HMO_DESK'});
+}
+
 bool canApplyDiscount(Staff? staff) =>
     _hasAccountType(staff, {
       AccountType.billing,
