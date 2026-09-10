@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 
@@ -88,25 +90,59 @@ Color priorityColor(RadiologyPriority priority) {
   }
 }
 
+bool _looksLikeRichPayload(String s) {
+  final t = s.trimLeft();
+  return t.startsWith('[') || (t.startsWith('{') && t.contains('"insert"'));
+}
+
+/// Plain text from a Quill delta JSON string, or null if it is not a delta.
+String? quillDeltaToPlainText(String? raw) {
+  final source = raw?.trim();
+  if (source == null || source.isEmpty || !_looksLikeRichPayload(source)) {
+    return null;
+  }
+  try {
+    final decoded = jsonDecode(source);
+    if (decoded is! List) return null;
+    final buffer = StringBuffer();
+    for (final op in decoded) {
+      if (op is Map && op['insert'] is String) {
+        buffer.write(op['insert'] as String);
+      }
+    }
+    final text = buffer.toString().trim();
+    return text.isEmpty ? null : text;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Plain-text preview for lists and PDF. Skips [RadiologyStudyReport.impression]
-/// when it holds Quill delta JSON (stored alongside plain [findings]).
+/// when it holds Quill delta JSON (stored alongside plain [findings]), and
+/// falls back to extracting insert text from that delta when findings is empty.
 String reportPreviewText(RadiologyStudyReport? report) {
   if (report == null) return 'No report yet.';
   final findings = report.findings?.trim();
   final recommendations = report.recommendations?.trim();
   final impression = report.impression?.trim();
-  bool looksLikeRichPayload(String s) {
-    final t = s.trimLeft();
-    return t.startsWith('[') || (t.startsWith('{') && t.contains('"insert"'));
-  }
+  final impressionIsRich =
+      impression != null &&
+      impression.isNotEmpty &&
+      _looksLikeRichPayload(impression);
+  final impressionPlain = impression == null || impression.isEmpty
+      ? null
+      : (impressionIsRich ? quillDeltaToPlainText(impression) : impression);
   final parts = <String>[
     if (findings != null && findings.isNotEmpty) findings,
     if (recommendations != null && recommendations.isNotEmpty) recommendations,
-    if (impression != null &&
-        impression.isNotEmpty &&
-        !looksLikeRichPayload(impression))
-      impression,
+    if (impressionPlain != null &&
+        impressionPlain.isNotEmpty &&
+        (!impressionIsRich || findings == null || findings.isEmpty))
+      impressionPlain,
   ];
-  if (parts.isEmpty) return 'Report saved without text.';
+  if (parts.isEmpty) {
+    if (report.id.isNotEmpty) return 'Report saved without text.';
+    return 'No report yet.';
+  }
   return parts.join('\n\n');
 }

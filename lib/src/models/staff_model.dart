@@ -22,6 +22,7 @@ enum AccountType {
   medical_records,
   front_desk,
   ict,
+  janitor,
   cmd,
   cmac,
   super_admin,
@@ -48,6 +49,7 @@ enum AccountType {
     purchases,
     dialysis,
     theatre,
+    janitor,
     super_admin,
   ];
 
@@ -73,6 +75,7 @@ enum AccountType {
     purchases => 'Purchases',
     dialysis => 'Dialysis',
     theatre => 'Theatre',
+    janitor => 'Housekeeping',
     super_admin => 'Super Admin',
     staff => 'Staff (legacy)',
   };
@@ -118,7 +121,15 @@ enum AccountType {
         return AccountType.nurse;
       case 'consultant':
       case 'inpatient_doctor':
+      case 'physician_head':
+      case 'specialist':
+      case 'house_officer':
+      case 'medical_officer':
         return AccountType.physician;
+      case 'janitor':
+      case 'janitor_head':
+      case 'housekeeping':
+        return AccountType.janitor;
       case 'lab':
         return AccountType.laboratory;
       case 'dialysis':

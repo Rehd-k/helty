@@ -138,57 +138,84 @@ class _RadiologyRequestDetailScreenState
     final service = ref.read(radiologyServiceProvider);
     final report = item.report;
     final editor = _buildQuillController(report);
-    final saved = await showModalBottomSheet<bool>(
+    final saved = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+      barrierDismissible: false,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 12,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 12,
+        final size = MediaQuery.sizeOf(ctx);
+        final theme = Theme.of(ctx);
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
           ),
-          child: SizedBox(
-            height: MediaQuery.of(ctx).size.height * 0.8,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  report == null ? 'Create report' : 'Edit report',
-                  style: Theme.of(ctx).textTheme.titleMedium,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 1120,
+              maxHeight: size.height * 0.94,
+            ),
+            child: SizedBox(
+              width: (size.width - 32).clamp(360.0, 1120.0),
+              height: size.height * 0.94,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  16,
+                  20,
+                  16 + MediaQuery.viewInsetsOf(ctx).bottom,
                 ),
-                const SizedBox(height: 12),
-                QuillSimpleToolbar(controller: editor),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Theme.of(ctx).colorScheme.outlineVariant,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            report == null ? 'Create report' : 'Edit report',
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Close',
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    QuillSimpleToolbar(controller: editor),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: QuillEditor.basic(controller: editor),
                       ),
                     ),
-                    child: QuillEditor.basic(controller: editor),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Save report'),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        const Spacer(),
+                        FilledButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: const Text('Save report'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -220,16 +247,17 @@ class _RadiologyRequestDetailScreenState
     if (order == null) return;
     setState(() => _statusUpdating = true);
     try {
-      await ref.read(radiologyServiceProvider).updateOrder(
-        order.id,
-        {'status': status.apiValue},
-      );
+      await ref.read(radiologyServiceProvider).updateOrder(order.id, {
+        'status': status.apiValue,
+      });
       if (!mounted) return;
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Order status set to ${orderStatusLabel(status)}.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Order status set to ${orderStatusLabel(status)}.'),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
@@ -249,7 +277,10 @@ class _RadiologyRequestDetailScreenState
     });
   }
 
-  Future<void> _runItemAction(String itemId, Future<void> Function() action) async {
+  Future<void> _runItemAction(
+    String itemId,
+    Future<void> Function() action,
+  ) async {
     setState(() => _itemActionId = itemId);
     try {
       await action();
@@ -276,9 +307,8 @@ class _RadiologyRequestDetailScreenState
         }
       } catch (_) {}
     }
-    return QuillController.basic(
-      config: QuillControllerConfig(),
-    )..document.insert(0, reportPreviewText(report));
+    return QuillController.basic(config: QuillControllerConfig())
+      ..document.insert(0, reportPreviewText(report));
   }
 
   Future<void> _printOrderReport() async {
@@ -338,9 +368,7 @@ class _RadiologyRequestDetailScreenState
     if (_error != null && order == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Radiology order')),
-        body: Center(
-          child: Text(_error!),
-        ),
+        body: Center(child: Text(_error!)),
       );
     }
 
@@ -360,12 +388,16 @@ class _RadiologyRequestDetailScreenState
             tooltip: 'Share clinical notes',
           ),
           IconButton(
-            onPressed: _order!.items.any((e) => e.report != null) ? _printOrderReport : null,
+            onPressed: _order!.items.any((e) => e.report != null)
+                ? _printOrderReport
+                : null,
             icon: const Icon(Icons.print_outlined),
             tooltip: 'Print report',
           ),
           IconButton(
-            onPressed: _order!.items.any((e) => e.report != null) ? _shareOrderReport : null,
+            onPressed: _order!.items.any((e) => e.report != null)
+                ? _shareOrderReport
+                : null,
             icon: const Icon(Icons.ios_share_outlined),
             tooltip: 'Share PDF',
           ),
@@ -388,109 +420,115 @@ class _RadiologyRequestDetailScreenState
       body: ResponsiveBody(
         expand: false,
         builder: (context, bp) => RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          children: [
-          _OrderHeader(order: order),
-          const SizedBox(height: 12),
-          ...order.items.map(
-            (item) => Card(
-              child: ExpansionTile(
-                key: ValueKey(item.id),
-                initiallyExpanded: _selectedItemId == item.id,
-                onExpansionChanged: (v) {
-                  if (v) setState(() => _selectedItemId = item.id);
-                },
-                title: Text(
-                  '${item.scanType.displayLabel}${item.bodyPart?.isNotEmpty == true ? ' · ${item.bodyPart}' : ''}',
-                ),
-                subtitle: Text(
-                  '${item.priority.name} · ${itemStatusLabel(item.status)}',
-                ),
-                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                children: [
-                  _ValueRow('Clinical notes', item.clinicalNotes ?? '-'),
-                  _ValueRow(
-                    'Reason',
-                    item.reasonForInvestigation ?? '-',
-                  ),
-                  _ValueRow('Created', _fmt(item.createdAt)),
-                  _ValueRow('Updated', _fmt(item.updatedAt)),
-                  if (item.schedule != null)
-                    _ValueRow(
-                      'Scheduled',
-                      _fmt(item.schedule!.scheduledAt),
+          onRefresh: _load,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            children: [
+              _OrderHeader(order: order),
+              const SizedBox(height: 12),
+              ...order.items.map(
+                (item) => Card(
+                  child: ExpansionTile(
+                    key: ValueKey(item.id),
+                    initiallyExpanded: _selectedItemId == item.id,
+                    onExpansionChanged: (v) {
+                      if (v) setState(() => _selectedItemId = item.id);
+                    },
+                    title: Text(
+                      '${item.scanType.displayLabel}${item.bodyPart?.isNotEmpty == true ? ' · ${item.bodyPart}' : ''}',
                     ),
-                  if (item.procedure != null)
-                    _ValueRow(
-                      'Procedure start',
-                      _fmt(item.procedure!.startTime),
+                    subtitle: Text(
+                      '${item.priority.name} · ${itemStatusLabel(item.status)}',
                     ),
-                  if (item.report != null)
-                    _ValueRow('Report preview', reportPreviewText(item.report)),
-                  if (_imagesForItem(item).isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Uploaded images/files',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 6),
-                    ..._imagesForItem(item).map(
-                      (img) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: RadiologyImageSlide(
-                          service: ref.read(radiologyServiceProvider),
-                          image: img,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: [
-                      if ((item.clinicalNotes ?? '').trim().isNotEmpty)
-                        OutlinedButton.icon(
-                          onPressed: _printClinicalNotes,
-                          icon: const Icon(Icons.note_alt_outlined),
-                          label: const Text('Print notes'),
+                      _ValueRow('Clinical notes', item.clinicalNotes ?? '-'),
+                      _ValueRow('Reason', item.reasonForInvestigation ?? '-'),
+                      _ValueRow('Created', _fmt(item.createdAt)),
+                      _ValueRow('Updated', _fmt(item.updatedAt)),
+                      if (item.schedule != null)
+                        _ValueRow(
+                          'Scheduled',
+                          _fmt(item.schedule!.scheduledAt),
                         ),
-                      OutlinedButton.icon(
-                        onPressed: () => _addSchedule(item.id),
-                        icon: const Icon(Icons.schedule),
-                        label: Text(item.schedule == null
-                            ? 'Add schedule'
-                            : 'Update schedule'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _addProcedure(item.id),
-                        icon: const Icon(Icons.medical_services_outlined),
-                        label: Text(item.procedure == null
-                            ? 'Add procedure'
-                            : 'Update procedure'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _uploadImage(item.id),
-                        icon: const Icon(Icons.upload_file),
-                        label: const Text('Upload image/file'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _saveReport(item),
-                        icon: const Icon(Icons.description_outlined),
-                        label: Text(
-                          item.report == null ? 'Add report' : 'Update report',
+                      if (item.procedure != null)
+                        _ValueRow(
+                          'Procedure start',
+                          _fmt(item.procedure!.startTime),
                         ),
-                      ),
-                      PopupMenuButton<RadiologyOrderItemStatus>(
-                        enabled: _itemActionId != item.id,
-                        tooltip: 'Change item status',
-                        onSelected: (status) =>
-                            _updateItemStatus(item.id, status),
-                        itemBuilder: (context) =>
-                            RadiologyOrderItemStatus.values
+                      if (item.report != null)
+                        _ValueRow(
+                          'Report preview',
+                          reportPreviewText(item.report),
+                        ),
+                      if (_imagesForItem(item).isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Uploaded images/files',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 6),
+                        ..._imagesForItem(item).map(
+                          (img) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: RadiologyImageSlide(
+                              service: ref.read(radiologyServiceProvider),
+                              image: img,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if ((item.clinicalNotes ?? '').trim().isNotEmpty)
+                            OutlinedButton.icon(
+                              onPressed: _printClinicalNotes,
+                              icon: const Icon(Icons.note_alt_outlined),
+                              label: const Text('Print notes'),
+                            ),
+                          OutlinedButton.icon(
+                            onPressed: () => _addSchedule(item.id),
+                            icon: const Icon(Icons.schedule),
+                            label: Text(
+                              item.schedule == null
+                                  ? 'Add schedule'
+                                  : 'Update schedule',
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _addProcedure(item.id),
+                            icon: const Icon(Icons.medical_services_outlined),
+                            label: Text(
+                              item.procedure == null
+                                  ? 'Add procedure'
+                                  : 'Update procedure',
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _uploadImage(item.id),
+                            icon: const Icon(Icons.upload_file),
+                            label: const Text('Upload image/file'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _saveReport(item),
+                            icon: const Icon(Icons.description_outlined),
+                            label: Text(
+                              item.report == null
+                                  ? 'Add report'
+                                  : 'Update report',
+                            ),
+                          ),
+                          PopupMenuButton<RadiologyOrderItemStatus>(
+                            enabled: _itemActionId != item.id,
+                            tooltip: 'Change item status',
+                            onSelected: (status) =>
+                                _updateItemStatus(item.id, status),
+                            itemBuilder: (context) => RadiologyOrderItemStatus
+                                .values
                                 .map(
                                   (status) => PopupMenuItem(
                                     value: status,
@@ -498,43 +536,47 @@ class _RadiologyRequestDetailScreenState
                                   ),
                                 )
                                 .toList(),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.outline,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.change_circle_outlined,
+                                    size: 18,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Item status',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.labelLarge,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.change_circle_outlined,
-                                size: 18,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Item status',
-                                style: Theme.of(context).textTheme.labelLarge,
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
         ),
-      ),
       ),
     );
   }

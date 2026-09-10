@@ -10,11 +10,14 @@ import 'package:helty/app_router.gr.dart';
 
 import '../../accounts/auth/accounting_permissions.dart';
 import '../../app/product_definition.dart';
+import '../../app/product_environment.dart';
 import '../../app/product_module_access.dart';
 import '../../auth/billing_permissions.dart';
 import '../../auth/dialysis_permissions.dart';
 import '../../auth/theatre_permissions.dart';
 import '../../auth/nursing_permissions.dart';
+import '../../auth/department_head_permissions.dart';
+import '../../hospital_assets/providers/hospital_asset_providers.dart';
 import '../../nursing/providers/nursing_providers.dart';
 import '../../helper/theme.dart';
 import '../../shared/department_colors.dart';
@@ -127,6 +130,12 @@ const cmacExecutiveMenuItems = <MenuItem>[
     label: 'Staff',
     icon: Icons.groups_rounded,
     route: CmacStaffRoute(),
+    color: DepartmentColors.administration,
+  ),
+  MenuItem(
+    label: 'Hospital inventory',
+    icon: Icons.inventory_2_outlined,
+    route: HospitalAssetsRoute(),
     color: DepartmentColors.administration,
   ),
   MenuItem(
@@ -373,7 +382,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   List<MenuItem> _menuForRole(Staff? staff, String role, String accountType) {
     final common = <MenuItem>[];
-    bool moduleOn(AppModule module) => ProductModuleAccess.isModuleEnabled(module);
+    bool moduleOn(AppModule module) =>
+        ProductModuleAccess.isModuleEnabled(module);
 
     if (staffIsSuperAdmin(staff)) {
       if (moduleOn(AppModule.administration)) {
@@ -404,8 +414,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
       // Hospital already exposes this under System Setup; slim products need a
       // top-level entry because administration routes are not registered.
-      if (moduleOn(AppModule.billing) &&
-          !moduleOn(AppModule.administration)) {
+      if (moduleOn(AppModule.billing) && !moduleOn(AppModule.administration)) {
         common.add(
           const MenuItem(
             label: 'Add Service',
@@ -507,6 +516,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         at == 'inpatient_doctor' ||
         r == 'doctor' ||
         r == 'consultant' ||
+        r == 'specialist' ||
+        r == 'physician_head' ||
+        r == 'house_officer' ||
+        r == 'medical_officer' ||
         r == 'resident' ||
         r == 'intern' ||
         r == 'junior_resident' ||
@@ -539,7 +552,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       common.addAll(theatreMenu);
     }
 
-    if ((at == 'ict' || r == 'ict_staff') && moduleOn(AppModule.ict)) {
+    if ((at == 'ict' || r == 'ict_staff' || r == 'ict_head') &&
+        moduleOn(AppModule.ict)) {
       common.addAll([
         const MenuItem(
           label: 'Dashboard',
@@ -716,7 +730,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       common.addAll(storeMenu);
     }
 
-    final isHmoDesk = at == 'hmo' || r == 'hmo_staff' || r == 'hmo_desk';
+    final isHmoDesk =
+        at == 'hmo' || r == 'hmo_staff' || r == 'hmo_desk' || r == 'hmo_head';
     if (isHmoDesk && moduleOn(AppModule.hmo)) {
       common.addAll(hmoDeskMenu);
     }
@@ -740,6 +755,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           route: HmoServicePricingRoute(),
         ),
       ]);
+    }
+
+    if (isHousekeepingHead(staff) && moduleOn(AppModule.housekeeping)) {
+      common.addAll(housekeepingMenu);
+    } else if (usesGenericDepartmentRoster(staff) &&
+        ProductEnvironment.currentProduct == AppProduct.hospital) {
+      common.addAll(departmentHeadMenu);
+    }
+
+    final assetAccess = ref.watch(hospitalAssetAccessProvider).valueOrNull;
+    final alreadyHasAssets = common.any((m) => m.route is HospitalAssetsRoute);
+    if (!alreadyHasAssets &&
+        ProductEnvironment.currentProduct == AppProduct.hospital &&
+        (canViewOwnDepartmentInventory(staff) ||
+            assetAccess?.canView == true)) {
+      common.add(inventoryMenuItem(staff));
     }
 
     return common;
@@ -1881,9 +1912,7 @@ class _MobileTopBar extends ConsumerWidget {
       decoration: BoxDecoration(
         color: shell.sidebarBackground,
         border: Border(
-          bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
-          ),
+          bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
       child: Row(

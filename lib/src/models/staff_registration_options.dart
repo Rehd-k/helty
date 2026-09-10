@@ -19,6 +19,7 @@ enum StaffAccountCategory {
   medicalRecords,
   frontDesk,
   ict,
+  janitor,
   cmd,
   cmac,
   superAdmin,
@@ -41,6 +42,7 @@ extension StaffAccountCategoryLabels on StaffAccountCategory {
     StaffAccountCategory.medicalRecords => 'Medical Records',
     StaffAccountCategory.frontDesk => 'Front Desk',
     StaffAccountCategory.ict => 'ICT',
+    StaffAccountCategory.janitor => 'Housekeeping',
     StaffAccountCategory.cmd => 'CMD',
     StaffAccountCategory.cmac => 'CMAC',
     StaffAccountCategory.superAdmin => 'Super Admin',
@@ -89,6 +91,11 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
     ),
   ],
   StaffAccountCategory.hmo: [
+    const StaffRoleOption(
+      label: 'HMO Head',
+      accountType: AccountType.hmo,
+      staffRole: 'HMO_HEAD',
+    ),
     const StaffRoleOption(
       label: 'HMO Desk',
       accountType: AccountType.hmo,
@@ -171,9 +178,19 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
   ],
   StaffAccountCategory.physician: [
     const StaffRoleOption(
+      label: 'Physician Head',
+      accountType: AccountType.physician,
+      staffRole: 'PHYSICIAN_HEAD',
+    ),
+    const StaffRoleOption(
       label: 'Consultant',
       accountType: AccountType.physician,
       staffRole: 'CONSULTANT',
+    ),
+    const StaffRoleOption(
+      label: 'Specialist',
+      accountType: AccountType.physician,
+      staffRole: 'SPECIALIST',
     ),
     const StaffRoleOption(
       label: 'Resident',
@@ -194,6 +211,16 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
       label: 'Senior resident',
       accountType: AccountType.physician,
       staffRole: 'SENIOR_RESIDENT',
+    ),
+    const StaffRoleOption(
+      label: 'House officer',
+      accountType: AccountType.physician,
+      staffRole: 'HOUSE_OFFICER',
+    ),
+    const StaffRoleOption(
+      label: 'Medical officer',
+      accountType: AccountType.physician,
+      staffRole: 'MEDICAL_OFFICER',
     ),
     const StaffRoleOption(
       label: 'Chief resident',
@@ -315,12 +342,22 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
   ],
   StaffAccountCategory.medicalRecords: [
     const StaffRoleOption(
+      label: 'Medical Records Head',
+      accountType: AccountType.medical_records,
+      staffRole: 'MEDICAL_RECORDS_HEAD',
+    ),
+    const StaffRoleOption(
       label: 'Medical Records',
       accountType: AccountType.medical_records,
       staffRole: 'MEDICAL_RECORDS',
     ),
   ],
   StaffAccountCategory.frontDesk: [
+    const StaffRoleOption(
+      label: 'Front Desk Head',
+      accountType: AccountType.front_desk,
+      staffRole: 'FRONT_DESK_HEAD',
+    ),
     const StaffRoleOption(
       label: 'Front Desk',
       accountType: AccountType.front_desk,
@@ -329,9 +366,21 @@ final Map<StaffAccountCategory, List<StaffRoleOption>> kStaffRolesByCategory = {
   ],
   StaffAccountCategory.ict: [
     const StaffRoleOption(
+      label: 'ICT Head',
+      accountType: AccountType.ict,
+      staffRole: 'ICT_HEAD',
+    ),
+    const StaffRoleOption(
       label: 'ICT staff',
       accountType: AccountType.ict,
       staffRole: 'ICT_STAFF',
+    ),
+  ],
+  StaffAccountCategory.janitor: [
+    const StaffRoleOption(
+      label: 'Head of Housekeeping',
+      accountType: AccountType.janitor,
+      staffRole: 'JANITOR_HEAD',
     ),
   ],
   StaffAccountCategory.cmd: [
@@ -405,6 +454,7 @@ StaffAccountCategory? accountCategoryForAccountType(AccountType? accountType) {
     AccountType.medical_records => StaffAccountCategory.medicalRecords,
     AccountType.front_desk => StaffAccountCategory.frontDesk,
     AccountType.ict => StaffAccountCategory.ict,
+    AccountType.janitor => StaffAccountCategory.janitor,
     AccountType.cmd => StaffAccountCategory.cmd,
     AccountType.cmac => StaffAccountCategory.cmac,
     AccountType.super_admin => StaffAccountCategory.superAdmin,

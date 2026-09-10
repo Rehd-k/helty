@@ -22,10 +22,10 @@ void main() {
       expect(initialRouteForRole('admin', 'admin'), isA<CMDDashboardRoute>());
     });
 
-    test('accounting lands on accounts dashboard', () {
+    test('janitor lands on housekeeping home', () {
       expect(
-        initialRouteForRole('ACCOUNT_HEAD', 'accounting'),
-        isA<AccountsDashboardRoute>(),
+        initialRouteForRole('JANITOR_HEAD', 'janitor'),
+        isA<HousekeepingHomeRoute>(),
       );
     });
   });

@@ -76,8 +76,13 @@ class _RadiologyOrderResultsDialogState
       _error = null;
     });
     try {
-      final order =
-          widget.order ?? await widget.service.getOrder(widget.orderId!);
+      // Always fetch the detail payload. List endpoints only include a report
+      // id/signedAt stub, which would otherwise render as "Report saved without text."
+      final orderId = widget.orderId ?? widget.order?.id;
+      if (orderId == null || orderId.isEmpty) {
+        throw StateError('Radiology order id is required.');
+      }
+      final order = await widget.service.getOrder(orderId);
       final itemLabels = radiologyOrderItemLabels(
         order,
         studyNamesByServiceId: widget.studyNamesByServiceId,
@@ -107,26 +112,21 @@ class _RadiologyOrderResultsDialogState
         ? order!.items.first
         : null;
     final titleId = order?.id ?? widget.orderId ?? '';
-    final viewportHeight = MediaQuery.sizeOf(context).height;
-    final maxContentHeight = (viewportHeight * 0.62).clamp(360.0, 560.0);
-    final carouselHeight = (maxContentHeight * 0.42).clamp(150.0, 200.0);
-    final detailsMaxHeight = maxContentHeight - carouselHeight - 88;
+    final viewport = MediaQuery.sizeOf(context);
     final bp = AppBreakpoints.of(context);
-    final dialogWidth = bp.dialogWidth(context, max: 720);
-    final contentWidth = (dialogWidth - 40).clamp(320.0, 680.0);
+    final dialogWidth = bp.dialogWidth(context, max: 1120);
+    final dialogHeight = (viewport.height * 0.92).clamp(520.0, viewport.height);
+    final carouselHeight = (dialogHeight * 0.34).clamp(240.0, 380.0);
 
     return AlertDialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       clipBehavior: Clip.antiAlias,
       contentPadding: EdgeInsets.zero,
-      content: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: dialogWidth,
-          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-        ),
+      content: SizedBox(
+        width: dialogWidth,
+        height: dialogHeight,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
@@ -202,170 +202,156 @@ class _RadiologyOrderResultsDialogState
                 ],
               ),
             ),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: SizedBox(
-                  width: contentWidth,
-                  child: _loading
-                      ? const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 32),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      : _error != null
-                      ? Text(
-                          _error!,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.error,
-                          ),
-                        )
-                      : ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: maxContentHeight,
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxHeight: detailsMaxHeight,
-                                ),
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      if (order != null) ...[
-                                        _ResultRow(
-                                          label: 'Ordered',
-                                          value:
-                                              DateFormatter.formatFromBackend(
-                                                order.createdAt,
-                                                DateFormatter.dateTime,
-                                              ),
-                                        ),
-                                        if (widget.showEncounterId &&
-                                            order.encounterId != null &&
-                                            order.encounterId!
-                                                .trim()
-                                                .isNotEmpty)
-                                          _ResultRow(
-                                            label: 'Encounter',
-                                            value: order.encounterId!,
-                                          ),
-                                        _ResultRow(
-                                          label: 'Status',
-                                          value: orderStatusLabel(order.status),
-                                        ),
-                                        _ResultRow(
-                                          label: 'Items',
-                                          value: '${order.items.length}',
-                                        ),
-                                        if (firstItem != null) ...[
-                                          _ResultRow(
-                                            label: 'Study',
-                                            value: firstItem.studyLabel(
-                                              namesByServiceId:
-                                                  widget.studyNamesByServiceId,
-                                            ),
-                                          ),
-                                          if (firstItem.bodyPart != null &&
-                                              firstItem.bodyPart!
-                                                  .trim()
-                                                  .isNotEmpty)
-                                            _ResultRow(
-                                              label: 'Area',
-                                              value: firstItem.bodyPart!,
-                                            ),
-                                        ],
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          'Report',
-                                          style: theme.textTheme.titleSmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        ...order.items.map((item) {
-                                          final report = item.report;
-                                          if (report == null) {
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 12,
-                                              ),
-                                              child: Text(
-                                                '${item.scanType.displayLabel}: No signed report yet.',
-                                                style: theme
-                                                    .textTheme
-                                                    .bodyMedium
-                                                    ?.copyWith(
-                                                      color: theme
-                                                          .colorScheme
-                                                          .onSurface
-                                                          .withValues(
-                                                            alpha: 0.7,
-                                                          ),
-                                                    ),
-                                              ),
-                                            );
-                                          }
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 16,
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                Text(
-                                                  item.scanType.displayLabel,
-                                                  style: theme
-                                                      .textTheme
-                                                      .labelLarge
-                                                      ?.copyWith(
-                                                        color: theme
-                                                            .colorScheme
-                                                            .primary,
-                                                      ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Text(
-                                                  reportPreviewText(report),
-                                                  style: theme
-                                                      .textTheme
-                                                      .bodyMedium,
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        }),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Files',
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              RadiologyImageCarousel(
-                                service: widget.service,
-                                images: _images,
-                                itemLabels: _itemLabels,
-                                height: carouselHeight,
-                              ),
-                            ],
-                          ),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _error!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.error,
                         ),
-                ),
-              ),
+                      ),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (order != null) ...[
+                                    _ResultRow(
+                                      label: 'Ordered',
+                                      value: DateFormatter.formatFromBackend(
+                                        order.createdAt,
+                                        DateFormatter.dateTime,
+                                      ),
+                                    ),
+                                    if (widget.showEncounterId &&
+                                        order.encounterId != null &&
+                                        order.encounterId!.trim().isNotEmpty)
+                                      _ResultRow(
+                                        label: 'Encounter',
+                                        value: order.encounterId!,
+                                      ),
+                                    _ResultRow(
+                                      label: 'Status',
+                                      value: orderStatusLabel(order.status),
+                                    ),
+                                    _ResultRow(
+                                      label: 'Items',
+                                      value: '${order.items.length}',
+                                    ),
+                                    if (firstItem != null) ...[
+                                      _ResultRow(
+                                        label: 'Study',
+                                        value: firstItem.studyLabel(
+                                          namesByServiceId:
+                                              widget.studyNamesByServiceId,
+                                        ),
+                                      ),
+                                      if (firstItem.bodyPart != null &&
+                                          firstItem.bodyPart!.trim().isNotEmpty)
+                                        _ResultRow(
+                                          label: 'Area',
+                                          value: firstItem.bodyPart!,
+                                        ),
+                                    ],
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Report',
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ...order.items.map((item) {
+                                      final report = item.report;
+                                      if (report == null) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: Text(
+                                            '${item.scanType.displayLabel}: No signed report yet.',
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withValues(alpha: 0.7),
+                                                ),
+                                          ),
+                                        );
+                                      }
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 16,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            Text(
+                                              item.scanType.displayLabel,
+                                              style: theme.textTheme.labelLarge
+                                                  ?.copyWith(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .primary,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(16),
+                                              decoration: BoxDecoration(
+                                                color: theme
+                                                    .colorScheme
+                                                    .surfaceContainerHighest
+                                                    .withValues(alpha: 0.45),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: SelectableText(
+                                                reportPreviewText(report),
+                                                style: theme.textTheme.bodyLarge
+                                                    ?.copyWith(height: 1.45),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Files',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          RadiologyImageCarousel(
+                            service: widget.service,
+                            images: _images,
+                            itemLabels: _itemLabels,
+                            height: carouselHeight,
+                          ),
+                        ],
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),

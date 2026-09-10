@@ -600,4 +600,46 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
 
   // ICT
   AutoRoute(page: DashboardRoute.page, guards: const [ProductModuleGuard()]),
+
+  AutoRoute(
+    page: DepartmentStaffRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: DepartmentRosterRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HospitalAssetsRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    path: 'hospital-assets/:assetId',
+    page: HospitalAssetDetailRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HospitalAssetAccessRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HousekeepingHomeRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HousekeepingWorkersRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HousekeepingAreasRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HousekeepingShiftsRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
+  AutoRoute(
+    page: HousekeepingSuppliesRoute.page,
+    guards: const [ProductModuleGuard()],
+  ),
 ];

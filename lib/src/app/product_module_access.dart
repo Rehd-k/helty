@@ -67,6 +67,10 @@ class ProductModuleAccess {
         return AppModule.accounting;
       case 'ict':
         return AppModule.ict;
+      case 'janitor':
+      case 'janitor_head':
+      case 'housekeeping':
+        return AppModule.housekeeping;
       case 'cmac':
       case 'cmd':
       case 'super_admin':

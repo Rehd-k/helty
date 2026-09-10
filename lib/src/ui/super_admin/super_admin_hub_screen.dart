@@ -47,17 +47,11 @@ class SuperAdminHubScreen extends ConsumerWidget {
       final result = await DbBackupService().createBackup();
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Backup saved as ${result.filename}',
-          ),
-        ),
+        SnackBar(content: Text('Backup saved as ${result.filename}')),
       );
     } catch (e) {
       messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
-        SnackBar(content: Text('Backup failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Backup failed: $e')));
     }
   }
 
@@ -88,10 +82,8 @@ class SuperAdminHubScreen extends ConsumerWidget {
       return;
     }
 
-    final survivorLabel =
-        '${survivor.displayName} (${survivor.patientId})';
-    final duplicateLabel =
-        '${duplicate.displayName} (${duplicate.patientId})';
+    final survivorLabel = '${survivor.displayName} (${survivor.patientId})';
+    final duplicateLabel = '${duplicate.displayName} (${duplicate.patientId})';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -125,16 +117,12 @@ class SuperAdminHubScreen extends ConsumerWidget {
         ),
       );
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Merge failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Merge failed: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final staff = ref.watch(authProvider).staff;
 
     return Scaffold(
@@ -146,95 +134,27 @@ class SuperAdminHubScreen extends ConsumerWidget {
         expand: false,
         builder: (context, bp) => SingleChildScrollView(
           child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _HubActionBanner(
-                  title: 'Staff directory',
-                  subtitle:
-                      'Browse all staff, open full profiles, and view active '
-                      'password reset codes when the API provides them.',
-                  icon: Icons.groups_outlined,
-                  onTap: () => context.router.push(const SuperAdminStaffListRoute()),
-                ),
-                const SizedBox(height: 12),
-                _HubActionBanner(
-                  title: 'Merge patients',
-                  subtitle:
-                      'Combine a duplicate patient record into a survivor. '
-                      'All clinical and billing links move to the survivor.',
-                  icon: Icons.merge_type_outlined,
-                  onTap: () => _openMergePatients(context),
-                ),
-                const SizedBox(height: 12),
-                _HubActionBanner(
-                  title: 'Create database backup',
-                  subtitle:
-                      'Write a dated gzipped backup on the server. '
-                      'Nightly backups also run automatically at 11:59 PM.',
-                  icon: Icons.backup_outlined,
-                  onTap: () => _createDbBackup(context),
-                ),
-                const SizedBox(height: 12),
-                _HubActionBanner(
-                  title: 'Health campaigns',
-                  subtitle: 'Create and publish patient health campaigns.',
-                  icon: Icons.campaign_outlined,
-                  onTap: () =>
-                      context.router.push(const HealthCampaignsAdminRoute()),
-                ),
-                const SizedBox(height: 12),
-                _HubActionBanner(
-                  title: 'Health news',
-                  subtitle: 'Manage health news articles shown to patients.',
-                  icon: Icons.newspaper_outlined,
-                  onTap: () =>
-                      context.router.push(const HealthNewsAdminRoute()),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  'Department preview',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _HubSectionHeader(
+                    title: 'Department preview',
+                    subtitle:
+                        'Open any account type to match the sidebar and home '
+                        'route to that department’s lead experience. Your login '
+                        'stays super admin.',
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Open any account type to match the sidebar and home route to that department’s lead experience. Your login stays super admin.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final departments =
-                        ProductModuleAccess.allowedHubDepartments();
-                    final w = constraints.maxWidth;
-                    final cross = w >= 900
-                        ? 4
-                        : w >= 640
-                        ? 3
-                        : w >= 400
-                        ? 2
-                        : 1;
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: cross,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: w >= 640 ? 1.45 : 1.25,
-                      ),
-                      itemCount: departments.length,
-                      itemBuilder: (context, index) {
-                        final dep = departments[index];
-                        return _DepartmentCard(
+                  const SizedBox(height: 24),
+                  _HubCardGrid(
+                    children: [
+                      for (final dep
+                          in ProductModuleAccess.allowedHubDepartments())
+                        _HubCard(
                           title: dep.tileTitle,
                           subtitle: dep.previewBannerLabel,
+                          icon: Icons.open_in_new_rounded,
                           onTap: () {
                             ref
                                 .read(superAdminPreviewProvider.notifier)
@@ -250,23 +170,141 @@ class SuperAdminHubScreen extends ConsumerWidget {
                             );
                             context.router.navigate(route);
                           },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 36),
+                  const _HubSectionHeader(
+                    title: 'Admin tools',
+                    subtitle:
+                        'Staff directory, patient records, backups, and '
+                        'patient-facing health content.',
+                  ),
+                  const SizedBox(height: 24),
+                  _HubCardGrid(
+                    children: [
+                      _HubCard(
+                        title: 'Staff directory',
+                        subtitle:
+                            'Browse staff, open profiles, and view password '
+                            'reset codes.',
+                        icon: Icons.groups_outlined,
+                        onTap: () => context.router.push(
+                          const SuperAdminStaffListRoute(),
+                        ),
+                      ),
+                      _HubCard(
+                        title: 'Merge patients',
+                        subtitle:
+                            'Combine a duplicate record into a survivor. '
+                            'Clinical and billing links move with it.',
+                        icon: Icons.merge_type_outlined,
+                        onTap: () => _openMergePatients(context),
+                      ),
+                      _HubCard(
+                        title: 'Create database backup',
+                        subtitle:
+                            'Write a dated gzipped backup on the server. '
+                            'Nightly backups run at 11:59 PM.',
+                        icon: Icons.backup_outlined,
+                        onTap: () => _createDbBackup(context),
+                      ),
+                      _HubCard(
+                        title: 'Health campaigns',
+                        subtitle:
+                            'Create and publish patient health campaigns.',
+                        icon: Icons.campaign_outlined,
+                        onTap: () => context.router.push(
+                          const HealthCampaignsAdminRoute(),
+                        ),
+                      ),
+                      _HubCard(
+                        title: 'Health news',
+                        subtitle:
+                            'Manage health news articles shown to patients.',
+                        icon: Icons.newspaper_outlined,
+                        onTap: () =>
+                            context.router.push(const HealthNewsAdminRoute()),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
     );
   }
 }
 
-class _HubActionBanner extends StatelessWidget {
-  const _HubActionBanner({
+class _HubSectionHeader extends StatelessWidget {
+  const _HubSectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HubCardGrid extends StatelessWidget {
+  const _HubCardGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final cross = w >= 900
+            ? 4
+            : w >= 640
+            ? 3
+            : w >= 400
+            ? 2
+            : 1;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cross,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: w >= 640 ? 1.45 : 1.25,
+          ),
+          itemCount: children.length,
+          itemBuilder: (context, index) => children[index],
+        );
+      },
+    );
+  }
+}
+
+class _HubCard extends StatefulWidget {
+  const _HubCard({
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -279,70 +317,10 @@ class _HubActionBanner extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: cs.primaryContainer.withValues(alpha: 0.35),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: cs.primary.withValues(alpha: 0.35)),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 32, color: cs.primary),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                            height: 1.4,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: cs.primary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<_HubCard> createState() => _HubCardState();
 }
 
-class _DepartmentCard extends StatefulWidget {
-  const _DepartmentCard({
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  State<_DepartmentCard> createState() => _DepartmentCardState();
-}
-
-class _DepartmentCardState extends State<_DepartmentCard> {
+class _HubCardState extends State<_HubCard> {
   bool _hover = false;
 
   @override
@@ -371,11 +349,7 @@ class _DepartmentCardState extends State<_DepartmentCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.open_in_new_rounded,
-                  size: 22,
-                  color: cs.primary,
-                ),
+                Icon(widget.icon, size: 22, color: cs.primary),
                 const SizedBox(height: 10),
                 Text(
                   widget.title,
@@ -388,9 +362,9 @@ class _DepartmentCardState extends State<_DepartmentCard> {
                   widget.subtitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                 ),
               ],
             ),
@@ -461,12 +435,9 @@ class _MergePatientsDialogState extends State<_MergePatientsDialog> {
         FilledButton(
           onPressed: canMerge
               ? () => Navigator.pop(
-                    context,
-                    _MergeSelection(
-                      survivor: _survivor!,
-                      duplicate: _duplicate!,
-                    ),
-                  )
+                  context,
+                  _MergeSelection(survivor: _survivor!, duplicate: _duplicate!),
+                )
               : null,
           child: const Text('Merge'),
         ),

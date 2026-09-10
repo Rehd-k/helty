@@ -79,6 +79,10 @@ PageRouteInfo initialRouteForRole(String role, String accountType) {
     case 'accounting':
     case 'accounts':
       return const AccountsDashboardRoute();
+    case 'janitor':
+    case 'janitor_head':
+    case 'housekeeping':
+      return const HousekeepingHomeRoute();
     case 'ict':
       return const DashboardRoute();
     case 'cmac':

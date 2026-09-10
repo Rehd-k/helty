@@ -276,6 +276,17 @@ const Map<String, AppModule> _routeModules = {
   // ICT
   'DashboardRoute': AppModule.ict,
 
+  'DepartmentStaffRoute': AppModule.administration,
+  'DepartmentRosterRoute': AppModule.administration,
+  'HospitalAssetsRoute': AppModule.administration,
+  'HospitalAssetDetailRoute': AppModule.administration,
+  'HospitalAssetAccessRoute': AppModule.administration,
+  'HousekeepingHomeRoute': AppModule.housekeeping,
+  'HousekeepingWorkersRoute': AppModule.housekeeping,
+  'HousekeepingAreasRoute': AppModule.housekeeping,
+  'HousekeepingShiftsRoute': AppModule.housekeeping,
+  'HousekeepingSuppliesRoute': AppModule.housekeeping,
+
   // Administration / CMD / CMAC / super admin
   'SuperAdminHubRoute': AppModule.administration,
   'CMDDashboardRoute': AppModule.administration,

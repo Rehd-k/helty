@@ -24,6 +24,7 @@ enum AppModule {
   hmo,
   medicalRecords,
   ict,
+  housekeeping,
   administration,
 }
 
@@ -57,6 +58,7 @@ const kAllAppModules = {
   AppModule.hmo,
   AppModule.medicalRecords,
   AppModule.ict,
+  AppModule.housekeeping,
   AppModule.administration,
 };
 

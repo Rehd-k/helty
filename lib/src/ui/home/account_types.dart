@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../app_router.gr.dart';
 import '../../app/product_definition.dart';
 import '../../app/product_environment.dart';
+import '../../auth/department_head_permissions.dart';
 import '../../auth/nursing_permissions.dart';
+import '../../hospital_assets/ui/asset_theme.dart';
 import '../../models/staff_model.dart';
 import '../../nursing/models/nursing_models.dart';
 import '../../reports/services/hospital_reports_service.dart';
@@ -1246,5 +1248,65 @@ final storeMenu = <MenuItem>[
     label: 'Consumable analytics',
     icon: Icons.insights_outlined,
     route: StoreConsumableAnalyticsRoute(),
+  ),
+];
+
+final departmentHeadMenu = <MenuItem>[
+  MenuItem(
+    label: 'Department staff',
+    icon: Icons.groups_outlined,
+    route: DepartmentStaffRoute(),
+    color: DepartmentColors.administration,
+  ),
+  MenuItem(
+    label: 'Department shifts',
+    icon: Icons.schedule_outlined,
+    route: DepartmentRosterRoute(),
+    color: DepartmentColors.administration,
+  ),
+];
+
+MenuItem inventoryMenuItem(Staff? staff) {
+  final wide = isHospitalWideInventoryViewer(staff);
+  return MenuItem(
+    label: wide ? 'Hospital inventory' : 'Department inventory',
+    icon: Icons.inventory_2_outlined,
+    route: const HospitalAssetsRoute(),
+    color: wide
+        ? DepartmentColors.administration
+        : colorForAccountType(staff?.accountType?.apiValue ?? ''),
+  );
+}
+
+final housekeepingMenu = <MenuItem>[
+  MenuItem(
+    label: 'Housekeeping',
+    icon: Icons.cleaning_services_outlined,
+    route: HousekeepingHomeRoute(),
+    color: DepartmentColors.security,
+  ),
+  MenuItem(
+    label: 'Workers',
+    icon: Icons.people_outline,
+    route: HousekeepingWorkersRoute(),
+    color: DepartmentColors.security,
+  ),
+  MenuItem(
+    label: 'Areas',
+    icon: Icons.meeting_room_outlined,
+    route: HousekeepingAreasRoute(),
+    color: DepartmentColors.security,
+  ),
+  MenuItem(
+    label: 'Shifts',
+    icon: Icons.schedule_outlined,
+    route: HousekeepingShiftsRoute(),
+    color: DepartmentColors.security,
+  ),
+  MenuItem(
+    label: 'Supplies',
+    icon: Icons.inventory_outlined,
+    route: HousekeepingSuppliesRoute(),
+    color: DepartmentColors.security,
   ),
 ];
