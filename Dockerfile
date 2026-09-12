@@ -1,14 +1,12 @@
-# Stage 1: Build Flutter Web
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+FROM ghcr.io/cirruslabs/flutter:3.9.2 AS build
 
 WORKDIR /app
 COPY pubspec.* ./
 RUN flutter pub get
 
 COPY . .
-RUN flutter build web --release
+RUN flutter build web --no-tree-shake-icons --no-wasm-dry-run --no-web-resources-cdn --pwa-strategy=none
 
-# Stage 2: Serve with Nginx
 FROM nginx:alpine
 COPY --from=build /app/build/web /usr/share/nginx/html
 
