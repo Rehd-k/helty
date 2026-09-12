@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,8 +32,10 @@ import '../../providers/theme_mode_provider.dart';
 import '../../notifications/notification_navigation_provider.dart';
 import 'desktop_shell_side_panel.dart';
 import 'shell_side_panel_provider.dart';
+import '../../core/platform/helty_platform.dart';
 import '../../services/helty_desktop_update_service.dart';
 import '../../services/title_bar.dart';
+import '../../services/window_chrome.dart';
 import '../../system_announcements/widgets/announcement_banner_host.dart';
 import 'account_types.dart';
 
@@ -167,9 +167,15 @@ const cmacExecutiveMenuItems = <MenuItem>[
   ),
 ];
 
-/// CMD sidebar: full CMAC + Accounts & Audit menus flattened into one list
-/// (head breadth, view-only actions).
+/// CMD sidebar: CMD executive home, then full CMAC + Accounts & Audit menus
+/// flattened into one list (head breadth, view-only actions).
 final cmdUnifiedMenuItems = <MenuItem>[
+  MenuItem(
+    label: 'Executive dashboard',
+    icon: Icons.home_outlined,
+    route: CMDDashboardRoute(),
+    color: DepartmentColors.administration,
+  ),
   ...cmacExecutiveMenuItems,
   ...accountsHeadMenu,
   MenuItem(
@@ -869,7 +875,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Column(
             children: [
-              if (Platform.isWindows)
+              if (HeltyPlatform.isWindows)
                 _buildTitleBar(context, openHelpCenter, openStaffChat),
               Expanded(
                 child: isMobile
@@ -934,7 +940,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (!Platform.isWindows)
+              if (!HeltyPlatform.isWindows)
                 _NonWindowsShellActions(
                   onHelpCenter: openHelpCenter,
                   onStaffChat: openStaffChat,

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:auto_route/auto_route.dart';
@@ -98,13 +97,22 @@ class _RadiologyRequestDetailScreenState
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'],
+      withData: true,
     );
     if (picked == null || picked.files.isEmpty) return;
-    final path = picked.files.single.path;
-    if (path == null) return;
+    final file = picked.files.single;
+    if ((file.bytes == null || file.bytes!.isEmpty) &&
+        (file.path == null || file.path!.isEmpty)) {
+      return;
+    }
     setState(() => _itemActionId = itemId);
     try {
-      final uploaded = await service.uploadImage(itemId, File(path));
+      final uploaded = await service.uploadImage(
+        itemId,
+        filename: file.name,
+        filePath: file.path,
+        bytes: file.bytes,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

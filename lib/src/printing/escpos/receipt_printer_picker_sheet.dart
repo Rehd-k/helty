@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import 'package:helty/src/app/org_config.dart';
+import 'package:helty/src/core/platform/helty_platform.dart';
 import 'package:helty/src/printing/escpos/receipt_escpos_service.dart';
 import 'package:helty/src/printing/escpos/windows_default_raw_printer.dart';
 
@@ -14,7 +13,7 @@ Future<void> showReceiptPrinterPickerSheet(
   bool isCopy = false,
   String? logoAssetPath,
 }) async {
-  if (!Platform.isWindows) {
+  if (!HeltyPlatform.isWindows) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

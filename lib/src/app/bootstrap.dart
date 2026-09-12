@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +12,7 @@ import '../printing/pdf/report_templates/report_pdf_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_mode_provider.dart';
 import '../services/navigation.service.dart';
+import '../services/window_chrome.dart';
 import '../widgets/clock_sync_gate.dart';
 import '../widgets/helty_desktop_update_layer.dart';
 import '../widgets/notifications/app_notification_host.dart';
@@ -65,27 +63,7 @@ Future<void> bootstrapHeltyApp({AppProduct? product}) async {
     ),
   );
 
-  _revealWindowsWindow();
-}
-
-void _revealWindowsWindow() {
-  if (!Platform.isWindows) return;
-
-  var revealed = false;
-  void reveal() {
-    if (revealed) return;
-    revealed = true;
-    final win = appWindow;
-    win.minSize = const Size(1024, 640);
-    win.maximize();
-    win.title = ProductEnvironment.displayName;
-    win.show();
-  }
-
-  doWhenWindowReady(reveal);
-  // If the first frame never rasterizes (some GPU / fast-user-switch sessions),
-  // still try to show rather than leaving a hidden process.
-  Future<void>.delayed(const Duration(seconds: 2), reveal);
+  revealHeltyDesktopWindow();
 }
 
 class HeltyApp extends ConsumerStatefulWidget {

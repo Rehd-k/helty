@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
@@ -25,7 +23,6 @@ class ArchivedDocumentViewer extends StatefulWidget {
 class _ArchivedDocumentViewerState extends State<ArchivedDocumentViewer> {
   bool _loading = true;
   String? _error;
-  String? _tempPath;
   Uint8List? _bytes;
 
   bool get _useMobilePdfView {
@@ -46,40 +43,8 @@ class _ArchivedDocumentViewerState extends State<ArchivedDocumentViewer> {
         widget.document.id,
       );
       if (!mounted) return;
-      final data = Uint8List.fromList(bytes);
-      if (widget.document.isImage) {
-        setState(() {
-          _bytes = data;
-          _loading = false;
-        });
-        return;
-      }
-      if (widget.document.isPdf) {
-        if (_useMobilePdfView) {
-          final file = File(
-            '${Directory.systemTemp.path}/archived_${widget.document.id}.pdf',
-          );
-          await file.writeAsBytes(data);
-          if (!mounted) return;
-          setState(() {
-            _tempPath = file.path;
-            _loading = false;
-          });
-          return;
-        }
-        setState(() {
-          _bytes = data;
-          _loading = false;
-        });
-        return;
-      }
-      final file = File(
-        '${Directory.systemTemp.path}/archived_${widget.document.id}',
-      );
-      await file.writeAsBytes(data);
-      if (!mounted) return;
       setState(() {
-        _tempPath = file.path;
+        _bytes = Uint8List.fromList(bytes);
         _loading = false;
       });
     } catch (e) {
@@ -110,10 +75,10 @@ class _ArchivedDocumentViewerState extends State<ArchivedDocumentViewer> {
         child: Center(child: Image.memory(_bytes!, fit: BoxFit.contain)),
       );
     }
-    if (widget.document.isPdf) {
-      if (_useMobilePdfView && _tempPath != null) {
+    if (widget.document.isPdf && _bytes != null) {
+      if (_useMobilePdfView) {
         return PDFView(
-          filePath: _tempPath!,
+          pdfData: _bytes,
           enableSwipe: true,
           swipeHorizontal: false,
           autoSpacing: true,
@@ -125,40 +90,35 @@ class _ArchivedDocumentViewerState extends State<ArchivedDocumentViewer> {
           },
         );
       }
-      if (_bytes != null) {
-        return PdfPreview(
-          build: (_) async => _bytes!,
-          canChangePageFormat: false,
-          canChangeOrientation: false,
-          pdfFileName: widget.document.fileName,
-        );
-      }
-    }
-    if (_tempPath != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.insert_drive_file_outlined, size: 64),
-              const SizedBox(height: 16),
-              Text(
-                widget.document.fileName,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'This file type cannot be previewed in the app.',
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+      return PdfPreview(
+        build: (_) async => _bytes!,
+        canChangePageFormat: false,
+        canChangeOrientation: false,
+        pdfFileName: widget.document.fileName,
       );
     }
-    return const Center(child: Text('Unable to display file.'));
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.insert_drive_file_outlined, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              widget.document.fileName,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'This file type cannot be previewed in the app.',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

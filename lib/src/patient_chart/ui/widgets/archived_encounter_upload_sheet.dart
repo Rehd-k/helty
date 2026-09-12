@@ -26,13 +26,13 @@ class _ArchivedEncounterUploadSheetState
   final _titleCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   DateTime _occurredAt = DateTime.now();
-  final List<String> _filePaths = [];
+  final List<ArchivedEncounterUploadFile> _files = [];
   bool _uploading = false;
   String? _error;
 
   bool get _canSubmit =>
       !_uploading &&
-      _filePaths.isNotEmpty &&
+      _files.isNotEmpty &&
       _descriptionCtrl.text.trim().isNotEmpty;
 
   @override
@@ -47,13 +47,21 @@ class _ArchivedEncounterUploadSheetState
       allowMultiple: true,
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'],
+      withData: true,
     );
     if (picked == null) return;
     setState(() {
       for (final f in picked.files) {
-        if (f.path != null && !_filePaths.contains(f.path)) {
-          _filePaths.add(f.path!);
-        }
+        final hasBytes = f.bytes != null && f.bytes!.isNotEmpty;
+        final hasPath = f.path != null && f.path!.isNotEmpty;
+        if (!hasBytes && !hasPath) continue;
+        _files.add(
+          ArchivedEncounterUploadFile(
+            name: f.name,
+            path: f.path,
+            bytes: f.bytes,
+          ),
+        );
       }
     });
   }
@@ -84,7 +92,7 @@ class _ArchivedEncounterUploadSheetState
 
   Future<void> _submit() async {
     final description = _descriptionCtrl.text.trim();
-    if (_filePaths.isEmpty) {
+    if (_files.isEmpty) {
       setState(() => _error = 'Select at least one file.');
       return;
     }
@@ -100,7 +108,7 @@ class _ArchivedEncounterUploadSheetState
       await widget.service.uploadArchivedEncounter(
         patientUuid: widget.patientUuid,
         encounterOccurredAt: _occurredAt,
-        filePaths: _filePaths,
+        files: _files,
         title: _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
         notes: description,
       );
@@ -165,26 +173,26 @@ class _ArchivedEncounterUploadSheetState
               onPressed: _uploading ? null : _pickFiles,
               icon: const Icon(Icons.attach_file),
               label: Text(
-                _filePaths.isEmpty
+                _files.isEmpty
                     ? 'Select files (images or PDF)'
-                    : '${_filePaths.length} file(s) selected',
+                    : '${_files.length} file(s) selected',
               ),
             ),
-            if (_filePaths.isNotEmpty) ...[
+            if (_files.isNotEmpty) ...[
               const SizedBox(height: 8),
-              ..._filePaths.map(
+              ..._files.map(
                 (p) => ListTile(
                   dense: true,
                   leading: const Icon(Icons.insert_drive_file_outlined, size: 20),
                   title: Text(
-                    p.split(RegExp(r'[/\\]')).last,
+                    p.name,
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.close, size: 18),
                     onPressed: _uploading
                         ? null
-                        : () => setState(() => _filePaths.remove(p)),
+                        : () => setState(() => _files.remove(p)),
                   ),
                 ),
               ),

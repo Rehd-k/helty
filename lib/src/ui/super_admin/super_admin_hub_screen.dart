@@ -152,6 +152,7 @@ class SuperAdminHubScreen extends ConsumerWidget {
                       for (final dep
                           in ProductModuleAccess.allowedHubDepartments())
                         _HubCard(
+                          key: ValueKey(dep.previewAccountType),
                           title: dep.tileTitle,
                           subtitle: dep.previewBannerLabel,
                           icon: Icons.open_in_new_rounded,
@@ -305,6 +306,7 @@ class _HubCardGrid extends StatelessWidget {
 
 class _HubCard extends StatefulWidget {
   const _HubCard({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -332,6 +334,7 @@ class _HubCardState extends State<_HubCard> {
       child: Material(
         color: cs.surfaceContainerLow,
         elevation: 0,
+        clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(

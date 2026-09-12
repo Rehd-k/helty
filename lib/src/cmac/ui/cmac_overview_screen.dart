@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 
 import '../../cmd/cmd_breakpoints.dart';
+import '../../models/super_admin_department_preview.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/super_admin_preview_provider.dart';
 import '../cmac_palette.dart';
 import '../models/cmac_analytics_models.dart';
 import '../providers/cmac_providers.dart';
@@ -23,6 +26,7 @@ class CmacOverviewScreen extends ConsumerWidget {
 
     final async = ref.watch(cmacOverviewProvider);
     final theme = Theme.of(context);
+    final title = _oversightTitle(ref);
 
     return Scaffold(
       body: CmacVibrantBackdrop(
@@ -36,7 +40,7 @@ class CmacOverviewScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'CMAC Oversight',
+                    title,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: CmacPalette.overview.first,
@@ -245,3 +249,16 @@ const _hubTiles = <_HubDef>[
     route: CmacQualitySafetyHubRoute(),
   ),
 ];
+
+String _oversightTitle(WidgetRef ref) {
+  final staff = ref.watch(authProvider).staff;
+  final preview = ref.watch(superAdminPreviewProvider);
+  var role = staff?.staffRole.toLowerCase() ?? '';
+  var accountType = staff?.accountType?.name.toLowerCase() ?? '';
+  if (staffIsSuperAdmin(staff) && preview.isActive) {
+    role = preview.previewRole ?? role;
+    accountType = preview.previewAccountType ?? accountType;
+  }
+  if (accountType == 'cmd' || role == 'cmd') return 'CMD Oversight';
+  return 'CMAC Oversight';
+}

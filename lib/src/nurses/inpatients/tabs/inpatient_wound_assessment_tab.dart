@@ -1,5 +1,3 @@
-import 'dart:io' show File;
-
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -307,15 +305,6 @@ Widget _pickedPhotoPreview(PickedClinicalImage photo) {
       borderRadius: BorderRadius.circular(8),
       child: Image.memory(bytes, height: 120, fit: BoxFit.contain),
     );
-  }
-  if (!kIsWeb) {
-    final path = photo.path;
-    if (path != null && path.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.file(File(path), height: 120, fit: BoxFit.contain),
-      );
-    }
   }
   return const SizedBox.shrink();
 }

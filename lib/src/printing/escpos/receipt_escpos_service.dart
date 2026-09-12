@@ -1,5 +1,4 @@
 import 'dart:developer';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
@@ -10,7 +9,9 @@ import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 import 'package:qr/qr.dart';
 
+import '../../core/platform/helty_platform.dart';
 import '../../helper/date.formatter.dart';
+import 'escpos_network.dart';
 import 'windows_default_raw_printer.dart';
 
 /// Header lines printed under the logo.
@@ -606,7 +607,7 @@ class ReceiptEscposService {
 
     switch (sink) {
       case ReceiptPrintSink.windowsDefault:
-        if (!Platform.isWindows) {
+        if (!HeltyPlatform.isWindows) {
           throw UnsupportedError(
             'windowsDefault sink requires Windows; use ReceiptPrintSink.network on other platforms.',
           );
@@ -623,13 +624,7 @@ class ReceiptEscposService {
         if (ip.isEmpty) {
           throw StateError('printerIp is required for network sink');
         }
-        final socket = await Socket.connect(ip, printerPort);
-        try {
-          socket.add(Uint8List.fromList(bytes));
-          await socket.flush();
-        } finally {
-          await socket.close();
-        }
+        await sendEscposOverNetwork(ip, printerPort, bytes);
         break;
     }
   }

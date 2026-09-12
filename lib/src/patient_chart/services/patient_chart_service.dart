@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -81,24 +79,30 @@ class PatientChartService {
   Future<PatientArchivedEncounter> uploadArchivedEncounter({
     required String patientUuid,
     required DateTime encounterOccurredAt,
-    required List<String> filePaths,
+    required List<ArchivedEncounterUploadFile> files,
     String? title,
     String? notes,
   }) async {
     try {
-      final files = await Future.wait(
-        filePaths.map(
-          (p) => MultipartFile.fromFile(
-            p,
-            filename: p.split(RegExp(r'[/\\]')).last,
-          ),
-        ),
-      );
+      final parts = <MultipartFile>[];
+      for (final file in files) {
+        final filename = file.name.isNotEmpty ? file.name : 'document';
+        if (file.bytes != null && file.bytes!.isNotEmpty) {
+          parts.add(MultipartFile.fromBytes(file.bytes!, filename: filename));
+        } else if (file.path != null && file.path!.isNotEmpty) {
+          parts.add(
+            await MultipartFile.fromFile(file.path!, filename: filename),
+          );
+        }
+      }
+      if (parts.isEmpty) {
+        throw const UnknownException('No files selected for upload');
+      }
       final form = FormData.fromMap({
         'encounterOccurredAt': encounterOccurredAt.toUtc().toIso8601String(),
         if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
-        'files': files,
+        'files': parts,
       });
       final resp = await _dio.post<Map<String, dynamic>>(
         '/patients/$patientUuid/archived-encounters',
@@ -138,20 +142,16 @@ class PatientChartService {
       _handleError(e, 'Failed to delete document');
     }
   }
+}
 
-  /// Convenience for mobile/desktop file upload from [File].
-  Future<PatientArchivedEncounter> uploadArchivedEncounterFiles({
-    required String patientUuid,
-    required DateTime encounterOccurredAt,
-    required List<File> files,
-    String? title,
-    String? notes,
-  }) =>
-      uploadArchivedEncounter(
-        patientUuid: patientUuid,
-        encounterOccurredAt: encounterOccurredAt,
-        filePaths: files.map((f) => f.path).toList(),
-        title: title,
-        notes: notes,
-      );
+class ArchivedEncounterUploadFile {
+  const ArchivedEncounterUploadFile({
+    required this.name,
+    this.path,
+    this.bytes,
+  });
+
+  final String name;
+  final String? path;
+  final List<int>? bytes;
 }

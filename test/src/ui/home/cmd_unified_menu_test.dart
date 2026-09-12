@@ -1,29 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:helty/app_router.gr.dart';
-import 'package:helty/src/ui/home/account_types.dart';
 import 'package:helty/src/ui/home/home_screen.dart';
 
 void main() {
   group('cmdUnifiedMenuItems', () {
-    test('is a flat list of CMAC and accounts head menu items', () {
-      expect(
-        cmdUnifiedMenuItems.length,
-        cmacExecutiveMenuItems.length + accountsHeadMenu.length,
-      );
+    test('starts with CMD dashboard, then CMAC and accounts head items', () {
       expect(
         cmdUnifiedMenuItems.first.route,
-        isA<CmacOverviewRoute>(),
+        isA<CMDDashboardRoute>(),
+      );
+      expect(
+        cmdUnifiedMenuItems.any((m) => m.route is CmacOverviewRoute),
+        isTrue,
       );
       expect(
         cmdUnifiedMenuItems.any((m) => m.route is AccountsDashboardRoute),
         isTrue,
-      );
-    });
-
-    test('does not expose the legacy CMD dashboard', () {
-      expect(
-        cmdUnifiedMenuItems.any((m) => m.route is CMDDashboardRoute),
-        isFalse,
       );
     });
 

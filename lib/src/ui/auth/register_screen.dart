@@ -98,7 +98,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       case 'ict':
         return const DashboardRoute();
       case 'cmd':
-        return const CmacOverviewRoute();
+        return const CMDDashboardRoute();
       case 'cmac':
         return const CmacOverviewRoute();
       case 'super_admin':

@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,8 +12,10 @@ import '../../models/saved_login.dart';
 import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
 import '../../routing/initial_route_for_role.dart';
+import '../../core/platform/helty_platform.dart';
 import '../../services/notificationbar.dart';
 import '../../services/title_bar.dart';
+import '../../services/window_chrome.dart';
 import '../../system_announcements/providers/system_announcement_providers.dart';
 import '../../system_announcements/services/system_announcement_service.dart';
 import '../../system_announcements/widgets/announcement_modal.dart';
@@ -296,7 +296,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: Column(
         children: [
-          if (Platform.isWindows) buildTitleBar(context),
+          if (HeltyPlatform.isWindows) buildTitleBar(context),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {

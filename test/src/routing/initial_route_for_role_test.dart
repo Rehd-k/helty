@@ -10,8 +10,8 @@ void main() {
   });
 
   group('initialRouteForRole CMD / CMAC', () {
-    test('CMD lands on CMAC overview', () {
-      expect(initialRouteForRole('CMD', 'cmd'), isA<CmacOverviewRoute>());
+    test('CMD lands on CMD executive dashboard', () {
+      expect(initialRouteForRole('CMD', 'cmd'), isA<CMDDashboardRoute>());
     });
 
     test('CMAC lands on CMAC overview', () {

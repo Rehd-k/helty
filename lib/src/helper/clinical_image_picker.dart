@@ -17,12 +17,12 @@ class PickedClinicalImage {
   /// Multipart part for wound assessment upload (`FileInterceptor('file')`).
   Future<MultipartFile> toMultipartFile() async {
     final filename = name.isNotEmpty ? name : 'image.jpg';
-    if (kIsWeb) {
-      final data = bytes;
-      if (data == null || data.isEmpty) {
-        throw StateError('No image bytes available for upload');
-      }
+    final data = bytes;
+    if (data != null && data.isNotEmpty) {
       return MultipartFile.fromBytes(data, filename: filename);
+    }
+    if (kIsWeb) {
+      throw StateError('No image bytes available for upload');
     }
     final filePath = path;
     if (filePath == null || filePath.isEmpty) {
@@ -34,7 +34,10 @@ class PickedClinicalImage {
 
 /// Opens the system picker for any image type (jpg, png, heic, etc.).
 Future<PickedClinicalImage?> pickClinicalImage() async {
-  final picked = await FilePicker.platform.pickFiles(type: FileType.image);
+  final picked = await FilePicker.platform.pickFiles(
+    type: FileType.image,
+    withData: true,
+  );
   if (picked == null || picked.files.isEmpty) return null;
   final file = picked.files.single;
   return PickedClinicalImage(

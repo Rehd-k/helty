@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -300,14 +298,22 @@ class RadiologyService {
 
   // ─── Images ──────────────────────────────────────────────────────────────
 
-  Future<RadiologyImage> uploadImage(String orderItemId, File file) async {
+  Future<RadiologyImage> uploadImage(
+    String orderItemId, {
+    required String filename,
+    String? filePath,
+    List<int>? bytes,
+  }) async {
     try {
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
-          file.path,
-          filename: file.path.split(Platform.pathSeparator).last,
-        ),
-      });
+      final MultipartFile part;
+      if (bytes != null && bytes.isNotEmpty) {
+        part = MultipartFile.fromBytes(bytes, filename: filename);
+      } else if (filePath != null && filePath.isNotEmpty) {
+        part = await MultipartFile.fromFile(filePath, filename: filename);
+      } else {
+        throw const UnknownException('No image data to upload');
+      }
+      final formData = FormData.fromMap({'file': part});
       final resp = await _dio.post<Map<String, dynamic>>(
         '$_base/order-items/$orderItemId/images',
         data: formData,

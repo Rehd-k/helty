@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -85,24 +84,13 @@ class HeltyDesktopUpdateService {
           'Check that the machine can reach ${uri.host}${uri.hasPort ? ':${uri.port}' : ''} '
           'and that the API address in the app matches your server.';
       throw Exception(lastVersionCheckMessage);
-    } on SocketException catch (e) {
-      lastVersionCheckMessage =
-          'No network route to the update server (${uri.host}). '
-          'Verify Wi‑Fi or Ethernet, firewall rules, and that the API URL in the app is correct. '
-          '(${e.message})';
-      throw Exception(lastVersionCheckMessage);
-    } on HandshakeException catch (e) {
-      lastVersionCheckMessage =
-          'Secure connection to ${uri.host} failed (TLS). '
-          'If you use HTTPS, ensure the certificate is valid. (${e.message})';
-      throw Exception(lastVersionCheckMessage);
     } on http.ClientException catch (e) {
       lastVersionCheckMessage =
           'Could not reach ${uri.origin}${uri.path} — ${e.message}';
       throw Exception(lastVersionCheckMessage);
     } catch (e) {
       lastVersionCheckMessage ??=
-          'Unexpected error while checking for updates: $e';
+          'Could not reach the update server (${uri.host}). $e';
       throw Exception(lastVersionCheckMessage);
     }
   }
