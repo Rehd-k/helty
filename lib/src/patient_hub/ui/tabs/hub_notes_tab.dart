@@ -8,7 +8,9 @@ import '../../../patient_chart/models/patient_chart_models.dart';
 import '../../providers/patient_hub_providers.dart';
 import '../../utils/hub_chart_helpers.dart';
 import '../../widgets/hub_empty_state.dart';
+import '../../widgets/hub_list_row.dart';
 import '../../widgets/hub_section_scaffold.dart';
+import '../../patient_hub_metrics.dart';
 import '../../widgets/patient_hub_scope.dart';
 
 @RoutePage()
@@ -84,26 +86,21 @@ class _HubNotesScreenState extends ConsumerState<HubNotesScreen> {
                   title: 'No clinical notes or reports',
                   icon: Icons.description_outlined,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 4),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final item = items[index];
                     final section = item['_section']?.toString() ?? 'notes';
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.description_outlined),
-                        title: Text(hubRowTitle(section, item)),
-                        subtitle: Text(
-                          item['content']?.toString() ??
-                              item['report']?.toString() ??
-                              hubRowSubtitle(item) ??
-                              '',
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                    final body = item['content']?.toString() ??
+                        item['report']?.toString() ??
+                        hubRowSubtitle(item) ??
+                        '';
+                    return HubListRow(
+                      title: hubRowTitle(section, item),
+                      subtitle: body,
+                      icon: Icons.description_outlined,
+                      iconColor: PatientHubMetrics.iconTeal,
                     );
                   },
                 ),

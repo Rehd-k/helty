@@ -10,7 +10,10 @@ import '../../../patient_chart/models/patient_chart_models.dart';
 import '../../providers/patient_hub_providers.dart';
 import '../../utils/hub_chart_helpers.dart';
 import '../../widgets/hub_empty_state.dart';
+import '../../widgets/hub_list_row.dart';
 import '../../widgets/hub_section_scaffold.dart';
+import '../../patient_hub_metrics.dart';
+import '../../../widgets/helty_surface.dart';
 import '../../widgets/patient_hub_scope.dart';
 
 @RoutePage()
@@ -87,35 +90,37 @@ class _HubImagingScreenState extends ConsumerState<HubImagingScreen> {
                   title: 'No imaging orders or reports',
                   icon: Icons.radar_outlined,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 4),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final item = items[index];
                     final section = item['_section']?.toString() ?? 'imaging';
-                    final cs = Theme.of(context).colorScheme;
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: cs.outlineVariant),
-                      ),
-                      child: ListTile(
-                        leading: const Icon(Icons.image_search_outlined),
-                        title: Text(hubRowTitle(section, item)),
-                        subtitle: Text(hubRowSubtitle(item) ?? ''),
-                        trailing: _statusChip(context, item['status']?.toString()),
-                        onTap: () {
-                          final orderId = item['id']?.toString() ??
-                              item['orderId']?.toString();
-                          if (orderId == null || orderId.isEmpty) return;
-                          showRadiologyOrderResultsDialog(
-                            context,
-                            service: _radiologyService,
-                            orderId: orderId,
-                          );
-                        },
-                      ),
+                    final status = item['status']?.toString();
+                    return HubListRow(
+                      title: hubRowTitle(section, item),
+                      subtitle: hubRowSubtitle(item),
+                      icon: Icons.image_search_outlined,
+                      iconColor: PatientHubMetrics.iconPink,
+                      trailing: status == null || status.isEmpty
+                          ? null
+                          : SizedBox(
+                              width: 110,
+                              child: HeltyEllipsisChip(
+                                label: status,
+                                color: PatientHubMetrics.iconTeal,
+                              ),
+                            ),
+                      onTap: () {
+                        final orderId = item['id']?.toString() ??
+                            item['orderId']?.toString();
+                        if (orderId == null || orderId.isEmpty) return;
+                        showRadiologyOrderResultsDialog(
+                          context,
+                          service: _radiologyService,
+                          orderId: orderId,
+                        );
+                      },
                     );
                   },
                 ),
@@ -123,10 +128,5 @@ class _HubImagingScreenState extends ConsumerState<HubImagingScreen> {
         );
       },
     );
-  }
-
-  Widget? _statusChip(BuildContext context, String? status) {
-    if (status == null || status.isEmpty) return null;
-    return Chip(label: Text(status, style: const TextStyle(fontSize: 11)));
   }
 }

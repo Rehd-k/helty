@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../helper/app_timezone.dart';
 import '../../helper/date.formatter.dart';
@@ -108,8 +107,8 @@ class _AppointmentRequestsScreenState
                     Text(
                       appointment.patientDisplayName,
                       style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -144,8 +143,7 @@ class _AppointmentRequestsScreenState
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Override date & time'),
                       value: includeDateOverride,
-                      onChanged: (v) =>
-                          setLocal(() => includeDateOverride = v),
+                      onChanged: (v) => setLocal(() => includeDateOverride = v),
                     ),
                     if (includeDateOverride)
                       ListTile(
@@ -233,9 +231,7 @@ class _AppointmentRequestsScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Deny the request for ${appointment.patientDisplayName}?',
-              ),
+              Text('Deny the request for ${appointment.patientDisplayName}?'),
               const SizedBox(height: 12),
               TextField(
                 controller: notesCtrl,
@@ -285,9 +281,9 @@ class _AppointmentRequestsScreenState
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -444,9 +440,7 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final dateStr = DateFormat(
-      'EEE, dd MMM yyyy · hh:mm a',
-    ).format(appointment.appointmentDate.toLocal());
+    final dateStr = DateFormatter.dateTime(appointment.appointmentDate);
 
     final actions = [
       OutlinedButton(
@@ -512,10 +506,7 @@ class _RequestCard extends StatelessWidget {
             ),
             if (compact) ...[
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: actions,
-              ),
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: actions),
             ],
           ],
         ),

@@ -1,8 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/responsive.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../models/pharmacy_model.dart';
@@ -232,7 +232,6 @@ class _BatchesTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFmt = DateFormat.yMMMd();
     return ResponsiveDataTable(
       child: DataTable(
         columns: const [
@@ -247,7 +246,9 @@ class _BatchesTable extends StatelessWidget {
               DataCell(Text(b.batchNumber ?? '—')),
               DataCell(
                 Text(
-                  b.expiryDate != null ? dateFmt.format(b.expiryDate!) : '—',
+                  b.expiryDate != null
+                      ? DateFormatter.shortDate(b.expiryDate!)
+                      : '—',
                 ),
               ),
               DataCell(Text('${b.quantityRemaining ?? b.quantityReceived}')),

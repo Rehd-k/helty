@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../helper/theme.dart';
 import '../models/patient_hub_models.dart';
+import '../patient_hub_metrics.dart';
 
+/// One-row history preset. Custom range lives behind the filter icon.
 class HubDateRangeBar extends StatelessWidget {
   const HubDateRangeBar({
     super.key,
@@ -16,46 +19,82 @@ class HubDateRangeBar extends StatelessWidget {
   final ValueChanged<HubDatePreset> onPresetChanged;
   final VoidCallback onCustomRange;
 
-  @override
-  Widget build(BuildContext context) {
+  InputDecoration _decoration(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: cs.surfaceContainerLow,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              Icon(Icons.date_range, size: 18, color: cs.primary),
-              const SizedBox(width: 8),
-              Text(
-                'History',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(width: 12),
-              _chip(context, '7 days', HubDatePreset.last7Days),
-              _chip(context, '30 days', HubDatePreset.last30Days),
-              _chip(context, '90 days', HubDatePreset.last90Days),
-              _chip(context, 'All', HubDatePreset.all),
-              _chip(context, 'Custom', HubDatePreset.custom),
-              if (preset == HubDatePreset.custom &&
-                  (range.from != null || range.to != null))
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(
-                    _customLabel(),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
-                  ),
-                ),
-            ],
-          ),
+    return InputDecoration(
+      labelText: 'History',
+      isDense: true,
+      prefixIcon: const Padding(
+        padding: EdgeInsets.all(6),
+        child: HubSolidIcon(
+          icon: Icons.date_range_outlined,
+          color: PatientHubMetrics.iconIndigo,
+          size: 22,
+          iconSize: 13,
+          radius: 6,
         ),
       ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+      filled: true,
+      fillColor: cs.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      labelStyle: const TextStyle(fontSize: 11),
+    );
+  }
+
+  Widget _presetDropdown(BuildContext context) {
+    return DropdownButtonFormField<HubDatePreset>(
+      key: ValueKey('hub-preset-$preset'),
+      initialValue: preset == HubDatePreset.custom ? HubDatePreset.custom : preset,
+      isExpanded: true,
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      decoration: _decoration(context),
+      items: [
+        const DropdownMenuItem(
+          value: HubDatePreset.last7Days,
+          child: Text('Last 7 days'),
+        ),
+        const DropdownMenuItem(
+          value: HubDatePreset.last30Days,
+          child: Text('Last 30 days'),
+        ),
+        const DropdownMenuItem(
+          value: HubDatePreset.last90Days,
+          child: Text('Last 90 days'),
+        ),
+        const DropdownMenuItem(
+          value: HubDatePreset.all,
+          child: Text('All history'),
+        ),
+        DropdownMenuItem(
+          value: HubDatePreset.custom,
+          child: Text(
+            preset == HubDatePreset.custom &&
+                    (range.from != null || range.to != null)
+                ? _customLabel()
+                : 'Custom range',
+          ),
+        ),
+      ],
+      onChanged: (v) {
+        if (v == null) return;
+        if (v == HubDatePreset.custom) {
+          onCustomRange();
+        } else {
+          onPresetChanged(v);
+        }
+      },
     );
   }
 
@@ -71,23 +110,30 @@ class HubDateRangeBar extends StatelessWidget {
   }
 
   String _short(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  Widget _chip(BuildContext context, String label, HubDatePreset value) {
-    final selected = preset == value;
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: FilterChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) {
-          if (value == HubDatePreset.custom) {
-            onCustomRange();
-          } else {
-            onPresetChanged(value);
-          }
-        },
+  @override
+  Widget build(BuildContext context) {
+    final filterButton = IconButton(
+      tooltip: 'Custom date range',
+      onPressed: onCustomRange,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      icon: const HubSolidIcon(
+        icon: Icons.tune,
+        color: PatientHubMetrics.iconPurple,
+        size: 32,
+        iconSize: 16,
+        radius: 8,
       ),
+    );
+
+    return Row(
+      children: [
+        Expanded(child: _presetDropdown(context)),
+        const SizedBox(width: 8),
+        filterButton,
+      ],
     );
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/layout/app_breakpoints.dart';
+import '../../../nurses/inpatients/widgets/inpatient_chart_table.dart';
+import '../../../widgets/helty_surface.dart';
 
 class EncounterSidePanelChip {
   const EncounterSidePanelChip({
@@ -30,8 +32,7 @@ class EncounterSidePanelBadge {
 
 /// Collapsible summary panel for doctor encounter tabs.
 ///
-/// On mobile it stacks above the main content; on tablet/desktop it sits on
-/// the right as an expandable rail.
+/// Stacks above content on mobile/tablet; full-height rail from ≥1100.
 class EncounterSidePanel extends StatelessWidget {
   const EncounterSidePanel({
     super.key,
@@ -69,35 +70,37 @@ class EncounterSidePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bp = AppBreakpoints.of(context);
-    if (bp.isMobile || forceStacked) return _buildMobile(context);
+    if (!bp.isDesktop || forceStacked) return _buildMobile(context);
     return _buildSide(context);
   }
 
   Widget _buildMobile(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
-    return Material(
-      color: scheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return HeltySurfaceCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
             onTap: onToggleExpanded,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
               child: Row(
                 children: [
+                  HeltySolidIcon(
+                    icon: Icons.summarize_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 26,
+                    iconSize: 14,
+                    radius: 7,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                    child: HeltyEllipsisText(
+                      text: title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
@@ -105,13 +108,14 @@ class EncounterSidePanel extends StatelessWidget {
                     IconButton(
                       tooltip: addTooltip ?? addLabel,
                       onPressed: onAdd,
-                      icon: const Icon(Icons.add_rounded),
+                      icon: const Icon(Icons.add_rounded, size: 20),
+                      visualDensity: VisualDensity.compact,
                     ),
                   Icon(
                     expanded
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
-                    color: scheme.onSurfaceVariant,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -123,7 +127,7 @@ class EncounterSidePanel extends StatelessWidget {
                 ? CrossFadeState.showFirst
                 : CrossFadeState.showSecond,
             firstChild: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
               child: _PanelBody(
                 subtitle: subtitle,
                 chips: chips,
@@ -141,71 +145,85 @@ class EncounterSidePanel extends StatelessWidget {
 
   Widget _buildSide(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       width: expanded ? expandedWidth : collapsedWidth,
-      child: Material(
-        color: scheme.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-        ),
-        clipBehavior: Clip.antiAlias,
+      child: HeltySurfaceCard(
+        padding: const EdgeInsets.all(10),
         child: expanded
-            ? SingleChildScrollView(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Summary',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const HeltySolidIcon(
+                        icon: Icons.summarize_outlined,
+                        color: Color(0xFF4F46E5),
+                        size: 26,
+                        iconSize: 14,
+                        radius: 7,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: HeltyEllipsisText(
+                          text: 'Summary',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'Collapse panel',
-                          visualDensity: VisualDensity.compact,
-                          onPressed: onToggleExpanded,
-                          icon: const Icon(
-                            Icons.keyboard_double_arrow_right_rounded,
-                            size: 20,
-                          ),
+                      ),
+                      IconButton(
+                        tooltip: 'Collapse panel',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: onToggleExpanded,
+                        icon: const Icon(
+                          Icons.keyboard_double_arrow_right_rounded,
+                          size: 20,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: _PanelBody(
+                        subtitle: subtitle,
+                        chips: chips,
+                        controls: controls,
+                        addLabel: addLabel,
+                        onAdd: onAdd,
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    _PanelBody(
-                      subtitle: subtitle,
-                      chips: chips,
-                      controls: controls,
-                      addLabel: addLabel,
-                      onAdd: onAdd,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               )
             : Column(
                 children: [
-                  const SizedBox(height: 8),
                   IconButton(
                     tooltip: 'Expand summary',
                     onPressed: onToggleExpanded,
                     icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  if (onAdd != null)
-                    IconButton(
-                      tooltip: addTooltip ?? addLabel,
-                      onPressed: onAdd,
-                      icon: Icon(Icons.add_rounded, color: scheme.primary),
+                  if (onAdd != null) ...[
+                    const SizedBox(height: 8),
+                    Tooltip(
+                      message: addTooltip ?? addLabel ?? 'Add',
+                      child: InkWell(
+                        onTap: onAdd,
+                        borderRadius: BorderRadius.circular(8),
+                        child: HeltySolidIcon(
+                          icon: Icons.add_rounded,
+                          color: theme.colorScheme.primary,
+                          size: 28,
+                          iconSize: 16,
+                          radius: 8,
+                        ),
+                      ),
                     ),
+                  ],
                   const SizedBox(height: 12),
                   for (final badge in railBadges)
                     _RailBadge(
@@ -238,17 +256,17 @@ class EncounterTabLayout extends StatelessWidget {
     if (embedded) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [sidePanel, const SizedBox(height: 12), child],
+        children: [sidePanel, const SizedBox(height: 10), child],
       );
     }
 
     final bp = AppBreakpoints.of(context);
-    if (bp.isMobile) {
+    if (!bp.isDesktop) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           sidePanel,
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Expanded(child: child),
         ],
       );
@@ -258,7 +276,7 @@ class EncounterTabLayout extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(child: child),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         sidePanel,
       ],
     );
@@ -288,7 +306,7 @@ class _PanelBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (controls != null) ...[controls!, const SizedBox(height: 12)],
+        if (controls != null) ...[controls!, const SizedBox(height: 10)],
         if (subtitle != null)
           Text(
             subtitle!,
@@ -301,68 +319,22 @@ class _PanelBody extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 6,
-            children: chips
-                .map(
-                  (chip) => _SummaryChip(
-                    icon: chip.icon,
-                    label: chip.label,
-                    color: chip.color,
-                  ),
-                )
-                .toList(),
+            children: [
+              for (final chip in chips)
+                HeltyStatusChip(label: chip.label, color: chip.color),
+            ],
           ),
         ],
         if (onAdd != null && addLabel != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           FilledButton.icon(
             onPressed: onAdd,
-            icon: const Icon(Icons.add_rounded, size: 20),
+            icon: const Icon(Icons.add_rounded, size: 16),
             label: Text(addLabel!),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
+            style: inpatientCompactFill(),
           ),
         ],
       ],
-    );
-  }
-}
-
-class _SummaryChip extends StatelessWidget {
-  const _SummaryChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -388,19 +360,26 @@ class _RailBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(
           children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
+            HeltySolidIcon(
+              icon: icon,
+              color: color,
+              size: 28,
+              iconSize: 14,
+              radius: 7,
             ),
+            const SizedBox(height: 4),
+            Text(value, style: themeText(context, color)),
           ],
         ),
       ),
     );
+  }
+
+  TextStyle themeText(BuildContext context, Color color) {
+    return Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: color,
+        ) ??
+        TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color);
   }
 }

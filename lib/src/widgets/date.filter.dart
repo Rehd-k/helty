@@ -3,18 +3,16 @@ import 'package:flutter/material.dart';
 import '../helper/app_timezone.dart';
 import '../helper/date.formatter.dart';
 
+const _kFromAccent = Color(0xFF16A34A);
+const _kToAccent = Color(0xFFEA580C);
+const _kCalendarAccent = Color(0xFF7C3AED);
+
 /// Below this width, From/To stack vertically with compact date labels.
 const kDateFilterCompactBreakpoint = 680.0;
 
-/// How date chips label their selected day in [FromToDateFilter] on **wide**
-/// layouts. On narrow layouts, labels are always shortened for fit.
-enum DateFilterLabelStyle {
-  /// e.g. Monday, April 5, 2026
-  full,
-
-  /// e.g. 4/5/2026
-  shortUs,
-}
+/// Kept for existing callers. From/To always shows [DateFormatter.shortDate]
+/// (`dd/MM/yyyy`).
+enum DateFilterLabelStyle { full, shortUs }
 
 class FromToDateFilter extends StatefulWidget {
   final Function doRefresh;
@@ -26,12 +24,26 @@ class FromToDateFilter extends StatefulWidget {
   /// Default is [DateFilterLabelStyle.full].
   final DateFilterLabelStyle labelStyle;
 
+  /// Solid saturated From/To tiles (green / orange) instead of muted chips.
+  final bool colorful;
+
+  /// When set, used instead of today for the initial From/To values.
+  final DateTime? initialFrom;
+  final DateTime? initialTo;
+
+  /// When false, skip the first-frame parent notify (for reuse in menus).
+  final bool notifyOnInit;
+
   const FromToDateFilter({
     super.key,
     required this.onFilterChanged,
     required this.doRefresh,
     required this.dateFilter,
     this.labelStyle = DateFilterLabelStyle.full,
+    this.colorful = false,
+    this.initialFrom,
+    this.initialTo,
+    this.notifyOnInit = true,
   });
 
   @override
@@ -47,11 +59,13 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
   void initState() {
     super.initState();
     doRefresh = widget.doRefresh;
-    _fromDate = AppTimezone.startOfDay();
-    _toDate = AppTimezone.endOfDay();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _notifyParent();
-    });
+    _fromDate = widget.initialFrom ?? AppTimezone.startOfDay();
+    _toDate = widget.initialTo ?? AppTimezone.endOfDay();
+    if (widget.notifyOnInit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _notifyParent();
+      });
+    }
   }
 
   void _resetFilters() {
@@ -67,12 +81,60 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
     widget.onFilterChanged('', '', _fromDate, _toDate);
   }
 
-  Future<void> _pickFromDate() async {
-    final picked = await showDatePicker(
+  Future<DateTime?> _showThemedPicker({
+    required DateTime initialDate,
+    required DateTime firstDate,
+    required DateTime lastDate,
+    required Color accent,
+  }) {
+    return showDatePicker(
       context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      locale: const Locale('en', 'GB'),
+      builder: (context, child) {
+        final base = Theme.of(context);
+        return Theme(
+          data: base.copyWith(
+            colorScheme: base.colorScheme.copyWith(
+              primary: accent,
+              onPrimary: Colors.white,
+              surfaceTint: accent,
+            ),
+            datePickerTheme: DatePickerThemeData(
+              headerBackgroundColor: accent,
+              headerForegroundColor: Colors.white,
+              rangePickerHeaderBackgroundColor: accent,
+              rangePickerHeaderForegroundColor: Colors.white,
+              dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                return null;
+              }),
+              dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) return accent;
+                return null;
+              }),
+              todayForegroundColor: WidgetStateProperty.all(accent),
+              todayBorder: BorderSide(color: accent, width: 1.5),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+  }
+
+  Future<void> _pickFromDate() async {
+    final picked = await _showThemedPicker(
       initialDate: _fromDate ?? AppTimezone.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      accent: widget.colorful
+          ? _kFromAccent
+          : Theme.of(context).colorScheme.primary,
     );
     if (picked != null) {
       setState(() {
@@ -96,11 +158,13 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
   Future<void> _pickToDate() async {
     if (_fromDate == null) return;
 
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await _showThemedPicker(
       initialDate: _toDate ?? _fromDate!,
       firstDate: _fromDate!,
       lastDate: DateTime(2100),
+      accent: widget.colorful
+          ? _kToAccent
+          : Theme.of(context).colorScheme.primary,
     );
     if (picked != null) {
       setState(() {
@@ -119,11 +183,44 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
   }
 
   Widget _resetButton(ColorScheme scheme) {
+    if (widget.colorful) {
+      return FilledButton.icon(
+        onPressed: _resetFilters,
+        icon: const Icon(Icons.refresh, size: 16),
+        label: const Text('Reset'),
+        style: FilledButton.styleFrom(
+          backgroundColor: _kCalendarAccent,
+          foregroundColor: Colors.white,
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
     return TextButton.icon(
       onPressed: _resetFilters,
       icon: const Icon(Icons.refresh, size: 18),
       label: const Text('Reset'),
       style: TextButton.styleFrom(foregroundColor: scheme.error),
+    );
+  }
+
+  Widget _fromTile() {
+    return _DateTile(
+      label: 'From',
+      date: _fromDate,
+      onTap: _pickFromDate,
+      accent: widget.colorful ? _kFromAccent : null,
+    );
+  }
+
+  Widget _toTile() {
+    return _DateTile(
+      label: 'To',
+      date: _toDate,
+      isEnabled: _fromDate != null,
+      onTap: _pickToDate,
+      accent: widget.colorful ? _kToAccent : null,
     );
   }
 
@@ -133,61 +230,42 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final narrow = constraints.maxWidth < kDateFilterCompactBreakpoint;
-
         return Container(
-          padding: EdgeInsets.all(narrow ? 12 : 16),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           decoration: BoxDecoration(
             color: scheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: scheme.outline.withValues(alpha: 0.12)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: widget.colorful
+                  ? _kCalendarAccent.withValues(alpha: 0.35)
+                  : scheme.outline.withValues(alpha: 0.12),
+              width: widget.colorful ? 1.5 : 1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: scheme.shadow.withValues(alpha: 0.06),
+                color: widget.colorful
+                    ? _kCalendarAccent.withValues(alpha: 0.18)
+                    : scheme.shadow.withValues(alpha: 0.06),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: narrow ? _buildCompact(scheme) : _buildWide(scheme),
+          child: constraints.maxWidth < kDateFilterCompactBreakpoint
+              ? _buildCompact(scheme)
+              : _buildWide(scheme),
         );
       },
     );
   }
 
   Widget _buildWide(ColorScheme scheme) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (widget.dateFilter)
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _DateTile(
-                    label: 'From',
-                    date: _fromDate,
-                    onTap: _pickFromDate,
-                    labelStyle: widget.labelStyle,
-                    compact: false,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DateTile(
-                    label: 'To',
-                    date: _toDate,
-                    isEnabled: _fromDate != null,
-                    onTap: _pickToDate,
-                    labelStyle: widget.labelStyle,
-                    compact: false,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          const Spacer(),
+        if (widget.dateFilter) ...[_fromTile(), _toTile()],
         _resetButton(scheme),
       ],
     );
@@ -201,28 +279,11 @@ class _FromToDateFilterState extends State<FromToDateFilter> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _DateTile(
-          label: 'From',
-          date: _fromDate,
-          onTap: _pickFromDate,
-          labelStyle: widget.labelStyle,
-          compact: true,
-        ),
-        const SizedBox(height: 8),
-        _DateTile(
-          label: 'To',
-          date: _toDate,
-          isEnabled: _fromDate != null,
-          onTap: _pickToDate,
-          labelStyle: widget.labelStyle,
-          compact: true,
-        ),
-        const SizedBox(height: 8),
-        Align(alignment: Alignment.centerRight, child: _resetButton(scheme)),
-      ],
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [_fromTile(), _toTile(), _resetButton(scheme)],
     );
   }
 }
@@ -232,130 +293,62 @@ class _DateTile extends StatelessWidget {
   final DateTime? date;
   final VoidCallback onTap;
   final bool isEnabled;
-  final DateFilterLabelStyle labelStyle;
-  final bool compact;
+  final Color? accent;
 
   const _DateTile({
     required this.label,
     required this.date,
     required this.onTap,
     this.isEnabled = true,
-    this.labelStyle = DateFilterLabelStyle.full,
-    this.compact = false,
+    this.accent,
   });
 
-  String _formatDate(DateTime d) {
-    if (compact) {
-      switch (labelStyle) {
-        case DateFilterLabelStyle.shortUs:
-          return DateFormatter.shortNumericUs(d);
-        case DateFilterLabelStyle.full:
-          return DateFormatter.medicalDate(d);
-      }
-    }
-    switch (labelStyle) {
-      case DateFilterLabelStyle.shortUs:
-        return DateFormatter.shortNumericUs(d);
-      case DateFilterLabelStyle.full:
-        return DateFormatter.fullDate(d);
-    }
-  }
+  String _formatDate(DateTime d) => DateFormatter.shortDate(d);
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final placeholder = compact ? 'Tap to choose' : 'Select date';
+    final colorful = accent != null;
+    final onAccent = Colors.white;
+    final valueColor = colorful ? onAccent : scheme.onSurface;
+    final iconColor = colorful ? onAccent : scheme.primary;
+    final text = date != null
+        ? '$label ${_formatDate(date!)}'
+        : '$label Select';
 
     return Opacity(
       opacity: isEnabled ? 1.0 : 0.45,
       child: Material(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(12),
+        color: colorful
+            ? accent
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(6),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: isEnabled ? onTap : null,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
+          splashColor: colorful
+              ? Colors.white.withValues(alpha: 0.2)
+              : scheme.primary.withValues(alpha: 0.12),
           child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 12 : 14,
-              vertical: compact ? 10 : 12,
-            ),
-            child: compact
-                ? Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 20,
-                        color: scheme.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              label,
-                              style: textTheme.labelMedium?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              date != null ? _formatDate(date!) : placeholder,
-                              style: textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: scheme.onSurfaceVariant,
-                        size: 22,
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Icon(
-                        Icons.event_outlined,
-                        size: 22,
-                        color: scheme.primary,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              label.toUpperCase(),
-                              style: textTheme.labelSmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                letterSpacing: 0.8,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              date != null ? _formatDate(date!) : placeholder,
-                              style: textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.event_outlined, size: 14, color: iconColor),
+                const SizedBox(width: 6),
+                Text(
+                  text,
+                  style: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: valueColor,
+                    fontSize: 12,
+                    height: 1.1,
                   ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

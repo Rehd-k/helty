@@ -2,7 +2,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:table_calendar/table_calendar.dart';
 
 import '../../app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
@@ -10,17 +9,15 @@ import '../app/product_definition.dart';
 import '../app/product_environment.dart';
 import '../core/errors/user_facing_error.dart';
 import '../core/widgets/patient_avatar.dart';
-import '../helper/app_timezone.dart';
 import '../helper/date.formatter.dart';
-import '../models/appointment_model.dart';
 import '../models/frontdesk_dashboard_models.dart';
 import '../models/frontdesk_feedback_models.dart';
 import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
 import '../paitients/patient_service.dart';
-import '../services/appointment_service.dart';
 import '../services/frontdesk_dashboard_service.dart';
 import '../shared/department_colors.dart';
+import '../widgets/appointments_calendar.dart';
 import 'widgets/check_in_patient_dialog.dart';
 
 @RoutePage()
@@ -34,16 +31,7 @@ class FrontDeskDashboardScreen extends ConsumerStatefulWidget {
 
 class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   final FrontdeskDashboardService _api = FrontdeskDashboardService();
-  final AppointmentService _appointmentService = AppointmentService();
   final PatientService _patientService = PatientService();
-
-  DateTime _focusedDay = AppTimezone.now();
-  DateTime? _selectedDay;
-
-  final Map<DateTime, int> _calendarCounts = {};
-  final Set<String> _calendarMonthsLoaded = {};
-  int _calendarLoadsInFlight = 0;
-  bool _loadingCalendarCounts = false;
 
   FrontdeskDashboardSummary? _summary;
   List<FrontdeskQueueRow> _queue = [];
@@ -62,13 +50,11 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedDay = _focusedDay;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSummary();
       _loadQueue();
       _loadFeedback();
       _loadRegistrationsToday();
-      _ensureCalendarCountsForMonth(_focusedDay);
     });
   }
 
@@ -145,9 +131,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
         _feedbackError = msg;
         _loadingFeedback = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -212,48 +196,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     }
   }
 
-  static DateTime _calendarDateKey(DateTime d) =>
-      DateTime(d.year, d.month, d.day);
-
-  static String _calendarMonthKey(DateTime d) => '${d.year}-${d.month}';
-
-  int _appointmentCountOnDay(DateTime day) =>
-      _calendarCounts[_calendarDateKey(day)] ?? 0;
-
-  Future<void> _ensureCalendarCountsForMonth(DateTime month) async {
-    final key = _calendarMonthKey(month);
-    if (_calendarMonthsLoaded.contains(key)) return;
-
-    _calendarLoadsInFlight++;
-    if (_calendarLoadsInFlight == 1 && mounted) {
-      setState(() => _loadingCalendarCounts = true);
-    }
-
-    try {
-      final start = DateTime(month.year, month.month, 1);
-      final end = DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999);
-      final counts = await _appointmentService.getCalendarCounts(
-        fromDate: start,
-        toDate: end,
-      );
-      if (!mounted) return;
-      setState(() {
-        _calendarCounts.addAll(counts);
-        _calendarMonthsLoaded.add(key);
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load appointment counts: $e')),
-      );
-    } finally {
-      _calendarLoadsInFlight--;
-      if (mounted && _calendarLoadsInFlight == 0) {
-        setState(() => _loadingCalendarCounts = false);
-      }
-    }
-  }
-
   Future<void> _openCheckInPatientDialog(BuildContext context) async {
     final reEnlisted = await showDialog<bool>(
       context: context,
@@ -262,110 +204,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
     if (reEnlisted == true && mounted) {
       await _loadQueue();
     }
-  }
-
-  Future<void> _openDayAppointmentsSheet(DateTime day) async {
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) =>
-          _DayAppointmentsBottomSheet(day: day, service: _appointmentService),
-    );
-  }
-
-  Widget _buildCalendarDayCell(
-    BuildContext context,
-    DateTime day,
-    ColorScheme colorScheme, {
-    required bool isSelected,
-    required bool isToday,
-  }) {
-    final count = _appointmentCountOnDay(day);
-    final badge = count > 0
-        ? Positioned(
-            right: 2,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? colorScheme.onPrimary.withValues(alpha: 0.92)
-                    : colorScheme.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                count > 99 ? '99+' : '$count',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? colorScheme.primary : colorScheme.onPrimary,
-                ),
-              ),
-            ),
-          )
-        : const SizedBox.shrink();
-
-    final number = Text(
-      '${day.day}',
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-        color: isSelected
-            ? colorScheme.onPrimary
-            : (isToday ? colorScheme.primary : colorScheme.onSurface),
-      ),
-    );
-
-    if (isSelected) {
-      return Stack(
-        clipBehavior: Clip.none,
-        fit: StackFit.expand,
-        children: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.all(6),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colorScheme.primary,
-                shape: BoxShape.circle,
-              ),
-              child: number,
-            ),
-          ),
-          badge,
-        ],
-      );
-    }
-    if (isToday) {
-      return Stack(
-        clipBehavior: Clip.none,
-        fit: StackFit.expand,
-        children: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.all(6),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.3),
-                shape: BoxShape.circle,
-              ),
-              child: number,
-            ),
-          ),
-          badge,
-        ],
-      );
-    }
-    return Stack(
-      clipBehavior: Clip.none,
-      fit: StackFit.expand,
-      children: [
-        Center(child: number),
-        badge,
-      ],
-    );
   }
 
   String _welcomeName(Staff? staff) {
@@ -725,7 +563,7 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                       if (item.createdAt != null) ...[
                         const SizedBox(height: 12),
                         Text(
-                          'Submitted ${DateFormat.yMMMd().add_jm().format(item.createdAt!.toLocal())}',
+                          'Submitted ${DateFormatter.dateTime(item.createdAt!)}',
                           style: TextStyle(
                             fontSize: 12,
                             color: colorScheme.onSurfaceVariant,
@@ -841,125 +679,125 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                   desktopColumns: 3,
                   children: [
                     _buildStatCard(
-                        context,
-                        "Today's Appointments",
-                        _loadingSummary
-                            ? '…'
-                            : '${summary?.appointmentsToday ?? '—'}',
-                        apptChange != null
-                            ? _formatAppointmentDelta(apptChange)
-                            : '—',
-                        Icons.calendar_today,
-                        DepartmentColors.outpatientClinic,
-                        isNegative: apptChange != null
-                            ? _appointmentDeltaNegative(apptChange)
-                            : false,
-                      ),
-                      _buildStatCard(
-                        context,
-                        'Checked-In',
-                        _loadingSummary
-                            ? '…'
-                            : '${summary?.checkInsToday ?? '—'}',
-                        '—',
-                        Icons.check_circle_outline,
-                        DepartmentColors.pharmacy,
-                      ),
-                      _buildStatCard(
-                        context,
-                        'Waiting Room',
-                        _loadingSummary
-                            ? '…'
-                            : '${summary?.waitingRoomCount ?? '—'}',
-                        '—',
-                        Icons.hourglass_empty,
-                        DepartmentColors.billing,
-                      ),
-                      _buildStatCard(
-                        context,
-                        'Discharged',
-                        _loadingSummary
-                            ? '…'
-                            : '${summary?.dischargesToday ?? '—'}',
-                        '—',
-                        Icons.logout,
-                        DepartmentColors.laboratory,
-                      ),
-                      _buildStatCard(
-                        context,
-                        'Registered today',
-                        _loadingRegistrationsToday
-                            ? '…'
-                            : '${_registrationsToday ?? '—'}',
-                        '—',
-                        Icons.person_add_alt_1_outlined,
-                        DepartmentColors.frontDesk,
-                        onTap: () =>
-                            context.router.push(const TodayPatientsRoute()),
-                      ),
+                      context,
+                      "Today's Appointments",
+                      _loadingSummary
+                          ? '…'
+                          : '${summary?.appointmentsToday ?? '—'}',
+                      apptChange != null
+                          ? _formatAppointmentDelta(apptChange)
+                          : '—',
+                      Icons.calendar_today,
+                      DepartmentColors.outpatientClinic,
+                      isNegative: apptChange != null
+                          ? _appointmentDeltaNegative(apptChange)
+                          : false,
+                    ),
+                    _buildStatCard(
+                      context,
+                      'Checked-In',
+                      _loadingSummary
+                          ? '…'
+                          : '${summary?.checkInsToday ?? '—'}',
+                      '—',
+                      Icons.check_circle_outline,
+                      DepartmentColors.pharmacy,
+                    ),
+                    _buildStatCard(
+                      context,
+                      'Waiting Room',
+                      _loadingSummary
+                          ? '…'
+                          : '${summary?.waitingRoomCount ?? '—'}',
+                      '—',
+                      Icons.hourglass_empty,
+                      DepartmentColors.billing,
+                    ),
+                    _buildStatCard(
+                      context,
+                      'Discharged',
+                      _loadingSummary
+                          ? '…'
+                          : '${summary?.dischargesToday ?? '—'}',
+                      '—',
+                      Icons.logout,
+                      DepartmentColors.laboratory,
+                    ),
+                    _buildStatCard(
+                      context,
+                      'Registered today',
+                      _loadingRegistrationsToday
+                          ? '…'
+                          : '${_registrationsToday ?? '—'}',
+                      '—',
+                      Icons.person_add_alt_1_outlined,
+                      DepartmentColors.frontDesk,
+                      onTap: () =>
+                          context.router.push(const TodayPatientsRoute()),
+                    ),
                   ],
                 ),
-                  if (_summaryError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _summaryError!,
-                      style: TextStyle(fontSize: 12, color: colorScheme.error),
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-                  ResponsiveToolbar(
-                    leading: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: DepartmentColors.emergency,
-                            shape: BoxShape.circle,
-                          ),
+                if (_summaryError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _summaryError!,
+                    style: TextStyle(fontSize: 12, color: colorScheme.error),
+                  ),
+                ],
+                const SizedBox(height: 32),
+                ResponsiveToolbar(
+                  leading: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: DepartmentColors.emergency,
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Live Patient Queue',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      OutlinedButton.icon(
-                        onPressed: _loadingQueue ? null : _refreshAll,
-                        icon: _loadingQueue
-                            ? SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: colorScheme.primary,
-                                ),
-                              )
-                            : const Icon(Icons.refresh, size: 16),
-                        label: Text(
-                          _loadingQueue ? 'Refreshing…' : 'Refresh',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          minimumSize: Size.zero,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Live Patient Queue',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  ResponsiveDataTable(
-                    child: Container(
+                  actions: [
+                    OutlinedButton.icon(
+                      onPressed: _loadingQueue ? null : _refreshAll,
+                      icon: _loadingQueue
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colorScheme.primary,
+                              ),
+                            )
+                          : const Icon(Icons.refresh, size: 16),
+                      label: Text(
+                        _loadingQueue ? 'Refreshing…' : 'Refresh',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ResponsiveDataTable(
+                  child: Container(
                     decoration: BoxDecoration(
                       color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
@@ -1231,229 +1069,122 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
                     ),
                   ),
                 ),
-                ],
-              ),
+              ],
+            ),
             second: Column(
-                children: [
-                  _buildFeedbackPanel(context),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.2),
-                      ),
+              children: [
+                _buildFeedbackPanel(context),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: colorScheme.outline.withValues(alpha: 0.2),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'Quick Actions',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Quick Actions',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            context.router.push(PatientFormRoute());
-                          },
-                          icon: Icon(
-                            Icons.person_add,
-                            size: 18,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          context.router.push(PatientFormRoute());
+                        },
+                        icon: Icon(
+                          Icons.person_add,
+                          size: 18,
+                          color: colorScheme.onPrimary,
+                        ),
+                        label: Text(
+                          'Register New Patient',
+                          style: textTheme.labelLarge?.copyWith(
                             color: colorScheme.onPrimary,
                           ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      if (ProductEnvironment.currentProduct ==
+                          AppProduct.hospital) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            context.router.push(NewAppointmentRoute());
+                          },
+                          icon: Icon(
+                            Icons.calendar_month,
+                            size: 18,
+                            color: colorScheme.primary,
+                          ),
                           label: Text(
-                            'Register New Patient',
-                            style: textTheme.labelLarge?.copyWith(
-                              color: colorScheme.onPrimary,
+                            'Book Appointment',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.onSurface,
                             ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.primary,
-                            foregroundColor: colorScheme.onPrimary,
+                          style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                         ),
-                        if (ProductEnvironment.currentProduct ==
-                            AppProduct.hospital) ...[
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              context.router.push(NewAppointmentRoute());
-                            },
-                            icon: Icon(
-                              Icons.calendar_month,
-                              size: 18,
-                              color: colorScheme.primary,
-                            ),
-                            label: Text(
-                              'Book Appointment',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => _openCheckInPatientDialog(context),
+                          icon: Icon(
+                            Icons.login,
+                            size: 18,
+                            color: colorScheme.primary,
                           ),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: () =>
-                                _openCheckInPatientDialog(context),
-                            icon: Icon(
-                              Icons.login,
-                              size: 18,
-                              color: colorScheme.primary,
-                            ),
-                            label: Text(
-                              'Check-In Patient',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_loadingCalendarCounts)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: LinearProgressIndicator(
-                              minHeight: 2,
-                              borderRadius: BorderRadius.circular(2),
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                        TableCalendar(
-                          firstDay: DateTime.utc(2020, 10, 16),
-                          lastDay: DateTime.utc(2030, 3, 14),
-                          focusedDay: _focusedDay,
-                          selectedDayPredicate: (day) =>
-                              isSameDay(_selectedDay, day),
-                          onDaySelected: (selectedDay, focusedDay) {
-                            setState(() {
-                              _selectedDay = selectedDay;
-                              _focusedDay = focusedDay;
-                            });
-                            _openDayAppointmentsSheet(selectedDay);
-                          },
-                          onPageChanged: (focusedDay) {
-                            setState(() {
-                              _focusedDay = focusedDay;
-                            });
-                            _ensureCalendarCountsForMonth(focusedDay);
-                          },
-                          calendarFormat: CalendarFormat.month,
-                          headerStyle: HeaderStyle(
-                            formatButtonVisible: false,
-                            titleCentered: false,
-                            titleTextStyle: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                          label: Text(
+                            'Check-In Patient',
+                            style: TextStyle(
+                              fontSize: 13,
                               color: colorScheme.onSurface,
                             ),
-                            leftChevronIcon: const Icon(
-                              Icons.chevron_left,
-                              size: 20,
-                            ),
-                            rightChevronIcon: const Icon(
-                              Icons.chevron_right,
-                              size: 20,
-                            ),
                           ),
-                          daysOfWeekStyle: DaysOfWeekStyle(
-                            weekdayStyle: TextStyle(
-                              fontSize: 11,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            weekendStyle: TextStyle(
-                              fontSize: 11,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
-                          ),
-                          calendarBuilders: CalendarBuilders(
-                            defaultBuilder: (context, day, focusedDay) {
-                              return _buildCalendarDayCell(
-                                context,
-                                day,
-                                colorScheme,
-                                isSelected: false,
-                                isToday: isSameDay(day, AppTimezone.now()),
-                              );
-                            },
-                            selectedBuilder: (context, day, focusedDay) {
-                              return _buildCalendarDayCell(
-                                context,
-                                day,
-                                colorScheme,
-                                isSelected: true,
-                                isToday: isSameDay(day, AppTimezone.now()),
-                              );
-                            },
-                            todayBuilder: (context, day, focusedDay) {
-                              final sel = isSameDay(_selectedDay, day);
-                              return _buildCalendarDayCell(
-                                context,
-                                day,
-                                colorScheme,
-                                isSelected: sel,
-                                isToday: true,
-                              );
-                            },
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-                        Text(
-                          "Today's total appointments: "
-                          '${_loadingSummary ? '…' : '${_summary?.appointmentsToday ?? '—'}'}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                AppointmentsCalendarCard(
+                  footer: Text(
+                    "Today's total appointments: "
+                    '${_loadingSummary ? '…' : '${_summary?.appointmentsToday ?? '—'}'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1552,147 +1283,6 @@ class _FrontDeskDashboardState extends ConsumerState<FrontDeskDashboardScreen> {
       fontSize: 12,
       fontWeight: FontWeight.w600,
       color: colorScheme.onSurface.withValues(alpha: 0.5),
-    );
-  }
-}
-
-class _DayAppointmentsBottomSheet extends StatefulWidget {
-  const _DayAppointmentsBottomSheet({required this.day, required this.service});
-
-  final DateTime day;
-  final AppointmentService service;
-
-  @override
-  State<_DayAppointmentsBottomSheet> createState() =>
-      _DayAppointmentsBottomSheetState();
-}
-
-class _DayAppointmentsBottomSheetState
-    extends State<_DayAppointmentsBottomSheet> {
-  late final Future<({List<Appointment> items, int total})> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    final start = DateTime(widget.day.year, widget.day.month, widget.day.day);
-    final end = DateTime(
-      widget.day.year,
-      widget.day.month,
-      widget.day.day,
-      23,
-      59,
-      59,
-      999,
-    );
-    _future = widget.service.findAll(
-      skip: 0,
-      take: 200,
-      fromDate: start,
-      toDate: end,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final title = DateFormat('EEEE, MMM d, yyyy').format(widget.day);
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.55,
-      minChildSize: 0.35,
-      maxChildSize: 0.92,
-      builder: (context, scrollController) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Divider(height: 1, color: scheme.outlineVariant),
-            Expanded(
-              child: FutureBuilder<({List<Appointment> items, int total})>(
-                future: _future,
-                builder: (context, snap) {
-                  if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snap.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          '${snap.error}',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    );
-                  }
-                  final data = snap.data!;
-                  final items = data.items;
-                  if (items.isEmpty) {
-                    return ListView(
-                      controller: scrollController,
-                      children: const [
-                        SizedBox(height: 48),
-                        Center(child: Text('No appointments on this day.')),
-                      ],
-                    );
-                  }
-                  return ListView.separated(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    itemCount:
-                        items.length + (data.total > items.length ? 1 : 0),
-                    separatorBuilder: (_, __) => Divider(
-                      height: 1,
-                      color: scheme.outlineVariant.withValues(alpha: 0.5),
-                    ),
-                    itemBuilder: (context, i) {
-                      if (i == items.length) {
-                        return Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            '${data.total} total — showing first ${items.length}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        );
-                      }
-                      final a = items[i];
-                      final local = a.appointmentDate.toLocal();
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          a.patientDisplayName,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          '${DateFormatter.medicalDate(local)} · ${DateFormat.jm().format(local)}\n'
-                          '${a.doctorDisplayName} · ${a.status}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                        isThreeLine: true,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

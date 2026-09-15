@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import '../models/purchases_model.dart';
 import 'purchases_inventory_screen.dart' show FilterPillType;
@@ -112,7 +112,10 @@ class ItemFiltersPanel extends StatelessWidget {
       controller: searchController,
       decoration: InputDecoration(
         hintText: 'Search items...',
-        prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
+        prefixIcon: Icon(
+          Icons.search,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
         filled: true,
         fillColor: theme.colorScheme.surface,
         border: OutlineInputBorder(
@@ -308,11 +311,11 @@ class ItemFiltersPanel extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    from != null
-                        ? DateFormat('yyyy-MM-dd').format(from)
-                        : 'Select',
+                    from != null ? DateFormatter.shortDate(from) : 'Select',
                     style: TextStyle(
-                      color: from != null ? null : theme.colorScheme.onSurfaceVariant,
+                      color: from != null
+                          ? null
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -357,9 +360,11 @@ class ItemFiltersPanel extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    to != null ? DateFormat('yyyy-MM-dd').format(to) : 'Select',
+                    to != null ? DateFormatter.shortDate(to) : 'Select',
                     style: TextStyle(
-                      color: to != null ? null : theme.colorScheme.onSurfaceVariant,
+                      color: to != null
+                          ? null
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -381,7 +386,9 @@ class ItemFiltersPanel extends StatelessWidget {
       label: Text(
         label,
         style: TextStyle(
-          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurface,
         ),
       ),
       selected: isSelected,

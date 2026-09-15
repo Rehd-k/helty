@@ -546,7 +546,7 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
                 icon: Icons.calendar_month_rounded,
                 label: _selectedDate == null
                     ? 'Date'
-                    : DateFormat('EEE, MMM d').format(_selectedDate!),
+                    : DateFormatter.shortDate(_selectedDate!),
                 filled: _selectedDate != null,
                 onTap: _pickDate,
               ),

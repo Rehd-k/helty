@@ -8,6 +8,7 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/encounter_edit_meta.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_forms_panel.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_ui_tabs.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/paitients/patient_service.dart';
@@ -245,15 +246,13 @@ class _DoctorCompletedEncounterViewScreenState
                       _buildEditMetaBanner(context, encounter.editMeta!),
                     ],
                     const SizedBox(height: 16),
-                    _buildTabsStrip(context, tabsRouter, theme, colorScheme),
+                    _buildTabsStrip(context, tabsRouter),
                     const SizedBox(height: 16),
                     Expanded(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: colorScheme.surface,
-                          ),
+                          decoration: BoxDecoration(color: colorScheme.surface),
                           child: Padding(
                             padding: const EdgeInsets.all(4),
                             child: child,
@@ -287,9 +286,7 @@ class _DoctorCompletedEncounterViewScreenState
               message: _editedTooltip(meta),
               child: Chip(
                 label: Text(
-                  meta.editCount > 1
-                      ? 'Edited (${meta.editCount})'
-                      : 'Edited',
+                  meta.editCount > 1 ? 'Edited (${meta.editCount})' : 'Edited',
                 ),
                 visualDensity: VisualDensity.compact,
               ),
@@ -318,21 +315,15 @@ class _DoctorCompletedEncounterViewScreenState
             if (mounted) await _load();
           },
           icon: const Icon(Icons.edit, size: 18),
-          label: Text(
-            meta.isSharedInpatientEncounter ? 'Edit chart' : 'Amend',
-          ),
+          label: Text(meta.isSharedInpatientEncounter ? 'Edit chart' : 'Amend'),
         ),
     ];
   }
 
   String _editedTooltip(EncounterEditMeta meta) {
-    final parts = <String>[
-      'Amended ${meta.editCount} time(s)',
-    ];
+    final parts = <String>['Amended ${meta.editCount} time(s)'];
     if (meta.lastEditedAt != null) {
-      parts.add(
-        'Last: ${DateFormatter.dateTime(meta.lastEditedAt!)}',
-      );
+      parts.add('Last: ${DateFormatter.dateTime(meta.lastEditedAt!)}');
     }
     return parts.join('\n');
   }
@@ -349,7 +340,7 @@ class _DoctorCompletedEncounterViewScreenState
     } else if (meta.isSharedInpatientEncounter && meta.canEdit) {
       message = meta.hasEdits
           ? 'This inpatient chart has post-admission edits. '
-              'Use Edit history to review prior versions.'
+                'Use Edit history to review prior versions.'
           : 'This is the shared inpatient chart for an active admission.';
     } else if (meta.hasEdits) {
       message =
@@ -371,75 +362,17 @@ class _DoctorCompletedEncounterViewScreenState
         children: [
           Icon(Icons.info_outline, size: 20, color: scheme.secondary),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: theme.textTheme.bodySmall,
-            ),
-          ),
+          Expanded(child: Text(message, style: theme.textTheme.bodySmall)),
         ],
       ),
     );
   }
 
-  Widget _buildTabsStrip(
-    BuildContext context,
-    TabsRouter tabsRouter,
-    ThemeData theme,
-    ColorScheme scheme,
-  ) {
-    const labels = [
-      'Summary',
-      'History',
-      'Examination',
-      'Notes',
-      'Diagnosis',
-      'Labs',
-      'Imaging',
-      'Surgery',
-      'Rx',
-      'Appointments',
-      'Follow-up',
-    ];
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceBright.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: List.generate(labels.length, (index) {
-            final selected = tabsRouter.activeIndex == index;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: () => tabsRouter.setActiveIndex(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: selected ? scheme.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    labels[index],
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected
-                          ? scheme.onPrimary
-                          : scheme.onSurface,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
+  Widget _buildTabsStrip(BuildContext context, TabsRouter tabsRouter) {
+    return EncounterTabsStrip(
+      tabs: EncounterUiTabs.completed,
+      activeIndex: tabsRouter.activeIndex,
+      onSelect: tabsRouter.setActiveIndex,
     );
   }
 }

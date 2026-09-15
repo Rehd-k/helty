@@ -10,8 +10,11 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/helper/quill_content_helper.dart';
 import 'package:helty/src/models/ward_round_note_model.dart';
 import 'package:helty/src/nurses/inpatients/ward_round_note_draft.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_round_note_service.dart';
 import 'package:helty/src/shared/department_colors.dart';
@@ -49,7 +52,9 @@ String _authorSortKey(WardRoundNoteModel note) =>
 
 String _sortSubtitle(_WardRoundSortField field, bool ascending) {
   if (field == _WardRoundSortField.date) {
-    return ascending ? 'sorted by date, oldest first' : 'sorted by date, newest first';
+    return ascending
+        ? 'sorted by date, oldest first'
+        : 'sorted by date, newest first';
   }
   return ascending ? 'sorted by author, A→Z' : 'sorted by author, Z→A';
 }
@@ -160,8 +165,9 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
     }
 
     final existingDraft = ref.read(wardRoundNoteDraftProvider);
-    final initialDraft =
-        existingDraft?.admissionId == admissionId ? existingDraft : null;
+    final initialDraft = existingDraft?.admissionId == admissionId
+        ? existingDraft
+        : null;
 
     final result = await showWardRoundNoteDialog(
       context: context,
@@ -218,46 +224,82 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final admissionId = InpatientViewScope.of(context)?.admissionId;
+    final now = DateTime.now();
+    final todayCount = _notes.where((n) {
+      final t = n.createdAt ?? n.roundDate;
+      return t.year == now.year && t.month == now.month && t.day == now.day;
+    }).length;
 
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (admissionId == null || admissionId.isEmpty)
-            SectionCard(
-              title: 'Ward round notes',
-              subtitle:
-                  'Open this patient from Ward Rounds or Inpatients list with an admission to see and add notes.',
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'No admission context.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            )
-          else ...[
-            SectionCard(
-              title: 'Ward round (progress) notes',
-              subtitle: _notes.isEmpty
-                  ? 'SOAP notes for this admission. Doctors can add new notes.'
-                  : 'SOAP notes · ${_sortSubtitle(_sortField, _sortAscending)}',
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InpatientTabToolbar(
+              icon: Icons.groups_outlined,
+              iconColor: InpatientMetrics.iconPurple,
+              title: 'Ward round',
+              subtitle: 'SOAP progress notes for this admission',
               actions: [
-                FilledButton.icon(
-                  onPressed: _loading ? null : _showAddNoteDialog,
-                  icon: const Icon(Icons.add_comment, size: 18),
-                  label: const Text('Add round note'),
+                if (admissionId != null && admissionId.isNotEmpty)
+                  FilledButton.icon(
+                    onPressed: _loading ? null : _showAddNoteDialog,
+                    icon: const Icon(Icons.add_comment, size: 16),
+                    label: const Text('Add round note'),
+                    style: inpatientCompactFill(),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            InpatientKpiRow(
+              tiles: [
+                InpatientKpiTile(
+                  icon: Icons.notes_outlined,
+                  color: InpatientMetrics.iconPurple,
+                  label: 'Notes',
+                  value: _loading ? '—' : '${_notes.length}',
+                  caption: 'This admission',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.today_outlined,
+                  color: InpatientMetrics.iconBlue,
+                  label: 'Today',
+                  value: _loading ? '—' : '$todayCount',
+                  caption: 'Recorded today',
                 ),
               ],
-              child: _buildNotesContent(theme, colorScheme),
             ),
+            const SizedBox(height: 10),
+            if (admissionId == null || admissionId.isEmpty)
+              SectionCard(
+                title: 'Ward round notes',
+                subtitle:
+                    'Open this patient from Ward Rounds or Inpatients with an admission.',
+                icon: Icons.info_outline,
+                iconColor: InpatientMetrics.iconIndigo,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'No admission context.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              )
+            else
+              SectionCard(
+                title: 'Progress notes',
+                subtitle: _notes.isEmpty
+                    ? 'SOAP notes for this admission. Doctors can add new notes.'
+                    : 'SOAP notes · ${_sortSubtitle(_sortField, _sortAscending)}',
+                icon: Icons.assignment_outlined,
+                iconColor: InpatientMetrics.iconPurple,
+                child: _buildNotesContent(theme, colorScheme),
+              ),
           ],
-        ],
-      ),
+        ),
       ),
     );
   }
@@ -347,7 +389,7 @@ class _InpatientWardRoundTabState extends ConsumerState<InpatientWardRoundTab> {
           onDirectionToggle: () =>
               setState(() => _sortAscending = !_sortAscending),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         ...sorted.map(
           (n) => _NoteTile(
             note: n,
@@ -380,15 +422,9 @@ class _WardRoundSortBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
 
-    final countChip = Chip(
-      visualDensity: VisualDensity.compact,
-      label: Text(
-        noteCount == 1 ? '1 note' : '$noteCount notes',
-        style: theme.textTheme.labelSmall,
-      ),
-      backgroundColor: scheme.primaryContainer.withValues(alpha: 0.5),
-      side: BorderSide.none,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+    final countChip = HeltyStatusChip(
+      label: noteCount == 1 ? '1 note' : '$noteCount notes',
+      color: InpatientMetrics.iconPurple,
     );
 
     final directionButton = Tooltip(
@@ -503,11 +539,7 @@ class _WardRoundSortBar extends StatelessWidget {
 }
 
 class _NoteTile extends StatelessWidget {
-  const _NoteTile({
-    required this.note,
-    this.canEdit = false,
-    this.onEdit,
-  });
+  const _NoteTile({required this.note, this.canEdit = false, this.onEdit});
 
   final WardRoundNoteModel note;
   final bool canEdit;
@@ -559,8 +591,7 @@ class _NoteTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final dateTimeStr =
-        DateFormatter.dateTime(_noteSortInstant(note));
+    final dateTimeStr = DateFormatter.dateTime(_noteSortInstant(note));
     final authorName = note.doctorDisplayName
         ?.trim()
         .split(RegExp(r'\s+'))
@@ -568,112 +599,110 @@ class _NoteTile extends StatelessWidget {
         .join(' ');
     final hasAuthor = authorName != null && authorName.isNotEmpty;
 
-    final sections = _soapSections
-        .where((s) {
-          final content = _fieldContent(s.key);
-          return content != null && content.isNotEmpty;
-        })
-        .toList();
+    final sections = _soapSections.where((s) {
+      final content = _fieldContent(s.key);
+      return content != null && content.isNotEmpty;
+    }).toList();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: colorScheme.primary,
-                shape: BoxShape.circle,
-              ),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: HeltySurfaceCard(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const HeltySolidIcon(
+              icon: Icons.groups_outlined,
+              color: InpatientMetrics.iconPurple,
+              size: 28,
+              iconSize: 15,
+              radius: 7,
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (hasAuthor)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer
-                              .withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.medical_services_outlined,
-                              size: 14,
-                              color: colorScheme.onPrimaryContainer,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (hasAuthor)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer.withValues(
+                              alpha: 0.6,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Recorded By $authorName',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.medical_services_outlined,
+                                size: 14,
                                 color: colorScheme.onPrimaryContainer,
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 14,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          dateTimeStr,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                              const SizedBox(width: 4),
+                              Text(
+                                'Recorded By $authorName',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                    if (canEdit && onEdit != null)
-                      IconButton(
-                        tooltip: 'Edit note',
-                        onPressed: onEdit,
-                        icon: const Icon(Icons.edit_outlined, size: 20),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 14,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            dateTimeStr,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                ...sections.map(
-                  (section) => _SoapSectionTile(
-                    section: section,
-                    content: _fieldContent(section.key)!,
-                    useShortLabel: MediaQuery.sizeOf(context).width < 480,
+                      if (canEdit && onEdit != null)
+                        IconButton(
+                          tooltip: 'Edit note',
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_outlined, size: 20),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  ...sections.map(
+                    (section) => _SoapSectionTile(
+                      section: section,
+                      content: _fieldContent(section.key)!,
+                      useShortLabel: MediaQuery.sizeOf(context).width < 480,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -934,8 +963,10 @@ class _SoapExpandedPanel extends StatelessWidget {
             child: InkWell(
               onTap: onCollapseTap,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -964,10 +995,7 @@ class _SoapExpandedPanel extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Icon(
-                      Icons.keyboard_arrow_up_rounded,
-                      color: slot.color,
-                    ),
+                    Icon(Icons.keyboard_arrow_up_rounded, color: slot.color),
                   ],
                 ),
               ),
@@ -1074,9 +1102,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
     _assessmentCtrl = quillControllerFromStoredContent(
       note?.assessment ?? draft?.assessment,
     );
-    _planCtrl = quillControllerFromStoredContent(
-      note?.plan ?? draft?.plan,
-    );
+    _planCtrl = quillControllerFromStoredContent(note?.plan ?? draft?.plan);
     _expandedIndex = (draft?.expandedIndex ?? 0).clamp(0, 3);
 
     _slots = [
@@ -1132,8 +1158,9 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
   }
 
   String? _previewFor(_SoapEditorSlot slot) {
-    final plain =
-        plainTextFromStoredContent(encodeQuillContent(slot.controller));
+    final plain = plainTextFromStoredContent(
+      encodeQuillContent(slot.controller),
+    );
     if (plain.isEmpty) return null;
     return plain.replaceAll('\n', ' ');
   }
@@ -1262,9 +1289,9 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1371,8 +1398,7 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
                           onSelected: _saving
                               ? null
                               : (_) => _expandSection(_slots.indexOf(slot)),
-                          selectedColor:
-                              slot.color.withValues(alpha: 0.22),
+                          selectedColor: slot.color.withValues(alpha: 0.22),
                           checkmarkColor: slot.color,
                         ),
                     ],

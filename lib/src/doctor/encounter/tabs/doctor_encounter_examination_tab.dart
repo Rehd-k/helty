@@ -8,6 +8,9 @@ import 'package:helty/src/doctor/encounter/questionnaire/encounter_question_mode
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_questionnaire_section.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/examination_questionnaire_defs.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
 @RoutePage()
@@ -220,29 +223,43 @@ class _DoctorEncounterExaminationTabState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (!widget.embedded) ...[
+            InpatientTabToolbar(
+              icon: Icons.accessibility_new_outlined,
+              iconColor: InpatientMetrics.iconTeal,
+              title: 'Examination',
+              subtitle: 'Physical findings and vitals snapshot',
+              actions: [
+                if (!readOnly)
+                  FilledButton.icon(
+                    onPressed: _loading ? null : _saveDraft,
+                    icon: _loading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined, size: 16),
+                    label: const Text('Save draft'),
+                    style: inpatientCompactFill(),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
           if (_vitals.isNotEmpty) ...[
-            Text(
-              'Vitals (read-only)',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
             Wrap(
-              spacing: 16,
+              spacing: 8,
               runSpacing: 8,
-              children: _vitals.entries
-                  .map(
-                    (e) => Chip(
-                      label: Text('${e.key}: ${e.value ?? "—"}'),
-                      backgroundColor:
-                          theme.colorScheme.surfaceContainerHighest,
-                    ),
-                  )
-                  .toList(),
+              children: [
+                for (final e in _vitals.entries)
+                  HeltyStatusChip(
+                    label: '${e.key}: ${e.value ?? "—"}',
+                    color: InpatientMetrics.iconTeal,
+                  ),
+              ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
           ],
           for (final section in examinationQuestionnaireSections)
             EncounterQuestionnaireSection(
@@ -288,19 +305,20 @@ class _DoctorEncounterExaminationTabState
               ],
             ),
           ),
-          if (!readOnly)
+          if (!readOnly && widget.embedded)
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton.icon(
                 onPressed: _loading ? null : _saveDraft,
                 icon: _loading
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.save_outlined, size: 18),
+                    : const Icon(Icons.save_outlined, size: 16),
                 label: const Text('Save draft'),
+                style: inpatientCompactFill(),
               ),
             ),
         ],

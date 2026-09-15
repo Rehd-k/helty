@@ -6,10 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/helper/theme.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/completed/edit_history/encounter_edit_history_sheet.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_forms_panel.dart';
 import 'package:helty/src/doctor/specialty/encounter_specialty_gate.dart';
 import 'package:helty/src/doctor/encounter/widgets/doctor_encounter_patient_header.dart';
+import 'package:helty/src/doctor/encounter/widgets/encounter_ui_tabs.dart';
 import 'package:helty/src/doctor/encounter/widgets/patient_previous_encounters_sheet.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
@@ -531,14 +536,14 @@ class _DoctorEncounterViewScreenState
                 builder: (context, bp) => Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildHeaderRow(context),
+                    _buildHeaderRow(context, compact: bp.isMobile),
                     if (_buildEditMetaBanner(context) != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       _buildEditMetaBanner(context)!,
                     ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
                     _buildPatientHeader(context),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
                     Expanded(
                       child: AbsorbPointer(
                         absorbing: !_specialtyGateDismissed,
@@ -546,7 +551,7 @@ class _DoctorEncounterViewScreenState
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _buildTabsStrip(context, tabsRouter),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 10),
                             Expanded(
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
@@ -667,43 +672,49 @@ class _DoctorEncounterViewScreenState
     if (enc == null) return null;
     final meta = enc.editMeta;
     final canEdit = encounterCanEdit(enc);
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
     String? message;
-    Color? bgColor;
+    Color color = InpatientMetrics.iconBlue;
     IconData icon = Icons.info_outline;
 
     if (meta?.canEditAsCoveringPhysician == true) {
       message = 'You are editing as covering physician.';
-      bgColor = scheme.primaryContainer.withValues(alpha: 0.5);
+      color = InpatientMetrics.iconBlue;
       icon = Icons.medical_information_outlined;
     } else if (!canEdit) {
       message = 'Read-only chart — you cannot edit this encounter.';
-      bgColor = scheme.surfaceContainerHighest.withValues(alpha: 0.6);
+      color = InpatientMetrics.waitAmber;
       icon = Icons.lock_outline;
     }
 
     if (message == null) return null;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.2)),
-      ),
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: scheme.onSurface),
-          const SizedBox(width: 12),
-          Expanded(child: Text(message, style: theme.textTheme.bodySmall)),
+          HeltySolidIcon(
+            icon: icon,
+            color: color,
+            size: 26,
+            iconSize: 14,
+            radius: 7,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderRow(BuildContext context) {
+  Widget _buildHeaderRow(BuildContext context, {required bool compact}) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final enc = _encounter;
@@ -718,143 +729,136 @@ class _DoctorEncounterViewScreenState
     final canSuperAdminEnd =
         isSuperAdmin && !isCompleted && !isAmend && !canEdit;
 
-    return ResponsiveToolbar(
-      leading: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isAmend
-                ? 'Amend encounter'
-                : isSharedInpatient
-                ? 'Inpatient chart'
-                : isEm
-                ? 'Emergency encounter'
-                : 'Encounter',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 12,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                isAmend
-                    ? 'Changes are saved to edit history'
-                    : isSharedInpatient
-                    ? 'Shared inpatient clinical chart'
-                    : isEm
-                    ? 'Emergency department clinical workspace'
-                    : 'OPD encounter view',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              if (isEm && _edEsiLevel != null)
-                EsiBadge(esiLevel: _edEsiLevel, compact: true),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        IconButton.outlined(
-          tooltip: 'Previous encounters',
-          onPressed: () {
+    final title = isAmend
+        ? 'Amend encounter'
+        : isSharedInpatient
+        ? 'Inpatient chart'
+        : isEm
+        ? 'Emergency encounter'
+        : 'Encounter';
+    final subtitle = isAmend
+        ? 'Changes are saved to edit history'
+        : isSharedInpatient
+        ? 'Shared inpatient clinical chart'
+        : isEm
+        ? 'Emergency department clinical workspace'
+        : 'OPD encounter view';
+
+    final showEditHistory =
+        enc != null && (meta?.hasEdits == true || versionedEdits);
+    final showTemplates = !isCompleted && canEdit;
+    final showReason = versionedEdits && canEdit;
+    final showSpecialty =
+        _specialtyGateDismissed &&
+        canEdit &&
+        (!isCompleted || isAmend || isSharedInpatient);
+
+    void openSpecialty() {
+      EncounterSpecialtyFormsPanel.showSheet(
+        context,
+        encounterId: widget.encounterId,
+        patientId: widget.patientId,
+        editReason: _editReason,
+        readOnly: !canEdit,
+      );
+    }
+
+    final overflow = PopupMenuButton<String>(
+      tooltip: 'More actions',
+      padding: EdgeInsets.zero,
+      onSelected: (value) {
+        switch (value) {
+          case 'previous':
             PatientPreviousEncountersSheet.show(
               context,
               patientId: widget.patientId,
               currentEncounterId: widget.encounterId,
             );
-          },
-          icon: const Icon(Icons.history, size: 18),
+          case 'history':
+            if (enc != null) {
+              EncounterEditHistorySheet.show(
+                context,
+                encounterId: widget.encounterId,
+                encounter: enc,
+              );
+            }
+          case 'load':
+            _loadTemplate();
+          case 'save':
+            _saveAsTemplate();
+          case 'reason':
+            _changeAmendReason();
+          case 'specialty':
+            openSpecialty();
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'previous',
+          child: Text('Previous encounters'),
         ),
-        if (enc != null && (meta?.hasEdits == true || versionedEdits))
-          IconButton.outlined(
-            tooltip: 'Edit history',
-            onPressed: () => EncounterEditHistorySheet.show(
-              context,
-              encounterId: widget.encounterId,
-              encounter: enc,
+        if (showEditHistory)
+          const PopupMenuItem(value: 'history', child: Text('Edit history')),
+        if (showTemplates)
+          const PopupMenuItem(value: 'load', child: Text('Load template')),
+        if (showTemplates)
+          const PopupMenuItem(value: 'save', child: Text('Save as template')),
+        if (showReason)
+          PopupMenuItem(
+            value: 'reason',
+            child: Text(
+              _editReason != null && _editReason!.isNotEmpty
+                  ? 'Change reason'
+                  : 'Set reason',
             ),
-            icon: const Icon(Icons.fact_check_outlined, size: 18),
           ),
-        if (!isCompleted && canEdit)
-          IconButton.outlined(
-            tooltip: 'Load template',
-            onPressed: _loadTemplate,
-            icon: const Icon(Icons.description_outlined, size: 18),
+        if (showSpecialty)
+          const PopupMenuItem(
+            value: 'specialty',
+            child: Text('Specialty forms'),
           ),
-        if (!isCompleted && canEdit)
-          IconButton.outlined(
-            tooltip: 'Save as template',
-            onPressed: _saveAsTemplate,
-            icon: const Icon(Icons.save_as_outlined, size: 18),
+      ],
+      child: const HeltySolidIcon(
+        icon: Icons.tune,
+        color: InpatientMetrics.iconIndigo,
+        size: 32,
+        iconSize: 16,
+        radius: 8,
+      ),
+    );
+
+    Widget primaryAction() {
+      if (isCompleted || isAmend || (isSharedInpatient && isCompleted)) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: InpatientMetrics.waitGreen,
+            borderRadius: BorderRadius.circular(999),
           ),
-        if (versionedEdits && canEdit)
-          IconButton.outlined(
-            tooltip: _editReason != null && _editReason!.isNotEmpty
-                ? 'Reason set'
-                : 'Set reason',
-            onPressed: _changeAmendReason,
-            icon: const Icon(Icons.edit_note, size: 18),
-          ),
-        if (_specialtyGateDismissed && !isCompleted && canEdit && !isAmend)
-          IconButton.filledTonal(
-            tooltip: 'Specialty forms',
-            onPressed: () {
-              EncounterSpecialtyFormsPanel.showSheet(
-                context,
-                encounterId: widget.encounterId,
-                patientId: widget.patientId,
-                editReason: _editReason,
-                readOnly: !canEdit,
-              );
-            },
-            icon: const Icon(Icons.grid_view_rounded, size: 20),
-          ),
-        if ((isAmend || (isSharedInpatient && canEdit)) &&
-            _specialtyGateDismissed)
-          IconButton.filledTonal(
-            tooltip: 'Specialty forms',
-            onPressed: () {
-              EncounterSpecialtyFormsPanel.showSheet(
-                context,
-                encounterId: widget.encounterId,
-                patientId: widget.patientId,
-                editReason: _editReason,
-                readOnly: !canEdit,
-              );
-            },
-            icon: const Icon(Icons.grid_view_rounded, size: 20),
-          ),
-        if (isCompleted || isAmend || (isSharedInpatient && isCompleted))
-          Tooltip(
-            message: 'Completed',
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: scheme.tertiary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Icon(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
                 Icons.check_circle_outline,
-                size: 18,
-                color: scheme.tertiary,
+                size: 16,
+                color: Colors.white,
               ),
-            ),
-          )
-        else if (_specialtyGateDismissed && !isAmend && canEdit)
-          IconButton.filled(
-            tooltip: _completing
-                ? 'Completing…'
-                : isEm
-                ? 'Disposition'
-                : 'Finish with patient',
+              const SizedBox(width: 6),
+              Text(
+                'Completed',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      if (_specialtyGateDismissed && !isAmend && canEdit) {
+        return Tooltip(
+          message: isEm ? 'Disposition' : 'Finish with patient',
+          child: FilledButton.icon(
             onPressed: _completing
                 ? null
                 : isEm
@@ -862,8 +866,8 @@ class _DoctorEncounterViewScreenState
                 : () => _completeEncounter(),
             icon: _completing
                 ? const SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: 14,
+                    height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: Colors.white,
@@ -871,44 +875,174 @@ class _DoctorEncounterViewScreenState
                   )
                 : Icon(
                     isEm ? Icons.call_split_rounded : Icons.done_all,
-                    size: 18,
+                    size: 16,
                   ),
-          )
-        else if (canSuperAdminEnd)
-          IconButton.filledTonal(
-            tooltip: _completing ? 'Ending…' : 'End encounter (super admin)',
+            label: Text(
+              _completing
+                  ? 'Working…'
+                  : isEm
+                  ? 'Disposition'
+                  : 'Finish',
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: isEm
+                  ? InpatientMetrics.waitAmber
+                  : InpatientMetrics.waitGreen,
+              foregroundColor: Colors.white,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: const StadiumBorder(),
+            ),
+          ),
+        );
+      }
+      if (canSuperAdminEnd) {
+        return Tooltip(
+          message: 'End encounter (super admin)',
+          child: FilledButton.icon(
             onPressed: _completing
                 ? null
                 : () => _completeEncounter(asSuperAdmin: true),
             icon: _completing
                 ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
-                : const Icon(Icons.stop_circle_outlined, size: 18),
+                : const Icon(Icons.stop_circle_outlined, size: 16),
+            label: const Text('End encounter'),
+            style: FilledButton.styleFrom(
+              backgroundColor: InpatientMetrics.waitRed,
+              foregroundColor: Colors.white,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: const StadiumBorder(),
+            ),
           ),
-        Tooltip(
-          message: isEm
-              ? 'Doctor module • ED'
+        );
+      }
+      return const SizedBox.shrink();
+    }
+
+    final moduleChip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isEm
+            ? InpatientMetrics.waitRed
+            : isSharedInpatient
+            ? InpatientMetrics.iconIndigo
+            : InpatientMetrics.iconPurple,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isEm
+                ? Icons.emergency_outlined
+                : isSharedInpatient
+                ? Icons.hotel_outlined
+                : Icons.medical_services_outlined,
+            size: 16,
+            color: Colors.white,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isEm
+                ? 'Doctor • ED'
+                : isSharedInpatient
+                ? 'Doctor • Inpatient'
+                : 'Doctor • OPD',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final titleBlock = Row(
+      children: [
+        IconButton(
+          tooltip: 'Back',
+          onPressed: () => context.router.maybePop(),
+          icon: const Icon(Icons.arrow_back),
+          visualDensity: VisualDensity.compact,
+        ),
+        HeltySolidIcon(
+          icon: isEm
+              ? Icons.emergency_outlined
               : isSharedInpatient
-              ? 'Doctor module • Inpatient'
-              : 'Doctor module • OPD',
-          child: Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Icon(
-              Icons.medical_services_outlined,
-              size: 18,
-              color: scheme.primary,
-            ),
+              ? Icons.hotel_outlined
+              : Icons.medical_information_outlined,
+          color: isEm
+              ? InpatientMetrics.waitRed
+              : isSharedInpatient
+              ? InpatientMetrics.iconIndigo
+              : InpatientMetrics.iconPurple,
+          size: 34,
+          iconSize: 18,
+          radius: AppTheme.radiusMd,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HeltyEllipsisText(
+                text: title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: scheme.onSurface,
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: HeltyEllipsisText(
+                      text: subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  if (isEm && _edEsiLevel != null) ...[
+                    const SizedBox(width: 8),
+                    EsiBadge(esiLevel: _edEsiLevel, compact: true),
+                  ],
+                ],
+              ),
+            ],
           ),
         ),
+      ],
+    );
+
+    final actions = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: compact ? WrapAlignment.start : WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [overflow, primaryAction(), moduleChip],
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [titleBlock, const SizedBox(height: 10), actions],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: titleBlock),
+        const SizedBox(width: 12),
+        actions,
       ],
     );
   }
@@ -918,13 +1052,8 @@ class _DoctorEncounterViewScreenState
     final scheme = theme.colorScheme;
 
     if (_loadingPatient) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: scheme.outline.withValues(alpha: 0.15)),
-        ),
+      return HeltySurfaceCard(
+        padding: const EdgeInsets.all(12),
         child: SizedBox(
           height: 64,
           child: Center(
@@ -938,16 +1067,17 @@ class _DoctorEncounterViewScreenState
     }
 
     if (_patientError != null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: scheme.outline.withValues(alpha: 0.15)),
-        ),
+      return HeltySurfaceCard(
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Icon(Icons.error_outline, color: scheme.error),
+            HeltySolidIcon(
+              icon: Icons.error_outline,
+              color: scheme.error,
+              size: 26,
+              iconSize: 14,
+              radius: 7,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -957,10 +1087,10 @@ class _DoctorEncounterViewScreenState
                 ),
               ),
             ),
-            TextButton.icon(
+            OutlinedButton(
               onPressed: _loadPatient,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              style: inpatientCompactOutline(),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -1011,66 +1141,10 @@ class _DoctorEncounterViewScreenState
   }
 
   Widget _buildTabsStrip(BuildContext context, TabsRouter tabsRouter) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    const labels = [
-      'Chart',
-      'History',
-      'Examination',
-      'Diagnosis',
-      'Investigations',
-      'Imaging',
-      'Surgery',
-      'Prescription',
-      'Procedures',
-      'Notes',
-      'Admission',
-      'Follow-up',
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceBright.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: List.generate(labels.length, (index) {
-            final bool selected = tabsRouter.activeIndex == index;
-            final label = labels[index];
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: () => tabsRouter.setActiveIndex(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected ? scheme.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    label,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? scheme.onPrimary : scheme.onSurface,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
+    return EncounterTabsStrip(
+      tabs: EncounterUiTabs.ongoing,
+      activeIndex: tabsRouter.activeIndex,
+      onSelect: tabsRouter.setActiveIndex,
     );
   }
 }

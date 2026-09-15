@@ -115,6 +115,7 @@ const Map<String, AppModule> _routeModules = {
   'InpatientCarePlanRoute': AppModule.nursing,
   'InpatientMonitoringRoute': AppModule.nursing,
   'InpatientLabResultsRoute': AppModule.nursing,
+  'InpatientImagingResultsRoute': AppModule.nursing,
   'InpatientAlertsRoute': AppModule.nursing,
   'InpatientHandoverRoute': AppModule.nursing,
 

@@ -1,9 +1,6 @@
 ---
-description: Flutter responsive layout conventions for all screens in lib/
-globs: lib/**/*.dart
-alwaysApply: false
+alwaysApply: true
 ---
-
 # Flutter Responsive UI Standards
 
 All screens and new UI in `lib/` must work on **mobile (<600px)**, **tablet (600–1099px)**, and **desktop (≥1100px)**.

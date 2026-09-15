@@ -4,6 +4,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_side_panel.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/service_model.dart';
@@ -345,7 +348,48 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
 
     if (widget.embedded) return layout;
 
-    return ResponsiveBody(center: false, builder: (context, bp) => layout);
+    return ResponsiveBody(
+      center: false,
+      builder: (context, bp) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const InpatientTabToolbar(
+            icon: Icons.photo_camera_outlined,
+            iconColor: InpatientMetrics.iconIndigo,
+            title: 'Imaging',
+            subtitle: 'Radiology studies for this patient',
+          ),
+          const SizedBox(height: 10),
+          InpatientKpiRow(
+            tiles: [
+              InpatientKpiTile(
+                icon: Icons.photo_camera_outlined,
+                color: InpatientMetrics.iconIndigo,
+                label: 'Studies',
+                value: '${_orders.length}',
+                caption: _encounterOnly ? 'This encounter' : 'This patient',
+              ),
+              InpatientKpiTile(
+                icon: Icons.check_circle_outline,
+                color: InpatientMetrics.waitGreen,
+                label: 'Completed',
+                value: '$completedCount',
+                caption: 'Reported / done',
+              ),
+              InpatientKpiTile(
+                icon: Icons.hourglass_empty,
+                color: InpatientMetrics.waitAmber,
+                label: 'Open',
+                value: '$pendingCount',
+                caption: 'Pending or active',
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(child: layout),
+        ],
+      ),
+    );
   }
 
   Widget _imagingOrderCard(
@@ -359,24 +403,46 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
         o.encounterId != null &&
         o.encounterId!.isNotEmpty &&
         o.encounterId != scope.encounterId;
-    return Card(
+    return HeltySurfaceCard(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        title: Text(
-          o.items.isNotEmpty
-              ? _itemStudyLabel(o.items.first)
-              : 'Order with no items',
-        ),
-        subtitle: Text(
-          '${otherVisit ? 'Other visit • ' : ''}'
-          '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.items.length} item(s) • ${o.status.name}',
-          style: theme.textTheme.bodySmall,
-        ),
-        trailing: Chip(
-          label: Text(o.status.name),
-          backgroundColor: theme.colorScheme.primaryContainer,
-        ),
-        onTap: () => _showImagingOrderResults(context, o, scope),
+      padding: const EdgeInsets.all(10),
+      onTap: () => _showImagingOrderResults(context, o, scope),
+      child: Row(
+        children: [
+          const HeltySolidIcon(
+            icon: Icons.photo_camera_outlined,
+            color: InpatientMetrics.iconIndigo,
+            size: 28,
+            iconSize: 15,
+            radius: 7,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                HeltyEllipsisText(
+                  text: o.items.isNotEmpty
+                      ? _itemStudyLabel(o.items.first)
+                      : 'Order with no items',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                HeltyEllipsisText(
+                  text:
+                      '${otherVisit ? 'Other visit • ' : ''}'
+                      '${DateFormatter.formatFromBackend(o.createdAt, DateFormatter.medicalDate)} • ${o.items.length} item(s)',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          HeltyStatusChip(
+            label: o.status.name,
+            color: InpatientMetrics.iconIndigo,
+          ),
+        ],
       ),
     );
   }

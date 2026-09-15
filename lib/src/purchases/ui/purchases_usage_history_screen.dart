@@ -7,7 +7,6 @@ import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/services/invoice_purchases_service.dart';
-import 'package:intl/intl.dart';
 
 import '../models/purchases_model.dart';
 import '../models/purchases_usage_history_model.dart';
@@ -49,7 +48,8 @@ class PurchasesUsageHistoryScreen extends StatefulWidget {
 
 class _PurchasesUsageHistoryScreenState
     extends State<PurchasesUsageHistoryScreen> {
-  final PurchasesDashboardService _dashboardService = PurchasesDashboardService();
+  final PurchasesDashboardService _dashboardService =
+      PurchasesDashboardService();
   final PurchasesApiService _purchasesApi = PurchasesApiService();
   final InvoicePurchasesApiService _invoicePurchasesApi =
       InvoicePurchasesApiService();
@@ -419,7 +419,7 @@ class _PurchasesUsageHistoryScreenState
                   onPressed: _pickDateRange,
                   icon: const Icon(Icons.date_range),
                   label: Text(
-                    '${DateFormat('dd MMM yyyy').format(_from)} - ${DateFormat('dd MMM yyyy').format(_to)}',
+                    '${DateFormatter.shortDate(_from)} - ${DateFormatter.shortDate(_to)}',
                   ),
                 ),
                 FilledButton.tonal(
@@ -610,76 +610,75 @@ class _PurchasesUsageHistoryScreenState
                       child: SingleChildScrollView(
                         controller: _tableVerticalScrollController,
                         child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('Issued At')),
-                              DataColumn(label: Text('Issued By')),
-                              DataColumn(label: Text('Location')),
-                              DataColumn(label: Text('Item')),
-                              DataColumn(label: Text('Patient')),
-                              DataColumn(label: Text('Invoice')),
-                              DataColumn(label: Text('Qty')),
-                              DataColumn(label: Text('Unit Price')),
-                              DataColumn(label: Text('Amount Paid')),
-                              DataColumn(label: Text('Actions')),
-                            ],
-                            rows: _rows.map((row) {
-                              final canReturn = _isUnpaidUsageLine(row);
-                              final itemLabel = row.purchaseItem.sku != null &&
-                                      row.purchaseItem.sku!.isNotEmpty
-                                  ? '${row.purchaseItem.name} (${row.purchaseItem.sku})'
-                                  : row.purchaseItem.name;
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      row.issuedAt == null
-                                          ? '—'
-                                          : DateFormatter.dateTime(
-                                              row.issuedAt!,
-                                            ),
+                          columns: const [
+                            DataColumn(label: Text('Issued At')),
+                            DataColumn(label: Text('Issued By')),
+                            DataColumn(label: Text('Location')),
+                            DataColumn(label: Text('Item')),
+                            DataColumn(label: Text('Patient')),
+                            DataColumn(label: Text('Invoice')),
+                            DataColumn(label: Text('Qty')),
+                            DataColumn(label: Text('Unit Price')),
+                            DataColumn(label: Text('Amount Paid')),
+                            DataColumn(label: Text('Actions')),
+                          ],
+                          rows: _rows.map((row) {
+                            final canReturn = _isUnpaidUsageLine(row);
+                            final itemLabel =
+                                row.purchaseItem.sku != null &&
+                                    row.purchaseItem.sku!.isNotEmpty
+                                ? '${row.purchaseItem.name} (${row.purchaseItem.sku})'
+                                : row.purchaseItem.name;
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  Text(
+                                    row.issuedAt == null
+                                        ? '—'
+                                        : DateFormatter.dateTime(row.issuedAt!),
+                                  ),
+                                ),
+                                DataCell(Text(row.issuedBy?.name ?? '—')),
+                                DataCell(
+                                  Text(row.purchasesLocation?.name ?? '—'),
+                                ),
+                                DataCell(Text(itemLabel)),
+                                DataCell(
+                                  Text(
+                                    '${row.patient.name} (${row.patient.patientId})',
+                                  ),
+                                ),
+                                DataCell(Text(row.invoiceId)),
+                                DataCell(Text('${row.quantity}')),
+                                DataCell(
+                                  Text(
+                                    row.unitPrice.toFinancial(isMoney: true),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    row.amountPaid.toFinancial(isMoney: true),
+                                  ),
+                                ),
+                                DataCell(
+                                  Tooltip(
+                                    message: canReturn
+                                        ? 'Return units to stock'
+                                        : 'Paid lines cannot be returned',
+                                    child: TextButton(
+                                      onPressed: canReturn
+                                          ? () => _onDoReturn(row)
+                                          : null,
+                                      child: const Text('Do return'),
                                     ),
                                   ),
-                                  DataCell(Text(row.issuedBy?.name ?? '—')),
-                                  DataCell(
-                                    Text(row.purchasesLocation?.name ?? '—'),
-                                  ),
-                                  DataCell(Text(itemLabel)),
-                                  DataCell(
-                                    Text(
-                                      '${row.patient.name} (${row.patient.patientId})',
-                                    ),
-                                  ),
-                                  DataCell(Text(row.invoiceId)),
-                                  DataCell(Text('${row.quantity}')),
-                                  DataCell(
-                                    Text(
-                                      row.unitPrice.toFinancial(isMoney: true),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      row.amountPaid.toFinancial(isMoney: true),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Tooltip(
-                                      message: canReturn
-                                          ? 'Return units to stock'
-                                          : 'Paid lines cannot be returned',
-                                      child: TextButton(
-                                        onPressed: canReturn
-                                            ? () => _onDoReturn(row)
-                                            : null,
-                                        child: const Text('Do return'),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                          ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
                         ),
                       ),
+                    ),
             ),
             const SizedBox(height: 8),
             Row(
@@ -898,9 +897,7 @@ class _PurchaseItemPickerSheetState extends State<_PurchaseItemPickerSheet> {
       setState(() {
         _items
           ..clear()
-          ..addAll(
-            resp.items.where((i) => i.id != null && i.id!.isNotEmpty),
-          );
+          ..addAll(resp.items.where((i) => i.id != null && i.id!.isNotEmpty));
         _loading = false;
       });
     } catch (_) {

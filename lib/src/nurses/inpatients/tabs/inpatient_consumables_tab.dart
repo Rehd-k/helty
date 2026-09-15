@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/billings/widgets/purchases_consumable_billing_panel.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/models/invoice_billing_models.dart';
+import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
 import 'package:helty/src/purchases/models/purchases_model.dart';
 import 'package:helty/src/store/utils/consumable_invoice_helper.dart';
@@ -55,34 +59,26 @@ class _InpatientConsumablesScreenState
   }
 
   Widget _billedListTable(List<BillingInvoiceItem> lines) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: ['Item', 'Qty', 'Unit price', 'Total']
-            .map(
-              (c) => DataColumn(
-                label: Text(
-                  c,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-            )
-            .toList(),
-        rows: lines
-            .map(
-              (item) => DataRow(
-                cells: [
-                  DataCell(Text(item.displayLabel)),
-                  DataCell(Text('${item.quantity}')),
-                  DataCell(Text(item.unitPrice.toFinancial(isMoney: true))),
-                  DataCell(Text(item.lineTotal.toFinancial(isMoney: true))),
-                ],
-              ),
-            )
-            .toList(),
-      ),
+    return InpatientChartTable(
+      columns: const [
+        InpatientChartColumn('ITEM', flex: 4),
+        InpatientChartColumn('QTY'),
+        InpatientChartColumn('UNIT PRICE', flex: 2),
+        InpatientChartColumn('TOTAL', flex: 2),
+      ],
+      rowCount: lines.length,
+      emptyMessage: 'No consumables on this invoice yet.',
+      minWidth: 640,
+      footerLabel: lines.length == 1 ? '1 line' : '${lines.length} lines',
+      cellBuilder: (context, index) {
+        final item = lines[index];
+        return [
+          HeltyEllipsisText(text: item.displayLabel),
+          HeltyEllipsisText(text: '${item.quantity}'),
+          HeltyEllipsisText(text: item.unitPrice.toFinancial(isMoney: true)),
+          HeltyEllipsisText(text: item.lineTotal.toFinancial(isMoney: true)),
+        ];
+      },
     );
   }
 
@@ -100,6 +96,8 @@ class _InpatientConsumablesScreenState
     return invoicesAsync.when(
       loading: () => SectionCard(
         title: 'Billed consumables',
+        icon: Icons.receipt_long_outlined,
+        iconColor: InpatientMetrics.iconTeal,
         child: const Padding(
           padding: EdgeInsets.all(24),
           child: Center(child: CircularProgressIndicator()),
@@ -107,6 +105,8 @@ class _InpatientConsumablesScreenState
       ),
       error: (e, _) => SectionCard(
         title: 'Billed consumables',
+        icon: Icons.receipt_long_outlined,
+        iconColor: InpatientMetrics.iconTeal,
         child: Column(
           children: [
             Text(e.toString(), textAlign: TextAlign.center),
@@ -123,6 +123,8 @@ class _InpatientConsumablesScreenState
           return SectionCard(
             title: 'Billed consumables',
             subtitle: 'Open invoice',
+            icon: Icons.receipt_long_outlined,
+            iconColor: InpatientMetrics.iconTeal,
             child: _emptyBilledList(),
           );
         }
@@ -154,6 +156,8 @@ class _InpatientConsumablesScreenState
             return SectionCard(
               title: 'Billed consumables',
               subtitle: _invoiceSubtitle(detail),
+              icon: Icons.receipt_long_outlined,
+              iconColor: InpatientMetrics.iconTeal,
               child: lines.isEmpty
                   ? _emptyBilledList()
                   : _billedListTable(lines),
@@ -229,24 +233,35 @@ class _InpatientConsumablesScreenState
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (patientId.isNotEmpty) _buildBilledConsumablesSection(patientId),
-          if (patientId.isNotEmpty) const SizedBox(height: 16),
-          SectionCard(
-            title: 'Bill consumables',
-            subtitle:
-                'Select a purchases store, search items, choose quantity, then add to the patient invoice.',
-            child: PurchasesConsumableBillingPanel(
-              confirmButtonLabel: 'Add to bill',
-              busy: _billing,
-              onConfirm: _billConsumable,
+    return ResponsiveBody(
+      expand: false,
+      builder: (context, bp) => SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const InpatientTabToolbar(
+              icon: Icons.inventory_2_outlined,
+              iconColor: InpatientMetrics.waitAmber,
+              title: 'Consumables',
+              subtitle: 'Ward stock billed to this admission',
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            if (patientId.isNotEmpty) _buildBilledConsumablesSection(patientId),
+            if (patientId.isNotEmpty) const SizedBox(height: 10),
+            SectionCard(
+              title: 'Bill consumables',
+              subtitle:
+                  'Select a store, search items, then add to the patient invoice.',
+              icon: Icons.add_shopping_cart_outlined,
+              iconColor: InpatientMetrics.iconBlue,
+              child: PurchasesConsumableBillingPanel(
+                confirmButtonLabel: 'Add to bill',
+                busy: _billing,
+                onConfirm: _billConsumable,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

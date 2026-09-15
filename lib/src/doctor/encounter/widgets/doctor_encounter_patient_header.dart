@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/theme.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
-import '../../../core/layout/app_breakpoints.dart';
 import '../../../core/widgets/patient_avatar.dart';
 
-/// OPD encounter patient summary: name, age, gender, allergies, chronic conditions,
-/// past admissions count, insurance. Collapsed by default to name + hospital id.
+/// OPD encounter patient summary. Collapsed by default to name + hospital id.
 class DoctorEncounterPatientHeader extends StatefulWidget {
   final String patientName;
   final String ageGender;
@@ -53,12 +54,9 @@ class _DoctorEncounterPatientHeaderState
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spaceLg),
-        child: _expanded ? _buildExpanded() : _buildCollapsed(),
-      ),
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.all(12),
+      child: _expanded ? _buildExpanded() : _buildCollapsed(),
     );
   }
 
@@ -68,16 +66,18 @@ class _DoctorEncounterPatientHeaderState
 
     return InkWell(
       onTap: _toggleExpanded,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: Row(
         children: [
           PatientAvatar(
             avatarUrl: widget.avatarUrl,
             firstName: widget.firstName,
             surname: widget.surname,
+            displayName: widget.patientName,
             size: 40,
-            backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-            foregroundColor: colorScheme.primary,
+            backgroundColor: InpatientMetrics.iconPurple,
+            foregroundColor: Colors.white,
+            fontWeight: FontWeight.w800,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -85,20 +85,28 @@ class _DoctorEncounterPatientHeaderState
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  widget.patientName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                HeltyEllipsisText(
+                  text: widget.patientName,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
-                _metaChip(
-                  context,
-                  icon: Icons.badge_outlined,
-                  label: widget.hospitalNumber,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    HeltyStatusChip(
+                      label: widget.hospitalNumber,
+                      color: InpatientMetrics.iconBlue,
+                    ),
+                    if (widget.ageGender.isNotEmpty)
+                      HeltyStatusChip(
+                        label: widget.ageGender,
+                        color: InpatientMetrics.iconTeal,
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -107,292 +115,228 @@ class _DoctorEncounterPatientHeaderState
             tooltip: 'Expand patient details',
             onPressed: _toggleExpanded,
             icon: const Icon(Icons.expand_more),
+            visualDensity: VisualDensity.compact,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildExpanded() {
+  Widget _identity(BuildContext context, {required double avatarSize}) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final bp = AppBreakpoints.of(context);
-    final stackAllergies = !bp.isDesktop;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PatientAvatar(
+          avatarUrl: widget.avatarUrl,
+          firstName: widget.firstName,
+          surname: widget.surname,
+          displayName: widget.patientName,
+          size: avatarSize,
+          backgroundColor: InpatientMetrics.iconPurple,
+          foregroundColor: Colors.white,
+          fontWeight: FontWeight.w800,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HeltyEllipsisText(
+                text: widget.patientName,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  HeltyStatusChip(
+                    label: widget.hospitalNumber,
+                    color: InpatientMetrics.iconBlue,
+                  ),
+                  if (widget.ageGender.isNotEmpty)
+                    HeltyStatusChip(
+                      label: widget.ageGender,
+                      color: InpatientMetrics.iconTeal,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-    final identity = Expanded(
+  Widget _buildExpanded() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < kInpatientCompactBreakpoint;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'Collapse patient details',
+                onPressed: _toggleExpanded,
+                icon: const Icon(Icons.expand_less),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            if (compact) ...[
+              _identity(context, avatarSize: 48),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: _infoCells(context)),
+              const SizedBox(height: 10),
+              _allergiesChip(context, expand: true),
+            ] else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: _identity(context, avatarSize: 56)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 5,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _infoCells(context),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _allergiesChip(context, expand: false),
+                ],
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  List<Widget> _infoCells(BuildContext context) {
+    final doctor = widget.doctorName?.trim();
+    final created = widget.createdByName?.trim();
+    final updated = widget.lastUpdatedByName?.trim();
+    final insurance = widget.insurance?.trim();
+    final chronic = widget.chronicConditions.join(', ');
+
+    return [
+      if (doctor != null && doctor.isNotEmpty)
+        _infoCell(
+          context,
+          icon: Icons.medical_services_outlined,
+          color: InpatientMetrics.iconPurple,
+          label: widget.doctorLabel,
+          value: doctor,
+        ),
+      if (created != null && created.isNotEmpty)
+        _infoCell(
+          context,
+          icon: Icons.person_add_alt_1_outlined,
+          color: InpatientMetrics.iconBlue,
+          label: 'Created by',
+          value: created,
+        ),
+      if (updated != null && updated.isNotEmpty)
+        _infoCell(
+          context,
+          icon: Icons.edit_outlined,
+          color: InpatientMetrics.iconIndigo,
+          label: 'Last updated',
+          value: updated,
+        ),
+      _infoCell(
+        context,
+        icon: Icons.local_hotel_outlined,
+        color: InpatientMetrics.iconTeal,
+        label: 'Past admissions',
+        value: widget.pastAdmissionsCount > 0
+            ? '${widget.pastAdmissionsCount}'
+            : '—',
+      ),
+      if (insurance != null && insurance.isNotEmpty)
+        _infoCell(
+          context,
+          icon: Icons.health_and_safety_outlined,
+          color: InpatientMetrics.iconPink,
+          label: 'Insurance',
+          value: insurance,
+        ),
+      if (chronic.isNotEmpty)
+        _infoCell(
+          context,
+          icon: Icons.monitor_heart_outlined,
+          color: InpatientMetrics.waitAmber,
+          label: 'Chronic conditions',
+          value: chronic,
+        ),
+    ];
+  }
+
+  Widget _allergiesChip(BuildContext context, {required bool expand}) {
+    final hasAllergies = widget.allergies.isNotEmpty;
+    final label = hasAllergies
+        ? 'Allergies: ${widget.allergies.join(', ')}'
+        : 'No recorded allergies';
+    final color = hasAllergies
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    if (expand) {
+      return HeltyEllipsisChip(label: label, color: color);
+    }
+    return HeltyStatusChip(label: label, color: color);
+  }
+
+  Widget _infoCell(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String value,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return SizedBox(
+      width: 180,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PatientAvatar(
-            avatarUrl: widget.avatarUrl,
-            firstName: widget.firstName,
-            surname: widget.surname,
-            size: 52,
-            backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-            foregroundColor: colorScheme.primary,
+          HeltySolidIcon(
+            icon: icon,
+            color: color,
+            size: 26,
+            iconSize: 14,
+            radius: 7,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.patientName,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface,
+                HeltyEllipsisText(
+                  text: label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    _metaChip(
-                      context,
-                      icon: Icons.badge_outlined,
-                      label: widget.hospitalNumber,
-                    ),
-                    _metaChip(
-                      context,
-                      icon: Icons.person_outline,
-                      label: widget.ageGender,
-                    ),
-                    if (widget.doctorName != null &&
-                        widget.doctorName!.trim().isNotEmpty)
-                      _metaChip(
-                        context,
-                        icon: Icons.medical_services_outlined,
-                        label:
-                            '${widget.doctorLabel}: ${widget.doctorName!.trim()}',
-                      ),
-                    if (widget.createdByName != null &&
-                        widget.createdByName!.trim().isNotEmpty)
-                      _metaChip(
-                        context,
-                        icon: Icons.person_add_alt_1_outlined,
-                        label: 'Created by: ${widget.createdByName!.trim()}',
-                      ),
-                    if (widget.lastUpdatedByName != null &&
-                        widget.lastUpdatedByName!.trim().isNotEmpty)
-                      _metaChip(
-                        context,
-                        icon: Icons.edit_outlined,
-                        label:
-                            'Last updated by: ${widget.lastUpdatedByName!.trim()}',
-                      ),
-                  ],
+                HeltyEllipsisText(
+                  text: value,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
-    );
-
-    final infoFields = Expanded(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Flexible(
-            child: _infoRow(
-              context,
-              label: 'Past admissions',
-              value: '${widget.pastAdmissionsCount}',
-            ),
-          ),
-          if (widget.insurance != null && widget.insurance!.isNotEmpty) ...[
-            const SizedBox(width: 16),
-            Flexible(
-              child: _infoRow(
-                context,
-                label: 'Insurance',
-                value: widget.insurance!,
-              ),
-            ),
-          ],
-          if (widget.chronicConditions.isNotEmpty) ...[
-            const SizedBox(width: 16),
-            Flexible(
-              child: _infoRow(
-                context,
-                label: 'Chronic conditions',
-                value: widget.chronicConditions.join(', '),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-
-    final allergiesChip = _allergiesChip(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: IconButton(
-            tooltip: 'Collapse patient details',
-            onPressed: _toggleExpanded,
-            icon: const Icon(Icons.expand_less),
-            visualDensity: VisualDensity.compact,
-          ),
-        ),
-        if (stackAllergies)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  identity,
-                  const SizedBox(width: 16),
-                  infoFields,
-                ],
-              ),
-              const SizedBox(height: 12),
-              allergiesChip,
-            ],
-          )
-        else
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              identity,
-              const SizedBox(width: 28),
-              infoFields,
-              const SizedBox(width: 24),
-              allergiesChip,
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _allergiesChip(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    if (widget.allergies.isNotEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: colorScheme.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              color: colorScheme.error,
-              size: 16,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              'Allergies: ${widget.allergies.join(', ')}',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: colorScheme.error,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceBright,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            color: colorScheme.onSurfaceVariant,
-            size: 16,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            'No recorded allergies',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _metaChip(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: colorScheme.primary),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow(
-    BuildContext context, {
-    required String label,
-    required String value,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-            letterSpacing: 0.3,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
     );
   }
 }

@@ -14,6 +14,9 @@ import 'package:helty/src/theatre/models/theatre_models.dart';
 import 'package:helty/src/theatre/providers/theatre_providers.dart';
 import 'package:helty/src/theatre/widgets/surgery_request_dialog.dart';
 import 'package:helty/src/theatre/widgets/operative_notes_panel.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/theatre/widgets/theatre_status_chip.dart';
 
 @RoutePage()
@@ -224,6 +227,7 @@ class _DoctorEncounterSurgeryTabState
             )
           : const Icon(Icons.add_rounded),
       label: const Text('Request surgery'),
+      style: inpatientCompactFill(),
     );
 
     final body = Column(
@@ -242,16 +246,14 @@ class _DoctorEncounterSurgeryTabState
                   ),
           )
         else
-          ResponsiveToolbar(
-            leading: Text(
-              'Surgery requests',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+          InpatientTabToolbar(
+            icon: Icons.local_hospital_outlined,
+            iconColor: InpatientMetrics.waitRed,
+            title: 'Surgery',
+            subtitle: 'Theatre requests for this encounter',
             actions: [if (canBook && canEdit) requestButton],
           ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         if (widget.embedded) list else Expanded(child: list),
       ],
     );
@@ -265,60 +267,57 @@ class _DoctorEncounterSurgeryTabState
     final staff = ref.read(authProvider).staff;
     final scope = EncounterScope.of(context);
     final canEdit = scope?.canEdit ?? false;
-    final canWriteNotes =
-        canWriteOperativeNotes(staff) && canEdit;
+    final canWriteNotes = canWriteOperativeNotes(staff) && canEdit;
     final notes = request.theatreCase?.operativeNoteRecords ?? const [];
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(request.service?.name ?? 'Surgery'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (request.priority != null)
-                    Text('Priority: ${request.priority!.displayLabel}'),
-                  if (request.preferredDate != null)
-                    Text(
-                      'Preferred: ${DateFormatter.dateTime(request.preferredDate!)}',
-                    ),
-                  if (request.schedule?.scheduledAt != null)
-                    Text(
-                      'Scheduled: ${DateFormatter.dateTime(request.schedule!.scheduledAt!)}',
-                    ),
-                  if (request.clinicalNotes != null &&
-                      request.clinicalNotes!.isNotEmpty)
-                    Text(request.clinicalNotes!),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TheatreStatusChip(status: request.status),
-                  if (_canCancel(request))
-                    IconButton(
-                      icon: const Icon(Icons.cancel_outlined),
-                      tooltip: 'Cancel',
-                      onPressed: () => _cancelRequest(request),
-                    ),
-                ],
-              ),
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(request.service?.name ?? 'Surgery'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (request.priority != null)
+                  Text('Priority: ${request.priority!.displayLabel}'),
+                if (request.preferredDate != null)
+                  Text(
+                    'Preferred: ${DateFormatter.dateTime(request.preferredDate!)}',
+                  ),
+                if (request.schedule?.scheduledAt != null)
+                  Text(
+                    'Scheduled: ${DateFormatter.dateTime(request.schedule!.scheduledAt!)}',
+                  ),
+                if (request.clinicalNotes != null &&
+                    request.clinicalNotes!.isNotEmpty)
+                  Text(request.clinicalNotes!),
+              ],
             ),
-            const Divider(height: 16),
-            OperativeNotesPanel(
-              request: request,
-              notes: notes,
-              canWrite: canWriteNotes,
-              compact: true,
-              onChanged: _load,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TheatreStatusChip(status: request.status),
+                if (_canCancel(request))
+                  IconButton(
+                    icon: const Icon(Icons.cancel_outlined),
+                    tooltip: 'Cancel',
+                    onPressed: () => _cancelRequest(request),
+                  ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const Divider(height: 16),
+          OperativeNotesPanel(
+            request: request,
+            notes: notes,
+            canWrite: canWriteNotes,
+            compact: true,
+            onChanged: _load,
+          ),
+        ],
       ),
     );
   }

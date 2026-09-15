@@ -4,15 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/medications/rx_schedule_utils.dart';
 import 'package:helty/src/models/medication_administration_model.dart';
 import 'package:helty/src/models/medication_dose_schedule_model.dart';
 import 'package:helty/src/models/medication_order_model.dart';
 import 'package:helty/src/models/medication_request_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_responsive_row_or_column.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/pharmacy/models/pharmacy_model.dart';
 import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/services/medication_administration_service.dart';
@@ -95,21 +99,21 @@ class _InpatientMedicationsScreenState
 
   static String _formatHistoryTime(MedicationAdministrationModel a) {
     final t = a.sortTime;
-    if (t == null) return 'â€”';
-    return '${DateFormatter.timeOnly(t)} Â· ${DateFormatter.shortDate(t)}';
+    if (t == null) return '—';
+    return '${DateFormatter.timeOnly(t)} · ${DateFormatter.shortDate(t)}';
   }
 
   static String _formatAdministeredQuantity(double? quantity) {
-    if (quantity == null) return 'â€”';
+    if (quantity == null) return '—';
     final s = quantity.toStringAsFixed(3);
     return s.replaceFirst(RegExp(r'\.?0+$'), '');
   }
 
   static String _formatDispensary(MedicationAdministrationModel a) {
     final name = a.pharmacyLocationName?.trim();
-    if (name == null || name.isEmpty) return 'â€”';
+    if (name == null || name.isEmpty) return '—';
     final stock = a.stockDeductedQuantity;
-    if (stock != null && stock > 0) return '$name (âˆ’$stock)';
+    if (stock != null && stock > 0) return '$name (−$stock)';
     return name;
   }
 
@@ -129,21 +133,20 @@ class _InpatientMedicationsScreenState
       case 'REFUSED':
         return 'Refused';
       default:
-        return status.trim().isEmpty ? 'â€”' : status;
+        return status.trim().isEmpty ? '—' : status;
     }
   }
 
-  static Color? _statusColor(BuildContext context, String status) {
-    final scheme = Theme.of(context).colorScheme;
+  static Color _statusColor(BuildContext context, String status) {
     switch (status.trim().toUpperCase()) {
       case 'GIVEN':
-        return scheme.primary;
+        return InpatientMetrics.waitGreen;
       case 'MISSED':
-        return scheme.error;
+        return InpatientMetrics.waitRed;
       case 'REFUSED':
-        return scheme.tertiary;
+        return InpatientMetrics.waitAmber;
       default:
-        return null;
+        return Theme.of(context).colorScheme.onSurfaceVariant;
     }
   }
 
@@ -180,7 +183,7 @@ class _InpatientMedicationsScreenState
     if (a.route != null && a.route!.trim().isNotEmpty) {
       parts.add(a.route!.trim());
     }
-    return parts.isEmpty ? 'â€”' : parts.join(' Â· ');
+    return parts.isEmpty ? '—' : parts.join(' · ');
   }
 
   String _groupStatusSummary(List<MedicationAdministrationModel> items) {
@@ -201,7 +204,7 @@ class _InpatientMedicationsScreenState
     if (given > 0) parts.add('$given given');
     if (missed > 0) parts.add('$missed missed');
     if (refused > 0) parts.add('$refused refused');
-    return parts.isEmpty ? 'â€”' : parts.join(' Â· ');
+    return parts.isEmpty ? '—' : parts.join(' · ');
   }
 
   /// Parses quantity for GIVEN administrations (max 3 decimal places).
@@ -313,6 +316,33 @@ class _InpatientMedicationsScreenState
     return due;
   }
 
+  int get _activeOrderCount =>
+      _orders.where((o) => !_isInactiveOrder(o)).length;
+
+  int _adminCountToday(String status) {
+    final n = DateTime.now();
+    var count = 0;
+    for (final a in _administrations) {
+      if (a.status.trim().toUpperCase() != status) continue;
+      final t = a.sortTime;
+      if (t == null) continue;
+      if (t.year == n.year && t.month == n.month && t.day == n.day) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  int get _pendingRequestCount {
+    var n = 0;
+    for (final o in _orders) {
+      for (final r in o.medicationRequests) {
+        if (r.status == MedicationRequestStatus.requested) n++;
+      }
+    }
+    return n;
+  }
+
   static String _formatScheduleLine(MedicationDoseScheduleModel schedule) {
     final now = AppTimezone.now();
     switch (schedule.scheduleStatus) {
@@ -322,7 +352,7 @@ class _InpatientMedicationsScreenState
         final end = schedule.courseEndsAt;
         return end != null
             ? 'Course expired ${DateFormatter.shortDate(end)}'
-            : 'Course expired â€” doctor consent required';
+            : 'Course expired — doctor consent required';
       case MedicationScheduleStatus.dueSoon:
       case MedicationScheduleStatus.overdue:
         final due = schedule.nextDueAt;
@@ -339,7 +369,7 @@ class _InpatientMedicationsScreenState
       case MedicationScheduleStatus.stopped:
         final due = schedule.nextDueAt;
         if (due != null) {
-          return 'Next due ${DateFormatter.timeOnly(due)} Â· ${DateFormatter.shortDate(due)}';
+          return 'Next due ${DateFormatter.timeOnly(due)} · ${DateFormatter.shortDate(due)}';
         }
         final end = schedule.courseEndsAt;
         if (end != null) {
@@ -353,11 +383,10 @@ class _InpatientMedicationsScreenState
     BuildContext context,
     MedicationScheduleStatus status,
   ) {
-    final scheme = Theme.of(context).colorScheme;
     return switch (status) {
-      MedicationScheduleStatus.expired => scheme.error,
-      MedicationScheduleStatus.overdue => scheme.error,
-      MedicationScheduleStatus.dueSoon => scheme.tertiary,
+      MedicationScheduleStatus.expired => InpatientMetrics.waitRed,
+      MedicationScheduleStatus.overdue => InpatientMetrics.waitRed,
+      MedicationScheduleStatus.dueSoon => InpatientMetrics.waitAmber,
       _ => null,
     };
   }
@@ -457,26 +486,19 @@ class _InpatientMedicationsScreenState
     }
 
     final isDoctor = scope.isDoctor;
+    final due = _dueOrders;
 
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!isDoctor && _dueOrders.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: SectionCard(
-                title: 'Due Now',
-                subtitle: 'Medications due soon or overdue',
-                child: _buildDueNowList(context, scope),
-              ),
-            ),
-          InpatientResponsiveRowOrColumn(
-            first: SectionCard(
-              title: 'Active Medication Orders',
-              subtitle: 'Standing and PRN orders for this inpatient stay',
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InpatientTabToolbar(
+              icon: Icons.medication_outlined,
+              iconColor: InpatientMetrics.iconTeal,
+              title: 'Medications',
+              subtitle: 'Orders, pharmacy requests, and MAR history',
               actions: [
                 if (isDoctor)
                   FilledButton.icon(
@@ -489,40 +511,76 @@ class _InpatientMedicationsScreenState
                         ),
                       );
                     },
-                    icon: const Icon(Icons.add, size: 18),
+                    icon: const Icon(Icons.add, size: 16),
                     label: const Text('Add medication'),
+                    style: inpatientCompactFill(),
                   ),
               ],
-              child: _buildActiveOrdersTable(context, scope),
             ),
-            second: SectionCard(
-              title: 'Medication Administration History',
-              subtitle: _historyGroupedByDrug
-                  ? 'Grouped by drug â€” newest administrations first'
-                  : 'Chronological record â€” newest first',
-              actions: [
-                TextButton.icon(
-                  onPressed: () {
-                    setState(
-                      () => _historyGroupedByDrug = !_historyGroupedByDrug,
-                    );
-                  },
-                  icon: Icon(
-                    _historyGroupedByDrug ? Icons.view_list : Icons.category,
-                    size: 18,
-                  ),
-                  label: Text(
-                    _historyGroupedByDrug
-                        ? 'Show chronologically'
-                        : 'Group by drug',
-                  ),
-                ),
-              ],
-              child: _buildHistoryTable(context),
+            const SizedBox(height: 10),
+            _MedicationsKpiStrip(
+              loading: _loadingMar,
+              due: due.length,
+              active: _activeOrderCount,
+              givenToday: _adminCountToday('GIVEN'),
+              pendingRequests: _pendingRequestCount,
             ),
-          ),
-        ],
-      ),
+            if (!isDoctor && due.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SectionCard(
+                title: 'Due now',
+                subtitle: 'Medications due soon or overdue',
+                icon: Icons.schedule,
+                iconColor: InpatientMetrics.waitAmber,
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                child: _buildDueNowList(context, scope),
+              ),
+            ],
+            const SizedBox(height: 10),
+            InpatientResponsiveRowOrColumn(
+              gap: 12,
+              first: SectionCard(
+                title: 'Active orders',
+                subtitle: 'Standing and PRN orders for this stay',
+                icon: Icons.vaccines_outlined,
+                iconColor: InpatientMetrics.iconBlue,
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                child: _buildActiveOrdersTable(context, scope),
+              ),
+              second: SectionCard(
+                title: 'Administration history',
+                subtitle: _historyGroupedByDrug
+                    ? 'Grouped by drug — newest first'
+                    : 'Chronological — newest first',
+                icon: Icons.history,
+                iconColor: InpatientMetrics.iconIndigo,
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                actions: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(
+                        () => _historyGroupedByDrug = !_historyGroupedByDrug,
+                      );
+                    },
+                    icon: Icon(
+                      _historyGroupedByDrug
+                          ? Icons.view_list
+                          : Icons.category_outlined,
+                      size: 16,
+                    ),
+                    label: Text(
+                      _historyGroupedByDrug
+                          ? 'Show chronologically'
+                          : 'Group by drug',
+                    ),
+                    style: inpatientCompactOutline(),
+                  ),
+                ],
+                child: _buildHistoryTable(context),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -537,55 +595,65 @@ class _InpatientMedicationsScreenState
       itemBuilder: (context, index) {
         final order = _dueOrders[index];
         final schedule = _effectiveSchedule(order);
-        final accent = _scheduleAccentColor(context, schedule.scheduleStatus);
-        return Material(
-          color: accent?.withValues(alpha: 0.08) ??
-              theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => _openAdministerDialog(
-              context,
-              scope,
-              order,
-              prefilledDueAt: schedule.nextDueAt,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Icon(
-                    schedule.scheduleStatus ==
-                            MedicationScheduleStatus.overdue
-                        ? Icons.warning_amber_rounded
-                        : Icons.schedule,
-                    color: accent ?? theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order.drugName,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          _formatScheduleLine(schedule),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: accent,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right),
-                ],
+        final overdue =
+            schedule.scheduleStatus == MedicationScheduleStatus.overdue;
+        final accent = _scheduleAccentColor(context, schedule.scheduleStatus) ??
+            InpatientMetrics.waitAmber;
+        return HeltySurfaceCard(
+          onTap: () => _openAdministerDialog(
+            context,
+            scope,
+            order,
+            prefilledDueAt: schedule.nextDueAt,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              HeltySolidIcon(
+                icon: overdue
+                    ? Icons.warning_amber_rounded
+                    : Icons.schedule,
+                color: accent,
+                size: 28,
+                iconSize: 15,
+                radius: 7,
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HeltyEllipsisText(
+                      text: order.drugName,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    HeltyEllipsisText(
+                      text: _formatScheduleLine(schedule),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: OutlinedButton(
+                  onPressed: () => _openAdministerDialog(
+                    context,
+                    scope,
+                    order,
+                    prefilledDueAt: schedule.nextDueAt,
+                  ),
+                  style: inpatientCompactOutline(),
+                  child: const Text('Give'),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -638,23 +706,34 @@ class _InpatientMedicationsScreenState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Material(
-          color: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.45,
+          ),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           child: InkWell(
             onTap: () => setState(
               () => _inactiveOrdersSectionExpanded =
                   !_inactiveOrdersSectionExpanded,
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(
                 children: [
+                  HeltySolidIcon(
+                    icon: Icons.event_busy_outlined,
+                    color: InpatientMetrics.waitRed,
+                    size: 26,
+                    iconSize: 14,
+                    radius: 7,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      'Expired & discontinued (${inactiveOrders.length})',
+                    child: HeltyEllipsisText(
+                      text:
+                          'Expired & discontinued (${inactiveOrders.length})',
                       style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
@@ -812,87 +891,152 @@ class _InpatientMedicationsScreenState
     }
 
     if (_administrations.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Text('No medication administrations recorded yet.'),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Text(
+          'No medication administrations recorded yet.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    if (!_historyGroupedByDrug) {
+      return InpatientChartTable(
+        columns: _kHistoryChartColumns,
+        rowCount: _administrations.length,
+        minWidth: 980,
+        emptyMessage: 'No medication administrations recorded yet.',
+        footerLabel: _administrations.length == 1
+            ? '1 administration'
+            : '${_administrations.length} administrations',
+        cellBuilder: (context, index) =>
+            _historyCells(context, _administrations[index]),
       );
     }
 
     final theme = Theme.of(context);
     final headerStyle = theme.textTheme.labelSmall?.copyWith(
-      fontWeight: FontWeight.bold,
+      fontWeight: FontWeight.w800,
     );
-    const columns = [
-      'Time',
-      'Drug',
-      'Dose',
-      'Route',
-      'Qty given',
-      'Dispensary',
-      'Status',
-      'Nurse',
-      'Reason',
-    ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SizedBox(
-        width: 980,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _HistoryTableHeader(columns: columns, style: headerStyle),
-            const Divider(height: 1),
-            if (_historyGroupedByDrug)
-              ..._groupAdministrationsByDrug().expand((group) {
-                if (group.items.length == 1) {
-                  return [
-                    _HistoryAdministrationRow(
-                      administration: group.items.first,
-                      headerStyle: headerStyle,
-                    ),
-                  ];
-                }
-                return [
-                  _HistoryDrugGroupSection(
-                    groupKey: group.key,
-                    items: group.items,
-                    expanded: !_collapsedHistoryDrugKeys.contains(group.key),
-                    headerStyle: headerStyle,
-                    formatTime: _formatHistoryTime,
-                    formatQty: _formatAdministeredQuantity,
-                    formatDrugSubtitle: _formatDrugSubtitle,
-                    statusSummary: _groupStatusSummary(group.items),
-                    statusLabel: _statusLabel,
-                    statusColor: _statusColor,
-                    onToggle: () {
-                      setState(() {
-                        if (_collapsedHistoryDrugKeys.contains(group.key)) {
-                          _collapsedHistoryDrugKeys.remove(group.key);
-                        } else {
-                          _collapsedHistoryDrugKeys.add(group.key);
-                        }
-                      });
-                    },
-                  ),
-                ];
-              })
-            else
-              ..._administrations.map(
-                (a) => Column(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth < 980 ? 980.0 : constraints.maxWidth;
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: width,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _HistoryAdministrationRow(
-                      administration: a,
-                      headerStyle: headerStyle,
+                    _HistoryTableHeader(
+                      columns: const [
+                        'TIME',
+                        'DRUG',
+                        'DOSE',
+                        'ROUTE',
+                        'QTY',
+                        'DISPENSARY',
+                        'STATUS',
+                        'NURSE',
+                        'REASON',
+                      ],
+                      style: headerStyle,
                     ),
-                    const Divider(height: 1),
+                    ..._groupAdministrationsByDrug().expand((group) {
+                      if (group.items.length == 1) {
+                        return [
+                          _HistoryAdministrationRow(
+                            administration: group.items.first,
+                            headerStyle: headerStyle,
+                          ),
+                        ];
+                      }
+                      return [
+                        _HistoryDrugGroupSection(
+                          groupKey: group.key,
+                          items: group.items,
+                          expanded:
+                              !_collapsedHistoryDrugKeys.contains(group.key),
+                          headerStyle: headerStyle,
+                          formatTime: _formatHistoryTime,
+                          formatQty: _formatAdministeredQuantity,
+                          formatDrugSubtitle: _formatDrugSubtitle,
+                          statusSummary: _groupStatusSummary(group.items),
+                          statusLabel: _statusLabel,
+                          statusColor: _statusColor,
+                          onToggle: () {
+                            setState(() {
+                              if (_collapsedHistoryDrugKeys.contains(
+                                group.key,
+                              )) {
+                                _collapsedHistoryDrugKeys.remove(group.key);
+                              } else {
+                                _collapsedHistoryDrugKeys.add(group.key);
+                              }
+                            });
+                          },
+                        ),
+                      ];
+                    }),
                   ],
                 ),
               ),
-          ],
+            );
+          },
         ),
-      ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 8, 16, 4),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: theme.colorScheme.outline.withValues(alpha: 0.12),
+              ),
+            ),
+          ),
+          child: Text(
+            _administrations.length == 1
+                ? '1 administration'
+                : '${_administrations.length} administrations',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
+  }
+
+  List<Widget> _historyCells(
+    BuildContext context,
+    MedicationAdministrationModel a,
+  ) {
+    final reason = a.reasonIfNotGiven?.trim();
+    return [
+      HeltyEllipsisText(text: _formatHistoryTime(a)),
+      HeltyEllipsisText(text: a.drugName ?? '—'),
+      HeltyEllipsisText(
+        text: a.dose == null || a.dose!.trim().isEmpty ? '—' : a.dose!,
+      ),
+      HeltyEllipsisText(
+        text: a.route == null || a.route!.trim().isEmpty ? '—' : a.route!,
+      ),
+      HeltyEllipsisText(text: _formatAdministeredQuantity(a.quantity)),
+      HeltyEllipsisText(text: _formatDispensary(a)),
+      HeltyStatusChip(
+        label: _statusLabel(a.status),
+        color: _statusColor(context, a.status),
+      ),
+      HeltyEllipsisText(text: a.nurseDisplayName ?? '—'),
+      HeltyEllipsisText(text: (reason == null || reason.isEmpty) ? '—' : reason),
+    ];
   }
 
   Future<void> _openAdministerDialog(
@@ -1188,8 +1332,8 @@ class _AdministerMedicationDialogState
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final order = widget.order;
-    final patientName = widget.scope.patientDisplayName ?? 'â€”';
-    final hospNo = widget.scope.hospitalNumber ?? 'â€”';
+    final patientName = widget.scope.patientDisplayName ?? '—';
+    final hospNo = widget.scope.hospitalNumber ?? '—';
     final orderLine = _InpatientMedicationsScreenState._formatOrderSummaryLine(
       order,
     );
@@ -1288,7 +1432,7 @@ class _AdministerMedicationDialogState
                 decoration: const InputDecoration(
                   labelText: 'Pharmacy dispensary',
                   helperText:
-                      'Optional â€” deduct stock from selected dispensary when '
+                      'Optional — deduct stock from selected dispensary when '
                       'status is Given',
                 ),
                 items: [
@@ -1394,7 +1538,20 @@ class _AdministerMedicationDialogState
   }
 }
 
+const List<InpatientChartColumn> _kHistoryChartColumns = [
+  InpatientChartColumn('TIME', flex: 2),
+  InpatientChartColumn('DRUG', flex: 3),
+  InpatientChartColumn('DOSE'),
+  InpatientChartColumn('ROUTE'),
+  InpatientChartColumn('QTY'),
+  InpatientChartColumn('DISPENSARY', flex: 3),
+  InpatientChartColumn('STATUS'),
+  InpatientChartColumn('NURSE', flex: 2),
+  InpatientChartColumn('REASON', flex: 2),
+];
+
 const List<int> _kHistoryColumnFlex = [2, 3, 2, 2, 2, 2, 2, 2, 3];
+const double _kHistoryColGap = 20;
 
 class _HistoryTableHeader extends StatelessWidget {
   const _HistoryTableHeader({required this.columns, this.style});
@@ -1405,14 +1562,16 @@ class _HistoryTableHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
       child: Row(
         children: [
-          for (var i = 0; i < columns.length; i++)
+          for (var i = 0; i < columns.length; i++) ...[
+            if (i > 0) const SizedBox(width: _kHistoryColGap),
             Expanded(
               flex: _kHistoryColumnFlex[i],
-              child: Text(columns[i], style: style),
+              child: HeltyEllipsisText(text: columns[i], style: style),
             ),
+          ],
         ],
       ),
     );
@@ -1453,7 +1612,7 @@ class _HistoryAdministrationRow extends StatelessWidget {
           ),
           Expanded(
             flex: _kHistoryColumnFlex[1],
-            child: Text(a.drugName ?? 'â€”', style: headerStyle),
+            child: Text(a.drugName ?? '—', style: headerStyle),
           ),
           Expanded(flex: _kHistoryColumnFlex[2], child: Text(a.dose ?? '')),
           Expanded(flex: _kHistoryColumnFlex[3], child: Text(a.route ?? '')),
@@ -1475,14 +1634,12 @@ class _HistoryAdministrationRow extends StatelessWidget {
             flex: _kHistoryColumnFlex[6],
             child: Text(
               _InpatientMedicationsScreenState._statusLabel(a.status),
-              style: statusColor != null
-                  ? TextStyle(color: statusColor, fontWeight: FontWeight.w600)
-                  : null,
+              style: TextStyle(color: statusColor, fontWeight: FontWeight.w600),
             ),
           ),
           Expanded(
             flex: _kHistoryColumnFlex[7],
-            child: Text(a.nurseDisplayName ?? 'â€”'),
+            child: Text(a.nurseDisplayName ?? '—'),
           ),
           Expanded(
             flex: _kHistoryColumnFlex[8],
@@ -1526,7 +1683,7 @@ class _HistoryDrugGroupSection extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final latest = items.first;
-    final drugName = latest.drugName ?? 'â€”';
+    final drugName = latest.drugName ?? '—';
     final latestStatusColor = statusColor(context, latest.status);
 
     return Column(
@@ -1580,7 +1737,7 @@ class _HistoryDrugGroupSection extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${items.length} administrations Â· $statusSummary',
+                          '${items.length} administrations · $statusSummary',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),
@@ -1598,13 +1755,13 @@ class _HistoryDrugGroupSection extends StatelessWidget {
                   ),
                   Expanded(
                     flex: _kHistoryColumnFlex[4],
-                    child: Text(expanded ? 'â€”' : formatQty(latest.quantity)),
+                    child: Text(expanded ? '—' : formatQty(latest.quantity)),
                   ),
                   Expanded(
                     flex: _kHistoryColumnFlex[5],
                     child: Text(
                       expanded
-                          ? 'â€”'
+                          ? '—'
                           : _InpatientMedicationsScreenState._formatDispensary(
                               latest,
                             ),
@@ -1614,7 +1771,7 @@ class _HistoryDrugGroupSection extends StatelessWidget {
                     flex: _kHistoryColumnFlex[6],
                     child: Text(
                       expanded ? statusSummary : statusLabel(latest.status),
-                      style: latestStatusColor != null && !expanded
+                      style: !expanded
                           ? TextStyle(
                               color: latestStatusColor,
                               fontWeight: FontWeight.w600,
@@ -1625,7 +1782,7 @@ class _HistoryDrugGroupSection extends StatelessWidget {
                   Expanded(
                     flex: _kHistoryColumnFlex[7],
                     child: Text(
-                      expanded ? 'â€”' : (latest.nurseDisplayName ?? 'â€”'),
+                      expanded ? '—' : (latest.nurseDisplayName ?? '—'),
                     ),
                   ),
                   Expanded(
@@ -1701,7 +1858,6 @@ class _ActiveOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final canAdminister =
         order.administrationStatus == MedicationAdministrationStatus.active;
     final canRequest = canNurseRequestMedication(
@@ -1728,54 +1884,51 @@ class _ActiveOrderCard extends StatelessWidget {
     final isExpired =
         doseSchedule.scheduleStatus == MedicationScheduleStatus.expired;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: isExpired
-            ? BorderSide(color: scheme.error, width: 2)
-            : scheduleAccent != null
-            ? BorderSide(color: scheduleAccent.withValues(alpha: 0.6))
-            : BorderSide.none,
-      ),
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.all(10),
       color: isExpired
-          ? scheme.error.withValues(alpha: 0.06)
+          ? InpatientMetrics.waitRed.withValues(alpha: 0.06)
           : scheduleAccent?.withValues(alpha: 0.04),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  order.wasSubstituted
-                      ? order.currentDrugLabel
-                      : order.drugName,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              HeltySolidIcon(
+                icon: Icons.medication_outlined,
+                color: isExpired
+                    ? InpatientMetrics.waitRed
+                    : (scheduleAccent ?? InpatientMetrics.iconTeal),
+                size: 26,
+                iconSize: 14,
+                radius: 7,
+              ),
+              HeltyEllipsisText(
+                text: order.wasSubstituted
+                    ? order.currentDrugLabel
+                    : order.drugName,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
                 ),
-                MedicationOrderStatusBadge(status: order.status),
-                Chip(
-                  label: Text(order.administrationStatus.label),
-                  visualDensity: VisualDensity.compact,
+              ),
+              MedicationOrderStatusBadge(status: order.status),
+              HeltyStatusChip(
+                label: order.administrationStatus.label,
+                color: isExpired
+                    ? InpatientMetrics.waitRed
+                    : InpatientMetrics.iconBlue,
+              ),
+              if (doseSchedule.scheduleStatus !=
+                  MedicationScheduleStatus.notStarted)
+                HeltyStatusChip(
+                  label: doseSchedule.scheduleStatus.label,
+                  color: scheduleAccent ?? InpatientMetrics.iconIndigo,
                 ),
-                if (doseSchedule.scheduleStatus !=
-                    MedicationScheduleStatus.notStarted)
-                  Chip(
-                    label: Text(doseSchedule.scheduleStatus.label),
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: scheduleAccent?.withValues(alpha: 0.15),
-                    labelStyle: scheduleAccent != null
-                        ? TextStyle(color: scheduleAccent)
-                        : null,
-                  ),
-              ],
-            ),
+            ],
+          ),
             if (order.wasSubstituted) ...[
               const SizedBox(height: 6),
               MedicationSubstitutionSummary(
@@ -1822,23 +1975,27 @@ class _ActiveOrderCard extends StatelessWidget {
                       message: requestDisableReason,
                       child: FilledButton.tonal(
                         onPressed: null,
+                        style: inpatientCompactFill(),
                         child: const Text('Request'),
                       ),
                     )
                   else
                     FilledButton.tonal(
                       onPressed: onRequest,
+                      style: inpatientCompactFill(),
                       child: const Text('Request'),
                     ),
                   if (canAdminister)
                     OutlinedButton(
                       onPressed: onAdminister,
+                      style: inpatientCompactOutline(),
                       child: const Text('Administer'),
                     ),
                 ],
                 if (requestCount > 0 || expanded)
                   TextButton.icon(
                     onPressed: onToggleHistory,
+                    style: inpatientCompactOutline(),
                     icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
                     label: Text(
                       requestCount > 0
@@ -1865,7 +2022,7 @@ class _ActiveOrderCard extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                     title: Text(
-                      'Qty ${req.requestedQuantity} Â· ${req.status.label}',
+                      'Qty ${req.requestedQuantity} · ${req.status.label}',
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1903,7 +2060,6 @@ class _ActiveOrderCard extends StatelessWidget {
             ],
           ],
         ),
-      ),
     );
   }
 }
@@ -2028,6 +2184,85 @@ class _RequestMedicationDialogState extends State<_RequestMedicationDialog> {
               : const Text('Submit request'),
         ),
       ],
+    );
+  }
+}
+
+class _MedicationsKpiStrip extends StatelessWidget {
+  const _MedicationsKpiStrip({
+    required this.loading,
+    required this.due,
+    required this.active,
+    required this.givenToday,
+    required this.pendingRequests,
+  });
+
+  final bool loading;
+  final int due;
+  final int active;
+  final int givenToday;
+  final int pendingRequests;
+
+  String _v(int n) => loading ? '—' : '$n';
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      InpatientKpiTile(
+        icon: Icons.schedule,
+        color: InpatientMetrics.waitAmber,
+        label: 'Due now',
+        value: _v(due),
+        caption: 'Due soon or overdue',
+      ),
+      InpatientKpiTile(
+        icon: Icons.vaccines_outlined,
+        color: InpatientMetrics.iconBlue,
+        label: 'Active',
+        value: _v(active),
+        caption: 'Standing / PRN orders',
+      ),
+      InpatientKpiTile(
+        icon: Icons.check_circle_outline,
+        color: InpatientMetrics.waitGreen,
+        label: 'Given today',
+        value: _v(givenToday),
+        caption: 'Administrations today',
+      ),
+      InpatientKpiTile(
+        icon: Icons.local_pharmacy_outlined,
+        color: InpatientMetrics.iconPurple,
+        label: 'Pending',
+        value: _v(pendingRequests),
+        caption: 'Pharmacy requests',
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 820) {
+          return Row(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: items[i]),
+              ],
+            ],
+          );
+        }
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            mainAxisExtent: 72,
+          ),
+          itemBuilder: (context, i) => items[i],
+        );
+      },
     );
   }
 }

@@ -2,15 +2,18 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/emergency/ed_board_metrics.dart';
 import 'package:helty/src/emergency/models/ed_enums.dart';
 import 'package:helty/src/emergency/models/emergency_visit_model.dart';
 import 'package:helty/src/emergency/services/emergency_service.dart';
 import 'package:helty/src/emergency/utils/ed_role_helper.dart';
-import 'package:helty/src/emergency/utils/ed_workflow_helper.dart';
-import 'package:helty/src/emergency/widgets/ed_status_chip.dart';
-import 'package:helty/src/emergency/widgets/esi_badge.dart';
-import 'package:helty/src/core/responsive.dart';
-import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/emergency/widgets/ed_board_filter_bar.dart';
+import 'package:helty/src/emergency/widgets/ed_board_header.dart';
+import 'package:helty/src/emergency/widgets/ed_board_kpi_strip.dart';
+import 'package:helty/src/emergency/widgets/ed_board_sidebar.dart';
+import 'package:helty/src/emergency/widgets/ed_board_table.dart';
+import 'package:helty/src/emergency/widgets/ed_board_visit_card.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
@@ -24,36 +27,82 @@ class EdBoardScreen extends ConsumerStatefulWidget {
 
 class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
   final _service = EmergencyService();
+  final _searchCtrl = TextEditingController();
 
   List<EmergencyVisitModel> _visits = [];
   bool _loading = true;
   String? _error;
+  String _searchQuery = '';
+  String _statusValue = 'all';
+  String _esiValue = 'all';
+  DateTime? _fromDate;
+  DateTime? _toDate;
+  int _skip = 0;
+  int _total = 0;
+  bool _hasMore = false;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _searchCtrl.addListener(() {
+      final q = _searchCtrl.text.trim();
+      if (q != _searchQuery) {
+        setState(() => _searchQuery = q);
+      }
+    });
+    _load(reset: true);
   }
 
-  Future<void> _load({bool silent = false}) async {
-    if (!silent) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<EmergencyVisitModel> get _displayedVisits {
+    return EdBoardMetrics.applyClientSearch(
+      visits: _visits,
+      query: _searchQuery,
+    );
+  }
+
+  String get _emptyMessage {
+    if (_searchQuery.isNotEmpty) {
+      return 'No visits match the current search.';
     }
+    if (_statusValue != 'all' || _esiValue != 'all') {
+      return 'No visits match the current filters.';
+    }
+    return 'No active ED visits.';
+  }
+
+  String get _avgWaitLabel {
+    final avg = EdBoardMetrics.averageWaitLabel(_displayedVisits);
+    return avg ?? '—';
+  }
+
+  Future<void> _load({bool reset = false}) async {
+    if (reset) _skip = 0;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final result = await _service.listActiveVisits();
+      final result = await _service.listActiveVisits(
+        status: _statusValue == 'all' ? null : _statusValue,
+        esiLevel: _esiValue == 'all' ? null : int.tryParse(_esiValue),
+        fromDate: _fromDate,
+        toDate: _toDate,
+        skip: _skip,
+        take: EdBoardMetrics.rowsPerPage,
+      );
       if (!mounted) return;
-      final sorted = List<EmergencyVisitModel>.from(result.visits)
-        ..sort((a, b) {
-          final esiA = a.esiLevel ?? 99;
-          final esiB = b.esiLevel ?? 99;
-          if (esiA != esiB) return esiA.compareTo(esiB);
-          return b.computedWaitMinutes.compareTo(a.computedWaitMinutes);
-        });
+      final sorted = EdBoardMetrics.sortVisits(result.visits);
+      final total = result.total > 0 ? result.total : sorted.length;
       setState(() {
         _visits = sorted;
+        _total = total;
+        _hasMore = _skip + sorted.length < total;
         _loading = false;
         _error = null;
       });
@@ -64,6 +113,19 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
         _error = e.toString();
       });
     }
+  }
+
+  void _goPrev() {
+    if (_skip <= 0) return;
+    final next = _skip - EdBoardMetrics.rowsPerPage;
+    _skip = next < 0 ? 0 : next;
+    _load();
+  }
+
+  void _goNext() {
+    if (!_hasMore) return;
+    _skip += EdBoardMetrics.rowsPerPage;
+    _load();
   }
 
   void _openTriage(EmergencyVisitModel visit) {
@@ -203,210 +265,214 @@ class _EdBoardScreenState extends ConsumerState<EdBoardScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final accountType = ref.watch(authProvider).staff?.accountType;
-    final canTriage = EdRoleHelper.canTriage(accountType);
-    final canDoctor = EdRoleHelper.canOpenDoctorWorkspace(accountType);
+  Widget _queuePanel({
+    required bool useCards,
+    required AccountType? accountType,
+    required bool canTriage,
+    required bool canDoctor,
+  }) {
+    final displayed = _displayedVisits;
+    final empty = _error != null && displayed.isEmpty
+        ? 'Failed to load ED board: $_error'
+        : _emptyMessage;
 
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      body: ResponsiveBody(
-        center: false,
-        builder: (context, bp) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ResponsiveToolbar(
-              leading: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ED Board',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Active emergency visits — tap refresh to update',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.65),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  onPressed: _loading ? null : () => _load(),
-                  icon: const Icon(Icons.refresh_rounded),
-                  tooltip: 'Refresh',
-                ),
-                if (EdRoleHelper.canRegister(accountType))
-                  FilledButton.icon(
-                    onPressed: () =>
-                        context.router.push(const EdRegistrationRoute()),
-                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
-                    label: const Text('Register patient'),
-                  ),
-              ],
-            ),
-            SizedBox(height: bp.isMobile ? 12 : 16),
-            if (_loading && _visits.isEmpty)
-              const Expanded(
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_error != null && _visits.isEmpty)
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Failed to load ED board: $_error'),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: () => _load(),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else if (_visits.isEmpty)
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.emergency_outlined,
-                        size: 48,
-                        color: scheme.onSurface.withValues(alpha: 0.35),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No active ED visits',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Expanded(
-                child: ResponsiveDataTable(
-                  child: Material(
-                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(14),
-                    clipBehavior: Clip.antiAlias,
-                    child: SingleChildScrollView(
-                      child: DataTable(
-                        headingRowColor: WidgetStatePropertyAll(
-                          scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                        ),
-                        columns: const [
-                          DataColumn(label: Text('Patient')),
-                          DataColumn(label: Text('ESI')),
-                          DataColumn(label: Text('Chief complaint')),
-                          DataColumn(label: Text('Arrival')),
-                          DataColumn(label: Text('Wait')),
-                          DataColumn(label: Text('Doctor')),
-                          DataColumn(label: Text('Status')),
-                          DataColumn(label: Text('Actions')),
-                        ],
-                        rows: _visits
-                            .map(
-                              (v) => _buildRow(
-                                v,
-                                canTriage: canTriage,
-                                canDoctor: canDoctor,
-                                accountType: accountType,
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+    if (useCards) {
+      return EdBoardVisitCardList(
+        visits: displayed,
+        skip: _skip,
+        loading: _loading && _visits.isEmpty,
+        emptyMessage: empty,
+        total: _total,
+        hasMore: _hasMore,
+        pageSize: EdBoardMetrics.rowsPerPage,
+        onPrev: _goPrev,
+        onNext: _goNext,
+        accountType: accountType,
+        canTriage: canTriage,
+        canDoctor: canDoctor,
+        onTriage: _openTriage,
+        onOpen: _openDoctorWorkspace,
+        onLwbs: _markLwbs,
+        onDeceased: _markDeceased,
+      );
+    }
+    return EdBoardTable(
+      visits: displayed,
+      skip: _skip,
+      loading: _loading && _visits.isEmpty,
+      emptyMessage: empty,
+      total: _total,
+      hasMore: _hasMore,
+      pageSize: EdBoardMetrics.rowsPerPage,
+      onPrev: _goPrev,
+      onNext: _goNext,
+      accountType: accountType,
+      canTriage: canTriage,
+      canDoctor: canDoctor,
+      onTriage: _openTriage,
+      onOpen: _openDoctorWorkspace,
+      onLwbs: _markLwbs,
+      onDeceased: _markDeceased,
     );
   }
 
-  DataRow _buildRow(
-    EmergencyVisitModel visit, {
-    required bool canTriage,
-    required bool canDoctor,
-    required AccountType? accountType,
+  Widget _sidebar({
+    required bool fillHeight,
+    required bool canRegister,
   }) {
-    final doctorLabel = visit.assignedDoctor?.displayName ??
-        visit.encounter?.doctorLabel ??
-        '—';
-    final arrival = visit.arrivalAt != null
-        ? DateFormatter.dateTime(visit.arrivalAt!)
-        : '—';
-    final wait = '${visit.computedWaitMinutes} min';
-    final terminal = EdWorkflowHelper.isTerminal(visit.workflowStatus);
-    final showTriage =
-        canTriage && EdWorkflowHelper.canShowTriage(visit.workflowStatus);
-    final showOpen =
-        canDoctor && EdWorkflowHelper.canShowOpenDoctor(visit.workflowStatus);
-    final showLwbs = !terminal &&
-        EdWorkflowHelper.canMarkLwbs(visit.workflowStatus) &&
-        (EdRoleHelper.isNurseOrFrontDesk(accountType) || canDoctor);
-    final showDeceased = !terminal &&
-        EdWorkflowHelper.canMarkDeceased(visit.workflowStatus) &&
-        canDoctor;
+    return EdBoardSidebar(
+      esiCounts: edBoardEsiCounts(_displayedVisits),
+      statusCounts: edBoardStatusCounts(_displayedVisits),
+      onRegister: () => context.router.push(const EdRegistrationRoute()),
+      onRefresh: () => _load(reset: true),
+      canRegister: canRegister,
+      fillHeight: fillHeight,
+    );
+  }
 
-    return DataRow(
-      cells: [
-        DataCell(Text(visit.patientName ?? visit.patientId)),
-        DataCell(EsiBadge(esiLevel: visit.esiLevel, compact: true)),
-        DataCell(
-          SizedBox(
-            width: 180,
-            child: Text(
-              visit.chiefComplaint ?? '—',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(Text(arrival)),
-        DataCell(Text(wait)),
-        DataCell(Text(doctorLabel)),
-        DataCell(EdStatusChip(status: visit.workflowStatus, compact: true)),
-        DataCell(
-          Wrap(
-            spacing: 8,
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final accountType = ref.watch(authProvider).staff?.accountType;
+    final canTriage = EdRoleHelper.canTriage(accountType);
+    final canDoctor = EdRoleHelper.canOpenDoctorWorkspace(accountType);
+    final canRegister = EdRoleHelper.canRegister(accountType);
+    final displayed = _displayedVisits;
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < EdBoardMetrics.cardBreakpoint;
+          final showSideBySide = width >= EdBoardMetrics.sidebarBreakpoint;
+          final useCards = compact;
+          final useSnapKpis = width < 520;
+
+          final header = EdBoardHeader(compact: compact);
+          final kpis = EdBoardKpiStrip(
+            inEd: _loading && _visits.isEmpty ? null : _total,
+            criticalEsi: _loading && _visits.isEmpty
+                ? null
+                : EdBoardMetrics.criticalEsiCount(displayed),
+            waitingDoctor: _loading && _visits.isEmpty
+                ? null
+                : EdBoardMetrics.waitingDoctorCount(displayed),
+            avgWaitLabel: _loading && _visits.isEmpty ? '—' : _avgWaitLabel,
+            useSnapStrip: useSnapKpis,
+          );
+          final filters = EdBoardFilterBar(
+            searchController: _searchCtrl,
+            statusValue: _statusValue,
+            onStatusChanged: (value) {
+              setState(() => _statusValue = value);
+              _load(reset: true);
+            },
+            esiValue: _esiValue,
+            onEsiChanged: (value) {
+              setState(() => _esiValue = value);
+              _load(reset: true);
+            },
+            onDateFilterChanged: (query, category, from, to) {
+              setState(() {
+                _fromDate = from;
+                _toDate = to;
+              });
+              _load(reset: true);
+            },
+            onDateRefresh: () => _load(reset: true),
+            compact: compact,
+            fromDate: _fromDate,
+            toDate: _toDate,
+          );
+
+          final mainColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (showTriage)
-                TextButton(
-                  onPressed: () => _openTriage(visit),
-                  child: const Text('Triage'),
+              header,
+              const SizedBox(height: 10),
+              kpis,
+              const SizedBox(height: 10),
+              filters,
+              const SizedBox(height: 10),
+              Expanded(
+                child: _queuePanel(
+                  useCards: useCards,
+                  accountType: accountType,
+                  canTriage: canTriage,
+                  canDoctor: canDoctor,
                 ),
-              if (showOpen)
-                TextButton(
-                  onPressed: () => _openDoctorWorkspace(visit),
-                  child: const Text('Open'),
-                ),
-              if (showLwbs)
-                TextButton(
-                  onPressed: () => _markLwbs(visit),
-                  child: const Text('LWBS'),
-                ),
-              if (showDeceased)
-                TextButton(
-                  onPressed: () => _markDeceased(visit),
-                  child: const Text('Deceased'),
-                ),
+              ),
             ],
-          ),
-        ),
-      ],
+          );
+
+          if (showSideBySide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 9, child: mainColumn),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 3,
+                  child: _sidebar(
+                    fillHeight: true,
+                    canRegister: canRegister,
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final bounded = constraints.maxHeight.isFinite;
+              if (bounded) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: mainColumn),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 280,
+                      child: SingleChildScrollView(
+                        child: _sidebar(
+                          fillHeight: false,
+                          canRegister: canRegister,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  header,
+                  const SizedBox(height: 10),
+                  kpis,
+                  const SizedBox(height: 10),
+                  filters,
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: compact ? 480 : 520,
+                    child: _queuePanel(
+                      useCards: useCards,
+                      accountType: accountType,
+                      canTriage: canTriage,
+                      canDoctor: canDoctor,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _sidebar(fillHeight: false, canRegister: canRegister),
+                ],
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

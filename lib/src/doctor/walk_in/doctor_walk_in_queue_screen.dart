@@ -5,22 +5,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
-import 'package:helty/src/helper/date.formatter.dart';
-import 'package:helty/src/models/consulting_room_model.dart';
+import 'package:helty/src/doctor/walk_in/walk_in_queue_metrics.dart';
+import 'package:helty/src/doctor/walk_in/widgets/walk_in_filter_bar.dart';
+import 'package:helty/src/doctor/walk_in/widgets/walk_in_kpi_strip.dart';
+import 'package:helty/src/doctor/walk_in/widgets/walk_in_patient_card.dart';
+import 'package:helty/src/doctor/walk_in/widgets/walk_in_queue_header.dart';
+import 'package:helty/src/doctor/walk_in/widgets/walk_in_queue_table.dart';
+import 'package:helty/src/doctor/walk_in/widgets/walk_in_sidebar.dart';
 import 'package:helty/src/doctor/widgets/start_encounter_dialog.dart';
-import 'package:helty/src/models/patient_vitals_model.dart';
-import 'package:helty/src/core/widgets/patient_avatar.dart';
-import 'package:helty/src/models/waiting_patient_model.dart';
-import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/frontdesk/widgets/check_in_patient_dialog.dart';
+import 'package:helty/src/helper/app_timezone.dart';
+import 'package:helty/src/models/consulting_room_model.dart';
 import 'package:helty/src/models/consultation_credit_model.dart';
 import 'package:helty/src/models/consultation_credit_utils.dart';
+import 'package:helty/src/models/patient_vitals_model.dart';
+import 'package:helty/src/models/waiting_patient_model.dart';
+import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/services/department_service.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
-import 'package:helty/src/widgets/consultation_credit_chip.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../widgets/date.filter.dart';
 
 const String _kSavedConsultingRoomId = 'doctor_walkin_consulting_room_id';
 
@@ -38,23 +43,36 @@ class _DoctorWalkInQueueScreenState
   final _waitingService = WaitingPatientService();
   final _encounterService = EncounterService();
   final _invoiceService = InvoiceService();
+  final _departmentService = DepartmentService();
+  final _queueKey = GlobalKey();
+  final _searchCtrl = TextEditingController();
 
   List<WaitingPatientModel> _patients = [];
   List<ConsultingRoomModel> _consultingRooms = [];
+  List<Department> _departments = [];
+  List<WalkInActivityNote> _notes = [];
   ConsultingRoomModel? _selectedRoom;
+  String? _selectedDepartmentId;
+  String _statusValue = 'all';
+  bool _sortLongestFirst = true;
   bool _loading = false;
+  bool _reloadQueued = false;
+  bool _queuedReset = false;
   bool _loadingRooms = false;
-  final _searchCtrl = TextEditingController();
   String _searchQuery = '';
-  static const int _rowsPerPage = 50;
+  static const int _rowsPerPage = 20;
   int _skip = 0;
   int _total = 0;
+  bool _hasMore = false;
+  int? _inConsultationTotal;
   DateTime _fromDate = DateTime.now();
   DateTime _toDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    _fromDate = AppTimezone.startOfDay();
+    _toDate = AppTimezone.endOfDay();
     _searchCtrl.addListener(() {
       final q = _searchCtrl.text.trim();
       if (q != _searchQuery) {
@@ -71,12 +89,90 @@ class _DoctorWalkInQueueScreenState
     super.dispose();
   }
 
+  bool? get _seenFilter {
+    switch (_statusValue) {
+      case 'waiting':
+        return false;
+      case 'inConsultation':
+        return true;
+      default:
+        return null;
+    }
+  }
+
+  String? get _selectedDepartmentName {
+    if (_selectedDepartmentId == null) return null;
+    for (final d in _departments) {
+      if (d.id == _selectedDepartmentId) return d.name;
+    }
+    return null;
+  }
+
+  List<WaitingPatientModel> get _displayedPatients {
+    return WalkInQueueMetrics.applyClientFilters(
+      patients: _patients,
+      departmentName: _selectedDepartmentName,
+      longestWaitFirst: _sortLongestFirst,
+    );
+  }
+
+  String get _avgWaitLabel {
+    final avg = WalkInQueueMetrics.averageWait(_displayedPatients);
+    if (avg == null) return '—';
+    return WalkInQueueMetrics.formatWait(avg);
+  }
+
+  String get _emptyMessage {
+    if (_selectedDepartmentId != null) {
+      return 'No patients match the selected department on this page.';
+    }
+    return 'No patients match the current filters.';
+  }
+
+  List<WalkInRoomCount> get _roomCounts {
+    final displayed = _displayedPatients;
+    final counts = <String, int>{};
+    for (final room in _consultingRooms) {
+      counts[room.name] = 0;
+    }
+    for (final waiting in displayed) {
+      final name = WalkInQueueMetrics.roomName(waiting);
+      counts[name] = (counts[name] ?? 0) + 1;
+    }
+    final rows = counts.entries
+        .map((e) => WalkInRoomCount(name: e.key, count: e.value))
+        .toList();
+    rows.sort((a, b) => b.count.compareTo(a.count));
+    return rows;
+  }
+
+  WaitingPatientQuery _baseQuery({bool? seen, int skip = 0, int take = 20}) {
+    return WaitingPatientQuery(
+      q: _searchQuery.isEmpty ? null : _searchQuery,
+      consultingRoomId: _selectedRoom?.id,
+      unassignedOnly: false,
+      seen: seen,
+      skip: skip,
+      take: take,
+      fromDate: _fromDate,
+      toDate: _toDate,
+      sortBy: 'createdAt',
+      sortOrder: _sortLongestFirst ? 'asc' : 'desc',
+    );
+  }
+
   Future<void> _loadSavedRoomAndData() async {
     setState(() => _loadingRooms = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedId = prefs.getString(_kSavedConsultingRoomId) ?? '';
       final rooms = await _waitingService.fetchConsultingRooms();
+      List<Department> departments = const [];
+      try {
+        departments = await _departmentService.fetchDepartments();
+      } catch (_) {
+        departments = const [];
+      }
       if (!mounted) return;
       ConsultingRoomModel? room;
       if (savedId.isNotEmpty) {
@@ -88,6 +184,7 @@ class _DoctorWalkInQueueScreenState
       }
       setState(() {
         _consultingRooms = rooms;
+        _departments = departments;
         _selectedRoom = room;
         _loadingRooms = false;
       });
@@ -112,29 +209,40 @@ class _DoctorWalkInQueueScreenState
     await _loadPatients(reset: true);
   }
 
+  Future<void> _loadKpis() async {
+    try {
+      final resp = await _waitingService.fetchWaitingPatients(
+        _baseQuery(seen: true, skip: 0, take: 1),
+      );
+      if (!mounted) return;
+      setState(() => _inConsultationTotal = resp.total);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _inConsultationTotal = null);
+    }
+  }
+
   Future<void> _loadPatients({bool reset = false}) async {
-    if (_loading) return;
     if (reset) _skip = 0;
+    if (_loading) {
+      _reloadQueued = true;
+      _queuedReset = _queuedReset || reset;
+      return;
+    }
 
     setState(() => _loading = true);
     try {
       final resp = await _waitingService.fetchWaitingPatients(
-        WaitingPatientQuery(
-          q: _searchQuery.isEmpty ? null : _searchQuery,
-          consultingRoomId: _selectedRoom?.id,
-          unassignedOnly: false,
-          skip: _skip,
-          take: _rowsPerPage,
-          fromDate: _fromDate,
-          toDate: _toDate,
-        ),
+        _baseQuery(seen: _seenFilter, skip: _skip, take: _rowsPerPage),
       );
       if (!mounted) return;
       setState(() {
         _patients = resp.data;
         _total = resp.total;
+        _hasMore = resp.hasMore;
         _loading = false;
       });
+      await _loadKpis();
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -142,6 +250,211 @@ class _DoctorWalkInQueueScreenState
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to load patients: $e')));
     }
+    if (_reloadQueued && mounted) {
+      final queuedReset = _queuedReset;
+      _reloadQueued = false;
+      _queuedReset = false;
+      await _loadPatients(reset: queuedReset);
+    }
+  }
+
+  void _addNote(String message) {
+    setState(() {
+      _notes = [
+        WalkInActivityNote(at: AppTimezone.now(), message: message),
+        ..._notes,
+      ];
+      if (_notes.length > 50) {
+        _notes = _notes.take(50).toList();
+      }
+    });
+  }
+
+  void _goPrev() {
+    if (_skip <= 0) return;
+    final next = _skip - _rowsPerPage;
+    _skip = next < 0 ? 0 : next;
+    _loadPatients();
+  }
+
+  void _goNext() {
+    if (!_hasMore) return;
+    _skip += _rowsPerPage;
+    _loadPatients();
+  }
+
+  void _openAddWalkIn() {
+    context.router.push(PatientFormRoute());
+  }
+
+  Future<void> _openCheckIn() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => CheckInPatientDialog(
+        onReEnlisted: () {
+          _addNote('Patient checked in to the walk-in queue.');
+          _loadPatients(reset: true);
+        },
+      ),
+    );
+  }
+
+  void _scrollToQueue() {
+    final ctx = _queueKey.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 280),
+      alignment: 0.08,
+    );
+  }
+
+  Future<void> _pickPatientThenAssign() async {
+    final displayed = _displayedPatients;
+    if (displayed.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No patients in the current queue. Use a row menu when patients are listed.',
+          ),
+        ),
+      );
+      return;
+    }
+    final picked = await showDialog<WaitingPatientModel>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Assign consulting room'),
+          content: SizedBox(
+            width: 420,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: displayed.length,
+              itemBuilder: (context, i) {
+                final waiting = displayed[i];
+                return ListTile(
+                  title: Text(WalkInQueueMetrics.patientName(waiting)),
+                  subtitle: Text(WalkInQueueMetrics.roomName(waiting)),
+                  onTap: () => Navigator.of(ctx).pop(waiting),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+    if (picked != null) await _assignRoom(picked);
+  }
+
+  Future<void> _assignRoom(WaitingPatientModel waiting) async {
+    if (_consultingRooms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No consulting rooms available.')),
+      );
+      return;
+    }
+    ConsultingRoomModel? current =
+        waiting.consultingRoom ??
+        _roomById(waiting.consultingRoomId) ??
+        _selectedRoom ??
+        _consultingRooms.first;
+
+    final room = await showDialog<ConsultingRoomModel>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(
+            'Assign room · ${WalkInQueueMetrics.patientName(waiting)}',
+          ),
+          content: DropdownButtonFormField<ConsultingRoomModel>(
+            initialValue: current,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Consulting room',
+              border: OutlineInputBorder(),
+            ),
+            items: _consultingRooms
+                .map(
+                  (r) => DropdownMenuItem(
+                    value: r,
+                    child: Text(r.name, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) => current = v,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(current),
+              child: const Text('Assign'),
+            ),
+          ],
+        );
+      },
+    );
+    if (room == null) return;
+    try {
+      await _waitingService.updateWaitingPatientAssignment(
+        invoiceId: waiting.invoiceId,
+        consultingRoomId: room.id,
+      );
+      if (!mounted) return;
+      _addNote(
+        '${WalkInQueueMetrics.patientName(waiting)} assigned to ${room.name}.',
+      );
+      await _loadPatients();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to assign room: $e')));
+    }
+  }
+
+  ConsultingRoomModel? _roomById(String id) {
+    if (id.isEmpty) return null;
+    for (final room in _consultingRooms) {
+      if (room.id == id) return room;
+    }
+    return null;
+  }
+
+  void _onView(WaitingPatientModel waiting) {
+    final encounterId = waiting.encounterId;
+    if (encounterId != null && encounterId.isNotEmpty) {
+      final vitalsJson = waiting.patientVitals != null
+          ? jsonEncode(waiting.patientVitals!.toJson())
+          : null;
+      context.router.push(
+        DoctorEncounterViewRoute(
+          encounterId: encounterId,
+          patientId: waiting.patientId,
+          patientVitalsJson: vitalsJson,
+        ),
+      );
+      return;
+    }
+    _onPatientDoubleTap(waiting);
+  }
+
+  void _onRowActivate(WaitingPatientModel waiting) {
+    final encounterId = waiting.encounterId;
+    if (waiting.seen && encounterId != null && encounterId.isNotEmpty) {
+      _onView(waiting);
+      return;
+    }
+    _onPatientDoubleTap(waiting);
   }
 
   void _onPatientDoubleTap(WaitingPatientModel waiting) {
@@ -160,10 +473,7 @@ class _DoctorWalkInQueueScreenState
     WaitingPatientModel waiting,
     String doctorId,
   ) async {
-    final patient = waiting.patient;
-    final displayName = patient != null
-        ? patient.displayName
-        : 'Unknown';
+    final displayName = WalkInQueueMetrics.patientName(waiting);
     final patientId = waiting.patientId;
 
     ConsultationServiceLine? fifoCredit;
@@ -204,9 +514,7 @@ class _DoctorWalkInQueueScreenState
           } on OutpatientStartException catch (e) {
             if (!ctx.mounted) return;
             ScaffoldMessenger.of(ctx).showSnackBar(
-              SnackBar(
-                content: Text(mapOutpatientStartError(e.message)),
-              ),
+              SnackBar(content: Text(mapOutpatientStartError(e.message))),
             );
           } catch (e) {
             if (!ctx.mounted) return;
@@ -219,557 +527,190 @@ class _DoctorWalkInQueueScreenState
     );
 
     if (result != null && mounted) {
+      _addNote('Started consultation for $displayName.');
       final vitalsJson = result.patientVitals != null
           ? jsonEncode(result.patientVitals!.toJson())
           : null;
-      context.router.push(
+      await context.router.push(
         DoctorEncounterViewRoute(
           encounterId: result.encounterId,
           patientId: result.patientId,
           patientVitalsJson: vitalsJson,
         ),
       );
+      if (mounted) await _loadPatients();
     }
+  }
+
+  Widget _queuePanel({required bool useCards}) {
+    final displayed = _displayedPatients;
+    if (useCards) {
+      return KeyedSubtree(
+        key: _queueKey,
+        child: WalkInPatientCardList(
+          patients: displayed,
+          skip: _skip,
+          loading: _loading,
+          emptyMessage: _emptyMessage,
+          total: _total,
+          hasMore: _hasMore,
+          pageSize: _rowsPerPage,
+          onPrev: _goPrev,
+          onNext: _goNext,
+          onStart: _onPatientDoubleTap,
+          onView: _onView,
+          onAssignRoom: _assignRoom,
+          onDoubleTap: _onRowActivate,
+        ),
+      );
+    }
+    return KeyedSubtree(
+      key: _queueKey,
+      child: WalkInQueueTable(
+        patients: displayed,
+        skip: _skip,
+        loading: _loading,
+        emptyMessage: _emptyMessage,
+        total: _total,
+        hasMore: _hasMore,
+        pageSize: _rowsPerPage,
+        onPrev: _goPrev,
+        onNext: _goNext,
+        onStart: _onPatientDoubleTap,
+        onView: _onView,
+        onAssignRoom: _assignRoom,
+        onDoubleTap: _onRowActivate,
+      ),
+    );
+  }
+
+  Widget _sidebar({bool fillHeight = false}) {
+    return WalkInSidebar(
+      roomCounts: _roomCounts,
+      notes: _notes,
+      onNewWalkIn: _openAddWalkIn,
+      onCheckIn: _openCheckIn,
+      onAssignDepartment: _pickPatientThenAssign,
+      onViewQueue: _scrollToQueue,
+      onViewAllNotes: () => showWalkInNotesDialog(context, _notes),
+      fillHeight: fillHeight,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: ResponsiveBody(
         center: false,
-        builder: (context, bp) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ResponsiveToolbar(
-              leading: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Walk-in Queue',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Select your consulting room. Double-tap a patient to open their file.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.people_outline,
-                        color: colorScheme.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$_total in queue',
-                        style: TextStyle(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < WalkInQueueMetrics.cardBreakpoint;
+          final showSideBySide = width >= WalkInQueueMetrics.sidebarBreakpoint;
+          final useCards = compact;
+          final useSnapKpis = width < 520;
+
+          final header = WalkInQueueHeader(compact: compact);
+          final kpis = WalkInKpiStrip(
+            totalInQueue: _total,
+            inConsultation: _inConsultationTotal,
+            avgWaitLabel: _avgWaitLabel,
+            useSnapStrip: useSnapKpis,
+          );
+          final filters = WalkInFilterBar(
+            searchController: _searchCtrl,
+            consultingRooms: _consultingRooms,
+            selectedRoom: _selectedRoom,
+            onRoomChanged: _onConsultingRoomChanged,
+            loadingRooms: _loadingRooms,
+            departments: _departments,
+            selectedDepartmentId: _selectedDepartmentId,
+            onDepartmentChanged: (id) =>
+                setState(() => _selectedDepartmentId = id),
+            statusValue: _statusValue,
+            onStatusChanged: (value) {
+              setState(() => _statusValue = value);
+              _loadPatients(reset: true);
+            },
+            onDateFilterChanged: (query, category, from, to) {
+              setState(() {
+                _fromDate = from ?? DateTime.now();
+                _toDate = to ?? DateTime.now();
+              });
+              _loadPatients(reset: true);
+            },
+            onDateRefresh: () => _loadPatients(reset: true),
+            compact: compact,
+            fromDate: _fromDate,
+            toDate: _toDate,
+          );
+
+          final mainColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: 10),
+              kpis,
+              const SizedBox(height: 10),
+              filters,
+              const SizedBox(height: 10),
+              Expanded(child: _queuePanel(useCards: useCards)),
+            ],
+          );
+
+          if (showSideBySide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 9, child: mainColumn),
+                const SizedBox(width: 12),
+                Expanded(flex: 3, child: _sidebar(fillHeight: true)),
               ],
-            ),
-            const SizedBox(height: 24),
-            ResponsiveRowColumn(
-              first: TextField(
-                controller: _searchCtrl,
-                decoration: InputDecoration(
-                  hintText: 'Search by name, ID, consultation...',
-                  prefixIcon: Icon(
-                    Icons.search,
-                    size: 20,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: colorScheme.outline.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: colorScheme.outline.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: colorScheme.primary,
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-                style: const TextStyle(fontSize: 14),
-              ),
-              second: DropdownButtonFormField<ConsultingRoomModel?>(
-                initialValue: _selectedRoom,
-                decoration: InputDecoration(
-                  labelText: 'Consulting room',
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.3,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                ),
-                hint: const Text('Select room'),
-                items: [
-                  const DropdownMenuItem<ConsultingRoomModel?>(
-                    value: null,
-                    child: Text('All rooms'),
-                  ),
-                  ..._consultingRooms.map(
-                    (room) => DropdownMenuItem<ConsultingRoomModel?>(
-                      value: room,
-                      child: Text(room.name),
-                    ),
-                  ),
-                ],
-                onChanged: _loadingRooms
-                    ? null
-                    : (room) => _onConsultingRoomChanged(room),
-              ),
-            ),
-            const SizedBox(height: 10),
-            FromToDateFilter(
-              doRefresh: () => _loadPatients(reset: true),
-              dateFilter: true,
-              onFilterChanged:
-                  (
-                    String query,
-                    String category,
-                    DateTime? from,
-                    DateTime? to,
-                  ) {
-                    setState(() {
-                      _fromDate = from ?? DateTime.now();
-                      _toDate = to ?? DateTime.now();
-                      _loadPatients(reset: true);
-                    });
-                  },
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ResponsiveDataTable(
-                child: Column(
+            );
+          }
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final bounded = constraints.maxHeight.isFinite;
+              if (bounded) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!bp.isMobile)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withValues(alpha: 0.04),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 4,
-                              child: Text(
-                                'PATIENT',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.6,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                'CONSULTATION',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.6,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                'TIME',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.6,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                'STATUS',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                  color: colorScheme.onSurface.withValues(
-                                    alpha: 0.6,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                    Expanded(child: mainColumn),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 280,
+                      child: SingleChildScrollView(
+                        child: _sidebar(fillHeight: false),
                       ),
-                    Divider(
-                      height: 1,
-                      color: colorScheme.outline.withValues(alpha: 0.1),
                     ),
-                    Expanded(
-                      child: _loading
-                          ? const Center(child: CircularProgressIndicator())
-                          : _patients.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.people_outline,
-                                    size: 64,
-                                    color: colorScheme.onSurface.withValues(
-                                      alpha: 0.25,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    _selectedRoom == null
-                                        ? 'Select a consulting room to see waiting patients.'
-                                        : 'No patients in this room.',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.separated(
-                              itemCount: _patients.length,
-                              separatorBuilder: (_, __) => Divider(
-                                height: 1,
-                                color: colorScheme.outline.withValues(
-                                  alpha: 0.08,
-                                ),
-                              ),
-                              itemBuilder: (context, index) {
-                                final w = _patients[index];
-                                final patient = w.patient;
-                                final name = patient != null
-                                    ? patient.displayName
-                                    : 'Unknown';
-                                final consultation = w.consultationName ?? '—';
-                                final time = DateFormatter.dateTime(
-                                  w.createdAt.toLocal(),
-                                );
-                                final isWaiting = w.status == 'Waiting';
-                                return Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onDoubleTap: () => _onPatientDoubleTap(w),
-                                    child: bp.isMobile
-                                        ? _buildMobileQueueRow(
-                                            context,
-                                            colorScheme,
-                                            name,
-                                            consultation,
-                                            time,
-                                            isWaiting,
-                                            w,
-                                          )
-                                        : _buildDesktopQueueRow(
-                                            context,
-                                            colorScheme,
-                                            name,
-                                            consultation,
-                                            time,
-                                            isWaiting,
-                                            w,
-                                          ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                    if (_patients.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        child: Text(
-                          'Showing ${_patients.length} of $_total • Double-tap a row to open patient file',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
                   ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileQueueRow(
-    BuildContext context,
-    ColorScheme colorScheme,
-    String name,
-    String consultation,
-    String time,
-    bool isWaiting,
-    WaitingPatientModel w,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              w.patient != null
-                  ? PatientAvatar.fromPatient(
-                      w.patient!,
-                      size: 36,
-                      backgroundColor: colorScheme.primary.withValues(
-                        alpha: 0.12,
-                      ),
-                      foregroundColor: colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    )
-                  : PatientAvatar(
-                      firstName: name.trim(),
-                      size: 36,
-                      backgroundColor: colorScheme.primary.withValues(
-                        alpha: 0.12,
-                      ),
-                      foregroundColor: colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: colorScheme.onSurface,
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  header,
+                  const SizedBox(height: 10),
+                  kpis,
+                  const SizedBox(height: 10),
+                  filters,
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: compact ? 480 : 520,
+                    child: _queuePanel(useCards: useCards),
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isWaiting
-                      ? Colors.orange.withValues(alpha: 0.12)
-                      : Colors.green.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  w.status,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isWaiting ? Colors.orange[800] : Colors.green[700],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            consultation,
-            style: TextStyle(
-              fontSize: 13,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (w.primaryConsultationCredit != null &&
-              w.primaryConsultationCredit!.hasCreditMetadata) ...[
-            const SizedBox(height: 4),
-            ConsultationCreditChip.fromLine(
-              line: w.primaryConsultationCredit!,
-              compact: true,
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            time,
-            style: TextStyle(
-              fontSize: 13,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDesktopQueueRow(
-    BuildContext context,
-    ColorScheme colorScheme,
-    String name,
-    String consultation,
-    String time,
-    bool isWaiting,
-    WaitingPatientModel w,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 4,
-            child: Row(
-              children: [
-                w.patient != null
-                    ? PatientAvatar.fromPatient(
-                        w.patient!,
-                        size: 36,
-                        backgroundColor: colorScheme.primary.withValues(
-                          alpha: 0.12,
-                        ),
-                        foregroundColor: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      )
-                    : PatientAvatar(
-                        firstName: name.trim(),
-                        size: 36,
-                        backgroundColor: colorScheme.primary.withValues(
-                          alpha: 0.12,
-                        ),
-                        foregroundColor: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                const SizedBox(width: 12),
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  consultation,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                if (w.primaryConsultationCredit != null &&
-                    w.primaryConsultationCredit!.hasCreditMetadata) ...[
-                  const SizedBox(height: 4),
-                  ConsultationCreditChip.fromLine(
-                    line: w.primaryConsultationCredit!,
-                    compact: true,
-                  ),
+                  const SizedBox(height: 10),
+                  _sidebar(),
                 ],
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              time,
-              style: TextStyle(
-                fontSize: 13,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isWaiting
-                    ? Colors.orange.withValues(alpha: 0.12)
-                    : Colors.green.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                w.status,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isWaiting ? Colors.orange[800] : Colors.green[700],
-                ),
-              ),
-            ),
-          ),
-        ],
+              );
+            },
+          );
+        },
       ),
     );
   }

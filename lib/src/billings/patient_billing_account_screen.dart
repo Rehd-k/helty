@@ -11,7 +11,6 @@ import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/paitients/patient_providers.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/shared/finance_status_colors.dart';
-import 'package:intl/intl.dart';
 
 @RoutePage()
 class PatientBillingAccountScreen extends ConsumerStatefulWidget {
@@ -69,7 +68,9 @@ class _PatientBillingAccountScreenState
     });
 
     try {
-      final account = await _invoiceService.getPatientBillingAccount(patientUuid);
+      final account = await _invoiceService.getPatientBillingAccount(
+        patientUuid,
+      );
       var invoices = account.invoices;
       var payments = account.payments;
 
@@ -356,9 +357,7 @@ class _InvoicesTab extends StatelessWidget {
       return Center(
         child: Text(
           'No invoices for this patient',
-          style: TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
+          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
         ),
       );
     }
@@ -440,7 +439,7 @@ class _InvoicesTab extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        DateFormat('MMM d, y').format(invoice.createdAt),
+                        DateFormatter.shortDate(invoice.createdAt),
                         style: TextStyle(
                           fontSize: 12,
                           color: colorScheme.onSurface.withValues(alpha: 0.55),
@@ -478,10 +477,7 @@ class _InvoicesTab extends StatelessWidget {
 }
 
 class _PaymentsTab extends StatelessWidget {
-  const _PaymentsTab({
-    required this.payments,
-    required this.onOpenInvoice,
-  });
+  const _PaymentsTab({required this.payments, required this.onOpenInvoice});
 
   final List<PatientAccountPayment> payments;
   final Future<void> Function(String? invoiceId) onOpenInvoice;
@@ -493,9 +489,7 @@ class _PaymentsTab extends StatelessWidget {
       return Center(
         child: Text(
           'No payments recorded for this patient',
-          style: TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
+          style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6)),
         ),
       );
     }
@@ -563,7 +557,7 @@ class _PaymentsTab extends StatelessWidget {
                   Text(
                     payment.paidAt == null
                         ? '—'
-                        : DateFormat('MMM d, y h:mm a').format(payment.paidAt!),
+                        : DateFormatter.dateTime(payment.paidAt!),
                     style: TextStyle(
                       fontSize: 12,
                       color: colorScheme.onSurface.withValues(alpha: 0.5),

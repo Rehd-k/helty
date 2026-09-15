@@ -152,6 +152,7 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
       AutoRoute(page: InpatientCarePlanRoute.page),
       AutoRoute(page: InpatientMonitoringRoute.page),
       AutoRoute(page: InpatientLabResultsRoute.page),
+      AutoRoute(page: InpatientImagingResultsRoute.page),
       AutoRoute(page: InpatientAlertsRoute.page),
       AutoRoute(page: InpatientHandoverRoute.page),
     ],

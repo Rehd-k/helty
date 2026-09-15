@@ -2,9 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/appointment_model.dart';
 import 'package:helty/src/services/appointment_service.dart';
-import 'package:intl/intl.dart';
 
 @RoutePage()
 class CompletedEncounterAppointmentsTab extends StatefulWidget {
@@ -66,8 +66,7 @@ class _CompletedEncounterAppointmentsTabState
     }
   }
 
-  static String _fmtDate(DateTime d) =>
-      DateFormat.yMMMd().add_Hm().format(d.toLocal());
+  static String _fmtDate(DateTime d) => DateFormatter.dateTime24(d);
 
   @override
   Widget build(BuildContext context) {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/auth_provider.dart';
@@ -263,7 +264,7 @@ class _StaffChatThreadContentState
     final time = DateFormat('hh:mm a').format(local);
     if (diffDays == 0) return 'Today $time';
     if (diffDays == 1) return 'Yesterday $time';
-    return '${DateFormat('MMM d').format(local)}, $time';
+    return '${DateFormatter.shortDate(local)}, $time';
   }
 
   BorderRadius _bubbleRadius(bool mine) {
@@ -515,9 +516,11 @@ class _StaffChatThreadContentState
           child: LayoutBuilder(
             builder: (context, constraints) {
               final availableWidth = constraints.maxWidth;
-              final bubbleMaxWidth = (availableWidth *
-                      widget.maxBubbleWidthFraction)
-                  .clamp(120.0, 350.0);
+              final bubbleMaxWidth =
+                  (availableWidth * widget.maxBubbleWidthFraction).clamp(
+                    120.0,
+                    350.0,
+                  );
               if (_messages.isEmpty) {
                 return Center(
                   child: Text(
@@ -550,103 +553,98 @@ class _StaffChatThreadContentState
                   final timestamp = _formatMessageTimestamp(m.createdAt);
                   final sendState = _pendingByMessageId[m.id];
                   return Padding(
-                    padding: EdgeInsets.only(
-                      bottom: prevMine == mine ? 4 : 12,
-                    ),
+                    padding: EdgeInsets.only(bottom: prevMine == mine ? 4 : 12),
                     child: Align(
                       alignment: mine
                           ? Alignment.centerRight
                           : Alignment.centerLeft,
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: bubbleMaxWidth,
-                        ),
+                        constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
                         child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 13,
-                                vertical: 9,
-                              ),
-                              decoration: BoxDecoration(
-                                color: mine
-                                    ? theme.colorScheme.primaryContainer
-                                    : theme.colorScheme.surfaceContainerHighest,
-                                borderRadius: _bubbleRadius(mine),
-                                border: Border.all(
-                                  color: mine
-                                      ? theme.colorScheme.primary.withValues(
-                                          alpha: 0.15,
-                                        )
-                                      : theme.colorScheme.outlineVariant
-                                            .withValues(alpha: 0.45),
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: theme.colorScheme.shadow.withValues(
-                                      alpha: 0.1,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 13,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: mine
+                                ? theme.colorScheme.primaryContainer
+                                : theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: _bubbleRadius(mine),
+                            border: Border.all(
+                              color: mine
+                                  ? theme.colorScheme.primary.withValues(
+                                      alpha: 0.15,
+                                    )
+                                  : theme.colorScheme.outlineVariant.withValues(
+                                      alpha: 0.45,
                                     ),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                    spreadRadius: -1,
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    m.content ?? '',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      height: 1.28,
-                                      color: mine
-                                          ? theme.colorScheme.onPrimaryContainer
-                                          : theme.colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  if (timestamp != null) ...[
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          timestamp,
-                                          style: theme.textTheme.labelSmall
-                                              ?.copyWith(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w500,
-                                                color: mine
-                                                    ? theme
-                                                          .colorScheme
-                                                          .onPrimaryContainer
-                                                          .withValues(
-                                                            alpha: 0.78,
-                                                          )
-                                                    : theme
-                                                          .colorScheme
-                                                          .onSurfaceVariant,
-                                              ),
-                                        ),
-                                        if (mine && sendState != null) ...[
-                                          const SizedBox(width: 6),
-                                          _SendStatusChip(
-                                            state: sendState,
-                                            onRetry:
-                                                sendState ==
-                                                    _PendingSendState.failed
-                                                ? () => _retryMessage(m)
-                                                : null,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ],
-                                ],
-                              ),
+                              width: 1,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.colorScheme.shadow.withValues(
+                                  alpha: 0.1,
+                                ),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                                spreadRadius: -1,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                m.content ?? '',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  height: 1.28,
+                                  color: mine
+                                      ? theme.colorScheme.onPrimaryContainer
+                                      : theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              if (timestamp != null) ...[
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      timestamp,
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w500,
+                                            color: mine
+                                                ? theme
+                                                      .colorScheme
+                                                      .onPrimaryContainer
+                                                      .withValues(alpha: 0.78)
+                                                : theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                          ),
+                                    ),
+                                    if (mine && sendState != null) ...[
+                                      const SizedBox(width: 6),
+                                      _SendStatusChip(
+                                        state: sendState,
+                                        onRetry:
+                                            sendState ==
+                                                _PendingSendState.failed
+                                            ? () => _retryMessage(m)
+                                            : null,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ],
                           ),
                         ),
+                      ),
+                    ),
                   );
                 },
               );

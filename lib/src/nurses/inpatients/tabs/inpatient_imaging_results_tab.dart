@@ -4,8 +4,11 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/radiology/models/radiology_models.dart';
 import 'package:helty/src/radiology/services/radiology_service.dart';
 import 'package:helty/src/radiology/ui/widgets/radiology_order_results_dialog.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 @RoutePage()
 class InpatientImagingResultsScreen extends StatefulWidget {
@@ -79,115 +82,155 @@ class _InpatientImagingResultsScreenState
         scope?.encounterId != null && scope!.encounterId!.isNotEmpty;
     final showVisitCol = !_encounterOnly && hasEncounter;
 
-    final columns = [
-      'Study',
-      if (showVisitCol) 'Visit',
-      'Area',
-      'Urgency',
-      'Status',
-      if (isDoctor) 'Doctor actions',
-    ];
+    final completed = _orders
+        .where((o) => o.status == RadiologyOrderStatus.COMPLETED)
+        .length;
 
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
-        child: SectionCard(
-        title: 'Imaging & Radiology',
-        subtitle: 'Read-only view of imaging studies',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (hasEncounter) ...[
-              LayoutBuilder(
-                builder: (context, c) {
-                  final narrow = c.maxWidth < 520;
-                  return SegmentedButton<bool>(
-                    segments: narrow
-                        ? const [
-                            ButtonSegment<bool>(
-                              value: false,
-                              label: Text('All'),
-                            ),
-                            ButtonSegment<bool>(
-                              value: true,
-                              label: Text('Visit'),
-                            ),
-                          ]
-                        : const [
-                            ButtonSegment<bool>(
-                              value: false,
-                              label: Text('All patient'),
-                              icon: Icon(Icons.person_outline, size: 16),
-                            ),
-                            ButtonSegment<bool>(
-                              value: true,
-                              label: Text('This encounter'),
-                              icon: Icon(Icons.event_note_outlined, size: 16),
-                            ),
-                          ],
-                    selected: {_encounterOnly},
-                    onSelectionChanged: (s) {
-                      if (s.isEmpty) return;
-                      setState(() => _encounterOnly = s.first);
-                      _load();
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_orders.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  _encounterOnly
-                      ? 'No imaging studies for this encounter yet.'
-                      : 'No imaging studies for this patient yet.',
+            const InpatientTabToolbar(
+              icon: Icons.photo_camera_outlined,
+              iconColor: InpatientMetrics.iconIndigo,
+              title: 'Imaging',
+              subtitle: 'Radiology studies for this patient',
+            ),
+            const SizedBox(height: 10),
+            InpatientKpiRow(
+              tiles: [
+                InpatientKpiTile(
+                  icon: Icons.photo_camera_outlined,
+                  color: InpatientMetrics.iconIndigo,
+                  label: 'Studies',
+                  value: _loading ? '—' : '${_orders.length}',
+                  caption: _encounterOnly ? 'This encounter' : 'This patient',
                 ),
-              )
-            else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columns: columns
-                      .map(
-                        (c) => DataColumn(
-                          label: Text(
-                            c,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  rows: _orders
-                      .map(
-                        (o) => _row(
-                          context,
-                          o,
-                          isDoctor,
-                          showVisitCol: showVisitCol,
-                          admissionEncounterId: scope?.encounterId,
-                        ),
-                      )
-                      .toList(),
+                InpatientKpiTile(
+                  icon: Icons.check_circle_outline,
+                  color: InpatientMetrics.waitGreen,
+                  label: 'Completed',
+                  value: _loading ? '—' : '$completed',
+                  caption: 'Reported / done',
                 ),
+                InpatientKpiTile(
+                  icon: Icons.hourglass_empty,
+                  color: InpatientMetrics.waitAmber,
+                  label: 'Open',
+                  value: _loading ? '—' : '${_orders.length - completed}',
+                  caption: 'Pending or active',
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SectionCard(
+              title: 'Imaging studies',
+              subtitle: 'Read-only view of radiology orders',
+              icon: Icons.image_outlined,
+              iconColor: InpatientMetrics.iconIndigo,
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (hasEncounter) ...[
+                    LayoutBuilder(
+                      builder: (context, c) {
+                        final narrow = c.maxWidth < 520;
+                        return SegmentedButton<bool>(
+                          segments: narrow
+                              ? const [
+                                  ButtonSegment<bool>(
+                                    value: false,
+                                    label: Text('All'),
+                                  ),
+                                  ButtonSegment<bool>(
+                                    value: true,
+                                    label: Text('Visit'),
+                                  ),
+                                ]
+                              : const [
+                                  ButtonSegment<bool>(
+                                    value: false,
+                                    label: Text('All patient'),
+                                    icon: Icon(Icons.person_outline, size: 16),
+                                  ),
+                                  ButtonSegment<bool>(
+                                    value: true,
+                                    label: Text('This encounter'),
+                                    icon: Icon(
+                                      Icons.event_note_outlined,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ],
+                          selected: {_encounterOnly},
+                          onSelectionChanged: (s) {
+                            if (s.isEmpty) return;
+                            setState(() => _encounterOnly = s.first);
+                            _load();
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else
+                    InpatientChartTable(
+                      columns: [
+                        const InpatientChartColumn('STUDY', flex: 3),
+                        if (showVisitCol)
+                          const InpatientChartColumn('VISIT', flex: 2),
+                        const InpatientChartColumn('AREA', flex: 2),
+                        const InpatientChartColumn('URGENCY'),
+                        const InpatientChartColumn('STATUS'),
+                        const InpatientChartColumn(
+                          'ACTIONS',
+                          flex: 2,
+                          alignEnd: true,
+                        ),
+                      ],
+                      rowCount: _orders.length,
+                      emptyMessage: _encounterOnly
+                          ? 'No imaging studies for this encounter yet.'
+                          : 'No imaging studies for this patient yet.',
+                      minWidth: 860,
+                      footerLabel: _orders.length == 1
+                          ? '1 study'
+                          : '${_orders.length} studies',
+                      cellBuilder: (context, index) => _imagingCells(
+                        context,
+                        _orders[index],
+                        isDoctor,
+                        showVisitCol: showVisitCol,
+                        admissionEncounterId: scope?.encounterId,
+                      ),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
-      ),
       ),
     );
   }
 
-  DataRow _row(
+  Color _imagingStatusColor(RadiologyOrderStatus status) {
+    return switch (status) {
+      RadiologyOrderStatus.COMPLETED => InpatientMetrics.waitGreen,
+      RadiologyOrderStatus.CANCELLED => InpatientMetrics.waitRed,
+      RadiologyOrderStatus.ACTIVE => InpatientMetrics.iconBlue,
+      RadiologyOrderStatus.PENDING => InpatientMetrics.waitAmber,
+    };
+  }
+
+  List<Widget> _imagingCells(
     BuildContext context,
     RadiologyOrder order,
     bool isDoctor, {
@@ -195,48 +238,59 @@ class _InpatientImagingResultsScreenState
     String? admissionEncounterId,
   }) {
     final firstItem = order.items.isNotEmpty ? order.items.first : null;
-    final onThisAdmission = admissionEncounterId != null &&
+    final onThisAdmission =
+        admissionEncounterId != null &&
         admissionEncounterId.isNotEmpty &&
         order.encounterId == admissionEncounterId;
-    return DataRow(
-      onSelectChanged: (_) => showRadiologyOrderResultsDialog(
-        context,
-        service: _imagingOrderService,
-        order: order,
+
+    return [
+      HeltyEllipsisText(text: firstItem?.scanType.displayLabel ?? '—'),
+      if (showVisitCol)
+        HeltyStatusChip(
+          label: onThisAdmission ? 'This admission' : 'Other',
+          color: onThisAdmission
+              ? InpatientMetrics.iconTeal
+              : InpatientMetrics.iconIndigo,
+        ),
+      HeltyEllipsisText(text: firstItem?.bodyPart ?? '—'),
+      HeltyEllipsisText(text: firstItem?.priority.name ?? '—'),
+      HeltyStatusChip(
+        label: order.status.name,
+        color: _imagingStatusColor(order.status),
       ),
-      cells: [
-        DataCell(Text(firstItem?.scanType.displayLabel ?? '-')),
-        if (showVisitCol)
-          DataCell(
-            Text(
-              onThisAdmission ? 'This admission' : 'Other',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: onThisAdmission
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
-                  ),
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            OutlinedButton(
+              onPressed: () => showRadiologyOrderResultsDialog(
+                context,
+                service: _imagingOrderService,
+                order: order,
+              ),
+              style: inpatientCompactOutline(),
+              child: const Text('View'),
             ),
-          ),
-        DataCell(Text(firstItem?.bodyPart ?? '-')),
-        DataCell(Text(firstItem?.priority.name ?? '-')),
-        DataCell(Text(order.status.name)),
-        if (isDoctor)
-          DataCell(
-            TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'To order imaging, use the doctor encounter imaging tab.',
+            if (isDoctor) ...[
+              const SizedBox(width: 6),
+              TextButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'To order imaging, use the doctor encounter imaging tab.',
+                      ),
                     ),
-                  ),
-                );
-              },
-              child: const Text('Order imaging'),
-            ),
-          ),
-      ],
-    );
+                  );
+                },
+                child: const Text('Order'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ];
   }
 }
-

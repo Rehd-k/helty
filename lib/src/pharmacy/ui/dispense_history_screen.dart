@@ -6,7 +6,6 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
-import 'package:intl/intl.dart';
 
 import '../models/pharmacy_model.dart';
 import '../models/pharmacy_queue_models.dart';
@@ -391,7 +390,7 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
                   onPressed: _pickDateRange,
                   icon: const Icon(Icons.date_range),
                   label: Text(
-                    '${DateFormat('dd MMM yyyy').format(_from)} - ${DateFormat('dd MMM yyyy').format(_to)}',
+                    '${DateFormatter.shortDate(_from)} - ${DateFormatter.shortDate(_to)}',
                   ),
                 ),
                 FilledButton.tonal(

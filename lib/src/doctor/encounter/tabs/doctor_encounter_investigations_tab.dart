@@ -4,6 +4,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_side_panel.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/lab/utils/lab_reference_evaluation.dart';
@@ -172,8 +175,9 @@ class _DoctorEncounterInvestigationsTabState
         priority: result.priority,
         notes: notes.isEmpty ? null : notes,
         pregnancyId: pregnancyId,
-        useAntenatalPackage:
-            pregnancyId != null && pregnancyId.isNotEmpty ? true : null,
+        useAntenatalPackage: pregnancyId != null && pregnancyId.isNotEmpty
+            ? true
+            : null,
       );
     }
     if (mounted) {
@@ -212,10 +216,10 @@ class _DoctorEncounterInvestigationsTabState
           setState(() => _sidePanelExpanded = !_sidePanelExpanded),
       subtitle: _orders.isEmpty
           ? (_encounterOnly
-              ? 'No lab orders yet for this encounter'
-              : 'No lab history for this patient')
+                ? 'No lab orders yet for this encounter'
+                : 'No lab history for this patient')
           : '${_orders.length} order${_orders.length == 1 ? '' : 's'}'
-              '${_encounterOnly ? ' on this encounter' : ''}',
+                '${_encounterOnly ? ' on this encounter' : ''}',
       controls: SegmentedButton<bool>(
         segments: const [
           ButtonSegment<bool>(
@@ -285,10 +289,7 @@ class _DoctorEncounterInvestigationsTabState
     );
 
     final list = _orders.isEmpty
-        ? _InvestigationsEmptyState(
-            encounterOnly: _encounterOnly,
-            theme: theme,
-          )
+        ? _InvestigationsEmptyState(encounterOnly: _encounterOnly, theme: theme)
         : ListView.separated(
             itemCount: _orders.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -309,9 +310,46 @@ class _DoctorEncounterInvestigationsTabState
 
     return ResponsiveBody(
       center: false,
-      builder: (context, bp) => EncounterTabLayout(
-        sidePanel: sidePanel,
-        child: list,
+      builder: (context, bp) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const InpatientTabToolbar(
+            icon: Icons.biotech_outlined,
+            iconColor: InpatientMetrics.iconTeal,
+            title: 'Investigations',
+            subtitle: 'Lab orders for this patient',
+          ),
+          const SizedBox(height: 10),
+          InpatientKpiRow(
+            tiles: [
+              InpatientKpiTile(
+                icon: Icons.science_outlined,
+                color: InpatientMetrics.iconTeal,
+                label: 'Orders',
+                value: '${_orders.length}',
+                caption: _encounterOnly ? 'This encounter' : 'This patient',
+              ),
+              InpatientKpiTile(
+                icon: Icons.check_circle_outline,
+                color: InpatientMetrics.waitGreen,
+                label: 'Resulted',
+                value: '$completedCount',
+                caption: 'Completed',
+              ),
+              InpatientKpiTile(
+                icon: Icons.hourglass_empty,
+                color: InpatientMetrics.waitAmber,
+                label: 'Pending',
+                value: '$pendingCount',
+                caption: 'Awaiting results',
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: EncounterTabLayout(sidePanel: sidePanel, child: list),
+          ),
+        ],
       ),
     );
   }
@@ -476,18 +514,12 @@ class _InvestigationOrderCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: cs.primaryContainer.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.science_outlined,
-                      size: 20,
-                      color: cs.onPrimaryContainer,
-                    ),
+                  const HeltySolidIcon(
+                    icon: Icons.science_outlined,
+                    color: InpatientMetrics.iconTeal,
+                    size: 28,
+                    iconSize: 15,
+                    radius: 7,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -922,14 +954,18 @@ class _OrderLabTestDialogState extends State<_OrderLabTestDialog> {
                     itemBuilder: (_, i) {
                       final s = _searchResults[i];
                       final isSelected = _selected.any((e) => e.id == s.id);
-                      final serviceId =
-                          s.serviceId.isNotEmpty ? s.serviceId : s.id;
+                      final serviceId = s.serviceId.isNotEmpty
+                          ? s.serviceId
+                          : s.id;
                       return CheckboxListTile(
                         value: isSelected,
                         title: Row(
                           children: [
                             Expanded(child: Text(s.name)),
-                            antenatalPackageBadge(context, serviceId: serviceId),
+                            antenatalPackageBadge(
+                              context,
+                              serviceId: serviceId,
+                            ),
                           ],
                         ),
                         subtitle: Text(

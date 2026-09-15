@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/responsive.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../core/extensions/number.extention.dart';
@@ -269,7 +269,7 @@ class _PurchasesPurchaseHistoryScreenState
 
   String _formatDate(DateTime? date) {
     if (date == null) return '—';
-    return DateFormat('MMM d, yyyy').format(date);
+    return DateFormatter.shortDate(date);
   }
 
   String _formatQuantity(_SupplyHistoryRow row) {
@@ -479,7 +479,8 @@ class _PurchasesPurchaseHistoryScreenState
                                     Text(
                                       'Loading batches…',
                                       style: TextStyle(
-                                        color: theme.colorScheme.onSurfaceVariant,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
                                         fontSize: 14,
                                       ),
                                     ),
@@ -846,121 +847,120 @@ class _PurchasesPurchaseHistoryScreenState
           controller: _verticalScrollController,
           scrollDirection: Axis.vertical,
           child: DataTable(
-              sortColumnIndex: _sortColumnIndex,
-              sortAscending: _isAscending,
-              headingRowColor: WidgetStateProperty.all(Colors.white),
-              dataRowMinHeight: 70,
-              dataRowMaxHeight: 70,
-              horizontalMargin: 24,
-              columnSpacing: 48,
-              dividerThickness: 1,
-              headingTextStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: Color(0xFF6C757D),
-                letterSpacing: 1.2,
-              ),
-              columns: [
-                DataColumn(
-                  label: const Text('BATCH\nID'),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'batchNumber'),
-                ),
-                const DataColumn(label: Text('Item')),
-                DataColumn(
-                  label: const Text('RECEIVE\nDATE'),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'createdAt'),
-                ),
-                const DataColumn(label: Text('Supplier')),
-                const DataColumn(label: Text('Item\nCATEGORY')),
-                DataColumn(
-                  label: const Text('QUANTITY'),
-                  numeric: true,
-                  onSort: (idx, asc) => _onSort(idx, asc, 'quantityReceived'),
-                ),
-                DataColumn(
-                  label: const Text('TOTAL\nCOST'),
-                  numeric: true,
-                  onSort: (idx, asc) => _onSort(idx, asc, 'costPrice'),
-                ),
-                const DataColumn(label: Text('STATUS')),
-              ],
-              rows: _rows.map((row) {
-                final batch = row.batch;
-                final supplierText = row.supplierName ?? '—';
-                final categoryText =
-                    row.category ?? batch.item?.category ?? '—';
-
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        batch.batchNumber ?? (batch.id ?? '—'),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 220),
-                        child: Text(
-                          _itemNameForRow(row),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF334155),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatDate(row.receiveDate),
-                        style: TextStyle(color: scheme.onSurfaceVariant),
-                      ),
-                    ),
-                    DataCell(
-                      Container(
-                        constraints: const BoxConstraints(maxWidth: 160),
-                        child: Text(
-                          supplierText,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: scheme.onSurface,
-                          ),
-                          softWrap: true,
-                        ),
-                      ),
-                    ),
-                    DataCell(_buildCategoryChip(categoryText)),
-                    DataCell(
-                      Container(
-                        constraints: const BoxConstraints(maxWidth: 100),
-                        child: Text(
-                          _formatQuantity(row),
-                          style: TextStyle(color: scheme.onSurfaceVariant),
-                          softWrap: true,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatTotalCost(row),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    DataCell(_buildStatusChip(row.status)),
-                  ],
-                );
-              }).toList(),
+            sortColumnIndex: _sortColumnIndex,
+            sortAscending: _isAscending,
+            headingRowColor: WidgetStateProperty.all(Colors.white),
+            dataRowMinHeight: 70,
+            dataRowMaxHeight: 70,
+            horizontalMargin: 24,
+            columnSpacing: 48,
+            dividerThickness: 1,
+            headingTextStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: Color(0xFF6C757D),
+              letterSpacing: 1.2,
             ),
+            columns: [
+              DataColumn(
+                label: const Text('BATCH\nID'),
+                onSort: (idx, asc) => _onSort(idx, asc, 'batchNumber'),
+              ),
+              const DataColumn(label: Text('Item')),
+              DataColumn(
+                label: const Text('RECEIVE\nDATE'),
+                onSort: (idx, asc) => _onSort(idx, asc, 'createdAt'),
+              ),
+              const DataColumn(label: Text('Supplier')),
+              const DataColumn(label: Text('Item\nCATEGORY')),
+              DataColumn(
+                label: const Text('QUANTITY'),
+                numeric: true,
+                onSort: (idx, asc) => _onSort(idx, asc, 'quantityReceived'),
+              ),
+              DataColumn(
+                label: const Text('TOTAL\nCOST'),
+                numeric: true,
+                onSort: (idx, asc) => _onSort(idx, asc, 'costPrice'),
+              ),
+              const DataColumn(label: Text('STATUS')),
+            ],
+            rows: _rows.map((row) {
+              final batch = row.batch;
+              final supplierText = row.supplierName ?? '—';
+              final categoryText = row.category ?? batch.item?.category ?? '—';
+
+              return DataRow(
+                cells: [
+                  DataCell(
+                    Text(
+                      batch.batchNumber ?? (batch.id ?? '—'),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 220),
+                      child: Text(
+                        _itemNameForRow(row),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF334155),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      _formatDate(row.receiveDate),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                  DataCell(
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 160),
+                      child: Text(
+                        supplierText,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: scheme.onSurface,
+                        ),
+                        softWrap: true,
+                      ),
+                    ),
+                  ),
+                  DataCell(_buildCategoryChip(categoryText)),
+                  DataCell(
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 100),
+                      child: Text(
+                        _formatQuantity(row),
+                        style: TextStyle(color: scheme.onSurfaceVariant),
+                        softWrap: true,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      _formatTotalCost(row),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  DataCell(_buildStatusChip(row.status)),
+                ],
+              );
+            }).toList(),
           ),
         ),
+      ),
     );
   }
 
@@ -1036,12 +1036,18 @@ class _PurchasesPurchaseHistoryScreenState
             children: [
               Text(
                 'Showing ${_totalItems == 0 ? 0 : start}–$end of $_totalItems',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(width: 16),
               Text(
                 'Per page:',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(width: 8),
               DropdownButton<int>(
@@ -1239,9 +1245,12 @@ class _SupplyHistoryDrugSheetState extends State<_SupplyHistoryDrugSheet> {
                           child: Text(
                             'No drugs match this search. Try another name.',
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
                           ),
                         ),
                       )

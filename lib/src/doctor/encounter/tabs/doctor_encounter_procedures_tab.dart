@@ -17,6 +17,10 @@ import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/services/service_service.dart';
 import 'package:helty/src/services/widgets/searchable_service_selector.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/store/utils/consumable_invoice_helper.dart';
 
 @RoutePage()
@@ -301,7 +305,6 @@ class _DoctorEncounterProceduresTabState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final scope = EncounterScope.of(context);
     if (scope == null) {
       return const Padding(
@@ -325,92 +328,126 @@ class _DoctorEncounterProceduresTabState
     return ResponsiveBody(
       center: false,
       builder: (context, bp) => AbsorbPointer(
-      absorbing: readOnly,
-      child: SingleChildScrollView(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Procedure type',
-            style: TextStyle(fontWeight: FontWeight.w600),
+        absorbing: readOnly,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const InpatientTabToolbar(
+                icon: Icons.healing_outlined,
+                iconColor: InpatientMetrics.waitAmber,
+                title: 'Procedures',
+                subtitle: 'Record procedures and consumables',
+              ),
+              const SizedBox(height: 10),
+              SectionCard(
+                title: 'Record procedure',
+                subtitle: 'Type, consent, notes, and consumables',
+                icon: Icons.add_circle_outline,
+                iconColor: InpatientMetrics.iconBlue,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Procedure type',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    SearchableServiceSelector(
+                      serviceService: _serviceService,
+                      selectedService: _selectedService,
+                      isOther: _isOtherProcedure,
+                      otherTextController: _otherProcedureCtrl,
+                      showOther: true,
+                      onServiceSelected: (s) => setState(() {
+                        _selectedService = s;
+                        _isOtherProcedure = false;
+                        _otherProcedureCtrl.clear();
+                      }),
+                      onOtherSelected: _selectOtherProcedure,
+                      onClear: () => setState(_clearProcedureSelection),
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      value: _consentConfirmed,
+                      title: const Text('Consent confirmed'),
+                      onChanged: (v) =>
+                          setState(() => _consentConfirmed = v ?? false),
+                    ),
+                    TextField(
+                      controller: _notesCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Notes',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _complicationsCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Complications (if any)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Consumables',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    _ConsumablesSelector(
+                      purchasesApi: _purchasesApi,
+                      purchasesLocations: _purchasesLocations,
+                      pendingConsumables: _pendingConsumables,
+                      onAdd: (c) => setState(() => _pendingConsumables.add(c)),
+                      onRemove: (c) =>
+                          setState(() => _pendingConsumables.remove(c)),
+                      onUpdateRow: (index, updates) => setState(() {
+                        if (index >= 0 && index < _pendingConsumables.length) {
+                          _pendingConsumables[index] = {
+                            ..._pendingConsumables[index],
+                            ...updates,
+                          };
+                        }
+                      }),
+                    ),
+                    const SizedBox(height: 10),
+                    if (!readOnly)
+                      FilledButton.icon(
+                        onPressed: _saving
+                            ? null
+                            : (canSave ? _addProcedure : null),
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Save procedure'),
+                        style: inpatientCompactFill(),
+                      ),
+                  ],
+                ),
+              ),
+              if (_procedures.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SectionCard(
+                  title: 'Recorded procedures',
+                  subtitle: 'This encounter',
+                  icon: Icons.list_alt_outlined,
+                  iconColor: InpatientMetrics.iconIndigo,
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < _procedures.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 8),
+                        _ProcedureCard(procedure: _procedures[i]),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 8),
-          SearchableServiceSelector(
-            serviceService: _serviceService,
-            selectedService: _selectedService,
-            isOther: _isOtherProcedure,
-            otherTextController: _otherProcedureCtrl,
-            showOther: true,
-            onServiceSelected: (s) => setState(() {
-              _selectedService = s;
-              _isOtherProcedure = false;
-              _otherProcedureCtrl.clear();
-            }),
-            onOtherSelected: _selectOtherProcedure,
-            onClear: () => setState(_clearProcedureSelection),
-          ),
-          const SizedBox(height: 12),
-          CheckboxListTile(
-            value: _consentConfirmed,
-            title: const Text('Consent confirmed'),
-            onChanged: (v) => setState(() => _consentConfirmed = v ?? false),
-          ),
-          TextField(
-            controller: _notesCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _complicationsCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Complications (if any)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Consumables',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          _ConsumablesSelector(
-            purchasesApi: _purchasesApi,
-            purchasesLocations: _purchasesLocations,
-            pendingConsumables: _pendingConsumables,
-            onAdd: (c) => setState(() => _pendingConsumables.add(c)),
-            onRemove: (c) => setState(() => _pendingConsumables.remove(c)),
-            onUpdateRow: (index, updates) => setState(() {
-              if (index >= 0 && index < _pendingConsumables.length) {
-                _pendingConsumables[index] = {
-                  ..._pendingConsumables[index],
-                  ...updates,
-                };
-              }
-            }),
-          ),
-          const SizedBox(height: 16),
-          if (!readOnly)
-            FilledButton.icon(
-              onPressed: _saving ? null : (canSave ? _addProcedure : null),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Save procedure'),
-            ),
-          const SizedBox(height: 24),
-          if (_procedures.isNotEmpty) ...[
-            Text('Recorded procedures', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            ..._procedures.map((p) => _ProcedureCard(procedure: p)),
-          ],
-        ],
+        ),
       ),
-    ),
-    ),
     );
   }
 }
@@ -772,10 +809,27 @@ class _ProcedureCard extends StatelessWidget {
         subtitle += ' (+${consumables.length - 5} more)';
       }
     }
-    return Card(
-      child: ListTile(
-        title: Text(type),
-        subtitle: subtitle.isEmpty ? null : Text(subtitle),
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          HeltyEllipsisText(
+            text: type.isEmpty ? 'Procedure' : type,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -2,8 +2,15 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/app_router.gr.dart';
-import 'package:helty/src/core/widgets/patient_avatar.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/doctor/ongoing/ongoing_encounters_metrics.dart';
+import 'package:helty/src/doctor/ongoing/widgets/ongoing_encounters_card.dart';
+import 'package:helty/src/doctor/ongoing/widgets/ongoing_encounters_filter_bar.dart';
+import 'package:helty/src/doctor/ongoing/widgets/ongoing_encounters_header.dart';
+import 'package:helty/src/doctor/ongoing/widgets/ongoing_encounters_kpi_strip.dart';
+import 'package:helty/src/doctor/ongoing/widgets/ongoing_encounters_sidebar.dart';
+import 'package:helty/src/doctor/ongoing/widgets/ongoing_encounters_table.dart';
+import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/models/encounter_model.dart';
 import 'package:helty/src/models/staff_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';
@@ -11,8 +18,6 @@ import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/staff_service.dart';
-import 'package:helty/src/widgets/date.filter.dart';
-import 'package:intl/intl.dart';
 
 @RoutePage()
 class DoctorOngoingEncountersScreen extends ConsumerStatefulWidget {
@@ -28,24 +33,49 @@ class _DoctorOngoingEncountersScreenState
   final _encounterService = EncounterService();
   final _patientService = PatientService();
   final _staffService = StaffService();
+  final _listKey = GlobalKey();
+  final _searchCtrl = TextEditingController();
 
   List<EncounterModel> _encounters = [];
+  List<OngoingActivityNote> _notes = [];
   final Map<String, Patient> _patientCache = {};
   final Map<String, String> _doctorNameCache = {};
-  bool _loading = true;
+  bool _loading = false;
+  bool _reloadQueued = false;
+  bool _queuedReset = false;
   String? _error;
-  DateTime? _fromDate;
-  DateTime? _toDate;
+  String _searchQuery = '';
+  String? _selectedVisitType;
+  DateTime _fromDate = DateTime.now();
+  DateTime _toDate = DateTime.now();
 
   /// Physicians: `true` = logged-in doctor only; `false` = all doctors.
   bool _physicianShowMineOnly = true;
 
+  static const int _rowsPerPage = 20;
+  int _skip = 0;
+
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
-    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    _fromDate = AppTimezone.startOfDay();
+    _toDate = AppTimezone.endOfDay();
+    _searchCtrl.addListener(() {
+      final q = _searchCtrl.text.trim();
+      if (q != _searchQuery) {
+        setState(() {
+          _searchQuery = q;
+          _skip = 0;
+        });
+      }
+    });
+    _loadEncounters(reset: true);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   /// Same criteria as [DoctorCompletedEncountersScreen] / Home physician menu.
@@ -66,7 +96,14 @@ class _DoctorOngoingEncountersScreenState
         r == 'medical_student';
   }
 
-  Future<void> _loadEncounters() async {
+  Future<void> _loadEncounters({bool reset = false}) async {
+    if (reset) _skip = 0;
+    if (_loading) {
+      _reloadQueued = true;
+      _queuedReset = _queuedReset || reset;
+      return;
+    }
+
     final staff = ref.read(authProvider).staff;
     if (staff == null) {
       setState(() {
@@ -108,20 +145,31 @@ class _DoctorOngoingEncountersScreenState
       );
       if (!mounted) return;
       list.sort((a, b) => b.startedAt.compareTo(a.startedAt));
+      final types = OngoingEncountersMetrics.uniqueVisitTypes(list);
       setState(() {
         _encounters = list;
         _loading = false;
+        if (_selectedVisitType != null && !types.contains(_selectedVisitType)) {
+          _selectedVisitType = null;
+        }
       });
       _loadPatientsForEncounters(list);
-      if (!_physicianShowMineOnly) {
-        _loadDoctorsForEncounters(list);
-      }
+      _loadDoctorsForEncounters(list);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
       });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load encounters: $e')));
+    }
+    if (_reloadQueued && mounted) {
+      final queuedReset = _queuedReset;
+      _reloadQueued = false;
+      _queuedReset = false;
+      await _loadEncounters(reset: queuedReset);
     }
   }
 
@@ -181,35 +229,113 @@ class _DoctorOngoingEncountersScreenState
     return id.isNotEmpty ? id : '—';
   }
 
-  String _statusLabel(String status) {
-    final s = status.toUpperCase();
-    switch (s) {
-      case 'ONGOING':
-        return 'Ongoing';
-      case 'WAITING':
-        return 'Waiting';
-      case 'IN_CONSULTATION':
-        return 'In Consultation';
-      default:
-        return status;
+  List<EncounterModel> get _filteredEncounters {
+    var list = _encounters;
+    if (_selectedVisitType != null) {
+      list = list
+          .where(
+            (e) =>
+                OngoingEncountersMetrics.visitTypeLabel(e) ==
+                _selectedVisitType,
+          )
+          .toList();
     }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      list = list.where((e) {
+        final patient = _patientCache[e.patientId];
+        final name = OngoingEncountersMetrics.patientName(
+          e,
+          patient,
+        ).toLowerCase();
+        final complaint = OngoingEncountersMetrics.complaint(e).toLowerCase();
+        final doctor = _doctorLabel(e).toLowerCase();
+        final mrn = OngoingEncountersMetrics.mrn(patient).toLowerCase();
+        return name.contains(q) ||
+            complaint.contains(q) ||
+            doctor.contains(q) ||
+            mrn.contains(q) ||
+            e.patientId.toLowerCase().contains(q);
+      }).toList();
+    }
+    return list;
   }
 
-  Color _statusColor(String status, ColorScheme scheme) {
-    final s = status.toUpperCase();
-    switch (s) {
-      case 'WAITING':
-        return Colors.orange;
-      case 'IN_CONSULTATION':
-        return scheme.primary;
-      case 'ONGOING':
-        return scheme.tertiary;
-      default:
-        return scheme.onSurface;
+  int get _effectiveSkip {
+    final len = _filteredEncounters.length;
+    if (len == 0 || _skip <= 0) return 0;
+    if (_skip >= len) {
+      return ((len - 1) ~/ _rowsPerPage) * _rowsPerPage;
     }
+    return _skip;
+  }
+
+  List<EncounterModel> get _pagedEncounters {
+    final filtered = _filteredEncounters;
+    final skip = _effectiveSkip;
+    if (skip >= filtered.length) return const [];
+    final end = (skip + _rowsPerPage).clamp(0, filtered.length);
+    return filtered.sublist(skip, end);
+  }
+
+  bool get _hasMore =>
+      _effectiveSkip + _rowsPerPage < _filteredEncounters.length;
+
+  String get _emptyMessage {
+    if (_error != null && _encounters.isEmpty) return _error!;
+    if (_encounters.isEmpty) return 'No ongoing encounters.';
+    return 'No matches for search or visit type.';
+  }
+
+  String get _avgElapsedLabel {
+    return OngoingEncountersMetrics.averageElapsedLabel(_encounters) ?? '—';
+  }
+
+  String get _longestElapsedLabel {
+    return OngoingEncountersMetrics.longestElapsedLabel(_encounters) ?? '—';
+  }
+
+  void _addNote(String message) {
+    setState(() {
+      _notes = [
+        OngoingActivityNote(at: AppTimezone.now(), message: message),
+        ..._notes,
+      ];
+      if (_notes.length > 50) {
+        _notes = _notes.take(50).toList();
+      }
+    });
+  }
+
+  void _goPrev() {
+    if (_skip <= 0) return;
+    setState(() {
+      final next = _skip - _rowsPerPage;
+      _skip = next < 0 ? 0 : next;
+    });
+  }
+
+  void _goNext() {
+    if (!_hasMore) return;
+    setState(() => _skip += _rowsPerPage);
+  }
+
+  void _scrollToList() {
+    final ctx = _listKey.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 280),
+      alignment: 0.08,
+    );
   }
 
   void _openEncounter(EncounterModel encounter) {
+    final name = OngoingEncountersMetrics.patientName(
+      encounter,
+      _patientCache[encounter.patientId],
+    );
+    _addNote('Continued encounter for $name.');
     context.router.push(
       DoctorEncounterViewRoute(
         encounterId: encounter.id,
@@ -218,321 +344,184 @@ class _DoctorOngoingEncountersScreenState
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final staff = ref.watch(authProvider.select((s) => s.staff));
-    final showPhysicianScopeToggle = _isPhysicianStaff(staff);
-    final showDoctorOnRows =
-        showPhysicianScopeToggle && !_physicianShowMineOnly;
-
-    return ResponsiveBody(
-      center: false,
-      bottomPadding: 24,
-      builder: (context, bp) => RefreshIndicator(
-        onRefresh: _loadEncounters,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Ongoing Encounters',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    showPhysicianScopeToggle && !_physicianShowMineOnly
-                        ? 'All open OPD encounters. Tap a row to continue.'
-                        : 'Your open OPD encounters. Tap a row to continue.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  if (showPhysicianScopeToggle) ...[
-                    const SizedBox(height: 16),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: SegmentedButton<bool>(
-                        segments: const [
-                          ButtonSegment<bool>(
-                            value: false,
-                            label: Text('All'),
-                            icon: Icon(Icons.groups_outlined, size: 18),
-                          ),
-                          ButtonSegment<bool>(
-                            value: true,
-                            label: Text('Mine'),
-                            icon: Icon(Icons.person_outline, size: 18),
-                          ),
-                        ],
-                        selected: {_physicianShowMineOnly},
-                        onSelectionChanged: (s) {
-                          if (s.isEmpty) return;
-                          setState(() => _physicianShowMineOnly = s.first);
-                          _loadEncounters();
-                        },
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  FromToDateFilter(
-                    doRefresh: () {},
-                    dateFilter: true,
-                    onFilterChanged:
-                        (
-                          String query,
-                          String category,
-                          DateTime? from,
-                          DateTime? to,
-                        ) {
-                          setState(() {
-                            _fromDate = from;
-                            _toDate = to;
-                          });
-                          _loadEncounters();
-                        },
-                  ),
-                ],
-              ),
-            ),
-            _buildListSliver(theme, colorScheme, bp, showDoctorOnRows),
-          ],
+  Widget _listPanel({required bool useCards}) {
+    final displayed = _pagedEncounters;
+    if (useCards) {
+      return KeyedSubtree(
+        key: _listKey,
+        child: OngoingEncounterCardList(
+          encounters: displayed,
+          patientOf: (e) => _patientCache[e.patientId],
+          doctorLabelOf: _doctorLabel,
+          skip: _effectiveSkip,
+          loading: _loading,
+          emptyMessage: _emptyMessage,
+          total: _filteredEncounters.length,
+          hasMore: _hasMore,
+          pageSize: _rowsPerPage,
+          onPrev: _goPrev,
+          onNext: _goNext,
+          onContinue: _openEncounter,
         ),
+      );
+    }
+    return KeyedSubtree(
+      key: _listKey,
+      child: OngoingEncountersTable(
+        encounters: displayed,
+        patientOf: (e) => _patientCache[e.patientId],
+        doctorLabelOf: _doctorLabel,
+        skip: _effectiveSkip,
+        loading: _loading,
+        emptyMessage: _emptyMessage,
+        total: _filteredEncounters.length,
+        hasMore: _hasMore,
+        pageSize: _rowsPerPage,
+        onPrev: _goPrev,
+        onNext: _goNext,
+        onContinue: _openEncounter,
       ),
     );
   }
 
-  Widget _buildListSliver(
-    ThemeData theme,
-    ColorScheme colorScheme,
-    AppBreakpoints bp,
-    bool showDoctorOnRows,
-  ) {
-    if (_loading && _encounters.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: colorScheme.primary),
-              const SizedBox(height: 16),
-              Text(
-                'Loading ongoing encounters…',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+  Widget _sidebar({bool fillHeight = false}) {
+    return OngoingEncountersSidebar(
+      doctorCounts: OngoingEncountersMetrics.doctorCounts(
+        encounters: _filteredEncounters,
+        doctorLabel: _doctorLabel,
+      ),
+      notes: _notes,
+      onRefresh: () => _loadEncounters(reset: true),
+      onViewList: _scrollToList,
+      onOpenCompleted: () =>
+          context.router.push(const DoctorCompletedEncountersRoute()),
+      onOpenWalkIn: () => context.router.push(const DoctorWalkInQueueRoute()),
+      onViewAllNotes: () => showOngoingEncountersNotesDialog(context, _notes),
+      fillHeight: fillHeight,
+    );
+  }
 
-    if (_error != null && _encounters.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: colorScheme.error),
-                const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.error,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: _loadEncounters,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Retry'),
-                ),
-              ],
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final staff = ref.watch(authProvider.select((s) => s.staff));
+    final showPhysicianScopeToggle = _isPhysicianStaff(staff);
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < OngoingEncountersMetrics.cardBreakpoint;
+          final showSideBySide =
+              width >= OngoingEncountersMetrics.sidebarBreakpoint;
+          final useCards = compact;
+          final useSnapKpis = width < 520;
+
+          final header = OngoingEncountersHeader(compact: compact);
+          final kpis = OngoingEncountersKpiStrip(
+            totalInRange: _encounters.length,
+            startedToday: OngoingEncountersMetrics.startedTodayCount(
+              _encounters,
             ),
-          ),
-        ),
-      );
-    }
-
-    if (_encounters.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.pending_actions_outlined,
-                size: 64,
-                color: colorScheme.onSurface.withValues(alpha: 0.3),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No ongoing encounters.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return SliverPadding(
-      padding: EdgeInsets.only(top: 16),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final e = _encounters[index];
-          final patient = _patientCache[e.patientId];
-          final name = patient != null
-              ? patient.displayName
-              : 'Patient ${e.patientId}';
-          final statusColor = _statusColor(e.status, colorScheme);
-
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
-              leading: patient != null
-                  ? PatientAvatar.fromPatient(
-                      patient,
-                      size: 40,
-                      backgroundColor: colorScheme.primaryContainer,
-                      foregroundColor: colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
-                    )
-                  : PatientAvatar(
-                      firstName: name.trim(),
-                      size: 40,
-                      backgroundColor: colorScheme.primaryContainer,
-                      foregroundColor: colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
-                    ),
-              title: Text(
-                name.trim(),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(
-                    e.chiefComplaint?.isNotEmpty == true
-                        ? e.chiefComplaint!
-                        : 'No chief complaint recorded',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (showDoctorOnRows) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _doctorLabel(e),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                  if (e.createdBy != null &&
-                      e.createdBy!.displayName.trim().isNotEmpty &&
-                      e.createdBy!.displayName.trim() != e.createdBy!.id) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Created by: ${e.createdBy!.displayName.trim()}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  Text(
-                    '${DateFormat.yMMMd().add_jm().format(e.startedAt)} • ${e.visitType ?? 'OPD'}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              trailing: bp.isMobile
-                  ? Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            _statusLabel(e.status),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: statusColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ],
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            _statusLabel(e.status),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: statusColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.chevron_right,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ],
-                    ),
-              onTap: () => _openEncounter(e),
-            ),
+            avgElapsedLabel: _avgElapsedLabel,
+            longestElapsedLabel: _longestElapsedLabel,
+            useSnapStrip: useSnapKpis,
           );
-        }, childCount: _encounters.length),
+          final filters = OngoingEncountersFilterBar(
+            searchController: _searchCtrl,
+            showScopeToggle: showPhysicianScopeToggle,
+            mineOnly: _physicianShowMineOnly,
+            onMineOnlyChanged: (mine) {
+              setState(() => _physicianShowMineOnly = mine);
+              _loadEncounters(reset: true);
+            },
+            visitTypes: OngoingEncountersMetrics.uniqueVisitTypes(_encounters),
+            selectedVisitType: _selectedVisitType,
+            onVisitTypeChanged: (value) {
+              setState(() {
+                _selectedVisitType = value;
+                _skip = 0;
+              });
+            },
+            onDateFilterChanged: (query, category, from, to) {
+              setState(() {
+                _fromDate = from ?? AppTimezone.startOfDay();
+                _toDate = to ?? AppTimezone.endOfDay();
+              });
+              _loadEncounters(reset: true);
+            },
+            onDateRefresh: () => _loadEncounters(reset: true),
+            compact: compact,
+            fromDate: _fromDate,
+            toDate: _toDate,
+          );
+
+          final mainColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: 10),
+              kpis,
+              const SizedBox(height: 10),
+              filters,
+              const SizedBox(height: 10),
+              Expanded(child: _listPanel(useCards: useCards)),
+            ],
+          );
+
+          if (showSideBySide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 9, child: mainColumn),
+                const SizedBox(width: 12),
+                Expanded(flex: 3, child: _sidebar(fillHeight: true)),
+              ],
+            );
+          }
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final bounded = constraints.maxHeight.isFinite;
+              if (bounded) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: mainColumn),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 280,
+                      child: SingleChildScrollView(
+                        child: _sidebar(fillHeight: false),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  header,
+                  const SizedBox(height: 10),
+                  kpis,
+                  const SizedBox(height: 10),
+                  filters,
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: compact ? 480 : 520,
+                    child: _listPanel(useCards: useCards),
+                  ),
+                  const SizedBox(height: 10),
+                  _sidebar(),
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }

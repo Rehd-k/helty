@@ -84,8 +84,7 @@ class ReceiptEscposService {
 
   static String _nameFromPersonMap(Map<String, dynamic> m) {
     final first = m['firstName']?.toString().trim() ?? '';
-    final last =
-        (m['surname'] ?? m['lastName'])?.toString().trim() ?? '';
+    final last = (m['surname'] ?? m['lastName'])?.toString().trim() ?? '';
     final fromParts = [first, last].where((s) => s.isNotEmpty).join(' ');
     if (fromParts.isNotEmpty) return fromParts;
     for (final k in ['fullName', 'name', 'displayName', 'userName']) {
@@ -149,21 +148,25 @@ class ReceiptEscposService {
       if (fn.isEmpty) return '';
       return _sanitizeEscPosText(fn);
     }
-    return _sanitizeEscPosText(
-      '${_capitalize(fn)} ${_capitalize(ln)}'.trim(),
-    );
+    return _sanitizeEscPosText('${_capitalize(fn)} ${_capitalize(ln)}'.trim());
   }
 
-  /// Parses [transactionModelToMap]'s ISO string or legacy display [date] (`MMM d, y h:mm a`).
+  /// Parses [transactionModelToMap]'s ISO string or display [date].
   static DateTime? _parseReceiptCreatedAt(String raw) {
     final s = raw.trim();
     if (s.isEmpty) return null;
     try {
       return DateTime.parse(s);
     } catch (_) {}
-    try {
-      return DateFormat('MMM d, y h:mm a').parse(s);
-    } catch (_) {}
+    for (final pattern in [
+      'dd/MM/yyyy hh:mm a',
+      'dd/MM/yyyy HH:mm',
+      'MMM d, y h:mm a',
+    ]) {
+      try {
+        return DateFormat(pattern).parse(s);
+      } catch (_) {}
+    }
     return null;
   }
 
@@ -234,10 +237,7 @@ class ReceiptEscposService {
         'firstName': _patientNameFromTransactionMap(t),
         'surname': '',
       },
-      'staff': {
-        'firstName': _staffNameFromTransactionMap(t),
-        'lastName': '',
-      },
+      'staff': {'firstName': _staffNameFromTransactionMap(t), 'lastName': ''},
       'itemSnapshots': itemSnapshots,
     };
   }
@@ -265,10 +265,7 @@ class ReceiptEscposService {
         'amountPaid': amountPaid,
         'createdAt': DateTime.now().toIso8601String(),
       },
-      'patient': {
-        'patientName': patientName,
-        'patientId': patientId,
-      },
+      'patient': {'patientName': patientName, 'patientId': patientId},
       'staff': {'firstName': cashierFirst, 'lastName': cashierLast},
       'itemSnapshots': itemSnapshots,
     };
@@ -454,16 +451,15 @@ class ReceiptEscposService {
     bytes += generator.row([
       PosColumn(text: 'Txn:', width: 3, styles: const PosStyles(bold: true)),
       PosColumn(
-        text: _sanitizeEscPosText(transaction['transactionID']?.toString() ?? ''),
+        text: _sanitizeEscPosText(
+          transaction['transactionID']?.toString() ?? '',
+        ),
         width: 9,
       ),
     ]);
     bytes += generator.row([
       PosColumn(text: 'Date:', width: 3, styles: const PosStyles(bold: true)),
-      PosColumn(
-        text: dateLine,
-        width: 9,
-      ),
+      PosColumn(text: dateLine, width: 9),
     ]);
 
     final patientLine = _sanitizeEscPosText(
@@ -498,10 +494,7 @@ class ReceiptEscposService {
         width: 4,
         styles: const PosStyles(bold: true),
       ),
-      PosColumn(
-        text: cashierLine.isNotEmpty ? cashierLine : '-',
-        width: 8,
-      ),
+      PosColumn(text: cashierLine.isNotEmpty ? cashierLine : '-', width: 8),
     ]);
 
     bytes += generator.hr();

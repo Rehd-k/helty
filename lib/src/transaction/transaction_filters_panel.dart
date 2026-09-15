@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import 'transaction_models.dart' show StaffSummaryEntry, TransactionStatus;
 
@@ -131,9 +131,7 @@ class TransactionFiltersPanel extends StatelessWidget {
               ),
             ),
             child: Text(
-              dateFrom != null
-                  ? DateFormat('yyyy-MM-dd').format(dateFrom!)
-                  : 'Select',
+              dateFrom != null ? DateFormatter.shortDate(dateFrom!) : 'Select',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: dateFrom != null ? null : cs.onSurfaceVariant,
               ),
@@ -171,9 +169,7 @@ class TransactionFiltersPanel extends StatelessWidget {
               ),
             ),
             child: Text(
-              dateTo != null
-                  ? DateFormat('yyyy-MM-dd').format(dateTo!)
-                  : 'Select',
+              dateTo != null ? DateFormatter.shortDate(dateTo!) : 'Select',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: dateTo != null ? null : cs.onSurfaceVariant,
               ),
@@ -268,10 +264,7 @@ class TransactionFiltersPanel extends StatelessWidget {
             ...staffOptions.map(
               (e) => DropdownMenuItem<String?>(
                 value: e.receivedById,
-                child: Text(
-                  e.dropdownLabel,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(e.dropdownLabel, overflow: TextOverflow.ellipsis),
               ),
             ),
           ],

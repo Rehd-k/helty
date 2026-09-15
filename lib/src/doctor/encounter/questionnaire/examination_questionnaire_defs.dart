@@ -211,11 +211,7 @@ final List<EncounterSectionDef> examinationQuestionnaireSections = [
         type: QuestionType.text,
         hint: 'Normal or findings',
       ),
-      const QuestionDef(
-        id: 'motor',
-        label: 'Motor',
-        type: QuestionType.text,
-      ),
+      const QuestionDef(id: 'motor', label: 'Motor', type: QuestionType.text),
       const QuestionDef(
         id: 'sensory',
         label: 'Sensory',
@@ -238,11 +234,7 @@ final List<EncounterSectionDef> examinationQuestionnaireSections = [
     id: 'msk',
     title: 'Musculoskeletal',
     questions: [
-      const QuestionDef(
-        id: 'gait',
-        label: 'Gait',
-        type: QuestionType.text,
-      ),
+      const QuestionDef(id: 'gait', label: 'Gait', type: QuestionType.text),
       const QuestionDef(
         id: 'rom',
         label: 'Range of motion',
@@ -297,11 +289,7 @@ final List<EncounterSectionDef> examinationQuestionnaireSections = [
     id: 'skin',
     title: 'Skin',
     questions: [
-      const QuestionDef(
-        id: 'rash',
-        label: 'Rash',
-        type: QuestionType.yesNo,
-      ),
+      const QuestionDef(id: 'rash', label: 'Rash', type: QuestionType.yesNo),
       const QuestionDef(
         id: 'rashDetail',
         label: 'Rash description',

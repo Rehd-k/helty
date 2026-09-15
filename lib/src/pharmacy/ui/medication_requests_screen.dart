@@ -13,7 +13,6 @@ import 'package:helty/src/pharmacy/services/pharmacy_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/medication_order_service.dart';
 import 'package:helty/src/services/medication_request_service.dart';
-import 'package:intl/intl.dart';
 
 enum _QuickRange { today, last7, thisMonth }
 
@@ -475,15 +474,15 @@ class _MedicationRequestsScreenState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildToolbar(theme, colorScheme, allSelected, someSelected, bp),
-          if (_error != null) _buildErrorBanner(colorScheme),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _requests.isEmpty
-                ? _buildEmptyState(colorScheme)
-                : _buildRequestList(colorScheme, canLoadMore),
-          ),
-        ],
+            if (_error != null) _buildErrorBanner(colorScheme),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _requests.isEmpty
+                  ? _buildEmptyState(colorScheme)
+                  : _buildRequestList(colorScheme, canLoadMore),
+            ),
+          ],
         ),
       ),
     );
@@ -512,7 +511,7 @@ class _MedicationRequestsScreenState
                   onPressed: _loading || _billing ? null : _pickDateRange,
                   icon: const Icon(Icons.date_range),
                   label: Text(
-                    '${DateFormat('dd MMM yyyy').format(_from)} - ${DateFormat('dd MMM yyyy').format(_to)}',
+                    '${DateFormatter.shortDate(_from)} - ${DateFormatter.shortDate(_to)}',
                   ),
                 ),
                 FilledButton.tonal(

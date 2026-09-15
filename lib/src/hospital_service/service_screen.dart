@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import '../core/extensions/number.extention.dart';
 import '../models/service_category_model.dart';
@@ -26,7 +26,7 @@ String _fmtDate(dynamic raw) {
   if (raw == null) return '—';
   try {
     final dt = raw is DateTime ? raw : DateTime.parse(raw.toString());
-    return DateFormat('MMM dd, yyyy').format(dt.toLocal());
+    return DateFormatter.shortDate(dt);
   } catch (_) {
     return raw.toString();
   }
@@ -793,8 +793,7 @@ class _DepartmentTableState extends State<_DepartmentTable> {
                                     _cell(
                                       item.createdAt != null
                                           ? _fmtDate(
-                                              item.createdAt!
-                                                  .toIso8601String(),
+                                              item.createdAt!.toIso8601String(),
                                             )
                                           : '',
                                       150,

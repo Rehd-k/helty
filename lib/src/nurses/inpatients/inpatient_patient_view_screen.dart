@@ -1,10 +1,15 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/nurses/inpatients/tabs/inpatient_ward_round_tab.dart'
     show showWardRoundNoteDialog;
 import 'package:helty/src/nurses/inpatients/ward_round_note_draft.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_sidebar.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_ui_tabs.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/patient_header_card.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
@@ -12,6 +17,7 @@ import 'package:helty/src/paitients/patient_model.dart';
 import 'package:helty/src/auth/nursing_permissions.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/ward_round_note_service.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../../admissions/admission_discharge_helpers.dart';
 import '../../admissions/discharge_admission_dialog.dart';
@@ -59,8 +65,6 @@ class InpatientPatientViewScreen extends ConsumerStatefulWidget {
 
 class _InpatientPatientViewScreenState
     extends ConsumerState<InpatientPatientViewScreen> {
-  static const int _consumablesUiTabIndex = 9;
-
   final _admissionService = AdmissionService();
 
   Patient? _patient;
@@ -69,11 +73,14 @@ class _InpatientPatientViewScreenState
   String? _patientError;
   int _uiTabIndex = 0;
   bool _clearingNurses = false;
+  TabsRouter? _tabsRouter;
 
-  int? _routerIndexForUiTab(int uiIndex) {
-    if (uiIndex == _consumablesUiTabIndex) return null;
-    if (uiIndex < _consumablesUiTabIndex) return uiIndex;
-    return uiIndex - 1;
+  void _selectUiTab(int index) {
+    setState(() => _uiTabIndex = index);
+    final routerIndex = InpatientUiTabs.routerIndexForUiTab(index);
+    if (routerIndex != null) {
+      _tabsRouter?.setActiveIndex(routerIndex);
+    }
   }
 
   @override
@@ -82,9 +89,7 @@ class _InpatientPatientViewScreenState
     _loadPatient();
   }
 
-  Future<void> _resumeOrOpenWardRoundNote({
-    WardRoundNoteDraft? draft,
-  }) async {
+  Future<void> _resumeOrOpenWardRoundNote({WardRoundNoteDraft? draft}) async {
     final staff = ref.read(authProvider).staff;
     final doctorId = staff?.id ?? staff?.staffId ?? '';
     if (doctorId.isEmpty) {
@@ -217,6 +222,7 @@ class _InpatientPatientViewScreenState
           isOpdWardName(_patient?.ward ?? widget.ward) &&
           !isActiveAdmissionStatus(_admission?.status),
       readOnly: widget.readOnly,
+      onSelectTab: _selectUiTab,
       child: AutoTabsRouter(
         routes: [
           InpatientOverviewRoute(),
@@ -234,115 +240,78 @@ class _InpatientPatientViewScreenState
           InpatientCarePlanRoute(),
           InpatientMonitoringRoute(),
           InpatientLabResultsRoute(),
+          InpatientImagingResultsRoute(),
           InpatientAlertsRoute(),
           InpatientHandoverRoute(),
         ],
         builder: (context, child) {
-          final tabsRouter = AutoTabsRouter.of(context);
+          _tabsRouter = AutoTabsRouter.of(context);
 
           return Scaffold(
             backgroundColor: colorScheme.surface,
             body: SafeArea(
               child: Stack(
                 children: [
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final bool compact =
-                          constraints.maxWidth < kInpatientCompactBreakpoint;
-                      final double horizontalPadding = compact
-                          ? 16
-                          : (constraints.maxWidth > 1400 ? 32 : 20);
-                      final double verticalPadding = compact ? 16 : 24;
+                  ResponsiveBody(
+                    center: false,
+                    bottomPadding: 12,
+                    builder: (context, bp) {
+                      final showRail =
+                          bp.maxWidth >= kInpatientSidebarBreakpoint;
+                      final compact = !showRail;
 
-                      final tabContent = _uiTabIndex == _consumablesUiTabIndex
+                      final tabContent =
+                          _uiTabIndex == InpatientUiTabs.consumables
                           ? _buildTabContentShell(
                               colorScheme,
                               child: const InpatientConsumablesScreen(),
                             )
-                          : _buildTabContentShell(
-                              colorScheme,
-                              child: child,
-                            );
+                          : _buildTabContentShell(colorScheme, child: child);
 
-                      return Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: kInpatientContentMaxWidth,
+                      final sidebar = InpatientSidebar(
+                        admission: _admission,
+                        fillHeight: showRail,
+                        onLocationUpdated: _loadPatient,
+                      );
+
+                      final mainColumn = Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildHeaderRow(
+                            context,
+                            compact: compact,
+                            isDoctor: isDoctor,
                           ),
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              horizontalPadding,
-                              verticalPadding,
-                              horizontalPadding,
-                              verticalPadding,
-                            ),
-                            child: compact
-                                ? CustomScrollView(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    slivers: [
-                                      SliverToBoxAdapter(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            _buildHeaderRow(
-                                              context,
-                                              compact: compact,
-                                              isDoctor: isDoctor,
-                                            ),
-                                            SizedBox(height: compact ? 12 : 16),
-                                            _buildPatientHeader(context),
-                                            SizedBox(height: compact ? 16 : 20),
-                                          ],
-                                        ),
-                                      ),
-                                      SliverPersistentHeader(
-                                        pinned: true,
-                                        delegate: _PinnedTabStripDelegate(
-                                          height:
-                                              _pinnedTabStripHeight(compact),
-                                          color: colorScheme.surface,
-                                          child: _buildTabsStrip(
-                                            context,
-                                            tabsRouter,
-                                            compact: compact,
-                                          ),
-                                        ),
-                                      ),
-                                      SliverFillRemaining(
-                                        hasScrollBody: true,
-                                        child: Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 12),
-                                          child: tabContent,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      _buildHeaderRow(
-                                        context,
-                                        compact: compact,
-                                        isDoctor: isDoctor,
-                                      ),
-                                      SizedBox(height: compact ? 12 : 16),
-                                      _buildPatientHeader(context),
-                                      SizedBox(height: compact ? 16 : 20),
-                                      _buildTabsStrip(
-                                        context,
-                                        tabsRouter,
-                                        compact: compact,
-                                      ),
-                                      SizedBox(height: compact ? 12 : 16),
-                                      Expanded(child: tabContent),
-                                    ],
-                                  ),
+                          const SizedBox(height: 10),
+                          _buildPatientHeader(context),
+                          const SizedBox(height: 10),
+                          _buildTabsStrip(context, compact: compact),
+                          const SizedBox(height: 10),
+                          Expanded(child: tabContent),
+                        ],
+                      );
+
+                      if (showRail) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(flex: 9, child: mainColumn),
+                            const SizedBox(width: 12),
+                            Expanded(flex: 3, child: sidebar),
+                          ],
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: mainColumn),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 280,
+                            child: SingleChildScrollView(child: sidebar),
                           ),
-                        ),
+                        ],
                       );
                     },
                   ),
@@ -351,10 +320,7 @@ class _InpatientPatientViewScreenState
                       left: 16,
                       right: 16,
                       bottom: 16,
-                      child: _buildWardRoundDraftBar(
-                        colorScheme,
-                        draftForChip,
-                      ),
+                      child: _buildWardRoundDraftBar(colorScheme, draftForChip),
                     ),
                 ],
               ),
@@ -422,26 +388,21 @@ class _InpatientPatientViewScreenState
     final encounterId = _admission?.encounterId?.trim();
     if (encounterId == null || encounterId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No encounter linked to this admission.'),
-        ),
+        const SnackBar(content: Text('No encounter linked to this admission.')),
       );
       return;
     }
 
     final patientId = _resolveEncounterPatientId();
     if (patientId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Patient ID unavailable.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Patient ID unavailable.')));
       return;
     }
 
     context.router.push(
-      DoctorEncounterViewRoute(
-        encounterId: encounterId,
-        patientId: patientId,
-      ),
+      DoctorEncounterViewRoute(encounterId: encounterId, patientId: patientId),
     );
   }
 
@@ -458,20 +419,12 @@ class _InpatientPatientViewScreenState
         ? 'Read-only clinical record'
         : 'Bedside overview';
 
-    final titleStyle = theme.textTheme.headlineSmall?.copyWith(
-      fontWeight: FontWeight.bold,
-      color: scheme.onSurface,
-    );
-    final subtitleStyle = theme.textTheme.bodySmall?.copyWith(
-      color: scheme.onSurfaceVariant,
-    );
-
     final encounterId = _admission?.encounterId?.trim();
-    final hasEncounter =
-        encounterId != null && encounterId.isNotEmpty;
+    final hasEncounter = encounterId != null && encounterId.isNotEmpty;
 
     final admission = _admission;
-    final showDischargeSummary = admission != null &&
+    final showDischargeSummary =
+        admission != null &&
         (admission.isPendingBillingClearance ||
             admission.status.isDischarged ||
             admission.status.isDeceased ||
@@ -484,48 +437,48 @@ class _InpatientPatientViewScreenState
       alignment: compact ? WrapAlignment.start : WrapAlignment.end,
       children: [
         if (admission != null && showDischargeSummary)
-          OutlinedButton.icon(
+          _headerPill(
+            label: 'Discharge summary',
+            icon: Icons.description_outlined,
+            color: InpatientMetrics.iconIndigo,
             onPressed: () => showDischargeSummaryDialog(
               context: context,
               admission: admission,
               onOpenEncounter: hasEncounter ? _openEncounter : null,
             ),
-            icon: const Icon(Icons.description_outlined, size: 18),
-            label: const Text('Discharge summary'),
           ),
         if (!widget.readOnly && isDoctor && hasEncounter)
-          OutlinedButton.icon(
+          _headerPill(
+            label: 'Encounter',
+            icon: Icons.medical_information_outlined,
+            color: InpatientMetrics.iconBlue,
             onPressed: _openEncounter,
-            icon: const Icon(Icons.medical_information_outlined, size: 18),
-            label: const Text('Encounter'),
           ),
         if (!widget.readOnly &&
             _admission != null &&
             _admission!.isPendingBillingClearance &&
             _admission!.nursesClearedAt == null)
-          FilledButton.icon(
+          _headerPill(
+            label: 'Clear for discharge',
+            icon: Icons.check_circle_outline,
+            color: InpatientMetrics.waitAmber,
             onPressed: _clearingNurses ? null : _clearNursesForDischarge,
-            icon: _clearingNurses
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check_circle_outline, size: 18),
-            label: const Text('Clear for discharge'),
           )
         else if (!widget.readOnly &&
             _admission != null &&
             _admission!.isActiveAdmission)
-          FilledButton.tonalIcon(
+          _headerPill(
+            label: 'Discharge',
+            icon: Icons.logout,
+            color: InpatientMetrics.waitGreen,
             onPressed: _attemptDischarge,
-            icon: const Icon(Icons.logout, size: 18),
-            label: const Text('Discharge'),
           ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: scheme.primary.withValues(alpha: 0.06),
+            color: widget.readOnly
+                ? scheme.onSurfaceVariant
+                : InpatientMetrics.iconPurple,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
@@ -534,16 +487,16 @@ class _InpatientPatientViewScreenState
               Icon(
                 widget.readOnly
                     ? Icons.visibility_outlined
-                    : Icons.monitor_heart_outlined,
-                size: 18,
-                color: scheme.primary,
+                    : Icons.apartment_outlined,
+                size: 16,
+                color: Colors.white,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 widget.readOnly ? 'Read-only view' : 'Inpatient module',
                 style: theme.textTheme.labelMedium?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -552,53 +505,88 @@ class _InpatientPatientViewScreenState
       ],
     );
 
-    final titleBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final titleBlock = Row(
       children: [
-        Text(
-          title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: titleStyle,
+        IconButton(
+          tooltip: 'Back',
+          onPressed: () => context.router.maybePop(),
+          icon: const Icon(Icons.arrow_back),
+          visualDensity: VisualDensity.compact,
         ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle, 
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: subtitleStyle,
+        const HeltySolidIcon(
+          icon: Icons.hotel_outlined,
+          color: InpatientMetrics.iconIndigo,
+          size: 34,
+          iconSize: 18,
+          radius: AppTheme.radiusMd,
         ),
-      ],
-    );
-
-    final backButton = IconButton(
-      tooltip: 'Back',
-      onPressed: () => context.router.maybePop(),
-      icon: const Icon(Icons.arrow_back),
-      visualDensity: VisualDensity.compact,
-    );
-
-    final titleRow = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        backButton,
-        Expanded(child: titleBlock),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HeltyEllipsisText(
+                text: title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: scheme.onSurface,
+                ),
+              ),
+              HeltyEllipsisText(
+                text: subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
 
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [titleRow, const SizedBox(height: 12), actions],
+        children: [titleBlock, const SizedBox(height: 10), actions],
       );
     }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: titleRow),
+        Expanded(child: titleBlock),
+        const SizedBox(width: 12),
         actions,
       ],
+    );
+  }
+
+  Widget _headerPill({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: _clearingNurses && label.startsWith('Clear')
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Icon(icon, size: 16),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      ),
     );
   }
 
@@ -614,9 +602,9 @@ class _InpatientPatientViewScreenState
         payload: payload,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(dischargeSuccessMessage(updated))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(dischargeSuccessMessage(updated))));
       await _loadPatient();
     } catch (e) {
       if (!mounted) return;
@@ -637,9 +625,9 @@ class _InpatientPatientViewScreenState
         content: Text(
           admission.billingClearedAt == null
               ? 'Record nurse clearance for ${admission.patient.displayName}? '
-                  'Discharge finalizes when billing clearance is also complete.'
+                    'Discharge finalizes when billing clearance is also complete.'
               : 'Record nurse clearance for ${admission.patient.displayName}? '
-                  'The patient will be finalized to OPD.',
+                    'The patient will be finalized to OPD.',
         ),
         actions: [
           TextButton(
@@ -673,9 +661,9 @@ class _InpatientPatientViewScreenState
       await _loadPatient();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Nurse clearance failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Nurse clearance failed: $e')));
     } finally {
       if (mounted) setState(() => _clearingNurses = false);
     }
@@ -728,8 +716,7 @@ class _InpatientPatientViewScreenState
                   admission.nursesClearedAt == null &&
                   !awaitingPayment)
                 FilledButton(
-                  onPressed:
-                      _clearingNurses ? null : _clearNursesForDischarge,
+                  onPressed: _clearingNurses ? null : _clearNursesForDischarge,
                   child: const Text('Clear for discharge'),
                 ),
             ],
@@ -933,40 +920,19 @@ class _InpatientPatientViewScreenState
     );
   }
 
-  Widget _buildTabsStrip(
-    BuildContext context,
-    TabsRouter tabsRouter, {
-    required bool compact,
-  }) {
+  Widget _buildTabsStrip(BuildContext context, {required bool compact}) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-
-    final labels = [
-      'Overview',
-      'Vitals',
-      'Medications',
-      'IV',
-      'I&O',
-      'Nursing Report',
-      'Wound',
-      'Ward round',
-      'Procedures',
-      'Consumables',
-      'Care Plan',
-      'Monitoring',
-      'Lab Results',
-      'Alerts',
-      'Handover',
-    ];
+    final labels = InpatientUiTabs.labels;
 
     final tabPadding = EdgeInsets.symmetric(
-      horizontal: compact ? 12 : 16,
-      vertical: compact ? 14 : 8,
+      horizontal: compact ? 12 : 14,
+      vertical: compact ? 10 : 8,
     );
 
     return Container(
       decoration: BoxDecoration(
-        color: scheme.surfaceBright.withValues(alpha: 0.4),
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(999),
       ),
       padding: const EdgeInsets.all(4),
@@ -977,41 +943,25 @@ class _InpatientPatientViewScreenState
             final bool selected = _uiTabIndex == index;
             final label = labels[index];
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 0),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: () {
-                    setState(() => _uiTabIndex = index);
-                    final routerIndex = _routerIndexForUiTab(index);
-                    if (routerIndex != null) {
-                      tabsRouter.setActiveIndex(routerIndex);
-                    }
-                  },
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: compact ? 48 : 0),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      curve: Curves.easeOut,
-                      alignment: Alignment.center,
-                      padding: tabPadding,
-                      decoration: BoxDecoration(
-                        color: selected ? scheme.primary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        label,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: selected
-                              ? scheme.onPrimary
-                              : scheme.onSurface,
-                        ),
-                      ),
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () => _selectUiTab(index),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  alignment: Alignment.center,
+                  padding: tabPadding,
+                  decoration: BoxDecoration(
+                    color: selected ? scheme.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    label,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? scheme.onPrimary : scheme.onSurface,
                     ),
                   ),
                 ),
@@ -1021,50 +971,5 @@ class _InpatientPatientViewScreenState
         ),
       ),
     );
-  }
-}
-
-/// Vertical extent of [_InpatientPatientViewScreenState._buildTabsStrip] for
-/// [SliverPersistentHeader] — must stay in sync with tab chip min heights.
-double _pinnedTabStripHeight(bool compact) {
-  return compact ? 56 : 52;
-}
-
-class _PinnedTabStripDelegate extends SliverPersistentHeaderDelegate {
-  _PinnedTabStripDelegate({
-    required this.height,
-    required this.color,
-    required this.child,
-  });
-
-  final double height;
-  final Color color;
-  final Widget child;
-
-  @override
-  double get minExtent => height;
-
-  @override
-  double get maxExtent => height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Material(
-      color: color,
-      elevation: overlapsContent ? 1 : 0,
-      shadowColor: Theme.of(context).colorScheme.shadow,
-      child: child,
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _PinnedTabStripDelegate oldDelegate) {
-    return oldDelegate.height != height ||
-        oldDelegate.color != color ||
-        oldDelegate.child != child;
   }
 }

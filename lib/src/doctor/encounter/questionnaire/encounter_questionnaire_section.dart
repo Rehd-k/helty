@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../../specialty/widgets/clinical_form_shared.dart';
 import 'encounter_narrative_compiler.dart';
@@ -51,7 +53,8 @@ class _EncounterQuestionnaireSectionState
     super.initState();
     _answers = Map<String, dynamic>.from(widget.answers);
     _expanded = widget.initiallyExpanded;
-    _showDirectEdit = widget.directEditController?.text.trim().isNotEmpty == true;
+    _showDirectEdit =
+        widget.directEditController?.text.trim().isNotEmpty == true;
     _useDirectEditOnSave = _showDirectEdit;
     widget.directEditController?.addListener(_onDirectEditListener);
   }
@@ -112,42 +115,50 @@ class _EncounterQuestionnaireSectionState
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final generated = _generatedNote;
-    final hasContent = generated.isNotEmpty ||
+    final hasContent =
+        generated.isNotEmpty ||
         (widget.savedNote?.trim().isNotEmpty == true) ||
         (widget.directEditController?.text.trim().isNotEmpty == true);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: scheme.outline.withValues(alpha: 0.12)),
-        ),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: HeltySurfaceCard(
+        padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               onTap: () => setState(() => _expanded = !_expanded),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
+                    HeltySolidIcon(
+                      icon: _iconForSection(widget.section.id),
+                      color: _colorForSection(widget.section.id),
+                      size: 26,
+                      iconSize: 14,
+                      radius: 7,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.section.title,
+                          HeltyEllipsisText(
+                            text: widget.section.title,
                             style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                           if (widget.section.subtitle != null) ...[
                             const Gap(2),
-                            Text(
-                              widget.section.subtitle!,
+                            HeltyEllipsisText(
+                              text: widget.section.subtitle!,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
@@ -156,17 +167,18 @@ class _EncounterQuestionnaireSectionState
                         ],
                       ),
                     ),
-                    if (hasContent)
-                      Icon(
-                        Icons.check_circle_outline,
+                    if (hasContent) ...[
+                      const HeltySolidIcon(
+                        icon: Icons.check,
+                        color: InpatientMetrics.waitGreen,
                         size: 18,
-                        color: scheme.primary,
+                        iconSize: 11,
+                        radius: 5,
                       ),
-                    const Gap(8),
+                      const SizedBox(width: 6),
+                    ],
                     Icon(
-                      _expanded
-                          ? Icons.expand_less
-                          : Icons.expand_more,
+                      _expanded ? Icons.expand_less : Icons.expand_more,
                       color: scheme.onSurfaceVariant,
                     ),
                   ],
@@ -188,25 +200,25 @@ class _EncounterQuestionnaireSectionState
                       ],
                       ...widget.section.questions
                           .where((q) => !q.isOther && _isVisible(q))
-                          .map((q) => Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: _QuestionField(
-                                  key: ValueKey(q.id),
-                                  question: q,
-                                  value: _answers[q.id],
-                                  onChanged: (v) => _setAnswer(q.id, v),
-                                ),
-                              )),
+                          .map(
+                            (q) => Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _QuestionField(
+                                key: ValueKey(q.id),
+                                question: q,
+                                value: _answers[q.id],
+                                onChanged: (v) => _setAnswer(q.id, v),
+                              ),
+                            ),
+                          ),
                       if (widget.section.otherQuestion != null &&
                           _isVisible(widget.section.otherQuestion!)) ...[
                         _QuestionField(
                           key: ValueKey(widget.section.otherQuestion!.id),
                           question: widget.section.otherQuestion!,
                           value: _answers[widget.section.otherQuestion!.id],
-                          onChanged: (v) => _setAnswer(
-                            widget.section.otherQuestion!.id,
-                            v,
-                          ),
+                          onChanged: (v) =>
+                              _setAnswer(widget.section.otherQuestion!.id, v),
                         ),
                         const Gap(8),
                       ],
@@ -238,29 +250,30 @@ class _EncounterQuestionnaireSectionState
                           ),
                         ),
                       ],
-                    if (_showDirectEdit && widget.directEditController != null) ...[
-                      const Gap(8),
-                      TextFormField(
-                        controller: widget.directEditController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          labelText: 'Note for ${widget.section.title}',
-                          hintText: 'Overrides generated note when saved',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      if (_showDirectEdit &&
+                          widget.directEditController != null) ...[
+                        const Gap(8),
+                        TextFormField(
+                          controller: widget.directEditController,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            labelText: 'Note for ${widget.section.title}',
+                            hintText: 'Overrides generated note when saved',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
                           ),
-                          filled: true,
+                          onChanged: (_) {
+                            _useDirectEditOnSave = true;
+                            widget.onDirectEditChanged?.call();
+                          },
                         ),
-                        onChanged: (_) {
-                          _useDirectEditOnSave = true;
-                          widget.onDirectEditChanged?.call();
-                        },
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
             ],
           ],
         ),
@@ -411,9 +424,9 @@ class _QuestionFieldState extends State<_QuestionField> {
         final bool? selected = value is bool
             ? value
             : value == null
-                ? null
-                : value.toString().toLowerCase() == 'true' ||
-                    value.toString().toLowerCase() == 'yes';
+            ? null
+            : value.toString().toLowerCase() == 'true' ||
+                  value.toString().toLowerCase() == 'yes';
         return SegmentedButton<bool?>(
           segments: const [
             ButtonSegment<bool?>(value: true, label: Text('Yes')),
@@ -514,11 +527,65 @@ String? resolveSectionNote({
   required bool useDirectEdit,
 }) {
   final direct = directEditController?.text.trim() ?? '';
-  final compiled =
-      EncounterNarrativeCompiler.compileSectionOrNull(section, answers);
+  final compiled = EncounterNarrativeCompiler.compileSectionOrNull(
+    section,
+    answers,
+  );
 
   if (useDirectEdit && direct.isNotEmpty) return direct;
   if (compiled != null && compiled.isNotEmpty) return compiled;
   if (direct.isNotEmpty) return direct;
   return null;
+}
+
+IconData _iconForSection(String id) {
+  return switch (id) {
+    'chiefComplaint' => Icons.sick_outlined,
+    'hpi' => Icons.timeline,
+    'pmh' => Icons.history_edu_outlined,
+    'surgicalHistory' => Icons.local_hospital_outlined,
+    'drugHistory' => Icons.medication_outlined,
+    'allergyHistory' => Icons.warning_amber_rounded,
+    'familyHistory' => Icons.family_restroom_outlined,
+    'socialHistory' => Icons.groups_outlined,
+    'general' => Icons.person_search_outlined,
+    'cvs' => Icons.favorite_outline,
+    'resp' => Icons.air,
+    'abdomen' => Icons.health_and_safety_outlined,
+    'cns' => Icons.psychology_outlined,
+    'msk' => Icons.accessibility_new_outlined,
+    'ent' => Icons.hearing_outlined,
+    'skin' => Icons.texture_outlined,
+    'procedure' => Icons.medical_services_outlined,
+    'team' => Icons.groups_outlined,
+    'diagnoses' => Icons.medical_information_outlined,
+    'consent' => Icons.fact_check_outlined,
+    'anaesthesia' => Icons.airline_seat_flat_outlined,
+    'preparation' => Icons.cleaning_services_outlined,
+    'findings' => Icons.search_outlined,
+    'details' => Icons.notes_outlined,
+    'closure' => Icons.healing_outlined,
+    'counts' => Icons.pin_outlined,
+    'complications' => Icons.report_gmailerrorred_outlined,
+    'outcome' => Icons.flag_outlined,
+    _ => Icons.quiz_outlined,
+  };
+}
+
+Color _colorForSection(String id) {
+  return switch (id) {
+    'chiefComplaint' || 'general' || 'procedure' => InpatientMetrics.iconBlue,
+    'hpi' || 'resp' || 'team' => InpatientMetrics.iconTeal,
+    'pmh' || 'abdomen' || 'diagnoses' => InpatientMetrics.iconPurple,
+    'surgicalHistory' || 'cvs' || 'consent' => InpatientMetrics.waitRed,
+    'drugHistory' || 'msk' || 'anaesthesia' => InpatientMetrics.waitAmber,
+    'allergyHistory' || 'ent' || 'preparation' => InpatientMetrics.iconPink,
+    'familyHistory' || 'cns' || 'findings' => InpatientMetrics.iconIndigo,
+    'socialHistory' || 'skin' || 'details' => InpatientMetrics.waitGreen,
+    'closure' => InpatientMetrics.iconBlue,
+    'counts' => InpatientMetrics.iconTeal,
+    'complications' => InpatientMetrics.waitRed,
+    'outcome' => InpatientMetrics.waitGreen,
+    _ => InpatientMetrics.iconIndigo,
+  };
 }

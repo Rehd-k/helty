@@ -18,6 +18,7 @@ class WaitingPatientModel {
     required this.status,
     this.patientVitals,
     this.seen = false,
+    this.encounterId,
   });
 
   final String id;
@@ -38,8 +39,10 @@ class WaitingPatientModel {
   /// Paid consultation lines with optional visit-credit metadata.
   final List<ConsultationServiceLine> consultationServices;
 
-  List<String> get consultationNames =>
-      consultationServices.map((s) => s.name).where((n) => n.isNotEmpty).toList();
+  List<String> get consultationNames => consultationServices
+      .map((s) => s.name)
+      .where((n) => n.isNotEmpty)
+      .toList();
 
   String? get consultationName =>
       consultationNames.isEmpty ? null : consultationNames.first;
@@ -50,15 +53,18 @@ class WaitingPatientModel {
     ConsultationServiceLine? best;
     for (final line in consultationServices) {
       if (!line.hasCreditMetadata) continue;
-      if (best == null ||
-          line.visitsRemaining > best.visitsRemaining) {
+      if (best == null || line.visitsRemaining > best.visitsRemaining) {
         best = line;
       }
     }
     return best ?? consultationServices.first;
   }
+
   final String status;
   final bool seen;
+
+  /// Set when the API includes an open encounter (`encounter.id` or `encounterId`).
+  final String? encounterId;
 
   factory WaitingPatientModel.fromJson(Map<String, dynamic> json) {
     String str(dynamic v) => (v != null) ? v.toString() : '';
@@ -121,10 +127,25 @@ class WaitingPatientModel {
       final service = json['service'];
       if (service is Map<String, dynamic> && service['name'] != null) {
         consultationServices.add(
-          ConsultationServiceLine(
-            name: service['name'].toString().trim(),
-          ),
+          ConsultationServiceLine(name: service['name'].toString().trim()),
         );
+      }
+    }
+    if (consultationServices.isEmpty) {
+      final items = json['invoiceItems'];
+      if (items is List) {
+        for (final e in items) {
+          if (e is! Map) continue;
+          final map = Map<String, dynamic>.from(e);
+          final nested = map['service'];
+          if ((map['name'] == null || map['name'].toString().trim().isEmpty) &&
+              nested is Map &&
+              nested['name'] != null) {
+            map['name'] = nested['name'];
+          }
+          final line = ConsultationServiceLine.fromJson(map);
+          if (line.name.isNotEmpty) consultationServices.add(line);
+        }
       }
     }
 
@@ -132,6 +153,17 @@ class WaitingPatientModel {
     final status = (roomMap is Map<String, dynamic> && roomMap['name'] != null)
         ? roomMap['name'].toString()
         : 'Waiting';
+
+    String? encounterId;
+    final encounterRaw = json['encounter'];
+    if (encounterRaw is Map) {
+      final id = encounterRaw['id']?.toString().trim() ?? '';
+      if (id.isNotEmpty) encounterId = id;
+    }
+    if (encounterId == null) {
+      final rawId = json['encounterId']?.toString().trim() ?? '';
+      if (rawId.isNotEmpty) encounterId = rawId;
+    }
 
     return WaitingPatientModel(
       id: str(json['id']),
@@ -151,6 +183,7 @@ class WaitingPatientModel {
       status: status,
       patientVitals: patientVitals,
       seen: json['seen'] == true || json['encounter'] != null,
+      encounterId: encounterId,
     );
   }
 

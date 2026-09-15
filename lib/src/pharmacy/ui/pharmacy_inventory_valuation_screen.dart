@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:intl/intl.dart';
 import 'package:helty/src/shared/department_colors.dart';
@@ -141,7 +142,6 @@ class _PharmacyInventoryValuationScreenState
   NumberFormat get _money =>
       NumberFormat.currency(symbol: 'NGN ', decimalDigits: 0);
   NumberFormat get _count => NumberFormat.decimalPattern();
-  DateFormat get _date => DateFormat('dd MMM yyyy');
 
   @override
   Widget build(BuildContext context) {
@@ -265,10 +265,7 @@ class _PharmacyInventoryValuationScreenState
             children: [
               _whiteChip('Batches', _count.format(t.batchCount)),
               _whiteChip('Units', _count.format(t.totalQuantity)),
-              _whiteChip(
-                'Near-expiry',
-                _money.format(t.nearExpiryValueAtCost),
-              ),
+              _whiteChip('Near-expiry', _money.format(t.nearExpiryValueAtCost)),
             ],
           ),
         ],
@@ -281,7 +278,10 @@ class _PharmacyInventoryValuationScreenState
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
+        ),
         const SizedBox(height: 2),
         Text(
           value,
@@ -359,17 +359,31 @@ class _PharmacyInventoryValuationScreenState
                       spacing: 20,
                       runSpacing: 10,
                       children: [
-                        _chip('At cost', _money.format(s.valueAtCost),
-                            const Color(0xFF4F46E5)),
-                        _chip('At selling', _money.format(s.valueAtSellingPrice),
-                            const Color(0xFF7C3AED)),
-                        _chip('Batches', _count.format(s.batchCount),
-                            const Color(0xFF0EA5E9)),
-                        _chip('Units', _count.format(s.totalQuantity),
-                            const Color(0xFF3B82F6)),
-                        _chip('Near-expiry',
-                            _money.format(s.nearExpiryValueAtCost),
-                            const Color(0xFFF59E0B)),
+                        _chip(
+                          'At cost',
+                          _money.format(s.valueAtCost),
+                          const Color(0xFF4F46E5),
+                        ),
+                        _chip(
+                          'At selling',
+                          _money.format(s.valueAtSellingPrice),
+                          const Color(0xFF7C3AED),
+                        ),
+                        _chip(
+                          'Batches',
+                          _count.format(s.batchCount),
+                          const Color(0xFF0EA5E9),
+                        ),
+                        _chip(
+                          'Units',
+                          _count.format(s.totalQuantity),
+                          const Color(0xFF3B82F6),
+                        ),
+                        _chip(
+                          'Near-expiry',
+                          _money.format(s.nearExpiryValueAtCost),
+                          const Color(0xFFF59E0B),
+                        ),
                       ],
                     ),
                   ],
@@ -475,7 +489,7 @@ class _PharmacyInventoryValuationScreenState
                       Text(
                         b.expiryDate == null
                             ? '—'
-                            : _date.format(b.expiryDate!),
+                            : DateFormatter.shortDate(b.expiryDate!),
                       ),
                     ),
                     DataCell(Text(_count.format(b.quantityRemaining))),

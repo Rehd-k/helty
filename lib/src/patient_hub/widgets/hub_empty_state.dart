@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:helty/src/widgets/empty.widget.dart';
+import '../patient_hub_metrics.dart';
 
 /// Patient-hub empty state — delegates to the shared [EmptyStateWidget].
 class HubEmptyState extends StatelessWidget {
@@ -23,39 +24,38 @@ class HubEmptyState extends StatelessWidget {
       final cs = Theme.of(context).colorScheme;
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.4),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 40, color: cs.primary),
+                HubSolidIcon(
+                  icon: icon,
+                  color: PatientHubMetrics.iconIndigo,
+                  size: 44,
+                  iconSize: 22,
+                  radius: 12,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
                   textAlign: TextAlign.center,
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     subtitle!,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
                     textAlign: TextAlign.center,
                   ),
                 ],
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 action!,
               ],
             ),

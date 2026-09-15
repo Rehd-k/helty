@@ -25,8 +25,9 @@ void showEncounterSaveSnackBar(
   required EncounterScope? scope,
   String ongoingMessage = 'Saved',
 }) {
-  final message =
-      scope?.versionedEdits == true ? 'Amendment saved' : ongoingMessage;
+  final message = scope?.versionedEdits == true
+      ? 'Amendment saved'
+      : ongoingMessage;
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
@@ -46,9 +47,9 @@ String encounterEditErrorMessage(Object error) {
 }
 
 void showEncounterEditErrorSnackBar(BuildContext context, Object error) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(encounterEditErrorMessage(error))),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(encounterEditErrorMessage(error))));
 }
 
 /// Optional reason dialog when entering amend mode.

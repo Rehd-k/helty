@@ -2,10 +2,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'package:helty/src/core/layout/app_breakpoints.dart';
+
 /// Shared layout thresholds for inpatient nurse/doctor flows.
 ///
 /// Aligns with [InpatientPatientViewScreen] shell and [PatientHeaderCard].
 const double kInpatientCompactBreakpoint = 720;
+
+/// Full-height utility rail beside main content (Walk-in Queue pattern).
+const double kInpatientSidebarBreakpoint = AppBreakpoints.desktopMin;
 
 /// Max width for centered inpatient detail content.
 const double kInpatientContentMaxWidth = 1440;

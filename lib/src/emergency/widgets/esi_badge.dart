@@ -27,7 +27,7 @@ class EsiBadge extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 8 : 10,
-        vertical: compact ? 3 : 5,
+        vertical: compact ? 2 : 4,
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),

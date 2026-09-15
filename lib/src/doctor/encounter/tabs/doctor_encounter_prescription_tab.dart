@@ -1,5 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/helper/date.formatter.dart';
@@ -469,7 +471,7 @@ class _DoctorEncounterPrescriptionTabState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(child: list),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           sidePanel,
         ],
       );
@@ -481,7 +483,54 @@ class _DoctorEncounterPrescriptionTabState
 
     return ResponsiveBody(
       center: false,
-      builder: (context, bp) => buildBody(bp),
+      builder: (context, bp) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InpatientTabToolbar(
+            icon: Icons.medication_outlined,
+            iconColor: InpatientMetrics.waitAmber,
+            title: 'Prescription',
+            subtitle: 'Medications for this encounter',
+            actions: [
+              if (onAdd != null)
+                FilledButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add prescription'),
+                  style: inpatientCompactFill(),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          InpatientKpiRow(
+            tiles: [
+              InpatientKpiTile(
+                icon: Icons.medication_outlined,
+                color: InpatientMetrics.waitAmber,
+                label: 'Orders',
+                value: '${_orders.length}',
+                caption: 'This encounter',
+              ),
+              InpatientKpiTile(
+                icon: Icons.play_circle_outline,
+                color: InpatientMetrics.waitGreen,
+                label: 'Active',
+                value: '$activeCount',
+                caption: 'On MAR',
+              ),
+              InpatientKpiTile(
+                icon: Icons.hourglass_empty,
+                color: InpatientMetrics.waitAmber,
+                label: 'Pending',
+                value: '$pendingCount',
+                caption: 'Awaiting dispense',
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(child: buildBody(bp)),
+        ],
+      ),
     );
   }
 }

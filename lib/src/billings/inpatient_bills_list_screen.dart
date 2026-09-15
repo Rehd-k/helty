@@ -12,7 +12,7 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/services/invoice_service.dart';
 import 'package:helty/src/shared/finance_status_colors.dart';
 import 'package:helty/src/widgets/date.filter.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 bool _looksLikeUuid(String s) {
   final t = s.trim();
@@ -265,8 +265,9 @@ class _InpatientBillsListScreenState
       itemBuilder: (context, index) {
         final invoice = invoices[index];
         final displayName = invoice.patient.displayName.trim();
-        final patientName =
-            displayName.isEmpty || displayName == 'Unknown' ? '—' : displayName;
+        final patientName = displayName.isEmpty || displayName == 'Unknown'
+            ? '—'
+            : displayName;
         return _BillCard(
           invoice: invoice,
           patientName: patientName,
@@ -369,7 +370,7 @@ class _BillCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    DateFormat('MMM d, y').format(invoice.createdAt),
+                    DateFormatter.shortDate(invoice.createdAt),
                     style: TextStyle(
                       fontSize: 12,
                       color: colorScheme.onSurface.withValues(alpha: 0.5),

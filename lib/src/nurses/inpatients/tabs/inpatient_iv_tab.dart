@@ -7,10 +7,13 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/iv_fluid_order_model.dart';
 import 'package:helty/src/models/iv_monitoring_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_responsive_row_or_column.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/services/iv_fluid_order_service.dart';
 
 const _fluidPresets = <String>[
@@ -870,117 +873,117 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
     return parts.isEmpty ? '—' : parts.join(' · ');
   }
 
-  Widget _buildOrdersTable(BuildContext context) {
-    if (_orders.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('No IV fluid orders for this admission.'),
-      );
+  Color _orderStatusColor(String? status) {
+    switch ((status ?? '').toUpperCase()) {
+      case 'RUNNING':
+      case 'ACTIVE':
+      case 'INFUSING':
+        return InpatientMetrics.waitGreen;
+      case 'STOPPED':
+      case 'DISCONTINUED':
+        return InpatientMetrics.waitRed;
+      case 'COMPLETED':
+        return InpatientMetrics.iconBlue;
+      default:
+        return InpatientMetrics.iconIndigo;
     }
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns:
-            [
-                  'Fluid',
-                  'Volume',
-                  'Rate',
-                  'Start Time',
-                  'Time Remaining',
-                  'Site',
-                  'Status',
-                  'Ordered by',
-                ]
-                .map(
-                  (c) => DataColumn(
-                    label: Text(
-                      c,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-        rows: _orders
-            .map(
-              (o) => DataRow(
-                cells: [
-                  DataCell(Text(o.fluidType ?? '—')),
-                  DataCell(Text(o.volume ?? '—')),
-                  DataCell(Text(o.rate ?? '—')),
-                  DataCell(
-                    Text(
-                      o.startTime != null
-                          ? DateFormatter.dateTime(o.startTime!)
-                          : '—',
-                    ),
-                  ),
-                  DataCell(Text(_timeRemaining(o) ?? '—')),
-                  DataCell(Text(o.latestSiteCondition ?? '—')),
-                  DataCell(Text(o.status ?? '—')),
-                  DataCell(Text(o.recorderDisplayName ?? '—')),
-                ],
-              ),
-            )
-            .toList(),
-      ),
+  }
+
+  bool _isRunningStatus(String? status) {
+    switch ((status ?? '').toUpperCase()) {
+      case 'STOPPED':
+      case 'DISCONTINUED':
+      case 'COMPLETED':
+      case 'ENDED':
+        return false;
+      default:
+        return status != null && status.trim().isNotEmpty;
+    }
+  }
+
+  int _monitoringsToday() {
+    var n = 0;
+    for (final m in _monitorings) {
+      final t = m.recordedAt ?? m.createdAt;
+      if (t == null) continue;
+      final now = DateTime.now();
+      if (t.year == now.year && t.month == now.month && t.day == now.day) {
+        n++;
+      }
+    }
+    return n;
+  }
+
+  Widget _buildOrdersTable() {
+    return InpatientChartTable(
+      columns: const [
+        InpatientChartColumn('FLUID', flex: 3),
+        InpatientChartColumn('VOLUME'),
+        InpatientChartColumn('RATE'),
+        InpatientChartColumn('START TIME', flex: 3),
+        InpatientChartColumn('REMAINING'),
+        InpatientChartColumn('SITE', flex: 2),
+        InpatientChartColumn('STATUS'),
+        InpatientChartColumn('ORDERED BY', flex: 2),
+      ],
+      rowCount: _orders.length,
+      emptyMessage: 'No IV fluid orders for this admission.',
+      minWidth: 960,
+      footerLabel: _orders.length == 1 ? '1 order' : '${_orders.length} orders',
+      cellBuilder: (context, index) {
+        final o = _orders[index];
+        final status = o.status ?? '—';
+        return [
+          HeltyEllipsisText(text: o.fluidType ?? '—'),
+          HeltyEllipsisText(text: o.volume ?? '—'),
+          HeltyEllipsisText(text: o.rate ?? '—'),
+          HeltyEllipsisText(
+            text: o.startTime != null
+                ? DateFormatter.dateTime(o.startTime!)
+                : '—',
+          ),
+          HeltyEllipsisText(text: _timeRemaining(o) ?? '—'),
+          HeltyEllipsisText(text: o.latestSiteCondition ?? '—'),
+          HeltyStatusChip(label: status, color: _orderStatusColor(o.status)),
+          HeltyEllipsisText(text: o.recorderDisplayName ?? '—'),
+        ];
+      },
     );
   }
 
-  Widget _buildHistoryTable(BuildContext context) {
-    if (_monitorings.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('No IV monitoring entries for this admission.'),
-      );
-    }
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns:
-            [
-                  'Recorded',
-                  'IV fluid',
-                  'Rate (mL/hr)',
-                  'Site condition',
-                  'Complications',
-                  'Stopped',
-                  'Nurse',
-                ]
-                .map(
-                  (c) => DataColumn(
-                    label: Text(
-                      c,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-        rows: _monitorings
-            .map(
-              (m) => DataRow(
-                cells: [
-                  DataCell(
-                    Text(
-                      m.recordedAt != null
-                          ? DateFormatter.dateTime(m.recordedAt!)
-                          : '—',
-                    ),
-                  ),
-                  DataCell(Text(_fluidLabelForOrder(m.ivOrderId))),
-                  DataCell(Text(m.currentRate?.toString() ?? '—')),
-                  DataCell(Text(m.insertionSiteCondition ?? '—')),
-                  DataCell(Text(m.complications ?? '—')),
-                  DataCell(Text(_formatStoppedSummary(m))),
-                  DataCell(Text(m.nurseDisplayName ?? '—')),
-                ],
-              ),
-            )
-            .toList(),
-      ),
+  Widget _buildHistoryTable() {
+    return InpatientChartTable(
+      columns: const [
+        InpatientChartColumn('RECORDED', flex: 3),
+        InpatientChartColumn('IV FLUID', flex: 3),
+        InpatientChartColumn('RATE'),
+        InpatientChartColumn('SITE', flex: 2),
+        InpatientChartColumn('COMPLICATIONS', flex: 2),
+        InpatientChartColumn('STOPPED', flex: 3),
+        InpatientChartColumn('NURSE', flex: 2),
+      ],
+      rowCount: _monitorings.length,
+      emptyMessage: 'No IV monitoring entries for this admission.',
+      minWidth: 960,
+      footerLabel: _monitorings.length == 1
+          ? '1 check'
+          : '${_monitorings.length} checks',
+      cellBuilder: (context, index) {
+        final m = _monitorings[index];
+        return [
+          HeltyEllipsisText(
+            text: m.recordedAt != null
+                ? DateFormatter.dateTime(m.recordedAt!)
+                : '—',
+          ),
+          HeltyEllipsisText(text: _fluidLabelForOrder(m.ivOrderId)),
+          HeltyEllipsisText(text: m.currentRate?.toString() ?? '—'),
+          HeltyEllipsisText(text: m.insertionSiteCondition ?? '—'),
+          HeltyEllipsisText(text: m.complications ?? '—'),
+          HeltyEllipsisText(text: _formatStoppedSummary(m)),
+          HeltyEllipsisText(text: m.nurseDisplayName ?? '—'),
+        ];
+      },
     );
   }
 
@@ -1000,70 +1003,131 @@ class _InpatientIVScreenState extends State<InpatientIVScreen> {
       );
     }
 
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(_error!, textAlign: TextAlign.center),
-            ),
-            TextButton(
-              onPressed: () => _load(admissionId),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
     final isDoctor = scope?.isDoctor ?? false;
     final isNurse = scope?.isNurse ?? false;
     final admissionActive = scope?.isAdmissionActive ?? false;
+    final running = _orders.where((o) => _isRunningStatus(o.status)).length;
+    final kpiValue = _loading ? '—' : null;
 
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
-        child: InpatientResponsiveRowOrColumn(
-        first: SectionCard(
-          title: 'IV Fluid Orders',
-          subtitle:
-              'Prescribed fluids and running lines for this inpatient stay',
-          actions: [
-            if (isDoctor && admissionActive)
-              FilledButton.icon(
-                onPressed: () => _openCreateOrderDialog(context),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add IV order'),
-              ),
-            if (isDoctor && admissionActive && _orders.isNotEmpty)
-              OutlinedButton.icon(
-                onPressed: () => _openManageOrderDialog(context),
-                icon: const Icon(Icons.tune, size: 18),
-                label: const Text('Manage IV'),
-              ),
-            if (isNurse)
-              OutlinedButton.icon(
-                onPressed: _orders.isEmpty
-                    ? null
-                    : () => _openUpdateDialog(context),
-                icon: const Icon(Icons.edit_note, size: 18),
-                label: const Text('Update IV'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InpatientTabToolbar(
+              icon: Icons.water_drop_outlined,
+              iconColor: InpatientMetrics.iconBlue,
+              title: 'IV',
+              subtitle: 'Fluid orders and line checks',
+              actions: [
+                if (isDoctor && admissionActive)
+                  FilledButton.icon(
+                    onPressed: () => _openCreateOrderDialog(context),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add IV order'),
+                    style: inpatientCompactFill(),
+                  ),
+                if (isDoctor && admissionActive && _orders.isNotEmpty)
+                  OutlinedButton.icon(
+                    onPressed: () => _openManageOrderDialog(context),
+                    icon: const Icon(Icons.tune, size: 16),
+                    label: const Text('Manage IV'),
+                    style: inpatientCompactOutline(),
+                  ),
+                if (isNurse)
+                  OutlinedButton.icon(
+                    onPressed: _orders.isEmpty
+                        ? null
+                        : () => _openUpdateDialog(context),
+                    icon: const Icon(Icons.edit_note, size: 16),
+                    label: const Text('Update IV'),
+                    style: inpatientCompactOutline(),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            InpatientKpiRow(
+              tiles: [
+                InpatientKpiTile(
+                  icon: Icons.opacity_outlined,
+                  color: InpatientMetrics.iconBlue,
+                  label: 'Orders',
+                  value: kpiValue ?? '${_orders.length}',
+                  caption: 'This admission',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.play_circle_outline,
+                  color: InpatientMetrics.waitGreen,
+                  label: 'Running',
+                  value: kpiValue ?? '$running',
+                  caption: 'Active lines',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.fact_check_outlined,
+                  color: InpatientMetrics.iconTeal,
+                  label: 'Checks today',
+                  value: kpiValue ?? '${_monitoringsToday()}',
+                  caption: 'Monitoring entries',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.history,
+                  color: InpatientMetrics.iconIndigo,
+                  label: 'History',
+                  value: kpiValue ?? '${_monitorings.length}',
+                  caption: 'All checks',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_error != null)
+              SectionCard(
+                title: 'Could not load IV',
+                icon: Icons.error_outline,
+                iconColor: InpatientMetrics.waitRed,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_error!),
+                    TextButton(
+                      onPressed: () => _load(admissionId),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            else
+              InpatientResponsiveRowOrColumn(
+                gap: 12,
+                first: SectionCard(
+                  title: 'IV fluid orders',
+                  subtitle: 'Prescribed fluids and running lines',
+                  icon: Icons.vaccines_outlined,
+                  iconColor: InpatientMetrics.iconBlue,
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                  child: _loading
+                      ? const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : _buildOrdersTable(),
+                ),
+                second: SectionCard(
+                  title: 'Monitoring history',
+                  subtitle: 'Line checks and updates',
+                  icon: Icons.monitor_heart_outlined,
+                  iconColor: InpatientMetrics.iconTeal,
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                  child: _loading
+                      ? const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : _buildHistoryTable(),
+                ),
               ),
           ],
-          child: _buildOrdersTable(context),
         ),
-        second: SectionCard(
-          title: 'IV Monitoring History',
-          subtitle: 'Chronological record of IV line checks and updates',
-          child: _buildHistoryTable(context),
-        ),
-      ),
       ),
     );
   }

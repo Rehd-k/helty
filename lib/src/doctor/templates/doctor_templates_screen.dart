@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/templates/encounter_template_fields.dart';
 import 'package:helty/src/doctor/templates/widgets/encounter_template_form_dialog.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/encounter_template_model.dart';
 import 'package:helty/src/services/encounter_template_service.dart';
-import 'package:intl/intl.dart';
 
 @RoutePage()
 class DoctorTemplatesScreen extends StatefulWidget {
@@ -300,7 +300,7 @@ class _DoctorTemplatesScreenState extends State<DoctorTemplatesScreen> {
                             if (updated != null) ...[
                               const SizedBox(height: 4),
                               Text(
-                                'Updated ${DateFormat.yMMMd().add_jm().format(updated.toLocal())}',
+                                'Updated ${DateFormatter.dateTime(updated)}',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),

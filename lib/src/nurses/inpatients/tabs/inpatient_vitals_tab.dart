@@ -8,10 +8,13 @@ import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/patient_vitals_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/waiting_patient_service.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 enum _VitalsTrendMetric {
   temperature,
@@ -64,131 +67,109 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final scope = InpatientViewScope.of(context);
     final canRecord = scope?.isAdmissionActive == true && scope?.isNurse == true;
     final staffId = scope?.staffId?.trim();
+    final latest = _vitals.isEmpty ? null : _vitals.first;
+    final when = latest == null
+        ? null
+        : DateFormatter.dateTime(latest.effectiveAt);
 
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LayoutBuilder(
-            builder: (context, c) {
-              final narrowHeader = c.maxWidth < 560;
-              final title = Text(
-                'Vitals',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              );
-              final button = FilledButton.icon(
-                onPressed: canRecord ? _openRecordVitalsDialog : null,
-                icon: const Icon(Icons.add_chart, size: 18),
-                label: const Text('Record Vitals'),
-              );
-              if (narrowHeader) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    title,
-                    const SizedBox(height: 12),
-                    button,
-                  ],
-                );
-              }
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  title,
-                  button,
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          SectionCard(
-            title: 'Vitals History',
-            subtitle: 'Time-stamped vitals recorded for this admission',
-            actions: [
-              OutlinedButton.icon(
-                onPressed: _openTrendGraph,
-                icon: const Icon(Icons.show_chart, size: 16),
-                label: const Text('Trend graph'),
-              ),
-            ],
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingTextStyle: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InpatientTabToolbar(
+              icon: Icons.monitor_heart_outlined,
+              iconColor: InpatientMetrics.waitRed,
+              title: 'Vitals',
+              subtitle: 'Time-stamped bedside observations',
+              actions: [
+                OutlinedButton.icon(
+                  onPressed: _openTrendGraph,
+                  style: inpatientCompactOutline(),
+                  icon: const Icon(Icons.show_chart, size: 16),
+                  label: const Text('Trend'),
+                ),
+                FilledButton.icon(
+                  onPressed: canRecord ? _openRecordVitalsDialog : null,
+                  style: inpatientCompactFill(),
+                  icon: const Icon(Icons.add_chart, size: 16),
+                  label: const Text('Record Vitals'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _VitalsKpiStrip(latest: latest, recordedAt: when),
+            const SizedBox(height: 10),
+            SectionCard(
+              title: 'Vitals history',
+              subtitle: 'Newest first',
+              icon: Icons.table_chart_outlined,
+              iconColor: InpatientMetrics.iconIndigo,
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: InpatientChartTable(
                 columns: const [
-                  DataColumn(label: Text('Time')),
-                  DataColumn(label: Text('Temp')),
-                  DataColumn(label: Text('BP')),
-                  DataColumn(label: Text('Pulse')),
-                  DataColumn(label: Text('Resp')),
-                  DataColumn(label: Text('SpO₂')),
-                  DataColumn(label: Text('Pain')),
-                  DataColumn(label: Text('Glucose')),
-                  DataColumn(label: Text('Recorded by')),
-                  DataColumn(label: Text('')),
+                  InpatientChartColumn('TIME', flex: 3),
+                  InpatientChartColumn('TEMP'),
+                  InpatientChartColumn('BP'),
+                  InpatientChartColumn('PULSE'),
+                  InpatientChartColumn('RESP'),
+                  InpatientChartColumn('SPO₂'),
+                  InpatientChartColumn('PAIN'),
+                  InpatientChartColumn('GLUCOSE'),
+                  InpatientChartColumn('RECORDED BY', flex: 3),
+                  InpatientChartColumn('ACTIONS', flex: 2, alignEnd: true),
                 ],
-                rows: _vitals
-                    .map(
-                      (v) {
-                        final canEdit = canRecord &&
-                            staffId != null &&
-                            staffId.isNotEmpty &&
-                            (v.recordedByNurseId == null ||
-                                v.recordedByNurseId!.isEmpty ||
-                                v.recordedByNurseId == staffId);
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(DateFormatter.dateTime(v.effectiveAt))),
-                            DataCell(Text(v.temperature?.toString() ?? '—')),
-                            DataCell(
-                              Text(
-                                '${v.systolic?.toString() ?? '—'}/${v.diastolic?.toString() ?? '—'}',
-                              ),
+                rowCount: _vitals.length,
+                emptyMessage: 'No vitals recorded yet.',
+                footerLabel: _vitals.length == 1
+                    ? '1 observation'
+                    : '${_vitals.length} observations',
+                minWidth: 960,
+                cellBuilder: (context, index) {
+                  final v = _vitals[index];
+                  final canEdit = canRecord &&
+                      staffId != null &&
+                      staffId.isNotEmpty &&
+                      (v.recordedByNurseId == null ||
+                          v.recordedByNurseId!.isEmpty ||
+                          v.recordedByNurseId == staffId);
+                  return [
+                    HeltyEllipsisText(
+                      text: DateFormatter.dateTime(v.effectiveAt),
+                    ),
+                    HeltyEllipsisText(text: v.temperature?.toString() ?? '—'),
+                    HeltyEllipsisText(
+                      text:
+                          '${v.systolic?.toString() ?? '—'}/${v.diastolic?.toString() ?? '—'}',
+                    ),
+                    HeltyEllipsisText(text: v.pulseRate?.toString() ?? '—'),
+                    HeltyEllipsisText(text: v.respRate?.toString() ?? '—'),
+                    HeltyEllipsisText(text: v.spo2?.toString() ?? '—'),
+                    HeltyEllipsisText(text: v.painScore ?? '—'),
+                    HeltyEllipsisText(text: v.bloodGlucose ?? '—'),
+                    HeltyEllipsisText(text: v.recordedBy ?? '—'),
+                    canEdit
+                        ? FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: OutlinedButton(
+                              onPressed: () => _openEditVitalsDialog(v),
+                              style: inpatientCompactOutline(),
+                              child: const Text('Edit'),
                             ),
-                            DataCell(Text(v.pulseRate?.toString() ?? '—')),
-                            DataCell(Text(v.respRate?.toString() ?? '—')),
-                            DataCell(Text(v.spo2?.toString() ?? '—')),
-                            DataCell(Text(v.painScore ?? '—')),
-                            DataCell(Text(v.bloodGlucose ?? '—')),
-                            DataCell(Text(v.recordedBy ?? '—')),
-                            DataCell(
-                              canEdit
-                                  ? IconButton(
-                                      tooltip: 'Edit vitals',
-                                      icon: const Icon(Icons.edit_outlined, size: 18),
-                                      onPressed: () => _openEditVitalsDialog(v),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                          ],
-                        );
-                      },
-                    )
-                    .toList(),
+                          )
+                        : const HeltyEllipsisText(text: '—'),
+                  ];
+                },
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Use “Record Vitals” to add observations. Authors can edit their own '
-            'entries. Adjust the recorded time when entering vitals taken earlier.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -251,6 +232,78 @@ class _InpatientVitalsScreenState extends State<InpatientVitalsScreen> {
       context: context,
       builder: (dialogContext) {
         return _VitalsTrendDialog(vitals: List<PatientVitalsModel>.from(_vitals));
+      },
+    );
+  }
+}
+
+class _VitalsKpiStrip extends StatelessWidget {
+  const _VitalsKpiStrip({required this.latest, required this.recordedAt});
+
+  final PatientVitalsModel? latest;
+  final String? recordedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final v = latest;
+    final caption = recordedAt ?? 'No observations';
+    final items = [
+      InpatientKpiTile(
+        icon: Icons.thermostat_outlined,
+        color: InpatientMetrics.waitRed,
+        label: 'Temp',
+        value: v?.temperature == null ? '—' : '${v!.temperature}°C',
+        caption: caption,
+      ),
+      InpatientKpiTile(
+        icon: Icons.speed_outlined,
+        color: InpatientMetrics.iconIndigo,
+        label: 'BP',
+        value: v == null
+            ? '—'
+            : '${v.systolic ?? '—'}/${v.diastolic ?? '—'}',
+        caption: caption,
+      ),
+      InpatientKpiTile(
+        icon: Icons.favorite_outline,
+        color: InpatientMetrics.iconPink,
+        label: 'HR',
+        value: v?.pulseRate?.toString() ?? '—',
+        caption: caption,
+      ),
+      InpatientKpiTile(
+        icon: Icons.air,
+        color: InpatientMetrics.iconTeal,
+        label: 'SpO₂',
+        value: v?.spo2 == null ? '—' : '${v!.spo2}%',
+        caption: caption,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 820) {
+          return Row(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: items[i]),
+              ],
+            ],
+          );
+        }
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            mainAxisExtent: 72,
+          ),
+          itemBuilder: (context, i) => items[i],
+        );
       },
     );
   }

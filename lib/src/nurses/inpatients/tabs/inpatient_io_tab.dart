@@ -6,11 +6,14 @@ import 'package:helty/src/helper/app_timezone.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/intake_output_record_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_responsive_row_or_column.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
 import 'package:helty/src/services/intake_output_service.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 @RoutePage()
 class InpatientIOScreen extends StatefulWidget {
@@ -338,57 +341,112 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
     return record.category ?? '—';
   }
 
-  Widget _buildBalanceSummary(
-    BuildContext context, {
+  Color _categoryColor(IntakeOutputRecordModel record) {
+    switch ((record.category ?? '').toUpperCase()) {
+      case 'ORAL':
+        return InpatientMetrics.iconTeal;
+      case 'IV':
+        return InpatientMetrics.iconBlue;
+      case 'URINE':
+        return InpatientMetrics.iconIndigo;
+      case 'STOOL':
+        return InpatientMetrics.waitAmber;
+      case 'DRAIN':
+        return InpatientMetrics.iconPurple;
+      case 'VOMIT':
+        return InpatientMetrics.iconPink;
+      case 'BLOOD':
+        return InpatientMetrics.waitRed;
+      default:
+        return InpatientMetrics.iconPurple;
+    }
+  }
+
+  Widget _buildBalanceSummary({
     required double intakeTotal,
     required double outputTotal,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    final balance = intakeTotal - outputTotal;
-    final balanceColor = balance >= 0 ? scheme.primary : scheme.error;
+    final net = intakeTotal - outputTotal;
+    final total = intakeTotal + outputTotal;
+    final bar = total <= 0 ? 0.0 : (intakeTotal / total).clamp(0.0, 1.0);
+    final netColor =
+        net < 0 ? InpatientMetrics.waitRed : InpatientMetrics.waitGreen;
 
-    return SectionCard(
-      title: "Today's fluid balance",
-      subtitle: 'Intake minus output (local date)',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Wrap(
-          spacing: 24,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text(
-              'Intake: ${intakeTotal.toStringAsFixed(0)} ml',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: scheme.primary,
+    String ml(double v) => '${v.toStringAsFixed(0)} ml';
+
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tiles = [
+                InpatientKpiTile(
+                  icon: Icons.arrow_downward,
+                  color: InpatientMetrics.iconBlue,
+                  label: 'Intake',
+                  value: ml(intakeTotal),
+                  caption: 'Today',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.arrow_upward,
+                  color: InpatientMetrics.iconIndigo,
+                  label: 'Output',
+                  value: ml(outputTotal),
+                  caption: 'Today',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.balance_outlined,
+                  color: netColor,
+                  label: 'Net',
+                  value: ml(net),
+                  caption: 'Intake − output',
+                ),
+              ];
+              if (constraints.maxWidth < 700) {
+                return Column(
+                  children: [
+                    for (var i = 0; i < tiles.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 8),
+                      tiles[i],
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  for (var i = 0; i < tiles.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    Expanded(child: tiles[i]),
+                  ],
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: bar,
+              minHeight: 8,
+              backgroundColor: InpatientMetrics.iconIndigo.withValues(
+                alpha: 0.2,
               ),
+              color: InpatientMetrics.iconBlue,
             ),
-            Text(
-              'Output: ${outputTotal.toStringAsFixed(0)} ml',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: scheme.error,
-              ),
-            ),
-            Text(
-              'Balance: ${balance.toStringAsFixed(0)} ml',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: balanceColor,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final scope = InpatientViewScope.of(context);
     final admissionId = scope?.admissionId;
+    final canRecord =
+        scope?.isAdmissionActive == true && scope?.isNurse == true;
 
     if (admissionId == null || admissionId.isEmpty) {
       return const Padding(
@@ -420,118 +478,105 @@ class _InpatientIOScreenState extends State<InpatientIOScreen> {
 
     final intakeTotal = _dailyTotalMl(true);
     final outputTotal = _dailyTotalMl(false);
+    final intakeRows = _rowsFor(true);
+    final outputRows = _rowsFor(false);
 
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildBalanceSummary(
-            context,
-            intakeTotal: intakeTotal,
-            outputTotal: outputTotal,
-          ),
-          const SizedBox(height: 16),
-          InpatientResponsiveRowOrColumn(
-            first: SectionCard(
-              title: 'Intake',
-              subtitle: 'Fluids and intake for this admission',
-              actions: [
-                FilledButton.icon(
-                  onPressed: () => _openAddRecordDialog(context, true),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Record'),
-                ),
-              ],
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTable(context, rows: _rowsFor(true)),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Daily total (today): ${intakeTotal.toStringAsFixed(0)} ml',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: scheme.primary,
-                    ),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const InpatientTabToolbar(
+              icon: Icons.water_drop_outlined,
+              iconColor: InpatientMetrics.iconTeal,
+              title: 'Intake / Output',
+              subtitle: "Today's balance and fluid records",
+            ),
+            const SizedBox(height: 10),
+            _buildBalanceSummary(
+              intakeTotal: intakeTotal,
+              outputTotal: outputTotal,
+            ),
+            const SizedBox(height: 12),
+            InpatientResponsiveRowOrColumn(
+              gap: 12,
+              first: SectionCard(
+                title: 'Intake',
+                subtitle: 'Fluids and intake for this admission',
+                icon: Icons.arrow_downward,
+                iconColor: InpatientMetrics.iconBlue,
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                actions: [
+                  FilledButton.icon(
+                    onPressed: canRecord
+                        ? () => _openAddRecordDialog(context, true)
+                        : null,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Intake'),
+                    style: inpatientCompactFill(),
                   ),
                 ],
+                child: _buildTable(rows: intakeRows),
               ),
-            ),
-            second: SectionCard(
-              title: 'Output',
-              subtitle: 'Urine, drains and other output',
-              actions: [
-                FilledButton.icon(
-                  onPressed: () => _openAddRecordDialog(context, false),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Record'),
-                ),
-              ],
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTable(context, rows: _rowsFor(false)),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Daily total (today): ${outputTotal.toStringAsFixed(0)} ml',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: scheme.error,
-                    ),
+              second: SectionCard(
+                title: 'Output',
+                subtitle: 'Urine, drains and other output',
+                icon: Icons.arrow_upward,
+                iconColor: InpatientMetrics.iconIndigo,
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                actions: [
+                  FilledButton.icon(
+                    onPressed: canRecord
+                        ? () => _openAddRecordDialog(context, false)
+                        : null,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Output'),
+                    style: inpatientCompactFill(),
                   ),
                 ],
+                child: _buildTable(rows: outputRows),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
-  Widget _buildTable(
-    BuildContext context, {
-    required List<IntakeOutputRecordModel> rows,
-  }) {
-    const columns = ['Time', 'Type', 'Category', 'Amount (ml)', 'Recorded by'];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: columns
-            .map(
-              (c) => DataColumn(
-                label: Text(
-                  c,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-            )
-            .toList(),
-        rows: rows
-            .map(
-              (r) => DataRow(
-                cells: [
-                  DataCell(
-                    Text(
-                      DateFormatter.dateTime(
-                        r.recordedAt ?? r.createdAt ?? DateTime.now(),
-                      ),
-                    ),
-                  ),
-                  DataCell(Text(r.type ?? '—')),
-                  DataCell(Text(_categoryLabel(r))),
-                  DataCell(Text(r.amountMl?.toStringAsFixed(0) ?? '—')),
-                  DataCell(Text(r.nurseDisplayName ?? '—')),
-                ],
-              ),
-            )
-            .toList(),
-      ),
+  Widget _buildTable({required List<IntakeOutputRecordModel> rows}) {
+    return InpatientChartTable(
+      columns: const [
+        InpatientChartColumn('TIME', flex: 3),
+        InpatientChartColumn('CATEGORY', flex: 2),
+        InpatientChartColumn('AMOUNT (ML)', flex: 2),
+        InpatientChartColumn('RECORDED BY', flex: 3),
+      ],
+      rowCount: rows.length,
+      emptyMessage: 'No records yet.',
+      footerLabel:
+          rows.length == 1 ? '1 record' : '${rows.length} records',
+      minWidth: 560,
+      cellBuilder: (context, index) {
+        final r = rows[index];
+        return [
+          HeltyEllipsisText(
+            text: DateFormatter.dateTime(
+              r.recordedAt ?? r.createdAt ?? DateTime.now(),
+            ),
+          ),
+          HeltyEllipsisChip(
+            label: _categoryLabel(r),
+            color: _categoryColor(r),
+          ),
+          HeltyEllipsisText(
+            text: r.amountMl == null
+                ? '—'
+                : '${r.amountMl!.toStringAsFixed(0)} ml',
+          ),
+          HeltyEllipsisText(text: r.nurseDisplayName ?? '—'),
+        ];
+      },
     );
   }
 }

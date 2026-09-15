@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/core/responsive.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../shared/batch_receive_conversion.dart';
@@ -533,152 +533,23 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
           gap: 24,
           first: SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: bp.isMobile ? double.infinity : 480),
+              constraints: BoxConstraints(
+                maxWidth: bp.isMobile ? double.infinity : 480,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                        _buildSectionHeader(
-                          'Product & Location',
-                          Icons.inventory_2_outlined,
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Medicine',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: cs.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (_selectedDrug != null)
-                              _buildSelectedDrugPill(theme, _selectedDrug!)
-                            else
-                              _buildDrugSearchField(theme),
-                            if (_showDrugDropdown)
-                              _buildDrugDropdownList(theme),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        if (_locations.isNotEmpty) ...[
-                          _buildModernDropdown<String?>(
-                            label: 'Storage Location',
-                            hint: 'Select location',
-                            value: _selectedLocation?.id,
-                            items: [
-                              const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('— Select location —'),
-                              ),
-                              ..._locations.map(
-                                (loc) => DropdownMenuItem<String?>(
-                                  value: loc.id,
-                                  child: Text(loc.name),
-                                ),
-                              ),
-                            ],
-                            onChanged: (v) => setState(() {
-                              if (v == null) {
-                                _selectedLocation = null;
-                              } else {
-                                try {
-                                  _selectedLocation = _locations.firstWhere(
-                                    (l) => l.id == v,
-                                  );
-                                } catch (_) {
-                                  _selectedLocation = null;
-                                }
-                              }
-                            }),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                        _buildSectionHeader(
-                          'Batch Details',
-                          Icons.qr_code_outlined,
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ModernTextField(
-                                label: 'Batch Number / Lot ID *',
-                                hint: 'e.g., LOT-2023-XYZ',
-                                controller: _batchNumberCtrl,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildModernDropdown<String?>(
-                                label: 'Supplier (Optional)',
-                                hint: selectableSuppliers.isEmpty
-                                    ? 'No suppliers available'
-                                    : 'Select origin supplier',
-                                value:
-                                    selectableSuppliers.any(
-                                      (s) => s.id == _selectedSupplierId,
-                                    )
-                                    ? _selectedSupplierId
-                                    : null,
-                                items: [
-                                  const DropdownMenuItem<String?>(
-                                    value: null,
-                                    child: Text('— None —'),
-                                  ),
-                                  ...selectableSuppliers.map(
-                                    (s) => DropdownMenuItem<String?>(
-                                      value: s.id!,
-                                      child: Text(
-                                        s.name,
-                                        style: TextStyle(fontSize: 13),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                onChanged: (v) {
-                                  if (selectableSuppliers.isEmpty) return;
-                                  setState(() => _selectedSupplierId = v);
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildModernDatePicker(
-                                label: 'Manufacturing Date',
-                                date: _mfgDate,
-                                onTap: () => _selectDate(context, true),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildModernDatePicker(
-                                label: 'Expiry Date',
-                                date: _expiryDate,
-                                onTap: () => _selectDate(context, false),
-                                isDanger:
-                                    _expiryDate != null &&
-                                    _expiryDate!
-                                            .difference(DateTime.now())
-                                            .inDays <
-                                        90,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSectionHeader(
-                          'Quantities & Pricing',
-                          Icons.attach_money_outlined,
-                        ),
+                    _buildSectionHeader(
+                      'Product & Location',
+                      Icons.inventory_2_outlined,
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          'Receive as',
+                          'Medicine',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -686,166 +557,292 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        SegmentedButton<BatchReceiveUnit>(
-                          segments: const [
-                            ButtonSegment(
-                              value: BatchReceiveUnit.unit,
-                              label: Text('Unit'),
-                              icon: Icon(Icons.medication_outlined, size: 16),
+                        if (_selectedDrug != null)
+                          _buildSelectedDrugPill(theme, _selectedDrug!)
+                        else
+                          _buildDrugSearchField(theme),
+                        if (_showDrugDropdown) _buildDrugDropdownList(theme),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    if (_locations.isNotEmpty) ...[
+                      _buildModernDropdown<String?>(
+                        label: 'Storage Location',
+                        hint: 'Select location',
+                        value: _selectedLocation?.id,
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('— Select location —'),
+                          ),
+                          ..._locations.map(
+                            (loc) => DropdownMenuItem<String?>(
+                              value: loc.id,
+                              child: Text(loc.name),
                             ),
-                            ButtonSegment(
-                              value: BatchReceiveUnit.pack,
-                              label: Text('Pack'),
-                              icon: Icon(Icons.inventory_outlined, size: 16),
-                            ),
-                            ButtonSegment(
-                              value: BatchReceiveUnit.carton,
-                              label: Text('Carton'),
-                              icon: Icon(Icons.all_inbox_outlined, size: 16),
-                            ),
-                          ],
-                          selected: {_receiveUnit},
-                          onSelectionChanged: (selection) {
-                            setState(() {
-                              _receiveUnit = selection.first;
-                            });
-                          },
-                        ),
-                        if (_receiveUnit != BatchReceiveUnit.unit) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ModernTextField(
-                                  label: 'Units in one pack *',
-                                  hint: 'e.g., 10',
-                                  controller: _unitsPerPackCtrl,
-                                  keyboardType: TextInputType.number,
-                                  validator: (v) {
-                                    if (_receiveUnit == BatchReceiveUnit.unit) {
-                                      return null;
-                                    }
-                                    if (v == null || v.trim().isEmpty) {
-                                      return 'Required';
-                                    }
-                                    final n = int.tryParse(v.trim());
-                                    if (n == null || n < 1) return 'Invalid';
-                                    return null;
-                                  },
-                                ),
-                              ),
-                              if (_receiveUnit == BatchReceiveUnit.carton) ...[
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: ModernTextField(
-                                    label: 'Packs in one carton *',
-                                    hint: 'e.g., 12',
-                                    controller: _packsPerCartonCtrl,
-                                    keyboardType: TextInputType.number,
-                                    validator: (v) {
-                                      if (_receiveUnit !=
-                                          BatchReceiveUnit.carton) {
-                                        return null;
-                                      }
-                                      if (v == null || v.trim().isEmpty) {
-                                        return 'Required';
-                                      }
-                                      final n = int.tryParse(v.trim());
-                                      if (n == null || n < 1) return 'Invalid';
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ],
                           ),
                         ],
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ModernTextField(
-                                label: _quantityLabel,
-                                hint: 'e.g., 500',
-                                controller: _quantityCtrl,
-                                keyboardType: TextInputType.number,
-                                validator: (v) => v == null || v.trim().isEmpty
-                                    ? 'Required'
-                                    : null,
+                        onChanged: (v) => setState(() {
+                          if (v == null) {
+                            _selectedLocation = null;
+                          } else {
+                            try {
+                              _selectedLocation = _locations.firstWhere(
+                                (l) => l.id == v,
+                              );
+                            } catch (_) {
+                              _selectedLocation = null;
+                            }
+                          }
+                        }),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildSectionHeader(
+                      'Batch Details',
+                      Icons.qr_code_outlined,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ModernTextField(
+                            label: 'Batch Number / Lot ID *',
+                            hint: 'e.g., LOT-2023-XYZ',
+                            controller: _batchNumberCtrl,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildModernDropdown<String?>(
+                            label: 'Supplier (Optional)',
+                            hint: selectableSuppliers.isEmpty
+                                ? 'No suppliers available'
+                                : 'Select origin supplier',
+                            value:
+                                selectableSuppliers.any(
+                                  (s) => s.id == _selectedSupplierId,
+                                )
+                                ? _selectedSupplierId
+                                : null,
+                            items: [
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('— None —'),
                               ),
+                              ...selectableSuppliers.map(
+                                (s) => DropdownMenuItem<String?>(
+                                  value: s.id!,
+                                  child: Text(
+                                    s.name,
+                                    style: TextStyle(fontSize: 13),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: (v) {
+                              if (selectableSuppliers.isEmpty) return;
+                              setState(() => _selectedSupplierId = v);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildModernDatePicker(
+                            label: 'Manufacturing Date',
+                            date: _mfgDate,
+                            onTap: () => _selectDate(context, true),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildModernDatePicker(
+                            label: 'Expiry Date',
+                            date: _expiryDate,
+                            onTap: () => _selectDate(context, false),
+                            isDanger:
+                                _expiryDate != null &&
+                                _expiryDate!.difference(DateTime.now()).inDays <
+                                    90,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSectionHeader(
+                      'Quantities & Pricing',
+                      Icons.attach_money_outlined,
+                    ),
+                    Text(
+                      'Receive as',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<BatchReceiveUnit>(
+                      segments: const [
+                        ButtonSegment(
+                          value: BatchReceiveUnit.unit,
+                          label: Text('Unit'),
+                          icon: Icon(Icons.medication_outlined, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: BatchReceiveUnit.pack,
+                          label: Text('Pack'),
+                          icon: Icon(Icons.inventory_outlined, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: BatchReceiveUnit.carton,
+                          label: Text('Carton'),
+                          icon: Icon(Icons.all_inbox_outlined, size: 16),
+                        ),
+                      ],
+                      selected: {_receiveUnit},
+                      onSelectionChanged: (selection) {
+                        setState(() {
+                          _receiveUnit = selection.first;
+                        });
+                      },
+                    ),
+                    if (_receiveUnit != BatchReceiveUnit.unit) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ModernTextField(
+                              label: 'Units in one pack *',
+                              hint: 'e.g., 10',
+                              controller: _unitsPerPackCtrl,
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                if (_receiveUnit == BatchReceiveUnit.unit) {
+                                  return null;
+                                }
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Required';
+                                }
+                                final n = int.tryParse(v.trim());
+                                if (n == null || n < 1) return 'Invalid';
+                                return null;
+                              },
                             ),
+                          ),
+                          if (_receiveUnit == BatchReceiveUnit.carton) ...[
                             const SizedBox(width: 16),
                             Expanded(
                               child: ModernTextField(
-                                label: _costPriceLabel,
-                                hint: '0.00',
-                                icon: Icons.money_off_csred_outlined,
-                                controller: _costPriceCtrl,
-                                validator: (v) => v == null || v.trim().isEmpty
-                                    ? 'Required'
-                                    : double.tryParse(v.replaceAll(',', '.')) ==
-                                          null
-                                    ? 'Invalid'
-                                    : null,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
+                                label: 'Packs in one carton *',
+                                hint: 'e.g., 12',
+                                controller: _packsPerCartonCtrl,
+                                keyboardType: TextInputType.number,
+                                validator: (v) {
+                                  if (_receiveUnit != BatchReceiveUnit.carton) {
+                                    return null;
+                                  }
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Required';
+                                  }
+                                  final n = int.tryParse(v.trim());
+                                  if (n == null || n < 1) return 'Invalid';
+                                  return null;
+                                },
                               ),
                             ),
                           ],
+                        ],
+                      ),
+                    ],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ModernTextField(
+                            label: _quantityLabel,
+                            hint: 'e.g., 500',
+                            controller: _quantityCtrl,
+                            keyboardType: TextInputType.number,
+                            validator: (v) => v == null || v.trim().isEmpty
+                                ? 'Required'
+                                : null,
+                          ),
                         ),
-                        _buildReceivePreview(theme),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            if (_editingIndex != null) ...[
-                              OutlinedButton(
-                                onPressed: _clearForm,
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: const Text('Cancel edit'),
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                            Expanded(
-                              child: SizedBox(
-                                height: 54,
-                                child: ElevatedButton(
-                                  onPressed: _addOrUpdateEntry,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: theme.colorScheme.primary,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    _editingIndex != null
-                                        ? 'Update entry'
-                                        : 'Add to list',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ModernTextField(
+                            label: _costPriceLabel,
+                            hint: '0.00',
+                            icon: Icons.money_off_csred_outlined,
+                            controller: _costPriceCtrl,
+                            validator: (v) => v == null || v.trim().isEmpty
+                                ? 'Required'
+                                : double.tryParse(v.replaceAll(',', '.')) ==
+                                      null
+                                ? 'Invalid'
+                                : null,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
                             ),
-                          ],
+                          ),
                         ),
-                        const SizedBox(height: 24),
                       ],
                     ),
-                  ),
+                    _buildReceivePreview(theme),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        if (_editingIndex != null) ...[
+                          OutlinedButton(
+                            onPressed: _clearForm,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text('Cancel edit'),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: SizedBox(
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _addOrUpdateEntry,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.colorScheme.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: Text(
+                                _editingIndex != null
+                                    ? 'Update entry'
+                                    : 'Add to list',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
+            ),
+          ),
           second: bp.stackPanels
               ? SizedBox(height: 420, child: _buildRightPanel(theme))
               : _buildRightPanel(theme),
@@ -944,7 +941,11 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
           const SizedBox(height: 16),
           _summaryRow(theme, 'Line items', '${_pendingEntries.length}'),
           _summaryRow(theme, 'Unique drugs', '$uniqueDrugs'),
-          _summaryRow(theme, 'Total quantity', totalQty.toFinancial(isMoney: false)),
+          _summaryRow(
+            theme,
+            'Total quantity',
+            totalQty.toFinancial(isMoney: false),
+          ),
           _summaryRow(
             theme,
             'Total value',
@@ -1309,8 +1310,14 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
         focusNode: _drugSearchFocus,
         decoration: InputDecoration(
           hintText: 'Search medicine by name...',
-          hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
-          prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
+          hintStyle: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           filled: true,
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(
@@ -1397,7 +1404,10 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
             subtitle: drug.genericName.isNotEmpty
                 ? Text(
                     drug.genericName,
-                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   )
                 : null,
             onTap: () {
@@ -1506,7 +1516,7 @@ class _AddBatchScreenState extends State<AddBatchScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final dateString = date != null
-        ? DateFormat('MMM dd, yyyy').format(date)
+        ? DateFormatter.shortDate(date)
         : 'Select Date';
     final textColor = date != null
         ? (isDanger ? cs.error : cs.onSurface)

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import '../models/pharmacy_model.dart';
 
@@ -144,7 +144,10 @@ class MedicineFiltersPanel extends StatelessWidget {
             controller: searchController,
             decoration: InputDecoration(
               hintText: 'Search medicines...',
-              prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
+              prefixIcon: Icon(
+                Icons.search,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               filled: true,
               fillColor: theme.colorScheme.surfaceContainer,
               border: OutlineInputBorder(
@@ -281,7 +284,13 @@ class MedicineFiltersPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 4),
           DropdownButtonFormField<T>(
             initialValue: value,
@@ -325,7 +334,10 @@ class MedicineFiltersPanel extends StatelessWidget {
             children: [
               Text(
                 labelFrom,
-                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 4),
               InkWell(
@@ -351,11 +363,11 @@ class MedicineFiltersPanel extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    from != null
-                        ? DateFormat('yyyy-MM-dd').format(from)
-                        : 'Select',
+                    from != null ? DateFormatter.shortDate(from) : 'Select',
                     style: TextStyle(
-                      color: from != null ? null : theme.colorScheme.onSurfaceVariant,
+                      color: from != null
+                          ? null
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -372,7 +384,10 @@ class MedicineFiltersPanel extends StatelessWidget {
             children: [
               Text(
                 labelTo,
-                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 4),
               InkWell(
@@ -398,9 +413,11 @@ class MedicineFiltersPanel extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    to != null ? DateFormat('yyyy-MM-dd').format(to) : 'Select',
+                    to != null ? DateFormatter.shortDate(to) : 'Select',
                     style: TextStyle(
-                      color: to != null ? null : theme.colorScheme.onSurfaceVariant,
+                      color: to != null
+                          ? null
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -422,7 +439,9 @@ class MedicineFiltersPanel extends StatelessWidget {
       label: Text(
         label,
         style: TextStyle(
-          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant,
         ),
       ),
       selected: isSelected,

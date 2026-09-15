@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
+
+import '../../widgets/helty_surface.dart';
+import '../patient_hub_metrics.dart';
 
 class HubTimelineEntry {
   const HubTimelineEntry({
@@ -7,6 +10,7 @@ class HubTimelineEntry {
     required this.subtitle,
     required this.date,
     this.icon,
+    this.iconColor,
     this.onTap,
   });
 
@@ -14,6 +18,7 @@ class HubTimelineEntry {
   final String subtitle;
   final DateTime? date;
   final IconData? icon;
+  final Color? iconColor;
   final VoidCallback? onTap;
 }
 
@@ -27,80 +32,65 @@ class HubTimeline extends StatelessWidget {
     if (entries.isEmpty) {
       return const SizedBox.shrink();
     }
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        for (var i = 0; i < entries.length; i++) ...[
-          InkWell(
-            onTap: entries[i].onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: cs.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          entries[i].icon ?? Icons.circle,
-                          size: 16,
-                          color: cs.onPrimaryContainer,
-                        ),
-                      ),
-                      if (i < entries.length - 1)
-                        Container(
-                          width: 2,
-                          height: 24,
-                          color: cs.outlineVariant,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entries[i].title,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          entries[i].subtitle,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                              ),
-                        ),
-                        if (entries[i].date != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              DateFormat.yMMMd().add_jm().format(
-                                    entries[i].date!.toLocal(),
-                                  ),
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: cs.outline,
-                                  ),
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        children: [
+          for (var i = 0; i < entries.length; i++) ...[
+            InkWell(
+              onTap: entries[i].onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HubSolidIcon(
+                      icon: entries[i].icon ?? Icons.circle,
+                      color: entries[i].iconColor ?? PatientHubMetrics.iconBlue,
+                      size: 28,
+                      iconSize: 14,
+                      radius: 7,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          HeltyEllipsisText(
+                            text: entries[i].title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                      ],
+                          if (entries[i].subtitle.trim().isNotEmpty)
+                            HeltyEllipsisText(
+                              text: entries[i].subtitle,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          if (entries[i].date != null)
+                            HeltyEllipsisText(
+                              text: DateFormatter.dateTime(entries[i].date!),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.outline,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
+            if (i < entries.length - 1)
+              Divider(height: 8, color: cs.outline.withValues(alpha: 0.12)),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

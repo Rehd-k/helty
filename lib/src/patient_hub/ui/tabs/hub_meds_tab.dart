@@ -8,7 +8,9 @@ import '../../../patient_chart/models/patient_chart_models.dart';
 import '../../providers/patient_hub_providers.dart';
 import '../../utils/hub_chart_helpers.dart';
 import '../../widgets/hub_empty_state.dart';
+import '../../widgets/hub_list_row.dart';
 import '../../widgets/hub_section_scaffold.dart';
+import '../../patient_hub_metrics.dart';
 import '../../widgets/patient_hub_scope.dart';
 
 @RoutePage()
@@ -65,19 +67,26 @@ class _HubMedsScreenState extends ConsumerState<HubMedsScreen> {
 
         return ResponsiveBody(
           builder: (context, bp) => HubSectionScaffold(
-          filterRow: Row(
-            children: HubMedsFilter.values
-                .map(
-                  (f) => Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: FilterChip(
-                      label: Text(f == HubMedsFilter.all ? 'All' : 'Active'),
-                      selected: _filter == f,
-                      onSelected: (_) => setState(() => _filter = f),
-                    ),
-                  ),
-                )
-                .toList(),
+          filterRow: DropdownButtonFormField<HubMedsFilter>(
+            key: ValueKey('hub-meds-$_filter'),
+            initialValue: _filter,
+            isExpanded: true,
+            decoration: hubFilterDecoration(
+              context,
+              label: 'Meds',
+              iconColor: PatientHubMetrics.waitAmber,
+              icon: Icons.medication_outlined,
+            ),
+            items: const [
+              DropdownMenuItem(value: HubMedsFilter.all, child: Text('All')),
+              DropdownMenuItem(
+                value: HubMedsFilter.active,
+                child: Text('Active'),
+              ),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _filter = v);
+            },
           ),
           sortDropdown: DropdownButton<HubSortOrder>(
             value: _sort,
@@ -100,19 +109,17 @@ class _HubMedsScreenState extends ConsumerState<HubMedsScreen> {
                   title: 'No medications or prescriptions',
                   icon: Icons.medication_outlined,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 4),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final item = items[index];
                     final section = item['_section']?.toString() ?? 'meds';
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.medication_liquid_outlined),
-                        title: Text(hubRowTitle(section, item)),
-                        subtitle: Text(hubRowSubtitle(item) ?? ''),
-                      ),
+                    return HubListRow(
+                      title: hubRowTitle(section, item),
+                      subtitle: hubRowSubtitle(item),
+                      icon: Icons.medication_liquid_outlined,
+                      iconColor: PatientHubMetrics.waitAmber,
                     );
                   },
                 ),

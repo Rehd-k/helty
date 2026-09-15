@@ -14,7 +14,10 @@ import '../../../patient_chart/models/patient_chart_models.dart';
 import '../../providers/patient_hub_providers.dart';
 import '../../utils/hub_chart_helpers.dart';
 import '../../widgets/hub_empty_state.dart';
+import '../../widgets/hub_list_row.dart';
 import '../../widgets/hub_section_scaffold.dart';
+import '../../patient_hub_metrics.dart';
+import '../../../widgets/helty_surface.dart';
 import '../../widgets/patient_hub_scope.dart';
 
 enum _VitalsMetric { temperature, pulse, spo2, respRate, bpSys, bpDia }
@@ -68,22 +71,27 @@ class _HubVitalsScreenState extends ConsumerState<HubVitalsScreen> {
 
         return ResponsiveBody(
           builder: (context, bp) => HubSectionScaffold(
-          filterRow: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _VitalsMetric.values
-                  .map(
-                    (m) => Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: FilterChip(
-                        label: Text(_metricLabel(m)),
-                        selected: _metric == m,
-                        onSelected: (_) => setState(() => _metric = m),
-                      ),
-                    ),
-                  )
-                  .toList(),
+          filterRow: DropdownButtonFormField<_VitalsMetric>(
+            key: ValueKey('hub-vitals-$_metric'),
+            initialValue: _metric,
+            isExpanded: true,
+            decoration: hubFilterDecoration(
+              context,
+              label: 'Metric',
+              iconColor: PatientHubMetrics.waitRed,
+              icon: Icons.show_chart_outlined,
             ),
+            items: _VitalsMetric.values
+                .map(
+                  (m) => DropdownMenuItem(
+                    value: m,
+                    child: Text(_metricLabel(m)),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) {
+              if (v != null) setState(() => _metric = v);
+            },
           ),
           sortDropdown: DropdownButton<HubSortOrder>(
             value: _sort,
@@ -102,23 +110,20 @@ class _HubVitalsScreenState extends ConsumerState<HubVitalsScreen> {
             },
           ),
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.only(top: 4),
             children: [
               SizedBox(
                 height: 220,
                 child: _VitalsChart(vitals: vitals, metric: _metric),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               ...vitals.map(
-                (v) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    title: Text(
-                      hubFormatDate(v['recordedAt'] ?? v['createdAt']) ??
-                          'Vitals',
-                    ),
-                    subtitle: Text(_vitalsSummary(v)),
-                  ),
+                (v) => HubListRow(
+                  title: hubFormatDate(v['recordedAt'] ?? v['createdAt']) ??
+                      'Vitals',
+                  subtitle: _vitalsSummary(v),
+                  icon: Icons.monitor_heart_outlined,
+                  iconColor: PatientHubMetrics.waitRed,
                 ),
               ),
             ],
@@ -166,7 +171,6 @@ class _VitalsChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final points = <FlSpot>[];
     final chronological = hubSortRows(vitals, HubSortOrder.oldestFirst);
     for (var i = 0; i < chronological.length; i++) {
@@ -186,14 +190,9 @@ class _VitalsChart extends StatelessWidget {
     final maxY = points.map((p) => p.y).reduce(math.max);
     final pad = (maxY - minY).abs() < 1 ? 1.0 : (maxY - minY) * 0.1;
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: LineChart(
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.all(12),
+      child: LineChart(
           LineChartData(
             minY: minY - pad,
             maxY: maxY + pad,
@@ -217,18 +216,17 @@ class _VitalsChart extends StatelessWidget {
               LineChartBarData(
                 spots: points,
                 isCurved: true,
-                color: cs.primary,
+                color: PatientHubMetrics.iconTeal,
                 barWidth: 3,
                 dotData: const FlDotData(show: true),
                 belowBarData: BarAreaData(
                   show: true,
-                  color: cs.primary.withValues(alpha: 0.12),
+                  color: PatientHubMetrics.iconTeal.withValues(alpha: 0.12),
                 ),
               ),
             ],
           ),
         ),
-      ),
     );
   }
 

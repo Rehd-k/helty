@@ -10,7 +10,6 @@ import 'package:helty/src/pharmacy/widgets/medication_workflow_badges.dart';
 import 'package:helty/src/pharmacy/widgets/pharmacy_refill_bill_dialog.dart';
 import 'package:helty/src/pharmacy/widgets/pharmacy_refill_review_dialog.dart';
 import 'package:helty/src/providers/auth_provider.dart';
-import 'package:intl/intl.dart';
 
 enum _QuickRange { today, last7, thisMonth }
 
@@ -158,7 +157,9 @@ class _PharmacyRefillRequestsScreenState
 
     final label = result.invoice.invoiceDisplayId ?? result.invoice.id;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Billed to invoice $label — opening dispense queue')),
+      SnackBar(
+        content: Text('Billed to invoice $label — opening dispense queue'),
+      ),
     );
     await _load(reset: true);
 
@@ -237,9 +238,9 @@ class _PharmacyRefillRequestsScreenState
         pharmacyNotes: notes,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Refill marked fulfilled')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Refill marked fulfilled')));
       _replaceRequest(updated);
     } catch (e) {
       if (!mounted) return;
@@ -308,15 +309,15 @@ class _PharmacyRefillRequestsScreenState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildToolbar(theme, colorScheme, bp),
-          if (_error != null) _buildErrorBanner(colorScheme),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _requests.isEmpty
-                    ? _buildEmptyState(colorScheme)
-                    : _buildRequestList(colorScheme, canLoadMore),
-          ),
-        ],
+            if (_error != null) _buildErrorBanner(colorScheme),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _requests.isEmpty
+                  ? _buildEmptyState(colorScheme)
+                  : _buildRequestList(colorScheme, canLoadMore),
+            ),
+          ],
         ),
       ),
     );
@@ -377,7 +378,7 @@ class _PharmacyRefillRequestsScreenState
                   onPressed: _loading || _working ? null : _pickDateRange,
                   icon: const Icon(Icons.date_range),
                   label: Text(
-                    '${DateFormat('dd MMM yyyy').format(_from)} - ${DateFormat('dd MMM yyyy').format(_to)}',
+                    '${DateFormatter.shortDate(_from)} - ${DateFormatter.shortDate(_to)}',
                   ),
                 ),
                 FilledButton.tonal(
@@ -615,9 +616,8 @@ class _RefillRequestCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final prescription = request.prescription;
     final item = prescription?.firstItem;
-    final drugName = prescription?.drug ??
-        item?.drug?.displayName ??
-        'Prescription';
+    final drugName =
+        prescription?.drug ?? item?.drug?.displayName ?? 'Prescription';
     final patient = request.patient;
 
     return Card(
@@ -684,8 +684,9 @@ class _RefillRequestCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(

@@ -7,9 +7,12 @@ import 'package:helty/src/helper/clinical_image_picker.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/models/wound_assessment_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/services/wound_assessment_service.dart';
 
 @RoutePage()
@@ -126,8 +129,10 @@ class _InpatientWoundAssessmentScreenState
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final admissionId = InpatientViewScope.of(context)?.admissionId;
+    final scope = InpatientViewScope.of(context);
+    final admissionId = scope?.admissionId;
+    final canRecord =
+        scope?.isAdmissionActive == true && scope?.isNurse == true;
 
     if (admissionId == null || admissionId.isEmpty) {
       return const Padding(
@@ -140,95 +145,146 @@ class _InpatientWoundAssessmentScreenState
       );
     }
 
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_error!, textAlign: TextAlign.center),
-            TextButton(
-              onPressed: () => _load(admissionId),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
+    final now = DateTime.now();
+    final today = _assessments.where((w) {
+      final t = w.recordedAt;
+      if (t == null) return false;
+      return t.year == now.year && t.month == now.month && t.day == now.day;
+    }).length;
+    final photos = _assessments
+        .where((w) => (w.photoUrl ?? '').trim().isNotEmpty)
+        .length;
+    final infection = _assessments
+        .where((w) => (w.infectionSigns ?? '').trim().isNotEmpty)
+        .length;
 
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
-        child: SectionCard(
-        title: 'Wound assessments',
-        subtitle: 'Document wound location, stage, and signs of infection',
-        actions: [
-          FilledButton.icon(
-            onPressed: () => _openAddDialog(context),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add assessment'),
-          ),
-        ],
-        child: _assessments.isEmpty
-            ? Text(
-                'No wound assessments recorded yet.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InpatientTabToolbar(
+              icon: Icons.healing_outlined,
+              iconColor: InpatientMetrics.waitAmber,
+              title: 'Wound',
+              subtitle: 'Location, stage, and photos',
+              actions: [
+                FilledButton.icon(
+                  onPressed: canRecord ? () => _openAddDialog(context) : null,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add assessment'),
+                  style: inpatientCompactFill(),
                 ),
-              )
-            : SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('Recorded')),
-                    DataColumn(label: Text('Location')),
-                    DataColumn(label: Text('Stage')),
-                    DataColumn(label: Text('Size')),
-                    DataColumn(label: Text('Exudate')),
-                    DataColumn(label: Text('Photo')),
-                    DataColumn(label: Text('Recorded by')),
-                  ],
-                  rows: _assessments
-                      .map(
-                        (w) => DataRow(
-                          cells: [
-                            DataCell(
-                              Text(
-                                DateFormatter.dateTime(
-                                  w.recordedAt ?? DateTime.now(),
-                                ),
-                              ),
-                            ),
-                            DataCell(Text(w.woundLocation ?? '—')),
-                            DataCell(Text(w.woundStage ?? '—')),
-                            DataCell(Text(w.woundSize ?? '—')),
-                            DataCell(Text(w.exudate ?? '—')),
-                            DataCell(() {
-                              final url = w.photoUrl?.trim();
-                              if (url == null || url.isEmpty) {
-                                return const Text('—');
-                              }
-                              return IconButton(
-                                tooltip: 'View wound photo',
-                                icon: const Icon(Icons.image_outlined),
-                                onPressed: () => _showWoundPhoto(
-                                  context,
-                                  admissionId: admissionId,
-                                  assessment: w,
-                                ),
-                              );
-                            }()),
-                            DataCell(Text(w.nurseDisplayName ?? '—')),
-                          ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            InpatientKpiRow(
+              tiles: [
+                InpatientKpiTile(
+                  icon: Icons.healing_outlined,
+                  color: InpatientMetrics.waitAmber,
+                  label: 'Assessments',
+                  value: _loading ? '—' : '${_assessments.length}',
+                  caption: 'This admission',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.today_outlined,
+                  color: InpatientMetrics.iconBlue,
+                  label: 'Today',
+                  value: _loading ? '—' : '$today',
+                  caption: 'Recorded today',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.photo_outlined,
+                  color: InpatientMetrics.iconPurple,
+                  label: 'Photos',
+                  value: _loading ? '—' : '$photos',
+                  caption: 'With image',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.report_outlined,
+                  color: InpatientMetrics.waitRed,
+                  label: 'Infection notes',
+                  value: _loading ? '—' : '$infection',
+                  caption: 'Signs documented',
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SectionCard(
+              title: 'Assessments',
+              subtitle: 'Newest first',
+              icon: Icons.table_chart_outlined,
+              iconColor: InpatientMetrics.iconIndigo,
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : _error != null
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_error!),
+                        TextButton(
+                          onPressed: () => _load(admissionId),
+                          child: const Text('Retry'),
                         ),
-                      )
-                      .toList(),
-                ),
-              ),
-      ),
+                      ],
+                    )
+                  : InpatientChartTable(
+                      columns: const [
+                        InpatientChartColumn('RECORDED', flex: 3),
+                        InpatientChartColumn('LOCATION', flex: 2),
+                        InpatientChartColumn('STAGE'),
+                        InpatientChartColumn('SIZE'),
+                        InpatientChartColumn('EXUDATE'),
+                        InpatientChartColumn('PHOTO'),
+                        InpatientChartColumn('RECORDED BY', flex: 2),
+                      ],
+                      rowCount: _assessments.length,
+                      emptyMessage: 'No wound assessments recorded yet.',
+                      minWidth: 880,
+                      footerLabel: _assessments.length == 1
+                          ? '1 assessment'
+                          : '${_assessments.length} assessments',
+                      cellBuilder: (context, index) {
+                        final w = _assessments[index];
+                        final url = w.photoUrl?.trim();
+                        return [
+                          HeltyEllipsisText(
+                            text: DateFormatter.dateTime(
+                              w.recordedAt ?? DateTime.now(),
+                            ),
+                          ),
+                          HeltyEllipsisText(text: w.woundLocation ?? '—'),
+                          HeltyEllipsisText(text: w.woundStage ?? '—'),
+                          HeltyEllipsisText(text: w.woundSize ?? '—'),
+                          HeltyEllipsisText(text: w.exudate ?? '—'),
+                          url == null || url.isEmpty
+                              ? const HeltyEllipsisText(text: '—')
+                              : FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: OutlinedButton(
+                                    onPressed: () => _showWoundPhoto(
+                                      context,
+                                      admissionId: admissionId,
+                                      assessment: w,
+                                    ),
+                                    style: inpatientCompactOutline(),
+                                    child: const Text('View'),
+                                  ),
+                                ),
+                          HeltyEllipsisText(text: w.nurseDisplayName ?? '—'),
+                        ];
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

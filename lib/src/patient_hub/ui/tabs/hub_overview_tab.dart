@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../patient_chart/models/patient_chart_models.dart';
 import '../../providers/patient_hub_providers.dart';
+import '../../patient_hub_metrics.dart';
 import '../../utils/hub_chart_helpers.dart';
 import '../../widgets/hub_empty_state.dart';
 import '../../widgets/hub_stat_card.dart';
@@ -63,33 +64,41 @@ class HubOverviewScreen extends ConsumerWidget {
                           HubStatCard(
                             label: 'Encounters',
                             value: '${header.summary.encounterCount}',
+                            caption: 'Lifetime visits',
                             icon: Icons.event_note_outlined,
+                            color: PatientHubMetrics.iconBlue,
                           ),
                           HubStatCard(
                             label: 'Admissions',
                             value: '${header.summary.admissionCount}',
+                            caption: 'Inpatient stays',
                             icon: Icons.bed_outlined,
+                            color: PatientHubMetrics.iconTeal,
                           ),
                           HubStatCard(
                             label: 'Recent vitals',
                             value: '${vitals.length}',
+                            caption: 'In selected range',
                             icon: Icons.monitor_heart_outlined,
+                            color: PatientHubMetrics.waitRed,
                           ),
                           HubStatCard(
                             label: 'Lab reports',
                             value: '${labs.length}',
+                            caption: 'In selected range',
                             icon: Icons.biotech_outlined,
+                            color: PatientHubMetrics.iconIndigo,
                           ),
                         ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   Text(
                     'Recent activity',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   if (encounters.isEmpty && vitals.isEmpty && labs.isEmpty)
                     const HubEmptyState(
                       title: 'No recent clinical activity',
@@ -106,6 +115,7 @@ class HubOverviewScreen extends ConsumerWidget {
                                   e['createdAt'] ?? e['encounterDate'],
                                 ),
                                 icon: Icons.event_note_outlined,
+                                iconColor: PatientHubMetrics.iconBlue,
                               ),
                             ),
                         ...vitals.take(3).map(
@@ -116,6 +126,7 @@ class HubOverviewScreen extends ConsumerWidget {
                                   v['recordedAt'] ?? v['createdAt'],
                                 ),
                                 icon: Icons.monitor_heart_outlined,
+                                iconColor: PatientHubMetrics.waitRed,
                               ),
                             ),
                       ],

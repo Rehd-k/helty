@@ -6,7 +6,10 @@ import 'package:helty/app_router.gr.dart';
 
 import '../../providers/patient_hub_providers.dart';
 import '../../widgets/hub_empty_state.dart';
+import '../../widgets/hub_list_row.dart';
 import '../../widgets/patient_hub_scope.dart';
+import '../../patient_hub_metrics.dart';
+import '../../../helper/date.formatter.dart';
 
 @RoutePage()
 class HubTheatreScreen extends ConsumerWidget {
@@ -38,24 +41,20 @@ class HubTheatreScreen extends ConsumerWidget {
           );
         }
         return ResponsiveBody(
-          builder: (context, bp) => ListView.separated(
-          padding: const EdgeInsets.all(16),
+          builder: (context, bp) => ListView.builder(
+          padding: const EdgeInsets.only(top: 4),
           itemCount: requests.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final r = requests[index];
             final serviceName = r.service?.name ?? 'Surgery request';
-            return Card(
-              child: ListTile(
-                leading: const Icon(Icons.medical_services_outlined),
-                title: Text(serviceName),
-                subtitle: Text(
-                  '${r.status.displayLabel} · ${r.priority?.displayLabel ?? 'Routine'} · ${r.createdAt?.toLocal() ?? '—'}',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.router.push(
-                  TheatreCaseDetailRoute(surgeryRequestId: r.id),
-                ),
+            return HubListRow(
+              title: serviceName,
+              subtitle:
+                  '${r.status.displayLabel} · ${r.priority?.displayLabel ?? 'Routine'} · ${r.createdAt != null ? DateFormatter.dateTime(r.createdAt!) : '—'}',
+              icon: Icons.medical_services_outlined,
+              iconColor: PatientHubMetrics.iconPurple,
+              onTap: () => context.router.push(
+                TheatreCaseDetailRoute(surgeryRequestId: r.id),
               ),
             );
           },

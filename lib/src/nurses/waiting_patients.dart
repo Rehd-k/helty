@@ -18,6 +18,7 @@ import '../models/waiting_patient_model.dart';
 import '../services/waiting_patient_service.dart';
 import '../widgets/consultation_credit_chip.dart';
 import '../core/widgets/patient_avatar.dart';
+import '../widgets/patient_allergy_editor.dart';
 
 @RoutePage()
 class WaitingPatientsScreen extends ConsumerStatefulWidget {
@@ -956,165 +957,181 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                           : Stack(
                               children: [
                                 ListView.separated(
-                              itemCount: _visiblePatients.length,
-                              separatorBuilder: (_, __) => Divider(
-                                height: 1,
-                                color: colorScheme.outline.withValues(
-                                  alpha: 0.05,
-                                ),
-                              ),
-                              itemBuilder: (context, index) {
-                                final waiting = _visiblePatients[index];
-                                final patient = waiting.patient;
-                                final isUnassigned =
-                                    waiting.status == 'Waiting';
-                                final isSelected =
-                                    _selectedPatient?.id == waiting.id;
-
-                                final displayName = patient != null
-                                    ? patient.displayName
-                                    : 'Unknown';
-
-                                final consultation =
-                                    waiting.consultationName ?? '\u2014';
-                                final createdTime = DateFormatter.dateTime(
-                                  waiting.createdAt,
-                                );
-                                final roomLabel = waiting.status;
-
-                                return InkWell(
-                                  onTap: () => _selectWaitingPatient(waiting),
-                                  child: Container(
-                                    color: isSelected
-                                        ? colorScheme.primary.withValues(
-                                            alpha: 0.05,
-                                          )
-                                        : Colors.transparent,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 16,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 5,
-                                          child: Row(
-                                            children: [
-                                              patient != null
-                                                  ? PatientAvatar.fromPatient(
-                                                      patient,
-                                                      size: 32,
-                                                      backgroundColor:
-                                                          isUnassigned
-                                                          ? colorScheme.primary
-                                                                .withValues(
-                                                                  alpha: 0.1,
-                                                                )
-                                                          : colorScheme
-                                                                .surfaceContainerHighest,
-                                                      foregroundColor:
-                                                          isUnassigned
-                                                          ? colorScheme.primary
-                                                          : colorScheme
-                                                                .onSurfaceVariant,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    )
-                                                  : PatientAvatar(
-                                                      firstName: displayName
-                                                          .trim(),
-                                                      size: 32,
-                                                      backgroundColor:
-                                                          isUnassigned
-                                                          ? colorScheme.primary
-                                                                .withValues(
-                                                                  alpha: 0.1,
-                                                                )
-                                                          : colorScheme
-                                                                .surfaceContainerHighest,
-                                                      foregroundColor:
-                                                          isUnassigned
-                                                          ? colorScheme.primary
-                                                          : colorScheme
-                                                                .onSurfaceVariant,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                              const SizedBox(width: 12),
-                                              Text(
-                                                displayName,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  color: isUnassigned
-                                                      ? colorScheme.onSurface
-                                                      : colorScheme.onSurface
-                                                            .withValues(
-                                                              alpha: 0.5,
-                                                            ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        Expanded(
-                                          flex: 3,
-                                          child: _consultationCell(
-                                            consultation,
-                                            waiting.primaryConsultationCredit,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            createdTime,
-                                            style: TextStyle(
-                                              color: colorScheme.onSurface
-                                                  .withValues(alpha: 0.6),
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Align(
-                                            alignment: Alignment.centerLeft,
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: isUnassigned
-                                                    ? Colors.orange.withValues(
-                                                        alpha: 0.1,
-                                                      )
-                                                    : Colors.green.withValues(
-                                                        alpha: 0.1,
-                                                      ),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                roomLabel,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isUnassigned
-                                                      ? Colors.orange[800]
-                                                      : Colors.green[700],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                  itemCount: _visiblePatients.length,
+                                  separatorBuilder: (_, __) => Divider(
+                                    height: 1,
+                                    color: colorScheme.outline.withValues(
+                                      alpha: 0.05,
                                     ),
                                   ),
-                                );
-                              },
-                            ),
+                                  itemBuilder: (context, index) {
+                                    final waiting = _visiblePatients[index];
+                                    final patient = waiting.patient;
+                                    final isUnassigned =
+                                        waiting.status == 'Waiting';
+                                    final isSelected =
+                                        _selectedPatient?.id == waiting.id;
+
+                                    final displayName = patient != null
+                                        ? patient.displayName
+                                        : 'Unknown';
+
+                                    final consultation =
+                                        waiting.consultationName ?? '\u2014';
+                                    final createdTime = DateFormatter.dateTime(
+                                      waiting.createdAt,
+                                    );
+                                    final roomLabel = waiting.status;
+
+                                    return InkWell(
+                                      onTap: () =>
+                                          _selectWaitingPatient(waiting),
+                                      child: Container(
+                                        color: isSelected
+                                            ? colorScheme.primary.withValues(
+                                                alpha: 0.05,
+                                              )
+                                            : Colors.transparent,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                          vertical: 16,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              flex: 5,
+                                              child: Row(
+                                                children: [
+                                                  patient != null
+                                                      ? PatientAvatar.fromPatient(
+                                                          patient,
+                                                          size: 32,
+                                                          backgroundColor:
+                                                              isUnassigned
+                                                              ? colorScheme
+                                                                    .primary
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.1,
+                                                                    )
+                                                              : colorScheme
+                                                                    .surfaceContainerHighest,
+                                                          foregroundColor:
+                                                              isUnassigned
+                                                              ? colorScheme
+                                                                    .primary
+                                                              : colorScheme
+                                                                    .onSurfaceVariant,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        )
+                                                      : PatientAvatar(
+                                                          firstName: displayName
+                                                              .trim(),
+                                                          size: 32,
+                                                          backgroundColor:
+                                                              isUnassigned
+                                                              ? colorScheme
+                                                                    .primary
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.1,
+                                                                    )
+                                                              : colorScheme
+                                                                    .surfaceContainerHighest,
+                                                          foregroundColor:
+                                                              isUnassigned
+                                                              ? colorScheme
+                                                                    .primary
+                                                              : colorScheme
+                                                                    .onSurfaceVariant,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                  const SizedBox(width: 12),
+                                                  Text(
+                                                    displayName,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: isUnassigned
+                                                          ? colorScheme
+                                                                .onSurface
+                                                          : colorScheme
+                                                                .onSurface
+                                                                .withValues(
+                                                                  alpha: 0.5,
+                                                                ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            Expanded(
+                                              flex: 3,
+                                              child: _consultationCell(
+                                                consultation,
+                                                waiting
+                                                    .primaryConsultationCredit,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                createdTime,
+                                                style: TextStyle(
+                                                  color: colorScheme.onSurface
+                                                      .withValues(alpha: 0.6),
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: isUnassigned
+                                                        ? Colors.orange
+                                                              .withValues(
+                                                                alpha: 0.1,
+                                                              )
+                                                        : Colors.green
+                                                              .withValues(
+                                                                alpha: 0.1,
+                                                              ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    roomLabel,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: isUnassigned
+                                                          ? Colors.orange[800]
+                                                          : Colors.green[700],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                                 if (_loading)
                                   const Positioned(
                                     top: 0,
@@ -1716,6 +1733,14 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                       ],
                     ),
                   const SizedBox(height: 20),
+                  PatientAllergyEditor(
+                    key: ValueKey(
+                      'opd-allergies-${waiting.patient?.id ?? waiting.patientId}',
+                    ),
+                    patientId: waiting.patient?.id ?? waiting.patientId,
+                    compact: true,
+                  ),
+                  const SizedBox(height: 20),
                   _buildNotesInput(colorScheme),
                   const SizedBox(height: 24),
                   Text(
@@ -2012,10 +2037,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
       children: [
         Text(
           consultation,
-          style: TextStyle(
-            color: colorScheme.onSurfaceVariant,
-            fontSize: 13,
-          ),
+          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
         ),
         if (creditLine != null && creditLine.hasCreditMetadata) ...[
           const SizedBox(height: 4),

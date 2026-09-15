@@ -9,7 +9,9 @@ import '../../../patient_chart/models/patient_chart_models.dart';
 import '../../providers/patient_hub_providers.dart';
 import '../../utils/hub_chart_helpers.dart';
 import '../../widgets/hub_empty_state.dart';
+import '../../widgets/hub_list_row.dart';
 import '../../widgets/hub_section_scaffold.dart';
+import '../../patient_hub_metrics.dart';
 import '../../widgets/patient_hub_scope.dart';
 
 @RoutePage()
@@ -102,22 +104,27 @@ class _HubEncountersScreenState extends ConsumerState<HubEncountersScreen> {
 
         return ResponsiveBody(
           builder: (context, bp) => HubSectionScaffold(
-          filterRow: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: HubEncounterFilter.values
-                  .map(
-                    (f) => Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: FilterChip(
-                        label: Text(_filterLabel(f)),
-                        selected: _filter == f,
-                        onSelected: (_) => setState(() => _filter = f),
-                      ),
-                    ),
-                  )
-                  .toList(),
+          filterRow: DropdownButtonFormField<HubEncounterFilter>(
+            key: ValueKey('hub-enc-$_filter'),
+            initialValue: _filter,
+            isExpanded: true,
+            decoration: hubFilterDecoration(
+              context,
+              label: 'Type',
+              iconColor: PatientHubMetrics.iconPink,
+              icon: Icons.category_outlined,
             ),
+            items: HubEncounterFilter.values
+                .map(
+                  (f) => DropdownMenuItem(
+                    value: f,
+                    child: Text(_filterLabel(f)),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) {
+              if (v != null) setState(() => _filter = v);
+            },
           ),
           sortDropdown: DropdownButton<HubSortOrder>(
             value: _sort,
@@ -140,18 +147,25 @@ class _HubEncountersScreenState extends ConsumerState<HubEncountersScreen> {
                   title: 'No encounters or admissions',
                   icon: Icons.event_busy_outlined,
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 4),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final item = items[index];
                     final section =
                         item['_section']?.toString() ?? 'encounters';
                     final id = item['id']?.toString();
-                    return _EncounterTile(
-                      sectionKey: section,
-                      item: item,
+                    final isAdmission =
+                        section == PatientChartSectionKeys.admissions;
+                    return HubListRow(
+                      title: hubRowTitle(section, item),
+                      subtitle: hubRowSubtitle(item),
+                      icon: isAdmission
+                          ? Icons.bed_outlined
+                          : Icons.medical_information_outlined,
+                      iconColor: isAdmission
+                          ? PatientHubMetrics.iconTeal
+                          : PatientHubMetrics.iconBlue,
                       onTap: id != null
                           ? () => _openItem(
                                 context,
@@ -197,43 +211,4 @@ class _HubEncountersScreenState extends ConsumerState<HubEncountersScreen> {
         HubEncounterFilter.inpatient => 'Inpatient',
         HubEncounterFilter.emergency => 'Emergency',
       };
-}
-
-class _EncounterTile extends StatelessWidget {
-  const _EncounterTile({
-    required this.sectionKey,
-    required this.item,
-    this.onTap,
-  });
-
-  final String sectionKey;
-  final Map<String, dynamic> item;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isAdmission = sectionKey == PatientChartSectionKeys.admissions;
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isAdmission
-              ? cs.tertiaryContainer
-              : cs.primaryContainer,
-          child: Icon(
-            isAdmission ? Icons.bed_outlined : Icons.medical_information_outlined,
-            color: isAdmission ? cs.onTertiaryContainer : cs.onPrimaryContainer,
-          ),
-        ),
-        title: Text(hubRowTitle(sectionKey, item)),
-        subtitle: Text(hubRowSubtitle(item) ?? ''),
-        trailing: onTap != null ? const Icon(Icons.chevron_right) : null,
-        onTap: onTap,
-      ),
-    );
-  }
 }

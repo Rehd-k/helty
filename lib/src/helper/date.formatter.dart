@@ -5,19 +5,27 @@ import 'app_timezone.dart';
 class DateFormatter {
   static DateTime _asLagos(DateTime date) => AppTimezone.toLocal(date);
 
-  // 1. Just the date: 23/12/1990
+  // 1. App-wide date: 15/09/2026 (dd/MM/yyyy)
   static String shortDate(DateTime date) {
     return DateFormat('dd/MM/yyyy').format(_asLagos(date));
   }
 
-  // 2. Full readable date: Monday, December 23, 1990
-  static String fullDate(DateTime date) {
-    return DateFormat('EEEE, MMMM d, yyyy').format(_asLagos(date));
+  /// Month and year only: 09/2026
+  static String monthYear(DateTime date) {
+    return DateFormat('MM/yyyy').format(_asLagos(date));
   }
 
-  // 3. Date with Time (12h): 23/12/1990 02:30 PM
+  // 2. Same as [shortDate] (kept for existing call sites).
+  static String fullDate(DateTime date) => shortDate(date);
+
+  // 3. Date with Time (12h): 15/09/2026 02:30 PM
   static String dateTime(DateTime date) {
     return DateFormat('dd/MM/yyyy hh:mm a').format(_asLagos(date));
+  }
+
+  /// Date with 24h time: 15/09/2026 14:30
+  static String dateTime24(DateTime date) {
+    return DateFormat('dd/MM/yyyy HH:mm').format(_asLagos(date));
   }
 
   /// Date with time including seconds (12h): 23/12/1990 02:30:05 PM
@@ -30,15 +38,11 @@ class DateFormatter {
     return DateFormat('hh:mm a').format(_asLagos(date));
   }
 
-  // 5. Medical Style (e.g., for Patient records): 23 Dec 1990
-  static String medicalDate(DateTime date) {
-    return DateFormat('dd MMM yyyy').format(_asLagos(date));
-  }
+  // 5. Same as [shortDate] (kept for existing call sites).
+  static String medicalDate(DateTime date) => shortDate(date);
 
-  /// US-style short date: 4/5/2026 (month/day/year, no leading zeros).
-  static String shortNumericUs(DateTime date) {
-    return DateFormat('M/d/yyyy').format(_asLagos(date));
-  }
+  /// Same as [shortDate] (kept for existing call sites).
+  static String shortNumericUs(DateTime date) => shortDate(date);
 
   /// Human-readable elapsed time from [past] until [now] (e.g. "3 days ago").
   static String relativeTimeAgo(DateTime past, [DateTime? now]) {
@@ -116,7 +120,8 @@ class DateFormatter {
       return years == 1 ? '1 yr' : '$years yrs';
     }
 
-    var months = (clock.year - lagosDob.year) * 12 + clock.month - lagosDob.month;
+    var months =
+        (clock.year - lagosDob.year) * 12 + clock.month - lagosDob.month;
     if (clock.day < lagosDob.day) months--;
     if (months >= 1) {
       return months == 1 ? '1 mo' : '$months mo';

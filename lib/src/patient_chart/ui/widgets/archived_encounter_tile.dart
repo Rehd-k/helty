@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
 
 import '../../models/archived_encounter_models.dart';
@@ -52,13 +51,13 @@ class ArchivedEncountersList extends StatelessWidget {
             title: Text(
               group.title?.trim().isNotEmpty == true
                   ? group.title!
-                  : 'Visit ${DateFormat.yMMMd().format(group.encounterOccurredAt)}',
+                  : 'Visit ${DateFormatter.shortDate(group.encounterOccurredAt)}',
             ),
             subtitle: Text(
               [
-                'Visit: ${DateFormat.yMMMd().add_jm().format(group.encounterOccurredAt)}',
+                'Visit: ${DateFormatter.dateTime(group.encounterOccurredAt)}',
                 if (group.createdAt != null)
-                  'Uploaded: ${DateFormat.yMMMd().format(group.createdAt!)}',
+                  'Uploaded: ${DateFormatter.shortDate(group.createdAt!)}',
                 if (group.uploadedBy != null)
                   'By: ${group.uploadedBy!.displayName}',
               ].join(' · '),
@@ -82,7 +81,7 @@ class ArchivedEncountersList extends StatelessWidget {
                   title: Text(doc.fileName, overflow: TextOverflow.ellipsis),
                   subtitle: doc.uploadedAt != null
                       ? Text(
-                          DateFormat.yMMMd().add_jm().format(doc.uploadedAt!),
+                          DateFormatter.dateTime(doc.uploadedAt!),
                         )
                       : null,
                   onTap: () {

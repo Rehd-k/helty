@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/responsive.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../core/extensions/number.extention.dart';
@@ -33,9 +33,7 @@ class _SupplyHistoryRow {
 enum _DateFilterOption { last7Days, last30Days, last90Days, allTime }
 
 class _DrugPickResult {
-  const _DrugPickResult.clear()
-    : drug = null,
-      explicitClear = true;
+  const _DrugPickResult.clear() : drug = null, explicitClear = true;
   _DrugPickResult.selected(this.drug) : explicitClear = false;
 
   final Drug? drug;
@@ -272,7 +270,7 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
 
   String _formatDate(DateTime? date) {
     if (date == null) return '—';
-    return DateFormat('MMM d, yyyy').format(date);
+    return DateFormatter.shortDate(date);
   }
 
   String _formatQuantity(_SupplyHistoryRow row) {
@@ -488,7 +486,9 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                                     Text(
                                       'Loading batches…',
                                       style: TextStyle(
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                         fontSize: 14,
                                       ),
                                     ),
@@ -628,7 +628,10 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
                     : 'Select drug',
               ),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 backgroundColor: accent.withValues(alpha: 0.1),
                 foregroundColor: const Color(0xFF0F766E),
               ),
@@ -852,118 +855,118 @@ class _SupplyHistoryScreenState extends State<SupplyHistoryScreen> {
           controller: _verticalScrollController,
           scrollDirection: Axis.vertical,
           child: DataTable(
-              sortColumnIndex: _sortColumnIndex,
-              sortAscending: _isAscending,
-              headingRowColor: WidgetStateProperty.all(Colors.white),
-              dataRowMinHeight: 70,
-              dataRowMaxHeight: 70,
-              horizontalMargin: 24,
-              columnSpacing: 48,
-              dividerThickness: 1,
-              headingTextStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: Color(0xFF6C757D),
-                letterSpacing: 1.2,
+            sortColumnIndex: _sortColumnIndex,
+            sortAscending: _isAscending,
+            headingRowColor: WidgetStateProperty.all(Colors.white),
+            dataRowMinHeight: 70,
+            dataRowMaxHeight: 70,
+            horizontalMargin: 24,
+            columnSpacing: 48,
+            dividerThickness: 1,
+            headingTextStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: Color(0xFF6C757D),
+              letterSpacing: 1.2,
+            ),
+            columns: [
+              DataColumn(
+                label: const Text('BATCH\nID'),
+                onSort: (idx, asc) => _onSort(idx, asc, 'batchNumber'),
               ),
-              columns: [
-                DataColumn(
-                  label: const Text('BATCH\nID'),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'batchNumber'),
-                ),
-                const DataColumn(label: Text('DRUG')),
-                DataColumn(
-                  label: const Text('RECEIVE\nDATE'),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'createdAt'),
-                ),
-                const DataColumn(label: Text('SUPPLIER')),
-                const DataColumn(label: Text('DRUG\nCATEGORY')),
-                DataColumn(
-                  label: const Text('QUANTITY'),
-                  numeric: true,
-                  onSort: (idx, asc) => _onSort(idx, asc, 'quantityReceived'),
-                ),
-                DataColumn(
-                  label: const Text('TOTAL\nCOST'),
-                  numeric: true,
-                  onSort: (idx, asc) => _onSort(idx, asc, 'costPrice'),
-                ),
-                const DataColumn(label: Text('STATUS')),
-              ],
-              rows: _rows.map((row) {
-                final batch = row.batch;
-                final supplierText = row.supplierName ?? '—';
-                final categoryText =
-                    row.category ?? batch.drug?.therapeuticClass ?? '—';
+              const DataColumn(label: Text('DRUG')),
+              DataColumn(
+                label: const Text('RECEIVE\nDATE'),
+                onSort: (idx, asc) => _onSort(idx, asc, 'createdAt'),
+              ),
+              const DataColumn(label: Text('SUPPLIER')),
+              const DataColumn(label: Text('DRUG\nCATEGORY')),
+              DataColumn(
+                label: const Text('QUANTITY'),
+                numeric: true,
+                onSort: (idx, asc) => _onSort(idx, asc, 'quantityReceived'),
+              ),
+              DataColumn(
+                label: const Text('TOTAL\nCOST'),
+                numeric: true,
+                onSort: (idx, asc) => _onSort(idx, asc, 'costPrice'),
+              ),
+              const DataColumn(label: Text('STATUS')),
+            ],
+            rows: _rows.map((row) {
+              final batch = row.batch;
+              final supplierText = row.supplierName ?? '—';
+              final categoryText =
+                  row.category ?? batch.drug?.therapeuticClass ?? '—';
 
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        batch.batchNumber ?? (batch.id ?? '—'),
+              return DataRow(
+                cells: [
+                  DataCell(
+                    Text(
+                      batch.batchNumber ?? (batch.id ?? '—'),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 220),
+                      child: Text(
+                        _drugNameForRow(row),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF334155),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      _formatDate(row.receiveDate),
+                      style: TextStyle(color: cs.onSurfaceVariant),
+                    ),
+                  ),
+                  DataCell(
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 160),
+                      child: Text(
+                        supplierText,
                         style: TextStyle(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                           color: cs.onSurfaceVariant,
                         ),
+                        softWrap: true,
                       ),
                     ),
-                    DataCell(
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 220),
-                        child: Text(
-                          _drugNameForRow(row),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF334155),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatDate(row.receiveDate),
+                  ),
+                  DataCell(_buildCategoryChip(categoryText)),
+                  DataCell(
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 100),
+                      child: Text(
+                        _formatQuantity(row),
                         style: TextStyle(color: cs.onSurfaceVariant),
+                        softWrap: true,
                       ),
                     ),
-                    DataCell(
-                      Container(
-                        constraints: const BoxConstraints(maxWidth: 160),
-                        child: Text(
-                          supplierText,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: cs.onSurfaceVariant,
-                          ),
-                          softWrap: true,
-                        ),
+                  ),
+                  DataCell(
+                    Text(
+                      _formatTotalCost(row),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
-                    DataCell(_buildCategoryChip(categoryText)),
-                    DataCell(
-                      Container(
-                        constraints: const BoxConstraints(maxWidth: 100),
-                        child: Text(
-                          _formatQuantity(row),
-                          style: TextStyle(color: cs.onSurfaceVariant),
-                          softWrap: true,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatTotalCost(row),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    DataCell(_buildStatusChip(row.status)),
-                  ],
-                );
-              }).toList(),
+                  ),
+                  DataCell(_buildStatusChip(row.status)),
+                ],
+              );
+            }).toList(),
           ),
         ),
       ),
@@ -1105,7 +1108,8 @@ class _SupplyHistoryDrugSheet extends StatefulWidget {
   final PharmacyApiService api;
 
   @override
-  State<_SupplyHistoryDrugSheet> createState() => _SupplyHistoryDrugSheetState();
+  State<_SupplyHistoryDrugSheet> createState() =>
+      _SupplyHistoryDrugSheetState();
 }
 
 class _SupplyHistoryDrugSheetState extends State<_SupplyHistoryDrugSheet> {
@@ -1196,10 +1200,8 @@ class _SupplyHistoryDrugSheetState extends State<_SupplyHistoryDrugSheet> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.pop(
-                        context,
-                        const _DrugPickResult.clear(),
-                      ),
+                      onPressed: () =>
+                          Navigator.pop(context, const _DrugPickResult.clear()),
                       child: const Text('All drugs'),
                     ),
                   ],
@@ -1248,7 +1250,9 @@ class _SupplyHistoryDrugSheetState extends State<_SupplyHistoryDrugSheet> {
                             'No drugs match this search. Try another name.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               fontSize: 15,
                             ),
                           ),
@@ -1273,7 +1277,9 @@ class _SupplyHistoryDrugSheetState extends State<_SupplyHistoryDrugSheet> {
                             ),
                             title: Text(
                               _drugDisplayLabel(d),
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             subtitle: _subtitleForDrugPicker(d),
                             onTap: () => Navigator.pop(

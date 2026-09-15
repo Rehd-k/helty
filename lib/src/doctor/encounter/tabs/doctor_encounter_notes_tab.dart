@@ -1,9 +1,11 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
@@ -197,6 +199,35 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (!widget.embedded)
+            InpatientTabToolbar(
+              icon: Icons.notes_outlined,
+              iconColor: InpatientMetrics.iconPink,
+              title: 'Notes',
+              subtitle: 'SOAP progress note',
+              actions: [
+                if (!locked && !readOnly) ...[
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _saveDraft,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined, size: 16),
+                    label: const Text('Save draft'),
+                    style: inpatientCompactFill(),
+                  ),
+                  OutlinedButton(
+                    onPressed: _saving ? null : _lockNote,
+                    style: inpatientCompactOutline(),
+                    child: Text('Lock (after $_lockAfterMinutes min)'),
+                  ),
+                ],
+              ],
+            ),
+          if (!widget.embedded) const SizedBox(height: 10),
           if (locked)
             Container(
               padding: const EdgeInsets.all(12),
@@ -247,25 +278,29 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
               ),
             ),
           ],
-          const SizedBox(height: 24),
-          if (!locked && !readOnly)
-            ResponsiveToolbar(
-              actions: [
+          const SizedBox(height: 10),
+          if (!locked && !readOnly && widget.embedded)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              children: [
                 FilledButton.icon(
                   onPressed: _saving ? null : _saveDraft,
                   icon: _saving
                       ? const SizedBox(
-                          width: 18,
-                          height: 18,
+                          width: 16,
+                          height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.save_outlined, size: 18),
+                      : const Icon(Icons.save_outlined, size: 16),
                   label: const Text('Save draft'),
+                  style: inpatientCompactFill(),
                 ),
-                OutlinedButton.icon(
+                OutlinedButton(
                   onPressed: _saving ? null : _lockNote,
-                  icon: const Icon(Icons.lock_outline, size: 18),
-                  label: Text('Lock (after $_lockAfterMinutes min)'),
+                  style: inpatientCompactOutline(),
+                  child: Text('Lock (after $_lockAfterMinutes min)'),
                 ),
               ],
             ),
@@ -277,31 +312,33 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
   Widget _soapSection(String label, TextEditingController ctrl, bool readOnly) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: ctrl,
-            maxLines: 4,
-            readOnly: readOnly,
-            decoration: InputDecoration(
-              hintText: readOnly ? '' : 'Enter $label',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: HeltySurfaceCard(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HeltyEllipsisText(
+              text: label,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
               ),
-              filled: true,
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: ctrl,
+              maxLines: 4,
+              readOnly: readOnly,
+              decoration: InputDecoration(
+                hintText: readOnly ? '' : 'Enter $label',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

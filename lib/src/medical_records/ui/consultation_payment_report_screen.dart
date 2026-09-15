@@ -6,7 +6,6 @@ import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/medical_records/models/consultation_payment_report_row.dart';
 import 'package:helty/src/medical_records/services/consultation_payment_report_service.dart';
 import 'package:helty/src/widgets/date.filter.dart';
-import 'package:intl/intl.dart';
 
 @RoutePage()
 class ConsultationPaymentReportScreen extends StatefulWidget {
@@ -91,13 +90,15 @@ class _ConsultationPaymentReportScreenState
     final filtered = _filteredRows;
     if (filtered.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No rows to export.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No rows to export.')));
       return;
     }
 
-    final buffer = StringBuffer('Name,Age,Gender,Diagnosis,Paid date,Patient ID\n');
+    final buffer = StringBuffer(
+      'Name,Age,Gender,Diagnosis,Paid date,Patient ID\n',
+    );
     for (final r in filtered) {
       buffer.writeln(
         [
@@ -105,7 +106,7 @@ class _ConsultationPaymentReportScreenState
           _csvCell(r.ageLabel),
           _csvCell(r.gender),
           _csvCell(r.diagnosis),
-          _csvCell(DateFormat.yMMMd().format(r.paidAt)),
+          _csvCell(DateFormatter.shortDate(r.paidAt)),
           _csvCell(r.patientId),
         ].join(','),
       );
@@ -155,9 +156,7 @@ class _ConsultationPaymentReportScreenState
                           'Patients who paid for consultation in the selected period. '
                           'Diagnosis is shown when a completed encounter exists.',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurface.withValues(
-                              alpha: 0.7,
-                            ),
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -204,28 +203,29 @@ class _ConsultationPaymentReportScreenState
                   FromToDateFilter(
                     doRefresh: _load,
                     dateFilter: true,
-                    onFilterChanged: (
-                      String query,
-                      String category,
-                      DateTime? from,
-                      DateTime? to,
-                    ) {
-                      setState(() {
-                        _fromDate = from;
-                        _toDate = to != null
-                            ? DateTime(
-                                to.year,
-                                to.month,
-                                to.day,
-                                23,
-                                59,
-                                59,
-                                999,
-                              )
-                            : null;
-                      });
-                      _load();
-                    },
+                    onFilterChanged:
+                        (
+                          String query,
+                          String category,
+                          DateTime? from,
+                          DateTime? to,
+                        ) {
+                          setState(() {
+                            _fromDate = from;
+                            _toDate = to != null
+                                ? DateTime(
+                                    to.year,
+                                    to.month,
+                                    to.day,
+                                    23,
+                                    59,
+                                    59,
+                                    999,
+                                  )
+                                : null;
+                          });
+                          _load();
+                        },
                   ),
                   if (_rows.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -254,7 +254,11 @@ class _ConsultationPaymentReportScreenState
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: colorScheme.error,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         _error!,
@@ -312,7 +316,8 @@ class _ConsultationPaymentReportScreenState
                               cells: [
                                 DataCell(
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
@@ -323,11 +328,11 @@ class _ConsultationPaymentReportScreenState
                                       ),
                                       Text(
                                         r.patientId,
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: colorScheme.onSurface.withValues(
-                                            alpha: 0.6,
-                                          ),
-                                        ),
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.6),
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -336,7 +341,9 @@ class _ConsultationPaymentReportScreenState
                                 DataCell(Text(r.gender)),
                                 DataCell(
                                   ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 360),
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 360,
+                                    ),
                                     child: Text(
                                       r.diagnosis,
                                       maxLines: 4,

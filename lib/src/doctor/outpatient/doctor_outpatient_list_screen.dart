@@ -9,6 +9,7 @@ import 'package:helty/src/paitients/patient_service.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
+import '../../widgets/appointments_calendar.dart';
 import '../../widgets/date.filter.dart';
 
 @RoutePage()
@@ -99,9 +100,11 @@ class _DoctorOutpatientListScreenState
               color: colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 16),
           FromToDateFilter(
             doRefresh: () => _load(),
             dateFilter: true,
+            colorful: true,
             onFilterChanged:
                 (String query, String category, DateTime? from, DateTime? to) {
                   setState(() {
@@ -113,31 +116,59 @@ class _DoctorOutpatientListScreenState
           ),
           const SizedBox(height: 24),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _error!,
-                          style: TextStyle(color: colorScheme.error),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: _load,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
+            child: bp.isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const AppointmentsCalendarCard(),
+                      const SizedBox(height: 16),
+                      Expanded(child: _listBody(context, bp, colorScheme)),
+                    ],
                   )
-                : _buildTable(context, bp),
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _listBody(context, bp, colorScheme)),
+                      const SizedBox(width: 16),
+                      const SizedBox(
+                        width: 340,
+                        child: SingleChildScrollView(
+                          child: AppointmentsCalendarCard(),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _listBody(
+    BuildContext context,
+    AppBreakpoints bp,
+    ColorScheme colorScheme,
+  ) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _error!,
+              style: TextStyle(color: colorScheme.error),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    return _buildTable(context, bp);
   }
 
   Widget _buildTable(BuildContext context, AppBreakpoints bp) {
@@ -247,10 +278,8 @@ class _DoctorOutpatientListScreenState
                                   ),
                                 ),
                               ),
-                              if (enc.visitType != null)
-                                Text(enc.visitType!),
-                              if (enc.insurance != null)
-                                Text(enc.insurance!),
+                              if (enc.visitType != null) Text(enc.visitType!),
+                              if (enc.insurance != null) Text(enc.insurance!),
                             ],
                           ),
                         ],

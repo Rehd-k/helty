@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/auth_provider.dart';
@@ -104,7 +105,6 @@ class _PharmacySalesBreakdownDetailScreenState
   NumberFormat get _money =>
       NumberFormat.currency(symbol: 'NGN ', decimalDigits: 0);
   NumberFormat get _count => NumberFormat.decimalPattern();
-  DateFormat get _date => DateFormat('dd MMM, HH:mm');
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +191,9 @@ class _PharmacySalesBreakdownDetailScreenState
                 ),
               ),
               Text(
-                r.dispensedAt == null ? '—' : _date.format(r.dispensedAt!),
+                r.dispensedAt == null
+                    ? '—'
+                    : DateFormatter.dateTime24(r.dispensedAt!),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: const Color(0xFF64748B),
                 ),

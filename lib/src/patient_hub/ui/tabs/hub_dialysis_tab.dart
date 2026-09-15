@@ -6,7 +6,10 @@ import 'package:helty/app_router.gr.dart';
 
 import '../../providers/patient_hub_providers.dart';
 import '../../widgets/hub_empty_state.dart';
+import '../../widgets/hub_list_row.dart';
 import '../../widgets/patient_hub_scope.dart';
+import '../../patient_hub_metrics.dart';
+import '../../../helper/date.formatter.dart';
 
 @RoutePage()
 class HubDialysisScreen extends ConsumerWidget {
@@ -38,23 +41,20 @@ class HubDialysisScreen extends ConsumerWidget {
           );
         }
         return ResponsiveBody(
-          builder: (context, bp) => ListView.separated(
-          padding: const EdgeInsets.all(16),
+          builder: (context, bp) => ListView.builder(
+          padding: const EdgeInsets.only(top: 4),
           itemCount: sessions.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final s = sessions[index];
-            return Card(
-              child: ListTile(
-                leading: const Icon(Icons.bloodtype_outlined),
-                title: Text('Session ${s.id.substring(0, 8)}…'),
-                subtitle: Text(
-                  '${s.status.displayLabel} · ${(s.createdAt ?? s.startedAt)?.toLocal() ?? '—'}',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.router.push(
-                  DialysisSessionDetailRoute(sessionId: s.id),
-                ),
+            final when = s.createdAt ?? s.startedAt;
+            return HubListRow(
+              title: 'Session ${s.id.substring(0, 8)}…',
+              subtitle:
+                  '${s.status.displayLabel} · ${when != null ? DateFormatter.dateTime(when) : '—'}',
+              icon: Icons.bloodtype_outlined,
+              iconColor: PatientHubMetrics.iconBlue,
+              onTap: () => context.router.push(
+                DialysisSessionDetailRoute(sessionId: s.id),
               ),
             );
           },

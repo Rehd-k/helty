@@ -8,9 +8,12 @@ import 'package:helty/src/models/invoice_billing_models.dart';
 import 'package:helty/src/models/procedure_record_model.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/providers/invoices_providers.dart';
 import 'package:helty/src/providers/service_providers.dart';
 import 'package:helty/src/services/procedure_record_service.dart';
@@ -158,6 +161,19 @@ class _InpatientProceduresScreenState
       );
     }
 
+    final scope = InpatientViewScope.of(context);
+    final canRecord =
+        scope?.isAdmissionActive == true && scope?.isNurse == true;
+    final now = DateTime.now();
+    final today = _records.where((r) {
+      final t = r.recordedAt ?? r.createdAt;
+      if (t == null) return false;
+      return t.year == now.year && t.month == now.month && t.day == now.day;
+    }).length;
+    final withComplications = _records
+        .where((r) => (r.complications ?? '').trim().isNotEmpty)
+        .length;
+
     Widget tableChild;
     if (_loading) {
       tableChild = const Padding(
@@ -175,68 +191,98 @@ class _InpatientProceduresScreenState
         ],
       );
     } else {
-      tableChild = SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns:
-              [
-                    'Date/Time',
-                    'Type',
-                    'Description',
-                    'Outcome',
-                    'Complications',
-                    'Recorded by',
-                  ]
-                  .map(
-                    (c) => DataColumn(
-                      label: Text(
-                        c,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-          rows: _records
-              .map(
-                (r) => DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        DateFormatter.dateTime(
-                          r.recordedAt ?? r.createdAt ?? DateTime.now(),
-                        ),
-                      ),
-                    ),
-                    DataCell(Text(r.procedureType ?? '—')),
-                    DataCell(Text(r.description ?? '—')),
-                    DataCell(Text(r.outcome ?? '—')),
-                    DataCell(Text(r.complications ?? '—')),
-                    DataCell(Text(r.nurseDisplayName ?? '—')),
-                  ],
-                ),
-              )
-              .toList(),
-        ),
+      tableChild = InpatientChartTable(
+        columns: const [
+          InpatientChartColumn('DATE/TIME', flex: 3),
+          InpatientChartColumn('TYPE', flex: 2),
+          InpatientChartColumn('DESCRIPTION', flex: 3),
+          InpatientChartColumn('OUTCOME', flex: 2),
+          InpatientChartColumn('COMPLICATIONS', flex: 2),
+          InpatientChartColumn('RECORDED BY', flex: 2),
+        ],
+        rowCount: _records.length,
+        emptyMessage: 'No procedures recorded yet.',
+        minWidth: 880,
+        footerLabel: _records.length == 1
+            ? '1 procedure'
+            : '${_records.length} procedures',
+        cellBuilder: (context, index) {
+          final r = _records[index];
+          return [
+            HeltyEllipsisText(
+              text: DateFormatter.dateTime(
+                r.recordedAt ?? r.createdAt ?? DateTime.now(),
+              ),
+            ),
+            HeltyEllipsisText(text: r.procedureType ?? '—'),
+            HeltyEllipsisText(text: r.description ?? '—'),
+            HeltyEllipsisText(text: r.outcome ?? '—'),
+            HeltyEllipsisText(text: r.complications ?? '—'),
+            HeltyEllipsisText(text: r.nurseDisplayName ?? '—'),
+          ];
+        },
       );
     }
 
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
-        child: SectionCard(
-        title: 'Procedures',
-        subtitle: 'Bedside and theatre procedures for this admission',
-        actions: [
-          FilledButton.icon(
-            onPressed: () => _openAddProcedureDialog(context, admissionId),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add Procedure'),
-          ),
-        ],
-        child: tableChild,
-      ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InpatientTabToolbar(
+              icon: Icons.medical_services_outlined,
+              iconColor: InpatientMetrics.iconIndigo,
+              title: 'Procedures',
+              subtitle: 'Bedside and theatre procedures',
+              actions: [
+                FilledButton.icon(
+                  onPressed: canRecord
+                      ? () => _openAddProcedureDialog(context, admissionId)
+                      : null,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add Procedure'),
+                  style: inpatientCompactFill(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            InpatientKpiRow(
+              tiles: [
+                InpatientKpiTile(
+                  icon: Icons.medical_services_outlined,
+                  color: InpatientMetrics.iconIndigo,
+                  label: 'Procedures',
+                  value: _loading ? '—' : '${_records.length}',
+                  caption: 'This admission',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.today_outlined,
+                  color: InpatientMetrics.iconBlue,
+                  label: 'Today',
+                  value: _loading ? '—' : '$today',
+                  caption: 'Recorded today',
+                ),
+                InpatientKpiTile(
+                  icon: Icons.report_outlined,
+                  color: InpatientMetrics.waitAmber,
+                  label: 'Complications',
+                  value: _loading ? '—' : '$withComplications',
+                  caption: 'With notes',
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SectionCard(
+              title: 'Procedure records',
+              subtitle: 'Newest first',
+              icon: Icons.table_chart_outlined,
+              iconColor: InpatientMetrics.iconIndigo,
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: tableChild,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,5 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
@@ -1063,10 +1062,12 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(
-                  onPressed: _loading || _loadingMore ? null : _pickQueueDateRange,
+                  onPressed: _loading || _loadingMore
+                      ? null
+                      : _pickQueueDateRange,
                   icon: const Icon(Icons.date_range, size: 18),
                   label: Text(
-                    '${DateFormat('dd MMM yyyy').format(from)} - ${DateFormat('dd MMM yyyy').format(to)}',
+                    '${DateFormatter.shortDate(from)} - ${DateFormatter.shortDate(to)}',
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -2019,45 +2020,45 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             onTap: () => _openPatientHub(patient),
             borderRadius: BorderRadius.circular(8),
             child: Row(
-            children: [
-              _detailPatient != null
-                  ? PatientAvatar.fromPatient(_detailPatient!, size: 36)
-                  : PatientAvatar(
-                      firstName: sidebarFirstName,
-                      surname: sidebarSurname,
-                      displayName: patient.name,
-                      size: 36,
-                      backgroundColor: colorScheme.primaryContainer,
-                      foregroundColor: colorScheme.onPrimaryContainer,
-                    ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      patient.name,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+              children: [
+                _detailPatient != null
+                    ? PatientAvatar.fromPatient(_detailPatient!, size: 36)
+                    : PatientAvatar(
+                        firstName: sidebarFirstName,
+                        surname: sidebarSurname,
+                        displayName: patient.name,
+                        size: 36,
+                        backgroundColor: colorScheme.primaryContainer,
+                        foregroundColor: colorScheme.onPrimaryContainer,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '${patient.gender.isEmpty ? '—' : patient.gender} • ${patient.age}y',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: colorScheme.onSurfaceVariant,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        patient.name,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                      Text(
+                        '${patient.gender.isEmpty ? '—' : patient.gender} • ${patient.age}y',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Row(

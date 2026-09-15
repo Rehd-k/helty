@@ -24,6 +24,7 @@ class InpatientViewScope extends InheritedWidget {
     this.admissionStatus,
     this.isOutpatient = false,
     this.readOnly = false,
+    this.onSelectTab,
     required super.child,
   });
 
@@ -59,6 +60,9 @@ class InpatientViewScope extends InheritedWidget {
   /// Convenience booleans derived from [role]/[accountType].
   final bool isDoctor;
   final bool isNurse;
+
+  /// Switch the parent tab strip. Index is a UI tab (see [InpatientUiTabs]).
+  final void Function(int uiTabIndex)? onSelectTab;
 
   /// Whether nursing/clinical actions are allowed on this admission.
   /// Includes [PENDING_BILLING_CLEARANCE] so nurses can finish documentation

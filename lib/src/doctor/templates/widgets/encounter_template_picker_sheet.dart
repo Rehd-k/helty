@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/doctor/templates/encounter_template_applier.dart';
 import 'package:helty/src/doctor/templates/encounter_template_fields.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/encounter_template_model.dart';
 import 'package:helty/src/services/encounter_template_service.dart';
-import 'package:intl/intl.dart';
 
 class EncounterTemplatePickerSheet extends StatefulWidget {
   const EncounterTemplatePickerSheet({
@@ -211,7 +211,7 @@ class _EncounterTemplatePickerSheetState
                 const SizedBox(height: 4),
                 Text(
                   '${encounterTemplateTypeLabel(t.encounterType)} • ${t.populatedFieldCount} fields'
-                  '${updated != null ? ' • ${DateFormat.yMMMd().format(updated.toLocal())}' : ''}',
+                  '${updated != null ? ' • ${DateFormatter.shortDate(updated)}' : ''}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

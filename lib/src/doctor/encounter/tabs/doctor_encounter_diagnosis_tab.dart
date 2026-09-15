@@ -9,6 +9,9 @@ import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/models/icd10_model.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/services/encounter_service.dart';
 import 'package:helty/src/services/icd10_service.dart';
@@ -262,6 +265,49 @@ class _DoctorEncounterDiagnosisTabState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (!widget.embedded) ...[
+              InpatientTabToolbar(
+                icon: Icons.medical_information_outlined,
+                iconColor: InpatientMetrics.iconPurple,
+                title: 'Diagnosis',
+                subtitle: 'Primary and secondary ICD-10',
+                actions: [
+                  if (!readOnly)
+                    FilledButton.icon(
+                      onPressed: _saving ? null : _save,
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined, size: 16),
+                      label: const Text('Save diagnosis'),
+                      style: inpatientCompactFill(),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              InpatientKpiRow(
+                tiles: [
+                  InpatientKpiTile(
+                    icon: Icons.star_outline,
+                    color: InpatientMetrics.iconPurple,
+                    label: 'Primary',
+                    value: _primary == null ? '—' : '1',
+                    caption: 'Required',
+                  ),
+                  InpatientKpiTile(
+                    icon: Icons.list_alt_outlined,
+                    color: InpatientMetrics.iconBlue,
+                    label: 'Secondary',
+                    value: '${_secondaries.length}',
+                    caption: 'Optional',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
             Text(
               'Primary diagnosis (required)',
               style: theme.textTheme.titleSmall?.copyWith(
@@ -304,35 +350,51 @@ class _DoctorEncounterDiagnosisTabState
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
+              child: OutlinedButton(
                 onPressed: () => _showCustomPrimaryDialog(context),
-                icon: const Icon(Icons.edit_note_outlined, size: 18),
-                label: const Text('Other — custom diagnosis'),
+                style: inpatientCompactOutline(),
+                child: const Text('Other — custom diagnosis'),
               ),
             ),
             if (_primary != null) ...[
               const SizedBox(height: 8),
-              ListTile(
-                tileColor: theme.colorScheme.primaryContainer.withValues(
-                  alpha: 0.3,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                title: Text(
-                  _primary!.code ==
-                          DoctorEncounterDiagnosisTab.customDiagnosisCode
-                      ? 'Custom diagnosis'
-                      : _primary!.code,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                subtitle: Text(_primary!.description),
-                trailing: IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => setState(() => _primary = null),
+              HeltySurfaceCard(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  children: [
+                    const HeltySolidIcon(
+                      icon: Icons.medical_information_outlined,
+                      color: InpatientMetrics.iconPurple,
+                      size: 28,
+                      iconSize: 15,
+                      radius: 7,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          HeltyEllipsisText(
+                            text:
+                                _primary!.code ==
+                                    DoctorEncounterDiagnosisTab
+                                        .customDiagnosisCode
+                                ? 'Custom diagnosis'
+                                : _primary!.code,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: InpatientMetrics.iconPurple,
+                            ),
+                          ),
+                          HeltyEllipsisText(text: _primary!.description),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () => setState(() => _primary = null),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -349,7 +411,7 @@ class _DoctorEncounterDiagnosisTabState
                 }),
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
             Text(
               'Secondary diagnoses (optional)',
               style: theme.textTheme.titleSmall?.copyWith(
@@ -373,29 +435,30 @@ class _DoctorEncounterDiagnosisTabState
                 ),
               ),
             ),
-            OutlinedButton.icon(
+            OutlinedButton(
               onPressed: () => _showAddSecondary(context),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add secondary diagnosis (ICD-10)'),
+              style: inpatientCompactOutline(),
+              child: const Text('Add secondary diagnosis (ICD-10)'),
             ),
             const SizedBox(height: 8),
-            OutlinedButton.icon(
+            OutlinedButton(
               onPressed: () => _showCustomSecondaryDialog(context),
-              icon: const Icon(Icons.edit_note_outlined, size: 18),
-              label: const Text('Other — custom secondary'),
+              style: inpatientCompactOutline(),
+              child: const Text('Other — custom secondary'),
             ),
-            const SizedBox(height: 24),
-            if (!readOnly)
+            const SizedBox(height: 10),
+            if (!readOnly && widget.embedded)
               FilledButton.icon(
                 onPressed: _saving ? null : _save,
                 icon: _saving
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.save_outlined, size: 18),
+                    : const Icon(Icons.save_outlined, size: 16),
                 label: const Text('Save diagnosis'),
+                style: inpatientCompactFill(),
               ),
           ],
         ),

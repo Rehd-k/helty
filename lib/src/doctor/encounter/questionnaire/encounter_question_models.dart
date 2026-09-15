@@ -1,12 +1,6 @@
 // Models for structured encounter history / examination questionnaires.
 
-enum QuestionType {
-  yesNo,
-  singleChoice,
-  multiChoice,
-  text,
-  number,
-}
+enum QuestionType { yesNo, singleChoice, multiChoice, text, number }
 
 /// When to show a follow-up question (e.g. after Yes on a parent yes/no).
 class VisibleWhen {

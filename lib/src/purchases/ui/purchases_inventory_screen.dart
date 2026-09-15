@@ -1,7 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/responsive.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../core/extensions/number.extention.dart';
@@ -517,184 +517,182 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
               controller: _verticalScrollController,
               scrollDirection: Axis.vertical,
               child: DataTable(
-              sortColumnIndex: _sortColumnIndex,
-              sortAscending: _isAscending,
-              headingRowColor: WidgetStateProperty.all(
-                theme.colorScheme.surface,
-              ),
-              dataRowMinHeight: 70,
-              dataRowMaxHeight: 70,
-              showCheckboxColumn:
-                  false, // Hide default checkboxes to match design
-              columns: [
-                DataColumn(
-                  label: Text('ITEM NAME', style: headerStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'itemName'),
+                sortColumnIndex: _sortColumnIndex,
+                sortAscending: _isAscending,
+                headingRowColor: WidgetStateProperty.all(
+                  theme.colorScheme.surface,
                 ),
-                DataColumn(
-                  label: Text('MANUFACTURER', style: headerStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'manufacturerName'),
-                ),
-                DataColumn(
-                  label: Text('STOCK', style: headerStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'stock'),
-                ),
-                DataColumn(
-                  label: Text('SELLING PRICE', style: headerStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'sellingPrice'),
-                ),
-                DataColumn(
-                  label: Text('EXPIRY', style: headerStyle),
-                  onSort: (idx, asc) => _onSort(idx, asc, 'expiryDate'),
-                ),
-                DataColumn(
-                  label: Text('STATUS', style: headerStyle),
-                ),
-              ],
-              rows: _drugs.map((item) {
-                final isSelected = _selectedDrug?.id == item.id;
-                return DataRow(
-                  selected: isSelected,
-                  onSelectChanged: (selected) {
-                    if (selected != null && selected) {
-                      _selectDrug(item);
-                    }
-                  },
-                  color: WidgetStateProperty.resolveWith<Color?>((
-                    Set<WidgetState> states,
-                  ) {
-                    if (states.contains(WidgetState.selected)) {
-                      return theme.colorScheme.primary.withValues(alpha: 0.05);
-                    }
-                    return null; // Use default
-                  }),
-                  cells: [
-                    DataCell(
-                      Row(
-                        children: [
-                          if (isSelected)
+                dataRowMinHeight: 70,
+                dataRowMaxHeight: 70,
+                showCheckboxColumn:
+                    false, // Hide default checkboxes to match design
+                columns: [
+                  DataColumn(
+                    label: Text('ITEM NAME', style: headerStyle),
+                    onSort: (idx, asc) => _onSort(idx, asc, 'itemName'),
+                  ),
+                  DataColumn(
+                    label: Text('MANUFACTURER', style: headerStyle),
+                    onSort: (idx, asc) => _onSort(idx, asc, 'manufacturerName'),
+                  ),
+                  DataColumn(
+                    label: Text('STOCK', style: headerStyle),
+                    onSort: (idx, asc) => _onSort(idx, asc, 'stock'),
+                  ),
+                  DataColumn(
+                    label: Text('SELLING PRICE', style: headerStyle),
+                    onSort: (idx, asc) => _onSort(idx, asc, 'sellingPrice'),
+                  ),
+                  DataColumn(
+                    label: Text('EXPIRY', style: headerStyle),
+                    onSort: (idx, asc) => _onSort(idx, asc, 'expiryDate'),
+                  ),
+                  DataColumn(label: Text('STATUS', style: headerStyle)),
+                ],
+                rows: _drugs.map((item) {
+                  final isSelected = _selectedDrug?.id == item.id;
+                  return DataRow(
+                    selected: isSelected,
+                    onSelectChanged: (selected) {
+                      if (selected != null && selected) {
+                        _selectDrug(item);
+                      }
+                    },
+                    color: WidgetStateProperty.resolveWith<Color?>((
+                      Set<WidgetState> states,
+                    ) {
+                      if (states.contains(WidgetState.selected)) {
+                        return theme.colorScheme.primary.withValues(
+                          alpha: 0.05,
+                        );
+                      }
+                      return null; // Use default
+                    }),
+                    cells: [
+                      DataCell(
+                        Row(
+                          children: [
+                            if (isSelected)
+                              Container(
+                                width: 4,
+                                height: 40,
+                                color: theme.colorScheme.primary,
+                                margin: const EdgeInsets.only(right: 8),
+                              ),
                             Container(
-                              width: 4,
-                              height: 40,
-                              color: theme.colorScheme.primary,
-                              margin: const EdgeInsets.only(right: 8),
-                            ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.medication,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                item.itemName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.1,
                                 ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              Text(
-                                'ID: ${item.id ?? '—'}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
+                              child: Icon(
+                                Icons.medication,
+                                color: theme.colorScheme.primary,
                               ),
-                              if (item.createdByName != null &&
-                                  item.createdByName!.trim().isNotEmpty)
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
                                 Text(
-                                  'Created by: ${item.createdByName}',
+                                  item.itemName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  'ID: ${item.id ?? '—'}',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
+                                if (item.createdByName != null &&
+                                    item.createdByName!.trim().isNotEmpty)
+                                  Text(
+                                    'Created by: ${item.createdByName}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          item.manufacturerName ?? '—',
+                          style: TextStyle(color: theme.colorScheme.onSurface),
+                        ),
+                      ),
+                      DataCell(
+                        RichText(
+                          text: TextSpan(
+                            style: theme.textTheme.bodyMedium,
+                            children: [
+                              TextSpan(
+                                text: '${item.displayStock} ',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              TextSpan(
+                                text: item.displayUnit,
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        item.manufacturerName ?? '—',
-                        style: TextStyle(color: theme.colorScheme.onSurface),
+                      DataCell(
+                        Text(
+                          _formatSellingPrice(item.sellingPrice),
+                          style: TextStyle(
+                            color: (item.sellingPrice ?? 0) > 0
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
+                            fontWeight: (item.sellingPrice ?? 0) > 0
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
                       ),
-                    ),
-                    DataCell(
-                      RichText(
-                        text: TextSpan(
-                          style: theme.textTheme.bodyMedium,
+                      DataCell(
+                        Row(
                           children: [
-                            TextSpan(
-                              text: '${item.displayStock} ',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                            if (item.displayStatus == 'Expiring Soon')
+                              const Padding(
+                                padding: EdgeInsets.only(right: 4.0),
+                                child: Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.orange,
+                                  size: 16,
+                                ),
                               ),
-                            ),
-                            TextSpan(
-                              text: item.displayUnit,
+                            Text(
+                              item.expiryDate != null
+                                  ? DateFormatter.monthYear(item.expiryDate!)
+                                  : '—',
                               style: TextStyle(
-                                color: theme.colorScheme.onSurfaceVariant,
+                                color: item.displayStatus == 'Expiring Soon'
+                                    ? Colors.orange[800]
+                                    : theme.colorScheme.onSurface,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        _formatSellingPrice(item.sellingPrice),
-                        style: TextStyle(
-                          color: (item.sellingPrice ?? 0) > 0
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                          fontWeight: (item.sellingPrice ?? 0) > 0
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        children: [
-                          if (item.displayStatus == 'Expiring Soon')
-                            const Padding(
-                              padding: EdgeInsets.only(right: 4.0),
-                              child: Icon(
-                                Icons.warning_amber_rounded,
-                                color: Colors.orange,
-                                size: 16,
-                              ),
-                            ),
-                          Text(
-                            item.expiryDate != null
-                                ? DateFormat(
-                                    'MMM yyyy',
-                                  ).format(item.expiryDate!)
-                                : '—',
-                            style: TextStyle(
-                              color: item.displayStatus == 'Expiring Soon'
-                                  ? Colors.orange[800]
-                                  : theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(_buildStatusChip(item.displayStatus)),
-                  ],
-                );
-              }).toList(),
+                      DataCell(_buildStatusChip(item.displayStatus)),
+                    ],
+                  );
+                }).toList(),
               ),
             ),
           ),
@@ -768,12 +766,18 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
             children: [
               Text(
                 'Showing ${_totalItems == 0 ? 0 : start}–$end of $_totalItems',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(width: 16),
               Text(
                 'Per page:',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(width: 8),
               DropdownButton<int>(
@@ -849,7 +853,10 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.edit, color: theme.colorScheme.onSurfaceVariant),
+                icon: Icon(
+                  Icons.edit,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 onPressed: () => _showEditMedicineModal(context, theme, item),
               ),
             ],
@@ -981,7 +988,13 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12)),
+          Text(
+            title,
+            style: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 8),
           RichText(
             text: TextSpan(
@@ -1045,9 +1058,9 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
@@ -1071,10 +1084,7 @@ class _PurchasesInventoryScreenState extends State<PurchasesInventoryScreen> {
                 color: scheme.onSurfaceVariant,
               ),
               const SizedBox(width: 8),
-              Text(
-                location,
-                style: TextStyle(color: scheme.onSurface),
-              ),
+              Text(location, style: TextStyle(color: scheme.onSurface)),
             ],
           ),
           Text(
@@ -1277,9 +1287,9 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
 
   Future<void> _createOrder() async {
     if (_supplierId == null || _supplierId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a Supplier')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a Supplier')));
       return;
     }
     final qty = int.tryParse(_quantityCtrl.text);

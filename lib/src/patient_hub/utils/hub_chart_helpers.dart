@@ -1,7 +1,5 @@
-import 'package:intl/intl.dart';
-
-import 'package:helty/src/models/staff_attribution.dart';
-
+import '../../helper/date.formatter.dart';
+import '../../models/staff_attribution.dart';
 import '../models/patient_hub_models.dart';
 
 DateTime? hubParseDate(dynamic v) {
@@ -12,7 +10,7 @@ DateTime? hubParseDate(dynamic v) {
 String? hubFormatDate(dynamic v) {
   final dt = hubParseDate(v);
   if (dt == null) return null;
-  return DateFormat.yMMMd().add_jm().format(dt.toLocal());
+  return DateFormatter.dateTime(dt);
 }
 
 List<Map<String, dynamic>> hubSortRows(

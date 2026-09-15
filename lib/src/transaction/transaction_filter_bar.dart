@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 /// Filter bar for the transactions screen.
 ///
@@ -142,7 +142,7 @@ class TransactionFilterBar extends StatelessWidget {
             label: Text(
               selectedDateRange == null
                   ? "Date Range"
-                  : "${DateFormat('MMM d').format(selectedDateRange!.start)} - ${DateFormat('MMM d').format(selectedDateRange!.end)}",
+                  : "${DateFormatter.shortDate(selectedDateRange!.start)} - ${DateFormatter.shortDate(selectedDateRange!.end)}",
               style: TextStyle(fontSize: 12, color: colorScheme.onSurface),
             ),
             style: OutlinedButton.styleFrom(

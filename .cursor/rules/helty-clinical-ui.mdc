@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+# Helty Clinical UI
+
+Match **Walk-in Queue** (`lib/src/doctor/walk_in/`) for all new or redesigned screens. Do not invent a parallel look.
+
+## Canonical pieces
+
+- Surfaces: `HeltySurfaceCard`, `HeltyStatusChip`, `AppTheme.radiusSm/Md/Lg`, `AppTheme.spaceSm/Md`
+- Icons: `HeltySolidIcon` — **opaque** rounded square, **white** glyph, **distinct** color per control (never `primary.withValues(alpha: 0.12)`)
+- Overflow: `HeltyEllipsisText` / `HeltyEllipsisChip` — 1 line, ellipsis, tooltip on hover
+- Palette: `ColorScheme` + `DepartmentColors`. Accent tiles: blue `#2563EB`, teal `#0D9488`, purple `#7C3AED`, pink `#DB2777`, indigo `#4F46E5`, green `#16A34A`, amber `#EA580C`
+
+## Page chrome
+
+- Compact header: solid title icon + title/subtitle + optional live clock. No oversized CTAs crowding the title
+- KPI row: small `HeltySurfaceCard`s, solid icon tiles, label / large value / caption. Dense padding (`8–10`)
+- Filters on **one row**: search + primary dropdowns. Extra controls (dates, advanced) go behind a **filter icon** (`HeltySolidIcon` + menu/dialog), not a second fat toolbar
+- Utility rail (Quick Actions / lists / notes): **full height** beside main content from `≥1100`. Stack or a compact sheet below that. Cards inside the rail stretch to fill leftover height
+- Section gaps ~`10–12`, not `24`
+
+## Tables
+
+- Zebra: odd rows `onSurface` at ~`0.035` alpha — subtle, not a block fill
+- Column gutters ~`20px`. Do not pack cells flush
+- Overflow: ellipsis + tooltip; never wrap a row taller for long text
+- **Pin** row-count + pagination to the card footer. Horizontal scroll applies to header/rows only, never the footer
+- Row actions: compact `View`/`Start` + kebab; `FittedBox` if the action cluster is tight
+
+## Data
+
+- Bind real APIs. Missing metrics stay `—`. Do not fake counts or activity
+- Keep existing query params and mutations; UI redesign is not a contract change
+
+## Layout
+
+Follow `.cursor/rules/flutter-responsive.mdc` (`ResponsiveBody`, `AppBreakpoints`). Walk-in extras: cards `<768`, side rail `≥1100`.

@@ -2,7 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/completed/widgets/completed_encounter_scope.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 @RoutePage()
 class CompletedEncounterSummaryTab extends StatelessWidget {
@@ -31,15 +31,15 @@ class CompletedEncounterSummaryTab extends StatelessWidget {
             children: [
               _Row(label: 'Status', value: e.status),
               _Row(label: 'Doctor', value: e.doctorLabel),
-              _Row(label: 'Started', value: DateFormat.yMMMd().add_Hm().format(e.startedAt)),
+              _Row(label: 'Started', value: DateFormatter.dateTime24(e.startedAt)),
               if (e.closedAt != null)
-                _Row(label: 'Closed', value: DateFormat.yMMMd().add_Hm().format(e.closedAt!)),
+                _Row(label: 'Closed', value: DateFormatter.dateTime24(e.closedAt!)),
               if (e.visitAppointment != null)
                 _Row(
                   label: 'Booked visit',
-                  value: DateFormat.yMMMd()
-                      .add_Hm()
-                      .format(e.visitAppointment!.appointmentDate.toLocal()),
+                  value: DateFormatter.dateTime24(
+                    e.visitAppointment!.appointmentDate,
+                  ),
                 ),
               if (e.visitAppointment == null &&
                   e.appointmentId != null &&

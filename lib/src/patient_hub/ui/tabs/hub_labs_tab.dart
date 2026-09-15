@@ -9,6 +9,8 @@ import '../../providers/patient_hub_providers.dart';
 import '../../utils/hub_chart_helpers.dart';
 import '../../widgets/hub_empty_state.dart';
 import '../../widgets/hub_section_scaffold.dart';
+import '../../patient_hub_metrics.dart';
+import '../../../widgets/helty_surface.dart';
 import '../../widgets/patient_hub_scope.dart';
 
 @RoutePage()
@@ -68,22 +70,27 @@ class _HubLabsScreenState extends ConsumerState<HubLabsScreen> {
 
         return ResponsiveBody(
           builder: (context, bp) => HubSectionScaffold(
-            filterRow: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: HubLabStatusFilter.values
-                    .map(
-                      (f) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: FilterChip(
-                          label: Text(_statusLabel(f)),
-                          selected: _status == f,
-                          onSelected: (_) => setState(() => _status = f),
-                        ),
-                      ),
-                    )
-                    .toList(),
+            filterRow: DropdownButtonFormField<HubLabStatusFilter>(
+              key: ValueKey('hub-lab-$_status'),
+              initialValue: _status,
+              isExpanded: true,
+              decoration: hubFilterDecoration(
+                context,
+                label: 'Status',
+                iconColor: PatientHubMetrics.waitAmber,
+                icon: Icons.flag_outlined,
               ),
+              items: HubLabStatusFilter.values
+                  .map(
+                    (f) => DropdownMenuItem(
+                      value: f,
+                      child: Text(_statusLabel(f)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _status = v);
+              },
             ),
             sortDropdown: DropdownButton<HubSortOrder>(
               value: _sort,
@@ -107,16 +114,30 @@ class _HubLabsScreenState extends ConsumerState<HubLabsScreen> {
                     icon: Icons.biotech_outlined,
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.only(top: 4),
                     itemCount: items.length,
                     itemBuilder: (context, index) {
                       final item = items[index];
                       final section = item['_section']?.toString() ?? 'labs';
-                      return Card(
+                      return HeltySurfaceCard(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ExpansionTile(
-                          title: Text(hubRowTitle(section, item)),
-                          subtitle: Text(hubRowSubtitle(item) ?? ''),
+                          leading: const HubSolidIcon(
+                            icon: Icons.biotech_outlined,
+                            color: PatientHubMetrics.iconTeal,
+                            size: 30,
+                            iconSize: 16,
+                            radius: 8,
+                          ),
+                          title: HeltyEllipsisText(
+                            text: hubRowTitle(section, item),
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: HeltyEllipsisText(
+                            text: hubRowSubtitle(item) ?? '—',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                           children: [
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -228,12 +249,8 @@ class _HubLabOrderItemBlock extends StatelessWidget {
     final status = item['status']?.toString();
     final results = item['results'];
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

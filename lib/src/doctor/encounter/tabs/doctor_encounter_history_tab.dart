@@ -1,12 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_question_models.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/encounter_questionnaire_section.dart';
 import 'package:helty/src/doctor/encounter/questionnaire/history_questionnaire_defs.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/services/encounter_service.dart';
 
@@ -165,35 +166,59 @@ class _DoctorEncounterHistoryTabState extends State<DoctorEncounterHistoryTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ResponsiveToolbar(
-            actions: [
-              if (!readOnly)
-                OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Voice typing not yet integrated'),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.mic_none, size: 18),
-                  label: const Text('Voice typing'),
-                ),
-              if (!readOnly)
-                FilledButton.icon(
-                  onPressed: _loading ? null : _saveDraft,
-                  icon: _loading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_outlined, size: 18),
-                  label: const Text('Save draft'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 24),
+          if (!widget.embedded) ...[
+            InpatientTabToolbar(
+              icon: Icons.history,
+              iconColor: InpatientMetrics.iconBlue,
+              title: 'History',
+              subtitle: 'Chief complaint and clinical histories',
+              actions: [
+                if (!readOnly)
+                  OutlinedButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Voice typing not yet integrated'),
+                        ),
+                      );
+                    },
+                    style: inpatientCompactOutline(),
+                    child: const Text('Voice typing'),
+                  ),
+                if (!readOnly)
+                  FilledButton.icon(
+                    onPressed: _loading ? null : _saveDraft,
+                    icon: _loading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined, size: 16),
+                    label: const Text('Save draft'),
+                    style: inpatientCompactFill(),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ] else if (!readOnly) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _loading ? null : _saveDraft,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined, size: 16),
+                label: const Text('Save draft'),
+                style: inpatientCompactFill(),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           for (final section in historyQuestionnaireSections)
             EncounterQuestionnaireSection(
               key: ValueKey(section.id),

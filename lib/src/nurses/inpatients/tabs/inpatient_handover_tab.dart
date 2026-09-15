@@ -6,8 +6,11 @@ import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/handover_report_model.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/nurses/inpatients/services/handover_summary_builder.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/services/handover_report_service.dart';
 
 @RoutePage()
@@ -140,21 +143,21 @@ class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
       );
       if (!mounted) return;
       setState(() => _locked = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Handover submitted.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Handover submitted.')));
       await _load(admissionId);
     } on DioException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_dioMessage(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_dioMessage(e))));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$e')));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -175,158 +178,217 @@ class _InpatientHandoverScreenState extends State<InpatientHandoverScreen> {
       );
     }
 
+    final canRecord =
+        scope?.isAdmissionActive == true && scope?.isNurse == true;
+    final now = DateTime.now();
+    final today = _reports.where((r) {
+      final t = r.createdAt;
+      if (t == null) return false;
+      return t.year == now.year && t.month == now.month && t.day == now.day;
+    }).length;
+
     return ResponsiveBody(
       expand: false,
       builder: (context, bp) => SingleChildScrollView(
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionCard(
-            title: 'Shift Handover',
-            subtitle:
-                'Summarise this patient\'s status for the next nurse on duty',
-            actions: [
-              if (_locked)
-                TextButton(
-                  onPressed: () => setState(() {
-                    _locked = false;
-                    _summaryCtrl.clear();
-                  }),
-                  child: const Text('New handover'),
-                ),
-              if (!_locked && !_loading)
-                FilledButton.icon(
-                  onPressed: _submitting || _generating
-                      ? null
-                      : () => _generateSummary(admissionId),
-                  icon: _generating
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.auto_awesome, size: 18),
-                  label: const Text('Generate Shift Handover'),
-                ),
-            ],
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (!_locked) ...[
-                  DropdownButtonFormField<String>(
-                    key: ValueKey(_shiftType),
-                    initialValue: _shiftType,
-                    decoration: const InputDecoration(labelText: 'Shift'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'MORNING',
-                        child: Text('Morning'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'AFTERNOON',
-                        child: Text('Afternoon'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'NIGHT',
-                        child: Text('Night'),
-                      ),
-                    ],
-                    onChanged: _submitting
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InpatientTabToolbar(
+              icon: Icons.handshake_outlined,
+              iconColor: InpatientMetrics.iconPurple,
+              title: 'Handover',
+              subtitle: 'Shift summary for the next nurse',
+              actions: [
+                if (_locked)
+                  OutlinedButton(
+                    onPressed: () => setState(() {
+                      _locked = false;
+                      _summaryCtrl.clear();
+                    }),
+                    style: inpatientCompactOutline(),
+                    child: const Text('New handover'),
+                  ),
+                if (!_locked && !_loading)
+                  FilledButton.icon(
+                    onPressed: !canRecord || _submitting || _generating
                         ? null
-                        : (v) {
-                            if (v != null) setState(() => _shiftType = v);
-                          },
+                        : () => _generateSummary(admissionId),
+                    icon: _generating
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_awesome, size: 16),
+                    label: const Text('Generate'),
+                    style: inpatientCompactFill(),
                   ),
-                  const SizedBox(height: 12),
-                ],
-                TextField(
-                  controller: _summaryCtrl,
-                  maxLines: 10,
-                  readOnly: _locked,
-                  decoration: const InputDecoration(
-                    hintText:
-                        'Vitals trend, meds given and pending, critical notes...',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            InpatientKpiRow(
+              tiles: [
+                InpatientKpiTile(
+                  icon: Icons.handshake_outlined,
+                  color: InpatientMetrics.iconPurple,
+                  label: 'Handovers',
+                  value: _loading ? '—' : '${_reports.length}',
+                  caption: 'This admission',
                 ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _locked
-                      ? Text(
-                          'Handover submitted. Add another from a new shift if needed.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        )
-                      : FilledButton(
-                          onPressed:
-                              _submitting ? null : () => _submit(admissionId),
-                          child: _submitting
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text('Submit'),
-                        ),
+                InpatientKpiTile(
+                  icon: Icons.today_outlined,
+                  color: InpatientMetrics.iconBlue,
+                  label: 'Today',
+                  value: _loading ? '—' : '$today',
+                  caption: 'Submitted today',
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-          SectionCard(
-            title: 'Previous handovers',
-            subtitle: 'Recorded for this admission',
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_error!),
-                          TextButton(
-                            onPressed: () => _load(admissionId),
-                            child: const Text('Retry'),
+            const SizedBox(height: 10),
+            SectionCard(
+              title: 'Shift handover',
+              subtitle: 'Summarise status for the next nurse on duty',
+              icon: Icons.edit_note_outlined,
+              iconColor: InpatientMetrics.iconPurple,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!_locked) ...[
+                    DropdownButtonFormField<String>(
+                      key: ValueKey(_shiftType),
+                      initialValue: _shiftType,
+                      decoration: const InputDecoration(labelText: 'Shift'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'MORNING',
+                          child: Text('Morning'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'AFTERNOON',
+                          child: Text('Afternoon'),
+                        ),
+                        DropdownMenuItem(value: 'NIGHT', child: Text('Night')),
+                      ],
+                      onChanged: _submitting
+                          ? null
+                          : (v) {
+                              if (v != null) setState(() => _shiftType = v);
+                            },
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  TextField(
+                    controller: _summaryCtrl,
+                    maxLines: 10,
+                    readOnly: _locked,
+                    decoration: const InputDecoration(
+                      hintText:
+                          'Vitals trend, meds given and pending, critical notes...',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _locked
+                        ? Text(
+                            'Handover submitted. Add another from a new shift if needed.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          )
+                        : FilledButton(
+                            onPressed: !canRecord || _submitting
+                                ? null
+                                : () => _submit(admissionId),
+                            style: inpatientCompactFill(),
+                            child: _submitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('Submit'),
                           ),
-                        ],
-                      )
-                    : _reports.isEmpty
-                        ? const Text('No handover reports yet.')
-                        : Column(
-                            children: _reports.map((r) {
-                              final when = r.createdAt != null
-                                  ? DateFormatter.dateTime(r.createdAt!)
-                                  : '—';
-                              final by = r.recorderDisplayName;
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  [
-                                    r.shiftType ?? 'Shift',
-                                    when,
-                                    if (by != null && by.isNotEmpty)
-                                      'by $by',
-                                  ].join(' · '),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            SectionCard(
+              title: 'Previous handovers',
+              subtitle: 'Recorded for this admission',
+              icon: Icons.history,
+              iconColor: InpatientMetrics.iconIndigo,
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_error!),
+                        TextButton(
+                          onPressed: () => _load(admissionId),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    )
+                  : _reports.isEmpty
+                  ? const Text('No handover reports yet.')
+                  : Column(
+                      children: [
+                        for (var i = 0; i < _reports.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 8),
+                          HeltySurfaceCard(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    HeltyStatusChip(
+                                      label: _reports[i].shiftType ?? 'Shift',
+                                      color: InpatientMetrics.iconPurple,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: HeltyEllipsisText(
+                                        text: [
+                                          if (_reports[i].createdAt != null)
+                                            DateFormatter.dateTime(
+                                              _reports[i].createdAt!,
+                                            ),
+                                          if ((_reports[i]
+                                                      .recorderDisplayName ??
+                                                  '')
+                                              .isNotEmpty)
+                                            'by ${_reports[i].recorderDisplayName}',
+                                        ].join(' · '),
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.labelSmall,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                subtitle: Text(
-                                  r.displayBody,
+                                const SizedBox(height: 8),
+                                Text(
+                                  _reports[i].displayBody,
                                   maxLines: 6,
                                   overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodyMedium,
                                 ),
-                              );
-                            }).toList(),
+                              ],
+                            ),
                           ),
-          ),
-        ],
-      ),
+                        ],
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

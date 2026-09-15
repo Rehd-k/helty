@@ -1,13 +1,16 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
 
-import '../../nurses/inpatients/widgets/inpatient_layout_constants.dart';
+import '../../helper/theme.dart';
 import '../models/patient_hub_models.dart';
+import '../patient_hub_metrics.dart';
 import '../providers/patient_hub_providers.dart';
 import '../widgets/hub_date_range_bar.dart';
+import '../widgets/hub_page_header.dart';
 import '../widgets/hub_patient_header.dart';
+import '../widgets/hub_sidebar.dart';
 import '../widgets/patient_hub_scope.dart';
 
 @RoutePage()
@@ -22,20 +25,6 @@ class PatientHubScreen extends ConsumerStatefulWidget {
 
 class _PatientHubScreenState extends ConsumerState<PatientHubScreen> {
   HubDatePreset _preset = HubDatePreset.all;
-
-  static const _tabLabels = [
-    'Overview',
-    'Profile',
-    'Encounters',
-    'Vitals',
-    'Labs',
-    'Imaging',
-    'Meds',
-    'Dialysis',
-    'Theatre',
-    'Documents',
-    'Notes',
-  ];
 
   Future<void> _pickCustomRange() async {
     final range = ref.read(patientHubDateRangeProvider);
@@ -68,91 +57,139 @@ class _PatientHubScreenState extends ConsumerState<PatientHubScreen> {
     final headerAsync = ref.watch(patientHubHeaderProvider(widget.patientUuid));
     final profileAsync = ref.watch(patientHubProfileProvider(widget.patientUuid));
     final range = ref.watch(patientHubDateRangeProvider);
+    final cs = Theme.of(context).colorScheme;
 
     return PatientHubScope(
       patientUuid: widget.patientUuid,
       child: headerAsync.when(
         loading: () => Scaffold(
-          appBar: AppBar(title: const Text('Patient Hub')),
+          backgroundColor: cs.surface,
           body: const Center(child: CircularProgressIndicator()),
         ),
         error: (e, _) => Scaffold(
-          appBar: AppBar(title: const Text('Patient Hub')),
+          backgroundColor: cs.surface,
           body: Center(child: Text('Error: $e')),
         ),
         data: (header) {
           return AutoTabsRouter(
-            routes: [
-              HubOverviewRoute(),
-              HubProfileRoute(),
-              HubEncountersRoute(),
-              HubVitalsRoute(),
-              HubLabsRoute(),
-              HubImagingRoute(),
-              HubMedsRoute(),
-              HubDialysisRoute(),
-              HubTheatreRoute(),
-              HubDocumentsRoute(),
-              HubNotesRoute(),
-            ],
             builder: (context, child) {
               final tabsRouter = AutoTabsRouter.of(context);
               final patient = profileAsync.asData?.value;
 
               return Scaffold(
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                appBar: AppBar(
-                  title: Text(header.patient.displayName),
-                  actions: [
-                    IconButton(
-                      tooltip: 'Back to search',
-                      icon: const Icon(Icons.search),
-                      onPressed: () => context.router.pop(),
-                    ),
-                  ],
-                ),
-                body: SafeArea(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: kInpatientContentMaxWidth,
-                      ),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final compact =
-                              constraints.maxWidth < kInpatientCompactBreakpoint;
+                backgroundColor: cs.surface,
+                body: ResponsiveBody(
+                  center: false,
+                  builder: (context, bp) {
+                    final width = bp.maxWidth > 0
+                        ? bp.maxWidth
+                        : MediaQuery.sizeOf(context).width;
+                    final compact = width < PatientHubMetrics.cardBreakpoint;
+                    final showSideBySide =
+                        width >= PatientHubMetrics.sidebarBreakpoint;
 
+                    final pageHeader = HubPageHeader(
+                      title: header.patient.displayName,
+                      subtitle: [
+                        if (header.patient.patientId != null)
+                          'Hosp. ${header.patient.patientId}',
+                        'Patient Hub',
+                      ].join(' · '),
+                      compact: compact,
+                      trailing: IconButton(
+                        tooltip: 'Back to search',
+                        onPressed: () => context.router.pop(),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        icon: const HubSolidIcon(
+                          icon: Icons.search,
+                          color: PatientHubMetrics.iconIndigo,
+                          size: 32,
+                          iconSize: 16,
+                          radius: 8,
+                        ),
+                      ),
+                    );
+
+                    final identity = HubPatientHeader(
+                      patient: header.patient,
+                      fullProfile: patient,
+                    );
+
+                    final filters = HubDateRangeBar(
+                      range: range,
+                      preset: _preset,
+                      onPresetChanged: _onPresetChanged,
+                      onCustomRange: _pickCustomRange,
+                    );
+
+                    final tabs = _buildTabsStrip(context, tabsRouter);
+
+                    final mainColumn = Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        pageHeader,
+                        const SizedBox(height: 10),
+                        identity,
+                        const SizedBox(height: 10),
+                        filters,
+                        const SizedBox(height: 10),
+                        tabs,
+                        const SizedBox(height: 10),
+                        Expanded(child: child),
+                      ],
+                    );
+
+                    Widget sidebar({required bool fillHeight}) {
+                      return HubSidebar(
+                        patient: header.patient,
+                        summary: header.summary,
+                        fullProfile: patient,
+                        onSearch: () => context.router.pop(),
+                        onSelectTab: (i) => tabsRouter.setActiveIndex(i),
+                        fillHeight: fillHeight,
+                      );
+                    }
+
+                    if (showSideBySide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(flex: 9, child: mainColumn),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 3,
+                            child: sidebar(fillHeight: true),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final bounded = constraints.maxHeight.isFinite;
+                        if (bounded) {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              HubPatientHeader(
-                                patient: header.patient,
-                                summary: header.summary,
-                                fullProfile: patient,
-                              ),
-                              HubDateRangeBar(
-                                range: range,
-                                preset: _preset,
-                                onPresetChanged: _onPresetChanged,
-                                onCustomRange: _pickCustomRange,
-                              ),
-                              _buildTabsStrip(
-                                context,
-                                tabsRouter,
-                                compact: compact,
-                              ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: child,
+                              Expanded(child: mainColumn),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                height: 220,
+                                child: SingleChildScrollView(
+                                  child: sidebar(fillHeight: false),
                                 ),
                               ),
                             ],
                           );
-                        },
-                      ),
-                    ),
-                  ),
+                        }
+                        return mainColumn;
+                      },
+                    );
+                  },
                 ),
               );
             },
@@ -162,38 +199,90 @@ class _PatientHubScreenState extends ConsumerState<PatientHubScreen> {
     );
   }
 
-  Widget _buildTabsStrip(
-    BuildContext context,
-    TabsRouter tabsRouter, {
-    required bool compact,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _buildTabsStrip(BuildContext context, TabsRouter tabsRouter) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final count = tabsRouter.pageCount;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: List.generate(_tabLabels.length, (index) {
-            final selected = tabsRouter.activeIndex == index;
-            return Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: ChoiceChip(
-                label: Text(_tabLabels[index]),
-                selected: selected,
-                onSelected: (_) => tabsRouter.setActiveIndex(index),
-                labelStyle: TextStyle(
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: compact ? 12 : 13,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (var i = 0; i < count; i++)
+            Padding(
+              padding: EdgeInsets.only(right: i == count - 1 ? 0 : 6),
+              child: _HubTabChip(
+                selected: tabsRouter.activeIndex == i,
+                label: _labelForTab(tabsRouter, i),
+                color: PatientHubMetrics.accentForTab(
+                  _routeNameForTab(tabsRouter, i),
                 ),
+                onTap: () => tabsRouter.setActiveIndex(i),
+                textStyle: theme.textTheme.labelMedium,
+                scheme: cs,
               ),
-            );
-          }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _routeNameForTab(TabsRouter tabsRouter, int index) {
+    if (index < 0 || index >= tabsRouter.stack.length) return '';
+    return tabsRouter.stack[index].routeData.name;
+  }
+
+  String _labelForTab(TabsRouter tabsRouter, int index) {
+    return PatientHubMetrics.tabDefForRouteName(
+      _routeNameForTab(tabsRouter, index),
+    ).label;
+  }
+}
+
+class _HubTabChip extends StatelessWidget {
+  const _HubTabChip({
+    required this.selected,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    required this.textStyle,
+    required this.scheme,
+  });
+
+  final bool selected;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final TextStyle? textStyle;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? color.withValues(alpha: 0.14)
+          : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            border: Border.all(
+              color: selected
+                  ? color.withValues(alpha: 0.45)
+                  : scheme.outline.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Text(
+            label,
+            style: textStyle?.copyWith(
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              color: selected ? color : scheme.onSurface,
+            ),
+          ),
         ),
       ),
     );

@@ -125,12 +125,7 @@ class _PatientPreviousEncountersSheetState
   }
 
   DateTime? _encounterDate(Map<String, dynamic> item) {
-    for (final key in [
-      'closedAt',
-      'startedAt',
-      'encounterDate',
-      'createdAt',
-    ]) {
+    for (final key in ['closedAt', 'startedAt', 'encounterDate', 'createdAt']) {
       final dt = DateTime.tryParse(item[key]?.toString() ?? '');
       if (dt != null) return dt;
     }
@@ -274,11 +269,12 @@ class _PatientPreviousEncountersSheetState
 
                       final item = _items[index];
                       final date = _encounterDate(item);
-                      final complaint = item['chiefComplaint']?.toString().trim();
+                      final complaint = item['chiefComplaint']
+                          ?.toString()
+                          .trim();
                       final status = item['status']?.toString() ?? '';
-                      final diagnosis = item['primaryIcdDescription']
-                              ?.toString()
-                              .trim() ??
+                      final diagnosis =
+                          item['primaryIcdDescription']?.toString().trim() ??
                           item['primaryDiagnosis']?.toString().trim();
                       final type = item['encounterType']?.toString();
                       final completed = status.toUpperCase() == 'COMPLETED';

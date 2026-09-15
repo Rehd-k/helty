@@ -1,6 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 import '../../services/patient_chart_service.dart';
 
@@ -143,7 +143,7 @@ class _ArchivedEncounterUploadSheetState
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Visit date & time'),
-              subtitle: Text(DateFormat.yMMMd().add_jm().format(_occurredAt)),
+              subtitle: Text(DateFormatter.dateTime(_occurredAt)),
               trailing: IconButton(
                 icon: const Icon(Icons.calendar_today_outlined),
                 onPressed: _uploading ? null : _pickOccurredDate,

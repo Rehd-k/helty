@@ -6,8 +6,8 @@ import 'package:helty/src/frontdesk/patient_access/patient_access_models.dart';
 import 'package:helty/src/frontdesk/patient_access/patient_access_providers.dart';
 import 'package:helty/src/frontdesk/patient_access_permissions.dart';
 import 'package:helty/src/providers/auth_provider.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
-import 'package:intl/intl.dart';
 
 @RoutePage()
 class PatientDevicesScreen extends ConsumerStatefulWidget {
@@ -90,9 +90,9 @@ class _PatientDevicesScreenState extends ConsumerState<PatientDevicesScreen> {
       await _load();
       if (!mounted) return;
       setState(() => _actionId = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Device approved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Device approved.')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _actionId = null);
@@ -132,9 +132,9 @@ class _PatientDevicesScreenState extends ConsumerState<PatientDevicesScreen> {
       await _load();
       if (!mounted) return;
       setState(() => _actionId = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Device removed.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Device removed.')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _actionId = null);
@@ -146,7 +146,7 @@ class _PatientDevicesScreenState extends ConsumerState<PatientDevicesScreen> {
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return '';
-    return DateFormat('dd MMM yyyy, HH:mm').format(dt.toLocal());
+    return DateFormatter.dateTime24(dt);
   }
 
   @override

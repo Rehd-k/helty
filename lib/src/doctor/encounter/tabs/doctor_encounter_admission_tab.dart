@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
 import 'package:helty/src/emergency/models/emergency_visit_model.dart';
 import 'package:helty/src/emergency/services/emergency_service.dart';
@@ -534,23 +537,20 @@ class _DoctorEncounterAdmissionTabState
       embedded: widget.embedded,
       child: AbsorbPointer(
         absorbing: readOnly,
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-            boxShadow: [
-              BoxShadow(
-                color: cs.surfaceContainerHighest,
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
+        child: HeltySurfaceCard(
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (!widget.embedded) ...[
+                const InpatientTabToolbar(
+                  icon: Icons.hotel_outlined,
+                  iconColor: InpatientMetrics.iconIndigo,
+                  title: 'Admission',
+                  subtitle: 'Ward location for this patient',
+                ),
+                const SizedBox(height: 10),
+              ],
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -693,23 +693,20 @@ class _DoctorEncounterAdmissionTabState
       embedded: widget.embedded,
       child: AbsorbPointer(
         absorbing: admissionReadOnly,
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-            boxShadow: [
-              BoxShadow(
-                color: cs.surfaceContainerHighest,
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
+        child: HeltySurfaceCard(
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (!widget.embedded) ...[
+                const InpatientTabToolbar(
+                  icon: Icons.hotel_outlined,
+                  iconColor: InpatientMetrics.iconIndigo,
+                  title: 'Admission',
+                  subtitle: 'Ward location for this patient',
+                ),
+                const SizedBox(height: 10),
+              ],
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

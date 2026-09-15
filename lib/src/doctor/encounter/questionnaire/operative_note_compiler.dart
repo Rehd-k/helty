@@ -4,7 +4,8 @@ import 'operative_note_questionnaire_defs.dart';
 
 EncounterQuestionnaireState emptyOperativeNoteAnswers() {
   return {
-    for (final section in operativeNoteQuestionnaireSections) section.id: <String, dynamic>{},
+    for (final section in operativeNoteQuestionnaireSections)
+      section.id: <String, dynamic>{},
   };
 }
 

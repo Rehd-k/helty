@@ -18,6 +18,7 @@ import '../../auth/department_head_permissions.dart';
 import '../../hospital_assets/providers/hospital_asset_providers.dart';
 import '../../nursing/providers/nursing_providers.dart';
 import '../../helper/theme.dart';
+import '../../widgets/helty_surface.dart';
 import '../../shared/department_colors.dart';
 import '../../chat/providers/pending_orders_tick_provider.dart';
 import '../../chat/providers/staff_chat_shell_provider.dart';
@@ -46,6 +47,22 @@ import 'account_types.dart';
 /// Semantic buckets for inactive menu icon tints — resolved via [ColorScheme], not hex.
 enum MenuAccent { primary, secondary, tertiary, errorTone }
 
+/// Saturated icon-box palette so adjacent sidebar items stay distinct.
+const _kNavBoxPalette = <Color>[
+  Color(0xFF7C3AED), // violet
+  Color(0xFF2563EB), // blue
+  Color(0xFF16A34A), // green
+  Color(0xFF9333EA), // purple
+  Color(0xFFDB2777), // pink
+  Color(0xFF0D9488), // teal
+  Color(0xFFF43F5E), // rose
+  Color(0xFFEA580C), // orange
+  Color(0xFF0891B2), // cyan
+  Color(0xFFCA8A04), // gold
+  Color(0xFF4F46E5), // indigo
+  Color(0xFFDC2626), // red
+];
+
 class MenuItem {
   final String label;
   final IconData icon;
@@ -55,8 +72,8 @@ class MenuItem {
   /// When null, the sidebar derives a tone from item index or label hash.
   final MenuAccent? accent;
 
-  /// Explicit department brand color (see [DepartmentColors]). When set,
-  /// this takes priority over [accent] for the sidebar icon/label tint.
+  /// Explicit department brand color (see [DepartmentColors]). Used by
+  /// module headers and palettes; sidebar icon boxes use a distinct rainbow.
   final Color? color;
 
   const MenuItem({
@@ -290,70 +307,60 @@ enum UserRole { admin, staff, receptionist }
 const _kSidebarWidth = 260.0;
 const _kSidebarCollapsedWidth = 64.0;
 
-Color _accentColor(ColorScheme cs, MenuAccent accent) {
-  switch (accent) {
-    case MenuAccent.primary:
-      return cs.primary;
-    case MenuAccent.secondary:
-      return cs.secondary;
-    case MenuAccent.tertiary:
-      return cs.tertiary;
-    case MenuAccent.errorTone:
-      return cs.error;
-  }
+Color _navBoxColorFor(int index) {
+  return _kNavBoxPalette[index.abs() % _kNavBoxPalette.length];
 }
 
-/// Rounded tile behind nav icons: soft fill + border + shadow; stronger when selected.
+/// Opaque hover fills — four solid colors, cycled so neighbours differ.
+const _kNavHoverPalette = <Color>[
+  Color(0xFF2563EB), // blue
+  Color(0xFF16A34A), // green
+  Color(0xFFEA580C), // orange
+  Color(0xFF7C3AED), // violet
+];
+
+Color _navHoverColorFor(int index) {
+  return _kNavHoverPalette[index.abs() % _kNavHoverPalette.length];
+}
+
+/// Rounded tile behind nav icons: saturated fill, white glyph.
 class _NavIconBox extends StatelessWidget {
   const _NavIconBox({
     required this.icon,
     required this.isActive,
-    required this.accent,
+    required this.boxColor,
     required this.iconSize,
-    required this.cs,
-    required this.shell,
-    this.explicitColor,
   });
 
   final IconData icon;
   final bool isActive;
-  final MenuAccent accent;
+  final Color boxColor;
   final double iconSize;
-  final ColorScheme cs;
-  final AppShellTheme shell;
-
-  /// Department brand color override (see [MenuItem.color]). Falls back to
-  /// the semantic [accent] tone when null.
-  final Color? explicitColor;
 
   @override
   Widget build(BuildContext context) {
-    final base = explicitColor ?? _accentColor(cs, accent);
-    final inactiveIcon = explicitColor != null
-        ? Color.lerp(shell.sidebarMuted, explicitColor, 0.72)!
-        : Color.lerp(shell.sidebarMuted, base, 0.58)!;
-    final fill = isActive
-        ? Color.alphaBlend(
-            base.withValues(alpha: 0.42),
-            shell.sidebarBackground,
-          )
-        : Color.alphaBlend(
-            base.withValues(alpha: 0.22),
-            shell.sidebarBackground,
-          );
-    final borderColor = isActive
-        ? base.withValues(alpha: 0.75)
-        : shell.sidebarDivider.withValues(alpha: 0.7);
+    final highlight = Color.lerp(boxColor, Colors.white, 0.28)!;
+    final shade = Color.lerp(boxColor, Colors.black, 0.12)!;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
-      padding: EdgeInsets.all(iconSize > 19 ? 7 : 6),
+      padding: EdgeInsets.all(iconSize > 19 ? 8 : 7),
       decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor, width: 1),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isActive ? [highlight, boxColor] : [boxColor, shade],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: boxColor.withValues(alpha: isActive ? 0.55 : 0.32),
+            blurRadius: isActive ? 10 : 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
-      child: Icon(icon, size: iconSize, color: isActive ? base : inactiveIcon),
+      child: Icon(icon, size: iconSize, color: Colors.white),
     );
   }
 }
@@ -377,11 +384,15 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  /// Desktop: full-width sidebar (true) vs icon-only rail (false). Default expanded.
-  bool _desktopSidebarExpanded = true;
+  /// Desktop: hamburger pins the sidebar open. Default is collapsed.
+  bool _desktopSidebarPinned = false;
 
   /// Desktop: pointer over collapsed rail temporarily expands sidebar (peek).
   bool _desktopRailHover = false;
+
+  /// After unpinning while the pointer is still over the rail, ignore hover
+  /// until the pointer leaves so the menu can actually collapse.
+  bool _ignoreHoverUntilExit = false;
 
   /// Mobile drawer overlay; hidden by default so content uses full width.
   bool _mobileDrawerOpen = false;
@@ -914,14 +925,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     VoidCallback openStaffChat,
     Widget? previewBanner,
   ) {
-    final hoverPeek = !_desktopSidebarExpanded && _desktopRailHover;
-    final sidebarWide = _desktopSidebarExpanded || hoverPeek;
+    final hoverPeek =
+        !_desktopSidebarPinned && _desktopRailHover && !_ignoreHoverUntilExit;
+    final sidebarWide = _desktopSidebarPinned || hoverPeek;
 
     return Row(
       children: [
         MouseRegion(
           onEnter: (_) => setState(() => _desktopRailHover = true),
-          onExit: (_) => setState(() => _desktopRailHover = false),
+          onExit: (_) => setState(() {
+            _desktopRailHover = false;
+            _ignoreHoverUntilExit = false;
+          }),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
@@ -930,9 +945,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               menuItems: menuItems,
               state: state,
               collapsed: !sidebarWide,
-              onToggle: () => setState(
-                () => _desktopSidebarExpanded = !_desktopSidebarExpanded,
-              ),
+              pinned: _desktopSidebarPinned,
+              onToggle: () => setState(() {
+                if (_desktopSidebarPinned) {
+                  _desktopSidebarPinned = false;
+                  _ignoreHoverUntilExit = true;
+                } else {
+                  _desktopSidebarPinned = true;
+                }
+              }),
             ),
           ),
         ),
@@ -1274,6 +1295,7 @@ class _SidebarNavigation extends StatelessWidget {
   final List<MenuItem> menuItems;
   final AuthState state;
   final bool collapsed;
+  final bool pinned;
   final VoidCallback onToggle;
   final bool closeLabel;
 
@@ -1284,6 +1306,7 @@ class _SidebarNavigation extends StatelessWidget {
     required this.menuItems,
     required this.collapsed,
     required this.onToggle,
+    this.pinned = false,
     this.closeLabel = false,
     required this.state,
     this.onNavigateTap,
@@ -1330,95 +1353,75 @@ class _SidebarNavigation extends StatelessWidget {
         "${(staff?.firstName.isNotEmpty ?? false) ? staff!.firstName[0].toUpperCase() : ''}${(staff?.lastName.isNotEmpty ?? false) ? staff!.lastName[0].toUpperCase() : ''}";
     final displayName = staff == null
         ? 'Signing out...'
-        : '${staff.firstName.toUpperCase()} ${staff.lastName.toUpperCase()}';
-    final displayRole = staff?.staffRole.toUpperCase() ?? 'LOGGING OUT';
+        : '${staff.firstName} ${staff.lastName}'.trim();
+    final displayRole = staff?.staffRole ?? 'Logging out';
 
-    final avatar = Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [cs.primary, cs.primary.withValues(alpha: .4)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(100),
-      ),
+    final avatar = Tooltip(
+      message: collapsed ? '$displayName · $displayRole' : '',
+      waitDuration: const Duration(milliseconds: 350),
       child: CircleAvatar(
-        radius: collapsed ? 18 : 20,
+        radius: 14,
         backgroundColor: cs.primary,
-        child: Center(
-          child: Text(
-            initials,
-            style: TextStyle(
-              color: cs.onPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: collapsed ? 16 : 18,
-            ),
+        child: Text(
+          initials.isEmpty ? '?' : initials,
+          style: TextStyle(
+            color: cs.onPrimary,
+            fontWeight: FontWeight.w800,
+            fontSize: 11,
           ),
         ),
       ),
     );
 
-    /// Icon rail (~64px): horizontal row does not fit avatar + toggle; stack vertically.
+    final toggle = _ToggleButton(
+      collapsed: collapsed,
+      pinned: pinned,
+      onToggle: onToggle,
+      closeLabel: closeLabel,
+    );
+
     if (collapsed && !closeLabel) {
-      return SizedBox(
-        height: 200,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              avatar,
-              const SizedBox(height: 12),
-              _ToggleButton(
-                collapsed: collapsed,
-                onToggle: onToggle,
-                closeLabel: closeLabel,
-              ),
-            ],
-          ),
-        ),
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+        child: Column(children: [avatar, const SizedBox(height: 6), toggle]),
       );
     }
 
-    return SizedBox(
-      height: 200,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        child: Row(
-          children: [
-            avatar,
-            if (!collapsed) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      displayName,
-                      style: TextStyle(
-                        color: shell.sidebarOnBackground,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        letterSpacing: 0.3,
-                      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 8, 6, 6),
+      child: Row(
+        children: [
+          avatar,
+          if (!collapsed) ...[
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  HeltyEllipsisText(
+                    text: displayName,
+                    style: TextStyle(
+                      color: shell.sidebarOnBackground,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      height: 1.15,
                     ),
-                    Text(
-                      displayRole,
-                      style: TextStyle(color: shell.sidebarMuted, fontSize: 11),
+                  ),
+                  HeltyEllipsisText(
+                    text: displayRole,
+                    style: TextStyle(
+                      color: shell.sidebarMuted,
+                      fontSize: 10,
+                      height: 1.15,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-            _ToggleButton(
-              collapsed: collapsed,
-              onToggle: onToggle,
-              closeLabel: closeLabel,
             ),
           ],
-        ),
+          toggle,
+        ],
       ),
     );
   }
@@ -1437,6 +1440,7 @@ class _SidebarNavigation extends StatelessWidget {
 
 class _ToggleButton extends StatefulWidget {
   final bool collapsed;
+  final bool pinned;
   final VoidCallback onToggle;
   final bool closeLabel;
 
@@ -1444,6 +1448,7 @@ class _ToggleButton extends StatefulWidget {
     required this.collapsed,
     required this.onToggle,
     required this.closeLabel,
+    this.pinned = false,
   });
 
   @override
@@ -1456,24 +1461,34 @@ class _ToggleButtonState extends State<_ToggleButton> {
   @override
   Widget build(BuildContext context) {
     final shell = AppShellTheme.of(context);
+    final tooltip = widget.closeLabel
+        ? 'Close menu'
+        : widget.pinned
+        ? 'Collapse menu'
+        : 'Keep menu expanded';
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
-      child: GestureDetector(
-        onTap: widget.onToggle,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: _hover ? shell.sidebarHover : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            widget.closeLabel || widget.collapsed
-                ? Icons.menu_open_rounded
-                : Icons.menu_rounded,
-            color: shell.sidebarOnBackground,
-            size: 20,
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onTap: widget.onToggle,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _hover ? shell.sidebarHover : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              widget.closeLabel
+                  ? Icons.close_rounded
+                  : widget.pinned
+                  ? Icons.menu_open_rounded
+                  : Icons.menu_rounded,
+              color: shell.sidebarOnBackground,
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -1522,10 +1537,6 @@ class _SidebarEntry extends StatefulWidget {
 class _SidebarEntryState extends State<_SidebarEntry> {
   bool _hover = false;
   bool _expanded = false;
-
-  MenuAccent get _accent =>
-      widget.item.accent ??
-      MenuAccent.values[widget.index % MenuAccent.values.length];
 
   void _navigateTo(BuildContext context, PageRouteInfo route) {
     // final inner = context.router.innerRouterOf<StackRouter>(
@@ -1591,7 +1602,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
             curve: Curves.easeOutCubic,
             child: Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: shell.sidebarMuted,
+              color: _hover ? Colors.white : shell.sidebarMuted,
               size: 18,
             ),
           ),
@@ -1617,9 +1628,10 @@ class _SidebarEntryState extends State<_SidebarEntry> {
       padding: const EdgeInsets.only(left: 8, bottom: 4),
       child: Column(
         children: [
-          for (final child in widget.item.children!)
+          for (int i = 0; i < widget.item.children!.length; i++)
             _ChildEntry(
-              item: child,
+              item: widget.item.children![i],
+              index: widget.index * 11 + i + 3,
               currentName: widget.currentName,
               onNavigateTap: widget.onNavigateTap,
             ),
@@ -1637,31 +1649,26 @@ class _SidebarEntryState extends State<_SidebarEntry> {
     Widget? trailing,
   }) {
     final shell = AppShellTheme.of(context);
-    final cs = Theme.of(context).colorScheme;
+    final boxColor = _navBoxColorFor(widget.index);
+    final hoverColor = _navHoverColorFor(widget.index);
+    final rowFilled = _hover || isActive;
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.only(bottom: 2),
+        margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
-          color: isActive
-              ? shell.sidebarSelectedRow
-              : _hover
-              ? shell.sidebarHover
-              : Colors.transparent,
+          color: rowFilled ? hoverColor : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          border: isActive
-              ? Border.all(color: cs.primary.withValues(alpha: 0.38), width: 1)
-              : null,
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
-            splashColor: shell.ripple,
-            highlightColor: shell.ripple.withValues(alpha: 0.35),
+            splashColor: Colors.white.withValues(alpha: 0.18),
+            highlightColor: Colors.white.withValues(alpha: 0.08),
             onTap: () {
               _maybeSidebarHaptic(context);
               onTap();
@@ -1672,8 +1679,16 @@ class _SidebarEntryState extends State<_SidebarEntry> {
                 vertical: 10,
               ),
               child: widget.collapsed
-                  ? _collapsedIcon(icon, isActive, cs, shell)
-                  : _expandedRow(icon, label, isActive, trailing, cs, shell),
+                  ? _collapsedIcon(icon, isActive, boxColor)
+                  : _expandedRow(
+                      icon,
+                      label,
+                      isActive,
+                      trailing,
+                      shell,
+                      boxColor,
+                      rowFilled,
+                    ),
             ),
           ),
         ),
@@ -1681,12 +1696,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
     );
   }
 
-  Widget _collapsedIcon(
-    IconData icon,
-    bool isActive,
-    ColorScheme cs,
-    AppShellTheme shell,
-  ) {
+  Widget _collapsedIcon(IconData icon, bool isActive, Color boxColor) {
     return Center(
       child: Tooltip(
         message: widget.item.label,
@@ -1698,11 +1708,8 @@ class _SidebarEntryState extends State<_SidebarEntry> {
           child: _NavIconBox(
             icon: icon,
             isActive: isActive,
-            accent: _accent,
+            boxColor: boxColor,
             iconSize: 22,
-            cs: cs,
-            shell: shell,
-            explicitColor: widget.item.color,
           ),
         ),
       ),
@@ -1714,10 +1721,10 @@ class _SidebarEntryState extends State<_SidebarEntry> {
     String label,
     bool isActive,
     Widget? trailing,
-    ColorScheme cs,
     AppShellTheme shell,
+    Color boxColor,
+    bool rowFilled,
   ) {
-    final accentCol = widget.item.color ?? _accentColor(cs, _accent);
     return Row(
       children: [
         SizedBox(
@@ -1730,7 +1737,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
               width: isActive ? 4 : 0,
               height: isActive ? 28 : 0,
               decoration: BoxDecoration(
-                color: accentCol,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -1743,11 +1750,8 @@ class _SidebarEntryState extends State<_SidebarEntry> {
           child: _NavIconBox(
             icon: icon,
             isActive: isActive,
-            accent: _accent,
+            boxColor: boxColor,
             iconSize: 20,
-            cs: cs,
-            shell: shell,
-            explicitColor: widget.item.color,
           ),
         ),
         const SizedBox(width: 12),
@@ -1755,10 +1759,10 @@ class _SidebarEntryState extends State<_SidebarEntry> {
           child: Text(
             label,
             style: TextStyle(
-              color: isActive
-                  ? shell.sidebarOnActive
-                  : shell.sidebarOnBackground,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              color: rowFilled ? Colors.white : shell.sidebarOnBackground,
+              fontWeight: isActive || rowFilled
+                  ? FontWeight.w600
+                  : FontWeight.w400,
               fontSize: 13.5,
             ),
           ),
@@ -1775,11 +1779,13 @@ class _SidebarEntryState extends State<_SidebarEntry> {
 
 class _ChildEntry extends StatefulWidget {
   final MenuItem item;
+  final int index;
   final String? currentName;
   final VoidCallback? onNavigateTap;
 
   const _ChildEntry({
     required this.item,
+    required this.index,
     required this.currentName,
     this.onNavigateTap,
   });
@@ -1794,40 +1800,29 @@ class _ChildEntryState extends State<_ChildEntry> {
   bool get _isActive =>
       widget.currentName == widget.item.route.runtimeType.toString();
 
-  MenuAccent get _accent =>
-      widget.item.accent ??
-      MenuAccent.values[widget.item.label.hashCode.abs() %
-          MenuAccent.values.length];
-
   @override
   Widget build(BuildContext context) {
     final shell = AppShellTheme.of(context);
-    final cs = Theme.of(context).colorScheme;
-    final accentCol = widget.item.color ?? _accentColor(cs, _accent);
+    final boxColor = _navBoxColorFor(widget.index);
+    final hoverColor = _navHoverColorFor(widget.index);
+    final rowFilled = _hover || _isActive;
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.only(bottom: 2),
+        margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
-          color: _isActive
-              ? shell.sidebarSelectedRow
-              : _hover
-              ? shell.sidebarHover
-              : Colors.transparent,
+          color: rowFilled ? hoverColor : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: _isActive
-              ? Border.all(color: cs.primary.withValues(alpha: 0.34), width: 1)
-              : null,
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
-            splashColor: shell.ripple,
-            highlightColor: shell.ripple.withValues(alpha: 0.35),
+            splashColor: Colors.white.withValues(alpha: 0.18),
+            highlightColor: Colors.white.withValues(alpha: 0.08),
             onTap: () {
               _maybeSidebarHaptic(context);
               context.router.push(widget.item.route);
@@ -1847,7 +1842,7 @@ class _ChildEntryState extends State<_ChildEntry> {
                         width: _isActive ? 3 : 0,
                         height: _isActive ? 24 : 0,
                         decoration: BoxDecoration(
-                          color: accentCol,
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -1860,11 +1855,8 @@ class _ChildEntryState extends State<_ChildEntry> {
                     child: _NavIconBox(
                       icon: widget.item.icon,
                       isActive: _isActive,
-                      accent: _accent,
+                      boxColor: boxColor,
                       iconSize: 17,
-                      cs: cs,
-                      shell: shell,
-                      explicitColor: widget.item.color,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1872,10 +1864,10 @@ class _ChildEntryState extends State<_ChildEntry> {
                     child: Text(
                       widget.item.label,
                       style: TextStyle(
-                        color: _isActive
-                            ? shell.sidebarOnActive
+                        color: rowFilled
+                            ? Colors.white
                             : shell.sidebarOnBackground,
-                        fontWeight: _isActive
+                        fontWeight: rowFilled
                             ? FontWeight.w600
                             : FontWeight.w400,
                         fontSize: 13,
@@ -1923,7 +1915,11 @@ class _MobileTopBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          _IconButton(icon: Icons.menu_rounded, onTap: onMenuTap),
+          _IconButton(
+            icon: Icons.menu_rounded,
+            onTap: onMenuTap,
+            boxColor: _kNavBoxPalette[0],
+          ),
           const SizedBox(width: 12),
           Image.asset(
             'assets/logo.png',
@@ -1941,7 +1937,11 @@ class _MobileTopBar extends ConsumerWidget {
           //   ),
           // ),
           const Spacer(),
-          _IconButton(icon: Icons.help_outline_rounded, onTap: onHelpCenter),
+          _IconButton(
+            icon: Icons.help_outline_rounded,
+            onTap: onHelpCenter,
+            boxColor: _kNavBoxPalette[5],
+          ),
           StaffMessagesShellAction(
             onTap: onStaffChat,
             dense: true,
@@ -2000,8 +2000,13 @@ class _MobileTopBar extends ConsumerWidget {
 class _IconButton extends StatefulWidget {
   final IconData icon;
   final VoidCallback onTap;
+  final Color boxColor;
 
-  const _IconButton({required this.icon, required this.onTap});
+  const _IconButton({
+    required this.icon,
+    required this.onTap,
+    required this.boxColor,
+  });
 
   @override
   State<_IconButton> createState() => _IconButtonState();
@@ -2012,20 +2017,16 @@ class _IconButtonState extends State<_IconButton> {
 
   @override
   Widget build(BuildContext context) {
-    final shell = AppShellTheme.of(context);
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: _hover ? shell.sidebarHover : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(widget.icon, color: shell.sidebarOnBackground, size: 22),
+        child: _NavIconBox(
+          icon: widget.icon,
+          isActive: _hover,
+          boxColor: widget.boxColor,
+          iconSize: 20,
         ),
       ),
     );
@@ -2098,28 +2099,19 @@ class _IconLogoutButtonState extends State<_IconLogoutButton> {
 
   @override
   Widget build(BuildContext context) {
-    final shell = AppShellTheme.of(context);
-    final cs = Theme.of(context).colorScheme;
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
         onTap: () => unawaited(_logoutToLoginReplacingStack(context)),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: _hover
-                ? cs.error.withValues(alpha: 0.22)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
+        child: Center(
           child: Tooltip(
             message: 'Logout',
-            child: Icon(
-              Icons.logout_rounded,
-              color: _hover ? cs.error : shell.sidebarMuted,
-              size: 20,
+            child: _NavIconBox(
+              icon: Icons.logout_rounded,
+              isActive: _hover,
+              boxColor: const Color(0xFFDC2626),
+              iconSize: 18,
             ),
           ),
         ),
@@ -2162,10 +2154,11 @@ class _FullLogoutButtonState extends State<_FullLogoutButton> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.logout_rounded,
-                color: _hover ? cs.error : shell.sidebarMuted,
-                size: 18,
+              const _NavIconBox(
+                icon: Icons.logout_rounded,
+                isActive: false,
+                boxColor: Color(0xFFDC2626),
+                iconSize: 16,
               ),
               const SizedBox(width: 10),
               Text(
@@ -2227,20 +2220,16 @@ class _MobileLogoutButtonState extends State<_MobileLogoutButton> {
 
   @override
   Widget build(BuildContext context) {
-    final shell = AppShellTheme.of(context);
-    final cs = Theme.of(context).colorScheme;
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
         onTap: () => unawaited(_logoutToLoginReplacingStack(context)),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Icon(
-            Icons.logout_rounded,
-            color: _hover ? cs.error : shell.sidebarMuted,
-            size: 20,
-          ),
+        child: _NavIconBox(
+          icon: Icons.logout_rounded,
+          isActive: _hover,
+          boxColor: const Color(0xFFDC2626),
+          iconSize: 18,
         ),
       ),
     );

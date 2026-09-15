@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 void revealHeltyDesktopWindow() {}
 
 class WindowTitleBarBox extends StatelessWidget {
-  WindowTitleBarBox({super.key, this.child});
+  const WindowTitleBarBox({super.key, this.child});
 
   final Widget? child;
 
@@ -13,7 +13,7 @@ class WindowTitleBarBox extends StatelessWidget {
 }
 
 class MoveWindow extends StatelessWidget {
-  MoveWindow({super.key, this.child, this.onDoubleTap});
+  const MoveWindow({super.key, this.child, this.onDoubleTap});
 
   final Widget? child;
   final VoidCallback? onDoubleTap;
@@ -34,7 +34,12 @@ class WindowButtonColors {
 }
 
 class MinimizeWindowButton extends StatelessWidget {
-  MinimizeWindowButton({super.key, this.colors, this.onPressed, bool? animate});
+  const MinimizeWindowButton({
+    super.key,
+    this.colors,
+    this.onPressed,
+    bool? animate,
+  });
 
   final WindowButtonColors? colors;
   final VoidCallback? onPressed;
@@ -44,7 +49,12 @@ class MinimizeWindowButton extends StatelessWidget {
 }
 
 class MaximizeWindowButton extends StatelessWidget {
-  MaximizeWindowButton({super.key, this.colors, this.onPressed, bool? animate});
+  const MaximizeWindowButton({
+    super.key,
+    this.colors,
+    this.onPressed,
+    bool? animate,
+  });
 
   final WindowButtonColors? colors;
   final VoidCallback? onPressed;
@@ -54,7 +64,12 @@ class MaximizeWindowButton extends StatelessWidget {
 }
 
 class CloseWindowButton extends StatelessWidget {
-  CloseWindowButton({super.key, this.colors, this.onPressed, bool? animate});
+  const CloseWindowButton({
+    super.key,
+    this.colors,
+    this.onPressed,
+    bool? animate,
+  });
 
   final WindowButtonColors? colors;
   final VoidCallback? onPressed;

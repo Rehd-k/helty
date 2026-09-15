@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
+import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/models/staff_attribution.dart';
 import 'package:helty/src/widgets/empty.widget.dart';
 
@@ -177,6 +176,6 @@ class _SectionTile extends StatelessWidget {
     if (v == null) return null;
     final dt = DateTime.tryParse(v.toString());
     if (dt == null) return v.toString();
-    return DateFormat.yMMMd().add_jm().format(dt.toLocal());
+    return DateFormatter.dateTime(dt);
   }
 }

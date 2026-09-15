@@ -23,11 +23,13 @@ class PatientAllergyEntry {
           m['name']?.toString().trim() ??
           m['allergy']?.toString().trim() ??
           m['substance']?.toString().trim() ??
+          m['allergen']?.toString().trim() ??
           '';
       final severe =
           m['isSevere'] == true ||
           m['severe'] == true ||
-          m['severity']?.toString().toUpperCase() == 'SEVERE';
+          m['severity']?.toString().toUpperCase() == 'SEVERE' ||
+          m['severity']?.toString().toUpperCase() == 'CRITICAL';
       return PatientAllergyEntry(name: name, isSevere: severe);
     }
     return const PatientAllergyEntry(name: '');
@@ -54,7 +56,9 @@ class PatientPrescriptionHistoryEntry {
           m['dose']?.toString() ??
           m['frequency']?.toString();
       final date =
-          m['createdAt']?.toString() ?? m['date']?.toString() ?? m['orderedAt']?.toString();
+          m['createdAt']?.toString() ??
+          m['date']?.toString() ??
+          m['orderedAt']?.toString();
       final parts = <String>[];
       if (detail != null && detail.isNotEmpty) parts.add(detail);
       if (date != null && date.isNotEmpty) parts.add(date);
@@ -69,7 +73,10 @@ class PatientPrescriptionHistoryEntry {
 
 List<PatientAllergyEntry> _parsePatientAllergies(dynamic raw) {
   if (raw is! List) return const [];
-  return raw.map(PatientAllergyEntry.fromDynamic).where((a) => a.name.isNotEmpty).toList();
+  return raw
+      .map(PatientAllergyEntry.fromDynamic)
+      .where((a) => a.name.isNotEmpty)
+      .toList();
 }
 
 List<PatientPrescriptionHistoryEntry> _parsePatientPrescriptionHistory(
@@ -239,15 +246,16 @@ class Patient {
       return null;
     }
 
-    final admission =
-        json['admission'] is Map
-            ? Map<String, dynamic>.from(json['admission'] as Map)
-            : null;
+    final admission = json['admission'] is Map
+        ? Map<String, dynamic>.from(json['admission'] as Map)
+        : null;
 
-    final wardMap =
-        json['ward'] is Map ? Map<String, dynamic>.from(json['ward'] as Map) : null;
-    final bedMap =
-        json['bed'] is Map ? Map<String, dynamic>.from(json['bed'] as Map) : null;
+    final wardMap = json['ward'] is Map
+        ? Map<String, dynamic>.from(json['ward'] as Map)
+        : null;
+    final bedMap = json['bed'] is Map
+        ? Map<String, dynamic>.from(json['bed'] as Map)
+        : null;
 
     // use nullable casts to avoid runtime type errors when keys are missing
     final String? dobStr = json['dob'] as String?;
@@ -393,7 +401,8 @@ class Patient {
       if (bedId != null && bedId!.trim().isNotEmpty) 'bedId': bedId,
       if (ward != null) 'ward': ward,
       if (bedNumber != null) 'bedNumber': bedNumber,
-      if (admissionDate != null) 'admissionDate': admissionDate!.toIso8601String(),
+      if (admissionDate != null)
+        'admissionDate': admissionDate!.toIso8601String(),
     };
   }
 
@@ -530,9 +539,9 @@ class Patient {
 
   /// Full display label: title + first + other + surname (see docs/patient-names.md).
   String get displayName => formatPatientDisplayName(
-        title: title,
-        firstName: firstName,
-        otherName: otherName,
-        surname: surname,
-      );
+    title: title,
+    firstName: firstName,
+    otherName: otherName,
+    surname: surname,
+  );
 }

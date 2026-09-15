@@ -3,7 +3,7 @@ library;
 
 import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:helty/src/core/utils/api_decimal.dart';
-import 'package:intl/intl.dart';
+import 'package:helty/src/helper/date.formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ENUMS  (mirrors schema.prisma enums)
@@ -382,7 +382,7 @@ TransactionMap transactionModelToMap(TransactionModel m) {
     final methods = m.payments.map((p) => p.method.label).toSet();
     paymentMethodLabel = methods.length == 1 ? methods.single : 'Mixed';
   }
-  final dateStr = DateFormat('MMM d, y h:mm a').format(displayAt);
+  final dateStr = DateFormatter.dateTime(displayAt);
   final services = m.items
       .map(
         (i) => {
