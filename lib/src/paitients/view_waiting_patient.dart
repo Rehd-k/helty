@@ -3,6 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/helper/theme.dart';
+import 'package:helty/src/lab/ui/widgets/lab_clinical_ui.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../core/widgets/patient_avatar.dart';
 import '../core/utils/patient_initials.dart';
@@ -11,7 +14,6 @@ import '../models/patient_vitals_model.dart';
 import '../models/consultation_credit_model.dart';
 import '../models/waiting_patient_model.dart';
 import '../providers/module_request_flow_provider.dart';
-import '../widgets/consultation_credit_chip.dart';
 import '../widgets/empty.widget.dart';
 import '../services/api_service.dart';
 import '../services/waiting_patient_service.dart';
@@ -56,6 +58,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
   int _total = 0;
   bool _hasMore = false;
   int _loadSeq = 0;
+  String _payFilter = 'all';
 
   bool get _isRegisterUse => widget.use.trim().toLowerCase() == 'for register';
   bool get _isNursingQueueUse =>
@@ -69,13 +72,6 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
 
   bool get _canGoPrev => !_isLoading && _currentPage > 0;
   bool get _canGoNext => !_isLoading && _hasMore;
-
-  int get _totalPages {
-    if (_total == 0) return 1;
-    final pages = (_total / _rowsPerPage).ceil();
-    if (_hasMore && _currentPage + 1 >= pages) return _currentPage + 2;
-    return pages < 1 ? 1 : pages;
-  }
 
   String get _primaryButtonLabel => _isRegisterUse
       ? 'Register Patient'
@@ -101,6 +97,55 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
     return _primaryButtonLabel;
   }
 
+  String get _pageTitle {
+    if (_isNursingQueueUse) return 'Nursing Queue';
+    return 'Waiting Patients';
+  }
+
+  String get _pageSubtitle {
+    if (_isRegisterUse) {
+      return 'Register billed walk-in patients and open their file.';
+    }
+    if (_isNursingQueueUse) {
+      return 'Send paid patients to consulting rooms.';
+    }
+    return 'Open paid invoices for ${widget.use} work.';
+  }
+
+  List<_UnregisteredPatientTxn> get _displayedPatients {
+    switch (_payFilter) {
+      case 'ready':
+        return _patients.where((p) => p.canOpenModulePatient).toList();
+      case 'unpaid':
+        return _patients.where((p) => !p.isPaid).toList();
+      default:
+        return _patients;
+    }
+  }
+
+  String _waitLabel(_UnregisteredPatientTxn patient) {
+    final wait = LabClinicalUi.waitSince(patient.dateTime);
+    if (wait == null) return '—';
+    return LabClinicalUi.formatWait(wait);
+  }
+
+  Color _waitColor(_UnregisteredPatientTxn patient) {
+    final wait = LabClinicalUi.waitSince(patient.dateTime);
+    if (wait == null) return LabClinicalUi.iconAmber;
+    return LabClinicalUi.waitColor(wait);
+  }
+
+  String get _avgWaitLabel {
+    final waits = _displayedPatients
+        .map((p) => LabClinicalUi.waitSince(p.dateTime))
+        .whereType<Duration>()
+        .toList();
+    if (waits.isEmpty) return '—';
+    final avgMs =
+        waits.fold<int>(0, (sum, d) => sum + d.inMilliseconds) ~/ waits.length;
+    return LabClinicalUi.formatWait(Duration(milliseconds: avgMs));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -110,32 +155,6 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
       end: DateTime(now.year, now.month, now.day, 23, 59, 59),
     );
     _fetchPatients();
-  }
-
-  Future<void> _pickDateRange() async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      initialDateRange:
-          _selectedDateRange ??
-          DateTimeRange(start: DateTime.now(), end: DateTime.now()),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(
-            context,
-          ).copyWith(colorScheme: Theme.of(context).colorScheme),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _selectedDateRange) {
-      setState(() {
-        _selectedDateRange = picked;
-        _currentPage = 0;
-      });
-      await _fetchPatients(reset: true);
-    }
   }
 
   Future<void> _goToPage(int page) async {
@@ -335,669 +354,787 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final displayed = _displayedPatients;
+    final paidCount = _patients.where((p) => p.isPaid).length;
+    final unpaidCount = _patients.where((p) => !p.isPaid).length;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: ResponsiveBody(
         center: false,
-        builder: (context, bp) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildFilterBar(colorScheme, bp),
-            SizedBox(height: bp.isMobile ? 16 : 24),
-            Expanded(
-              child: ResponsiveRowColumn(
-                firstFlex: 2,
-                secondFlex: 1,
-                gap: bp.isMobile ? 16 : 24,
-                first: SizedBox(
-                  height: bp.isMobile ? 360 : null,
-                  child: _buildPatientTable(colorScheme),
-                ),
-                second: _buildDetailsPane(colorScheme),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < LabClinicalUi.cardBreakpoint;
+          final showSideBySide = width >= LabClinicalUi.sidebarBreakpoint;
+          final useSnapKpis = width < 520;
 
-  // --- FILTER BAR WIDGET ---
-  Widget _buildFilterBar(ColorScheme colorScheme, AppBreakpoints bp) {
-    return Container(
-      padding: EdgeInsets.all(bp.isMobile ? 12 : 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-      ),
-      child: bp.isMobile
-          ? Column(
+          final header = LabPageHeader(
+            title: _pageTitle,
+            subtitle: _pageSubtitle,
+            icon: Icons.receipt_long_outlined,
+            iconColor: LabClinicalUi.iconPurple,
+            compact: compact,
+          );
+          final kpis = LabKpiStrip(
+            useSnapStrip: useSnapKpis,
+            items: [
+              LabKpiItem(
+                label: 'Total in queue',
+                value: '$_total',
+                caption: 'Matching current dates',
+                icon: Icons.groups_outlined,
+                accent: LabClinicalUi.iconBlue,
+              ),
+              LabKpiItem(
+                label: 'Paid',
+                value: '$paidCount',
+                caption: 'On this page',
+                icon: Icons.verified_outlined,
+                accent: LabClinicalUi.iconGreen,
+              ),
+              LabKpiItem(
+                label: 'Unpaid',
+                value: '$unpaidCount',
+                caption: 'On this page',
+                icon: Icons.schedule_outlined,
+                accent: LabClinicalUi.iconAmber,
+              ),
+              LabKpiItem(
+                label: 'Avg. wait',
+                value: _avgWaitLabel,
+                caption: 'From billed time',
+                icon: Icons.timer_outlined,
+                accent: LabClinicalUi.iconPink,
+              ),
+            ],
+          );
+          final filters = LabFilterBar(
+            searchController: _searchController,
+            searchHint: 'Name, bill #, or invoice id…',
+            compact: compact,
+            onSearchSubmitted: (_) => _fetchPatients(reset: true),
+            primaryFilter: _statusDropdown(context),
+            filterMenuBody: LabDateFilterBody(
+              from: _selectedDateRange?.start ?? DateTime.now(),
+              to: _selectedDateRange?.end ?? DateTime.now(),
+              onChanged: (from, to) {
+                setState(() {
+                  _selectedDateRange = DateTimeRange(
+                    start: DateTime(from.year, from.month, from.day),
+                    end: DateTime(to.year, to.month, to.day, 23, 59, 59),
+                  );
+                  _currentPage = 0;
+                });
+                _fetchPatients(reset: true);
+              },
+              onRefresh: () => _fetchPatients(reset: true),
+              leading: compact ? _statusDropdown(context) : null,
+            ),
+          );
+
+          final mainColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: 10),
+              kpis,
+              const SizedBox(height: 10),
+              filters,
+              const SizedBox(height: 10),
+              Expanded(
+                child: compact
+                    ? _buildPatientCards(displayed)
+                    : _buildPatientTable(displayed),
+              ),
+            ],
+          );
+
+          if (showSideBySide) {
+            return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildSearchField(colorScheme),
-                const SizedBox(height: 12),
-                _buildDateRangeButton(colorScheme),
-                const SizedBox(height: 8),
-                _buildClearFiltersButton(colorScheme),
+                Expanded(flex: 9, child: mainColumn),
+                const SizedBox(width: 12),
+                Expanded(flex: 3, child: _buildDetailsPane(fillHeight: true)),
               ],
-            )
-          : Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 350,
-            child: _buildSearchField(colorScheme),
-          ),
-          _buildDateRangeButton(colorScheme),
-          _buildClearFiltersButton(colorScheme),
-        ],
-      ),
-    );
-  }
+            );
+          }
 
-  Widget _buildSearchField(ColorScheme colorScheme) {
-    return TextField(
-      controller: _searchController,
-      onSubmitted: (_) => _fetchPatients(reset: true),
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: "Search bill #, invoice id, or patient name...",
-        hintStyle: TextStyle(
-          fontSize: 13,
-          color: colorScheme.onSurface.withValues(alpha: 0.5),
-        ),
-        prefixIcon: Icon(
-          Icons.search,
-          size: 20,
-          color: colorScheme.onSurface.withValues(alpha: 0.5),
-        ),
-        suffixIcon: _searchController.text.isNotEmpty
-            ? IconButton(
-                tooltip: 'Clear search',
-                icon: const Icon(Icons.clear, size: 18),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {});
-                  _fetchPatients(reset: true);
-                },
-              )
-            : null,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.3),
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.3),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: colorScheme.primary),
-        ),
-      ),
-      style: const TextStyle(fontSize: 13),
-      onChanged: (_) => setState(() {}),
-    );
-  }
-
-  Widget _buildDateRangeButton(ColorScheme colorScheme) {
-    return OutlinedButton.icon(
-      onPressed: _pickDateRange,
-      icon: Icon(Icons.date_range, size: 18, color: colorScheme.primary),
-      label: Text(
-        _selectedDateRange == null
-            ? "Select Date Range"
-            : DateFormatter.dateTime(_selectedDateRange!.start),
-        style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
-      ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        side: BorderSide(
-          color: colorScheme.outline.withValues(alpha: 0.3),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildClearFiltersButton(ColorScheme colorScheme) {
-    return TextButton.icon(
-      onPressed: () {
-        setState(() {
-          _searchController.clear();
-          _currentPage = 0;
-        });
-        _fetchPatients(reset: true);
-      },
-      icon: const Icon(Icons.clear_all, size: 18),
-      label: const Text("Clear", style: TextStyle(fontSize: 13)),
-    );
-  }
-
-  // --- PATIENT TABLE WIDGET (2/3 Width) ---
-  Widget _buildPatientTable(ColorScheme colorScheme) {
-    return ResponsiveDataTable(
-      child: Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Table Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: colorScheme.onSurface.withValues(alpha: 0.02),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: mainColumn),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 280,
+                child: _buildDetailsPane(fillHeight: false),
               ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Text("Patient Name", style: _headerStyle(colorScheme)),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text("Bill #", style: _headerStyle(colorScheme)),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text("Phone", style: _headerStyle(colorScheme)),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Text("Age", style: _headerStyle(colorScheme)),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Text("Gender", style: _headerStyle(colorScheme)),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text("Date/Time", style: _headerStyle(colorScheme)),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    "Services",
-                    textAlign: TextAlign.center,
-                    style: _headerStyle(colorScheme),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.2)),
-
-          // Scrollable Table Rows
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(color: colorScheme.error, fontSize: 13),
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _fetchPatients,
-                    child: ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: _patients.length,
-                      separatorBuilder: (context, index) => Divider(
-                        height: 1,
-                        color: colorScheme.outline.withValues(alpha: 0.1),
-                      ),
-                      itemBuilder: (context, index) {
-                        final patient = _patients[index];
-                        final isSelected =
-                            _selectedPatient?.rowKey == patient.rowKey;
-
-                        return InkWell(
-                          key: ValueKey<String>(patient.rowKey),
-                          onTap: () {
-                            setState(() {
-                              _selectedPatient = patient;
-                            });
-                          },
-                          child: Container(
-                            color: isSelected
-                                ? colorScheme.primary.withValues(alpha: 0.05)
-                                : Colors.transparent,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            child: Row(
-                              children: [
-                                // Name (matches header column 1)
-                                Expanded(
-                                  flex: 3,
-                                  child: Row(
-                                    children: [
-                                      PatientAvatar(
-                                        avatarUrl: patient.avatarUrl,
-                                        firstName: patient.firstName,
-                                        surname: patient.surname,
-                                        displayName: patient.fullName,
-                                        size: 36,
-                                        backgroundColor: colorScheme.primary
-                                            .withValues(alpha: 0.08),
-                                        foregroundColor: colorScheme.primary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          patient.fullName,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: colorScheme.onSurface,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // Transaction / bill id (column 2)
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    patient.billLabel,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Phone
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    patient.phoneNumber ?? '-',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Age
-                                Expanded(
-                                  flex: 1,
-                                  child: Text(
-                                    patient.age != null
-                                        ? '${patient.age}'
-                                        : '-',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Gender
-                                Expanded(
-                                  flex: 1,
-                                  child: Text(
-                                    patient.gender?.trim().isNotEmpty == true
-                                        ? patient.gender!
-                                        : '-',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Date/time
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    DateFormatter.dateTime(patient.dateTime),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Services / consultation credit
-                                Expanded(
-                                  flex: 2,
-                                  child: Center(
-                                    child:
-                                        patient.primaryConsultationCredit !=
-                                                null &&
-                                            patient
-                                                .primaryConsultationCredit!
-                                                .hasCreditMetadata
-                                        ? ConsultationCreditChip.fromLine(
-                                            line: patient
-                                                .primaryConsultationCredit!,
-                                            compact: true,
-                                          )
-                                        : Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              border: Border.all(
-                                                color: colorScheme.outline
-                                                    .withValues(alpha: 0.2),
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              "${patient.services.length} items",
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: colorScheme.onSurface
-                                                    .withValues(alpha: 0.7),
-                                              ),
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-          ),
-
-          // Pagination Footer
-          Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.2)),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Showing ${_patients.length} of $_total · "
-                  "${_currentPage + 1} / $_totalPages",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-                Row(
-                  children: [
-                    OutlinedButton(
-                      onPressed: _canGoPrev
-                          ? () => _goToPage(_currentPage - 1)
-                          : null,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        minimumSize: const Size(0, 32),
-                      ),
-                      child: const Text(
-                        "Previous",
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: _canGoNext
-                          ? () => _goToPage(_currentPage + 1)
-                          : null,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        minimumSize: const Size(0, 32),
-                      ),
-                      child: const Text("Next", style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildDetailsPane(ColorScheme colorScheme) {
-    if (_selectedPatient == null) {
-      return Card(
-        margin: EdgeInsets.zero,
-        child: const EmptyStateWidget(
-          icon: Icons.person_search_outlined,
-          title: 'Select a patient',
-          message:
-              'Choose a row from the table to view their detailed file.',
+  InputDecoration _filterDecoration(
+    BuildContext context, {
+    required String label,
+    required Color iconColor,
+    required IconData icon,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return InputDecoration(
+      labelText: label,
+      isDense: true,
+      prefixIcon: Padding(
+        padding: const EdgeInsets.all(6),
+        child: HeltySolidIcon(
+          icon: icon,
+          color: iconColor,
+          size: 22,
+          iconSize: 13,
+          radius: 6,
+        ),
+      ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+      filled: true,
+      fillColor: cs.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      labelStyle: const TextStyle(fontSize: 11),
+    );
+  }
+
+  Widget _statusDropdown(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      key: ValueKey('pay-$_payFilter'),
+      initialValue: _payFilter,
+      isExpanded: true,
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      decoration: _filterDecoration(
+        context,
+        label: 'Status',
+        iconColor: LabClinicalUi.iconAmber,
+        icon: Icons.flag_outlined,
+      ),
+      items: const [
+        DropdownMenuItem(value: 'all', child: Text('All statuses')),
+        DropdownMenuItem(value: 'ready', child: Text('Ready to open')),
+        DropdownMenuItem(value: 'unpaid', child: Text('Unpaid')),
+      ],
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() => _payFilter = v);
+      },
+    );
+  }
+
+  Widget _buildPatientTable(List<_UnregisteredPatientTxn> patients) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    const colGap = 20.0;
+    final footer = LabPaginationFooter(
+      skip: _currentPage * _rowsPerPage,
+      pageSize: _rowsPerPage,
+      shown: _patients.length,
+      total: _total,
+      hasMore: _hasMore,
+      onPrev: () => _goToPage(_currentPage - 1),
+      onNext: () => _goToPage(_currentPage + 1),
+    );
+
+    Widget head(String label, {int flex = 1, bool alignEnd = false}) {
+      return Expanded(
+        flex: flex,
+        child: Text(
+          label,
+          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.4,
+            color: cs.onSurfaceVariant,
+          ),
         ),
       );
     }
 
-    final patient = _selectedPatient!;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
+    return HeltySurfaceCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header Bio
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.05),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
             ),
             child: Row(
               children: [
-                PatientAvatar(
-                  avatarUrl: patient.avatarUrl,
-                  firstName: patient.firstName,
-                  surname: patient.surname,
-                  displayName: patient.fullName,
-                  size: 56,
-                  backgroundColor: colorScheme.primary.withValues(alpha: 0.15),
-                  foregroundColor: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        patient.fullName,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const SizedBox(height: 4),
-                      Text(
-                        [
-                          if (patient.age != null) "${patient.age} yrs",
-                          if (patient.gender?.trim().isNotEmpty == true)
-                            patient.gender!.trim(),
-                          if (patient.phoneNumber != null) patient.phoneNumber!,
-                        ].join(" • "),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const SizedBox(width: 4),
+                head('#', flex: 1),
+                const SizedBox(width: colGap),
+                head('PATIENT', flex: 5),
+                const SizedBox(width: colGap),
+                head('BILL', flex: 2),
+                const SizedBox(width: colGap),
+                head('SERVICES', flex: 3),
+                const SizedBox(width: colGap),
+                head('WAIT', flex: 2),
+                const SizedBox(width: colGap),
+                head('STATUS', flex: 2),
+                const SizedBox(width: colGap),
+                head('ACTIONS', flex: 3, alignEnd: true),
               ],
             ),
           ),
+          Expanded(child: _queueBody(patients, useCards: false)),
+          footer,
+        ],
+      ),
+    );
+  }
 
-          // Visit Info Quick Details
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                _buildInfoTile(
-                  "Bill",
-                  patient.billLabel,
-                  Icons.receipt_long,
-                  colorScheme,
-                ),
-                _buildInfoTile(
-                  "Date/Time",
-                  DateFormatter.dateTime(patient.dateTime),
-                  Icons.receipt_long,
-                  colorScheme,
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.1)),
+  Widget _buildPatientCards(List<_UnregisteredPatientTxn> patients) {
+    return Column(
+      children: [
+        Expanded(child: _queueBody(patients, useCards: true)),
+        LabPaginationFooter(
+          skip: _currentPage * _rowsPerPage,
+          pageSize: _rowsPerPage,
+          shown: _patients.length,
+          total: _total,
+          hasMore: _hasMore,
+          onPrev: () => _goToPage(_currentPage - 1),
+          onNext: () => _goToPage(_currentPage + 1),
+        ),
+      ],
+    );
+  }
 
-          // Services List (Scrollable – no prices)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Text(
-              "Services (${patient.services.length})",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
+  Widget _queueBody(
+    List<_UnregisteredPatientTxn> patients, {
+    required bool useCards,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: HeltyEllipsisText(
+            text: _errorMessage!,
+            maxLines: 3,
+            style: theme.textTheme.bodyMedium?.copyWith(color: cs.error),
           ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: patient.services.length,
-              separatorBuilder: (context, index) => Divider(
-                height: 1,
-                color: colorScheme.outline.withValues(alpha: 0.05),
-              ),
-              itemBuilder: (context, index) {
-                final serviceName = patient.services[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          serviceName,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: colorScheme.onSurface.withValues(alpha: .8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+        ),
+      );
+    }
+    if (patients.isEmpty) {
+      return Center(
+        child: Text(
+          'No waiting patients match the current filters.',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: cs.onSurfaceVariant,
           ),
+        ),
+      );
+    }
 
-          // Footer Actions
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colorScheme.onSurface.withValues(alpha: 0.02),
-              border: Border(
-                top: BorderSide(
-                  color: colorScheme.outline.withValues(alpha: 0.1),
+    return ListView.separated(
+      itemCount: patients.length,
+      separatorBuilder: (_, __) => useCards
+          ? const SizedBox.shrink()
+          : Divider(height: 1, color: cs.outline.withValues(alpha: 0.08)),
+      itemBuilder: (context, index) {
+        final patient = patients[index];
+        final indexLabel = '${_currentPage * _rowsPerPage + index + 1}';
+        if (useCards) {
+          return _waitingCard(patient, indexLabel);
+        }
+        return ColoredBox(
+          color: LabClinicalUi.zebraFill(cs, index),
+          child: _waitingRow(patient, indexLabel),
+        );
+      },
+    );
+  }
+
+  Widget _identity(_UnregisteredPatientTxn patient) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final avatarColor = LabClinicalUi.avatarColor(
+      patient.patientId ?? patient.rowKey,
+    );
+    return Row(
+      children: [
+        PatientAvatar(
+          avatarUrl: patient.avatarUrl,
+          firstName: patient.firstName,
+          surname: patient.surname,
+          displayName: patient.fullName,
+          size: 36,
+          backgroundColor: avatarColor,
+          foregroundColor: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HeltyEllipsisText(
+                text: patient.fullName,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(12),
+              HeltyEllipsisText(
+                text: [
+                  if (patient.age != null) '${patient.age} yrs',
+                  if (patient.gender?.trim().isNotEmpty == true)
+                    patient.gender!.trim(),
+                  if (patient.phoneNumber?.trim().isNotEmpty == true)
+                    patient.phoneNumber!,
+                ].join(' · '),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusChip(_UnregisteredPatientTxn patient) {
+    if (patient.canOpenModulePatient) {
+      return HeltyEllipsisChip(
+        label: patient.isPaid ? 'Paid' : 'Ready',
+        color: LabClinicalUi.iconGreen,
+      );
+    }
+    return const HeltyEllipsisChip(
+      label: 'Unpaid',
+      color: LabClinicalUi.iconAmber,
+    );
+  }
+
+  Widget _rowActions(_UnregisteredPatientTxn patient) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FilledButton(
+            onPressed: _footerPrimaryEnabled(patient)
+                ? () => _goToRegister(patient)
+                : null,
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: const StadiumBorder(),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedPatient = null;
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text("Close"),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: _footerPrimaryEnabled(patient)
-                        ? () => _goToRegister(patient)
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _footerPrimaryEnabled(patient)
-                          ? colorScheme.primary
-                          : colorScheme.surfaceContainerHighest,
-                      foregroundColor: _footerPrimaryEnabled(patient)
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurfaceVariant,
-                      disabledBackgroundColor:
-                          colorScheme.surfaceContainerHighest,
-                      disabledForegroundColor: colorScheme.onSurfaceVariant,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      _footerPrimaryLabel(patient),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(_isRegisterUse ? 'Register' : 'Open'),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'More actions',
+            icon: Icon(
+              Icons.more_vert,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
+            onSelected: (value) {
+              switch (value) {
+                case 'select':
+                  setState(() => _selectedPatient = patient);
+                case 'open':
+                  if (_footerPrimaryEnabled(patient)) _goToRegister(patient);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'select', child: Text('View details')),
+              PopupMenuItem(
+                value: 'open',
+                enabled: _footerPrimaryEnabled(patient),
+                child: Text(_footerPrimaryLabel(patient)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _waitingRow(_UnregisteredPatientTxn patient, String indexLabel) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final selected = _selectedPatient?.rowKey == patient.rowKey;
+    return Material(
+      color: selected ? cs.primary.withValues(alpha: 0.06) : Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _selectedPatient = patient),
+        onDoubleTap: _footerPrimaryEnabled(patient)
+            ? () => _goToRegister(patient)
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: HeltyEllipsisText(
+                  text: indexLabel,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(flex: 5, child: _identity(patient)),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 2,
+                child: HeltyEllipsisText(
+                  text: patient.billLabel,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 3,
+                child: HeltyEllipsisText(
+                  text: patient.services.isEmpty
+                      ? '—'
+                      : patient.services.join(', '),
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 2,
+                child: HeltyEllipsisText(
+                  text: _waitLabel(patient),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: _waitColor(patient),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(flex: 2, child: _statusChip(patient)),
+              const SizedBox(width: 20),
+              Expanded(flex: 3, child: _rowActions(patient)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _waitingCard(_UnregisteredPatientTxn patient, String indexLabel) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return HeltySurfaceCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: () => setState(() => _selectedPatient = patient),
+        onDoubleTap: _footerPrimaryEnabled(patient)
+            ? () => _goToRegister(patient)
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    indexLabel,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: _identity(patient)),
+                  HeltyEllipsisText(
+                    text: _waitLabel(patient),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: _waitColor(patient),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              HeltyEllipsisText(
+                text: patient.services.isEmpty
+                    ? 'No services listed'
+                    : patient.services.join(', '),
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  HeltyStatusChip(
+                    label: patient.billLabel,
+                    color: LabClinicalUi.iconIndigo,
+                  ),
+                  HeltyStatusChip(
+                    label: patient.canOpenModulePatient
+                        ? (patient.isPaid ? 'Paid' : 'Ready')
+                        : 'Unpaid',
+                    color: patient.canOpenModulePatient
+                        ? LabClinicalUi.iconGreen
+                        : LabClinicalUi.iconAmber,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _rowActions(patient),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailsPane({required bool fillHeight}) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final patient = _selectedPatient;
+
+    final actions = HeltySurfaceCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const HeltySolidIcon(
+                icon: Icons.flash_on,
+                color: LabClinicalUi.iconAmber,
+                size: 26,
+                iconSize: 14,
+                radius: 7,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Quick Actions',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _sidebarAction(
+            label: 'Refresh queue',
+            icon: Icons.refresh,
+            colors: [LabClinicalUi.iconBlue, LabClinicalUi.iconIndigo],
+            onPressed: () => _fetchPatients(reset: true),
+          ),
+          if (!_isRegisterUse && !_isNursingQueueUse) ...[
+            const SizedBox(height: 10),
+            _sidebarAction(
+              label: 'New patient',
+              icon: Icons.person_add_alt_1,
+              colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+              onPressed: () {
+                final use = widget.use.trim().toLowerCase();
+                final service = switch (use) {
+                  'radiology' => 'Radiology',
+                  'dialysis' => 'dialysis',
+                  _ => 'lab',
+                };
+                context.router.push(EnlistPaitientRoute(serviceName: service));
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+
+    final details = HeltySurfaceCard(
+      padding: const EdgeInsets.all(12),
+      child: patient == null
+          ? const EmptyStateWidget(
+              icon: Icons.person_search_outlined,
+              title: 'Select a patient',
+              message: 'Choose a row to view billed services.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    PatientAvatar(
+                      avatarUrl: patient.avatarUrl,
+                      firstName: patient.firstName,
+                      surname: patient.surname,
+                      displayName: patient.fullName,
+                      size: 44,
+                      backgroundColor: LabClinicalUi.avatarColor(
+                        patient.patientId ?? patient.rowKey,
+                      ),
+                      foregroundColor: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          HeltyEllipsisText(
+                            text: patient.fullName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          HeltyEllipsisText(
+                            text: [
+                              if (patient.age != null) '${patient.age} yrs',
+                              if (patient.gender?.trim().isNotEmpty == true)
+                                patient.gender!.trim(),
+                            ].join(' · '),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                HeltyStatusChip(
+                  label: patient.billLabel,
+                  color: LabClinicalUi.iconIndigo,
+                ),
+                const SizedBox(height: 8),
+                HeltyEllipsisText(
+                  text: DateFormatter.dateTime(patient.dateTime),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Services (${patient.services.length})',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: patient.services.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (context, index) {
+                      return HeltyEllipsisText(
+                        text: patient.services[index],
+                        style: theme.textTheme.bodyMedium,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                FilledButton(
+                  onPressed: _footerPrimaryEnabled(patient)
+                      ? () => _goToRegister(patient)
+                      : null,
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(_footerPrimaryLabel(patient)),
+                ),
+              ],
+            ),
+    );
+
+    if (!fillHeight) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          actions,
+          const SizedBox(height: 12),
+          SizedBox(height: 220, child: details),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        actions,
+        const SizedBox(height: 12),
+        Expanded(child: details),
+      ],
+    );
+  }
+
+  Widget _sidebarAction({
+    required String label,
+    required IconData icon,
+    required List<Color> colors,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: colors),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Icon(icon, color: Colors.white, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
   void _goToRegister(_UnregisteredPatientTxn patient) {
     if (_isNursingQueueUse) {
       _openSendToRoomDialog(patient);
@@ -1186,58 +1323,6 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
       const SnackBar(content: Text('Patient sent to consulting room.')),
     );
     _fetchPatients();
-  }
-
-  // Utility Widgets
-
-  // Utility Widgets
-  Widget _buildInfoTile(
-    String label,
-    String value,
-    IconData icon,
-    ColorScheme colorScheme,
-  ) {
-    return Expanded(
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: colorScheme.onSurface.withValues(alpha: 0.4),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  TextStyle _headerStyle(ColorScheme colorScheme) {
-    return TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w600,
-      color: colorScheme.onSurface.withValues(alpha: 0.5),
-    );
   }
 }
 

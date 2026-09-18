@@ -1,139 +1,212 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
-import 'cmd_breakpoints.dart';
+import 'cmd_oversight_metrics.dart';
 import 'cmd_providers.dart';
 import 'models/cmd_models.dart';
-import 'widgets/cmd_async_scaffold.dart';
-import 'widgets/cmd_data_table_box.dart';
+import 'widgets/cmd_command_kpi_strip.dart';
+import 'widgets/cmd_oversight_filter_bar.dart';
+import 'widgets/cmd_oversight_header.dart';
+import 'widgets/cmd_oversight_sidebar.dart';
+import 'widgets/cmd_oversight_table.dart';
 
 @RoutePage()
-class CMDStaffOversightScreen extends ConsumerWidget {
+class CMDStaffOversightScreen extends ConsumerStatefulWidget {
   const CMDStaffOversightScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CMDStaffOversightScreen> createState() =>
+      _CMDStaffOversightScreenState();
+}
+
+class _CMDStaffOversightScreenState
+    extends ConsumerState<CMDStaffOversightScreen> {
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+  String _statusValue = 'all';
+  bool _largestGapFirst = true;
+  int _skip = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(() {
+      final q = _searchCtrl.text.trim();
+      if (q != _searchQuery) {
+        setState(() {
+          _searchQuery = q;
+          _skip = 0;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<CmdDepartmentStaffing> _filtered(CmdStaffOversight data) {
+    return CmdOversightMetrics.applyClientFilters(
+      rows: data.byDepartment,
+      query: _searchQuery,
+      statusValue: _statusValue,
+      largestGapFirst: _largestGapFirst,
+    );
+  }
+
+  List<CmdDepartmentStaffing> _page(List<CmdDepartmentStaffing> filtered) {
+    if (_skip >= filtered.length) return const [];
+    final end = _skip + CmdOversightMetrics.pageSize;
+    return filtered.sublist(
+      _skip,
+      end > filtered.length ? filtered.length : end,
+    );
+  }
+
+  String get _emptyMessage {
+    if (_searchQuery.isNotEmpty || _statusValue != 'all') {
+      return 'No departments match the current filters.';
+    }
+    return 'No department staffing rows.';
+  }
+
+  void _goPrev() {
+    if (_skip <= 0) return;
+    setState(() {
+      final next = _skip - CmdOversightMetrics.pageSize;
+      _skip = next < 0 ? 0 : next;
+    });
+  }
+
+  void _goNext(int total) {
+    if (_skip + CmdOversightMetrics.pageSize >= total) return;
+    setState(() => _skip += CmdOversightMetrics.pageSize);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final async = ref.watch(cmdStaffOversightProvider);
-    return CmdAsyncScaffold<CmdStaffOversight>(
-      title: 'Staff oversight',
-      subtitle: 'Attendance, staffing levels, and performance (aggregate)',
-      asyncValue: async,
-      builder: (context, data) {
-        final a = data.attendance;
-        return LayoutBuilder(
-          builder: (context, c) {
-            final bp = CmdBreakpoints.fromWidth(c.maxWidth);
-            final chipW = bp.isMobile
-                ? ((c.maxWidth - 16) / 2).clamp(120.0, 200.0)
-                : 160.0;
-            return SingleChildScrollView(
-              padding: EdgeInsets.zero,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: [
-                      _StatChip(
-                        label: 'On duty',
-                        value: '${a.onDuty}',
-                        icon: Icons.badge_outlined,
-                        width: chipW,
-                      ),
-                      _StatChip(
-                        label: 'Scheduled',
-                        value: '${a.scheduled}',
-                        icon: Icons.calendar_today_outlined,
-                        width: chipW,
-                      ),
-                      _StatChip(
-                        label: 'Late',
-                        value: '${a.late}',
-                        icon: Icons.schedule_outlined,
-                        width: chipW,
-                      ),
-                      _StatChip(
-                        label: 'Absent',
-                        value: '${a.absent}',
-                        icon: Icons.person_off_outlined,
-                        width: chipW,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  if (data.alerts.isNotEmpty) ...[
-                    Text(
-                      'Staffing alerts',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    ...data.alerts.map(
-                      (e) => Card(
-                        color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: const Icon(Icons.warning_amber_rounded),
-                          title: Text(e.message),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  Text(
-                    'Department staffing',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  _StaffingTable(rows: data.byDepartment),
-                  const SizedBox(height: 28),
-                  Text(
-                    'Performance',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  _PerfTable(rows: data.performance),
-                  const SizedBox(height: 24),
-                ],
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < CmdOversightMetrics.cardBreakpoint;
+          final showSideBySide = width >= CmdOversightMetrics.sidebarBreakpoint;
+          final useSnapKpis = width < 520;
+
+          return async.when(
+            loading: () => _StatusScaffold(
+              compact: compact,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => _StatusScaffold(
+              compact: compact,
+              child: _ErrorState(
+                message: '$e',
+                onRetry: () => ref.invalidate(cmdStaffOversightProvider),
               ),
-            );
-          },
-        );
-      },
+            ),
+            data: (data) => _OversightBody(
+              data: data,
+              compact: compact,
+              showSideBySide: showSideBySide,
+              useSnapKpis: useSnapKpis,
+              searchController: _searchCtrl,
+              statusValue: _statusValue,
+              onStatusChanged: (value) {
+                setState(() {
+                  _statusValue = value;
+                  _skip = 0;
+                });
+              },
+              largestGapFirst: _largestGapFirst,
+              onLargestGapFirstChanged: (value) {
+                setState(() {
+                  _largestGapFirst = value;
+                  _skip = 0;
+                });
+              },
+              pageRows: _page(_filtered(data)),
+              filteredTotal: _filtered(data).length,
+              skip: _skip,
+              emptyMessage: _emptyMessage,
+              onPrev: _goPrev,
+              onNext: () => _goNext(_filtered(data).length),
+              onRefresh: () {
+                setState(() => _skip = 0);
+                ref.invalidate(cmdStaffOversightProvider);
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
-class _StatChip extends StatelessWidget {
-  const _StatChip({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.width,
-  });
+class _StatusScaffold extends StatelessWidget {
+  const _StatusScaffold({required this.compact, required this.child});
 
-  final String label;
-  final String value;
-  final IconData icon;
-  final double width;
+  final bool compact;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CmdOversightHeader(compact: compact),
+        const SizedBox(height: 10),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      width: width,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: HeltySurfaceCard(
+          padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 22, color: theme.colorScheme.primary),
-              const SizedBox(height: 8),
-              Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-              Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              const HeltySolidIcon(
+                icon: Icons.error_outline,
+                color: CmdOversightMetrics.waitRed,
+                size: 34,
+                iconSize: 18,
+                radius: 8,
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                message,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: onRetry, child: const Text('Retry')),
             ],
           ),
         ),
@@ -142,81 +215,182 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-class _StaffingTable extends StatelessWidget {
-  const _StaffingTable({required this.rows});
+class _OversightBody extends StatelessWidget {
+  const _OversightBody({
+    required this.data,
+    required this.compact,
+    required this.showSideBySide,
+    required this.useSnapKpis,
+    required this.searchController,
+    required this.statusValue,
+    required this.onStatusChanged,
+    required this.largestGapFirst,
+    required this.onLargestGapFirstChanged,
+    required this.pageRows,
+    required this.filteredTotal,
+    required this.skip,
+    required this.emptyMessage,
+    required this.onPrev,
+    required this.onNext,
+    required this.onRefresh,
+  });
 
-  final List<CmdDepartmentStaffing> rows;
+  final CmdStaffOversight data;
+  final bool compact;
+  final bool showSideBySide;
+  final bool useSnapKpis;
+  final TextEditingController searchController;
+  final String statusValue;
+  final ValueChanged<String> onStatusChanged;
+  final bool largestGapFirst;
+  final ValueChanged<bool> onLargestGapFirstChanged;
+  final List<CmdDepartmentStaffing> pageRows;
+  final int filteredTotal;
+  final int skip;
+  final String emptyMessage;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final VoidCallback onRefresh;
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return CmdDataTableBox(
-      child: DataTable2(
-          columnSpacing: 12,
-          horizontalMargin: 12,
-          minWidth: 560,
-          columns: const [
-            DataColumn2(label: Text('Department'), size: ColumnSize.L),
-            DataColumn2(label: Text('Required'), numeric: true),
-            DataColumn2(label: Text('Present'), numeric: true),
-            DataColumn2(label: Text('Gap'), numeric: true),
-          ],
-          rows: [
-            for (final r in rows)
-              DataRow2(
-                cells: [
-                  DataCell(Text(r.department)),
-                  DataCell(Text('${r.requiredHeadcount}')),
-                  DataCell(Text('${r.present}')),
-                  DataCell(
-                    Text(
-                      '${r.gap}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: r.gap > 0 ? theme.colorScheme.error : theme.colorScheme.tertiary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
+  void _openCommandCenter(BuildContext context) {
+    context.router.push(const CMDDashboardRoute());
+  }
+
+  void _openAlerts(BuildContext context) {
+    context.router.push(const CMDAlertsIncidentsRoute());
+  }
+
+  void _openOverview(BuildContext context) {
+    context.router.push(const CMDHospitalOverviewRoute());
+  }
+
+  Widget _sidebar(BuildContext context, {required bool fillHeight}) {
+    return CmdOversightSidebar(
+      alerts: data.alerts,
+      performance: data.performance,
+      onRefresh: onRefresh,
+      onCommandCenter: () => _openCommandCenter(context),
+      onAlerts: () => _openAlerts(context),
+      onHospitalOverview: () => _openOverview(context),
+      onViewAllPerformance: () =>
+          showCmdOversightPerformanceDialog(context, data.performance),
+      fillHeight: fillHeight,
     );
   }
-}
 
-class _PerfTable extends StatelessWidget {
-  const _PerfTable({required this.rows});
+  Widget _queuePanel({required bool useCards}) {
+    final hasMore = skip + pageRows.length < filteredTotal;
+    if (useCards) {
+      return CmdOversightStaffingCardList(
+        rows: pageRows,
+        skip: skip,
+        loading: false,
+        emptyMessage: emptyMessage,
+        total: filteredTotal,
+        hasMore: hasMore,
+        pageSize: CmdOversightMetrics.pageSize,
+        onPrev: onPrev,
+        onNext: onNext,
+      );
+    }
+    return CmdOversightStaffingTable(
+      rows: pageRows,
+      skip: skip,
+      loading: false,
+      emptyMessage: emptyMessage,
+      total: filteredTotal,
+      hasMore: hasMore,
+      pageSize: CmdOversightMetrics.pageSize,
+      onPrev: onPrev,
+      onNext: onNext,
+    );
+  }
 
-  final List<CmdStaffPerformanceRow> rows;
+  Widget _mainColumn(BuildContext context, {required bool useCards}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CmdOversightHeader(compact: compact),
+        const SizedBox(height: 10),
+        CmdCommandKpiStrip(
+          items: CmdOversightMetrics.kpiItemsFor(data),
+          useSnapStrip: useSnapKpis,
+        ),
+        const SizedBox(height: 10),
+        CmdOversightFilterBar(
+          searchController: searchController,
+          statusValue: statusValue,
+          onStatusChanged: onStatusChanged,
+          largestGapFirst: largestGapFirst,
+          onLargestGapFirstChanged: onLargestGapFirstChanged,
+          compact: compact,
+        ),
+        const SizedBox(height: 10),
+        Expanded(child: _queuePanel(useCards: useCards)),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CmdDataTableBox(
-      heightFactor: 0.34,
-      minHeight: 220,
-      child: DataTable2(
-          columnSpacing: 12,
-          horizontalMargin: 12,
-          minWidth: 560,
-          columns: const [
-            DataColumn2(label: Text('Role'), size: ColumnSize.S),
-            DataColumn2(label: Text('Team / pool'), size: ColumnSize.L),
-            DataColumn2(label: Text('Patients'), numeric: true),
-            DataColumn2(label: Text('Efficiency'), numeric: true),
-          ],
-          rows: [
-            for (final r in rows)
-              DataRow2(
-                cells: [
-                  DataCell(Text(r.role)),
-                  DataCell(Text(r.nameOrTeam)),
-                  DataCell(Text('${r.patientsHandled}')),
-                  DataCell(Text(r.efficiencyScore.toStringAsFixed(2))),
-                ],
+    final useCards = compact;
+    if (showSideBySide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(flex: 9, child: _mainColumn(context, useCards: useCards)),
+          const SizedBox(width: 12),
+          Expanded(flex: 3, child: _sidebar(context, fillHeight: true)),
+        ],
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bounded = constraints.maxHeight.isFinite;
+        if (bounded) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: _mainColumn(context, useCards: useCards)),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 280,
+                child: SingleChildScrollView(
+                  child: _sidebar(context, fillHeight: false),
+                ),
               ),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CmdOversightHeader(compact: compact),
+            const SizedBox(height: 10),
+            CmdCommandKpiStrip(
+              items: CmdOversightMetrics.kpiItemsFor(data),
+              useSnapStrip: useSnapKpis,
+            ),
+            const SizedBox(height: 10),
+            CmdOversightFilterBar(
+              searchController: searchController,
+              statusValue: statusValue,
+              onStatusChanged: onStatusChanged,
+              largestGapFirst: largestGapFirst,
+              onLargestGapFirstChanged: onLargestGapFirstChanged,
+              compact: compact,
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: compact ? 480 : 520,
+              child: _queuePanel(useCards: useCards),
+            ),
+            const SizedBox(height: 10),
+            _sidebar(context, fillHeight: false),
           ],
-        ),
+        );
+      },
     );
   }
 }

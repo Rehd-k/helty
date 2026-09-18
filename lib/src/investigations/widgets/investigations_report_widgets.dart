@@ -2,10 +2,12 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/extensions/number.extention.dart';
-import '../../core/widgets/patient_avatar.dart';
-import '../../helper/date.formatter.dart';
+import '../../lab/ui/widgets/lab_clinical_ui.dart';
+import '../../widgets/helty_surface.dart';
 import '../models/investigation_models.dart';
 import '../models/investigation_query_params.dart';
+
+export 'investigation_list_table.dart';
 
 class InvestigationKpiCard extends StatelessWidget {
   const InvestigationKpiCard({
@@ -67,16 +69,11 @@ class InvestigationKpiCard extends StatelessWidget {
   }
 }
 
-typedef InvestigationTestDetailCallback = void Function(
-  String testName,
-  int count,
-);
+typedef InvestigationTestDetailCallback =
+    void Function(String testName, int count);
 
-typedef InvestigationDepartmentDetailCallback = void Function(
-  String departmentId,
-  String departmentName,
-  int count,
-);
+typedef InvestigationDepartmentDetailCallback =
+    void Function(String departmentId, String departmentName, int count);
 
 class InvestigationBreakdownTables extends StatelessWidget {
   const InvestigationBreakdownTables({
@@ -91,6 +88,8 @@ class InvestigationBreakdownTables extends StatelessWidget {
     this.onPrintDepartmentDetails,
     this.onShareDepartmentDetails,
     this.exporting = false,
+    this.fillHeight = false,
+    this.shrinkWrap = false,
   });
 
   final InvestigationSummary summary;
@@ -103,14 +102,20 @@ class InvestigationBreakdownTables extends StatelessWidget {
   final InvestigationDepartmentDetailCallback? onPrintDepartmentDetails;
   final InvestigationDepartmentDetailCallback? onShareDepartmentDetails;
   final bool exporting;
+  final bool fillHeight;
+  final bool shrinkWrap;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final stacked = constraints.maxWidth < 900;
+        final stacked =
+            constraints.maxWidth <
+            ((fillHeight || shrinkWrap) ? LabClinicalUi.cardBreakpoint : 900);
         final testTable = _BreakdownTable(
           title: 'By test name',
+          icon: Icons.science_outlined,
+          iconColor: LabClinicalUi.iconPurple,
           columns: const ['Test', 'Count', 'Amount'],
           rows: summary.byTestName
               .map(
@@ -124,25 +129,29 @@ class InvestigationBreakdownTables extends StatelessWidget {
           onPrintSummary: onPrintSummaryByTest,
           onShareSummary: onShareSummaryByTest,
           exporting: exporting,
+          fillHeight: fillHeight,
+          shrinkWrap: shrinkWrap,
           rowActions: onPrintTestDetails == null && onShareTestDetails == null
               ? null
               : summary.byTestName
-                  .map(
-                    (r) => _BreakdownRowActions(
-                      count: r.count,
-                      onPrint: onPrintTestDetails == null
-                          ? null
-                          : () => onPrintTestDetails!(r.testName, r.count),
-                      onShare: onShareTestDetails == null
-                          ? null
-                          : () => onShareTestDetails!(r.testName, r.count),
-                      exporting: exporting,
-                    ),
-                  )
-                  .toList(),
+                    .map(
+                      (r) => _BreakdownRowActions(
+                        count: r.count,
+                        onPrint: onPrintTestDetails == null
+                            ? null
+                            : () => onPrintTestDetails!(r.testName, r.count),
+                        onShare: onShareTestDetails == null
+                            ? null
+                            : () => onShareTestDetails!(r.testName, r.count),
+                        exporting: exporting,
+                      ),
+                    )
+                    .toList(),
         );
         final deptTable = _BreakdownTable(
           title: 'By department',
+          icon: Icons.apartment_outlined,
+          iconColor: LabClinicalUi.iconTeal,
           columns: const ['Department', 'Count', 'Amount'],
           rows: summary.byDepartment
               .map(
@@ -156,48 +165,59 @@ class InvestigationBreakdownTables extends StatelessWidget {
           onPrintSummary: onPrintSummaryByDepartment,
           onShareSummary: onShareSummaryByDepartment,
           exporting: exporting,
-          rowActions: onPrintDepartmentDetails == null &&
+          fillHeight: fillHeight,
+          shrinkWrap: shrinkWrap,
+          rowActions:
+              onPrintDepartmentDetails == null &&
                   onShareDepartmentDetails == null
               ? null
               : summary.byDepartment
-                  .map(
-                    (r) => _BreakdownRowActions(
-                      count: r.count,
-                      onPrint: onPrintDepartmentDetails == null
-                          ? null
-                          : () => onPrintDepartmentDetails!(
+                    .map(
+                      (r) => _BreakdownRowActions(
+                        count: r.count,
+                        onPrint: onPrintDepartmentDetails == null
+                            ? null
+                            : () => onPrintDepartmentDetails!(
                                 r.departmentId,
                                 r.departmentName,
                                 r.count,
                               ),
-                      onShare: onShareDepartmentDetails == null
-                          ? null
-                          : () => onShareDepartmentDetails!(
+                        onShare: onShareDepartmentDetails == null
+                            ? null
+                            : () => onShareDepartmentDetails!(
                                 r.departmentId,
                                 r.departmentName,
                                 r.count,
                               ),
-                      exporting: exporting,
-                    ),
-                  )
-                  .toList(),
+                        exporting: exporting,
+                      ),
+                    )
+                    .toList(),
         );
 
         if (stacked) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              testTable,
-              const SizedBox(height: 16),
-              deptTable,
+              if (fillHeight && !shrinkWrap)
+                Expanded(child: testTable)
+              else
+                testTable,
+              SizedBox(height: fillHeight || shrinkWrap ? 10 : 16),
+              if (fillHeight && !shrinkWrap)
+                Expanded(child: deptTable)
+              else
+                deptTable,
             ],
           );
         }
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: fillHeight && !shrinkWrap
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.start,
           children: [
             Expanded(child: testTable),
-            const SizedBox(width: 16),
+            SizedBox(width: fillHeight || shrinkWrap ? 10 : 16),
             Expanded(child: deptTable),
           ],
         );
@@ -225,19 +245,27 @@ class _BreakdownTable extends StatelessWidget {
     required this.title,
     required this.columns,
     required this.rows,
+    this.icon = Icons.table_chart_outlined,
+    this.iconColor = LabClinicalUi.iconIndigo,
     this.onPrintSummary,
     this.onShareSummary,
     this.rowActions,
     this.exporting = false,
+    this.fillHeight = false,
+    this.shrinkWrap = false,
   });
 
   final String title;
   final List<String> columns;
   final List<List<String>> rows;
+  final IconData icon;
+  final Color iconColor;
   final VoidCallback? onPrintSummary;
   final VoidCallback? onShareSummary;
   final List<_BreakdownRowActions>? rowActions;
   final bool exporting;
+  final bool fillHeight;
+  final bool shrinkWrap;
 
   bool get _hasSummaryActions =>
       onPrintSummary != null || onShareSummary != null;
@@ -248,6 +276,194 @@ class _BreakdownTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (fillHeight || shrinkWrap) return _buildFilled(context);
+    return _buildLegacy(context);
+  }
+
+  Widget _titleBar(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        fillHeight || shrinkWrap ? 12 : 0,
+        fillHeight || shrinkWrap ? 10 : 0,
+        8,
+        6,
+      ),
+      child: Row(
+        children: [
+          HeltySolidIcon(
+            icon: icon,
+            color: iconColor,
+            size: 26,
+            iconSize: 14,
+            radius: 7,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: HeltyEllipsisText(
+              text: title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          if (_hasSummaryActions && rows.isNotEmpty) ...[
+            _ExportIconButton(
+              tooltip: 'Print summary',
+              icon: Icons.print_rounded,
+              onPressed: exporting ? null : onPrintSummary,
+            ),
+            _ExportIconButton(
+              tooltip: 'Save summary as PDF',
+              icon: Icons.ios_share_rounded,
+              onPressed: exporting ? null : onShareSummary,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilled(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final hasActions = _hasRowActions;
+    const colGap = 20.0;
+
+    Widget head(String label, {int flex = 1, bool alignEnd = false}) {
+      return Expanded(
+        flex: flex,
+        child: Text(
+          label,
+          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.4,
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    final unbounded = shrinkWrap;
+    final emptyState = Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Text(
+          'No data for selected filters.',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+
+    final list = ListView.separated(
+      shrinkWrap: unbounded,
+      physics: unbounded
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
+      itemCount: rows.length,
+      separatorBuilder: (_, __) =>
+          Divider(height: 1, color: cs.outline.withValues(alpha: 0.08)),
+      itemBuilder: (context, i) {
+        final row = rows[i];
+        final actions = rowActions != null && i < rowActions!.length
+            ? rowActions![i]
+            : const _BreakdownRowActions(count: 0);
+        return ColoredBox(
+          color: LabClinicalUi.zebraFill(cs, i),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: HeltyEllipsisText(
+                    text: row.isNotEmpty ? row[0] : '—',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: colGap),
+                Expanded(
+                  flex: 2,
+                  child: HeltyEllipsisText(text: row.length > 1 ? row[1] : '—'),
+                ),
+                const SizedBox(width: colGap),
+                Expanded(
+                  flex: 2,
+                  child: HeltyEllipsisText(
+                    text: row.length > 2 ? row[2] : '—',
+                    align: TextAlign.end,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (hasActions) ...[
+                  const SizedBox(width: colGap),
+                  SizedBox(
+                    width: 72,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: _BreakdownRowActionButtons(actions: actions),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Row(
+        children: [
+          head(columns.isNotEmpty ? columns[0].toUpperCase() : 'NAME', flex: 5),
+          const SizedBox(width: colGap),
+          head(
+            columns.length > 1 ? columns[1].toUpperCase() : 'COUNT',
+            flex: 2,
+          ),
+          const SizedBox(width: colGap),
+          head(
+            columns.length > 2 ? columns[2].toUpperCase() : 'AMOUNT',
+            flex: 2,
+            alignEnd: true,
+          ),
+          if (hasActions) ...[
+            const SizedBox(width: colGap),
+            const SizedBox(width: 72),
+          ],
+        ],
+      ),
+    );
+
+    return HeltySurfaceCard(
+      child: Column(
+        mainAxisSize: unbounded ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          _titleBar(context),
+          if (rows.isEmpty)
+            unbounded ? emptyState : Expanded(child: emptyState)
+          else ...[
+            header,
+            if (unbounded) list else Expanded(child: list),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegacy(BuildContext context) {
     final theme = Theme.of(context);
     final hasActions = _hasSummaryActions || _hasRowActions;
     final actionColumnWidth = hasActions ? 88.0 : 0.0;
@@ -311,10 +527,7 @@ class _BreakdownTable extends StatelessWidget {
                     for (final c in columns)
                       DataColumn2(label: Text(c), size: ColumnSize.L),
                     if (hasActions)
-                      const DataColumn2(
-                        label: Text(''),
-                        fixedWidth: 88,
-                      ),
+                      const DataColumn2(label: Text(''), fixedWidth: 88),
                   ],
                   rows: [
                     for (var i = 0; i < rows.length; i++)
@@ -324,8 +537,8 @@ class _BreakdownTable extends StatelessWidget {
                           if (hasActions)
                             DataCell(
                               _BreakdownRowActionButtons(
-                                actions: rowActions != null &&
-                                        i < rowActions!.length
+                                actions:
+                                    rowActions != null && i < rowActions!.length
                                     ? rowActions![i]
                                     : const _BreakdownRowActions(count: 0),
                               ),
@@ -431,122 +644,6 @@ class InvestigationExportActions extends StatelessWidget {
   }
 }
 
-class InvestigationListTable extends StatelessWidget {
-  const InvestigationListTable({
-    super.key,
-    required this.rows,
-    this.showSampleColumn = false,
-    this.showPriorityColumn = false,
-  });
-
-  final List<InvestigationListRow> rows;
-  final bool showSampleColumn;
-  final bool showPriorityColumn;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (rows.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Center(
-          child: Text(
-            'No investigations match the filter.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
-    }
-
-    final columns = <DataColumn2>[
-      const DataColumn2(label: Text('Patient'), size: ColumnSize.L),
-      const DataColumn2(label: Text('Test'), size: ColumnSize.L),
-      const DataColumn2(label: Text('Status'), size: ColumnSize.S),
-      const DataColumn2(label: Text('Amount'), size: ColumnSize.S),
-      const DataColumn2(label: Text('Department'), size: ColumnSize.S),
-      const DataColumn2(label: Text('Invoice'), size: ColumnSize.S),
-      if (showSampleColumn)
-        const DataColumn2(label: Text('Sample'), size: ColumnSize.S),
-      if (showPriorityColumn)
-        const DataColumn2(label: Text('Priority'), size: ColumnSize.S),
-      const DataColumn2(label: Text('Created'), size: ColumnSize.S),
-    ];
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: SizedBox(
-          height: (rows.length.clamp(1, 12) * 52 + 56).toDouble(),
-          child: DataTable2(
-            columnSpacing: 12,
-            horizontalMargin: 8,
-            minWidth: 900,
-            columns: columns,
-            rows: [
-              for (final row in rows)
-                DataRow2(
-                  cells: [
-                    DataCell(
-                      Row(
-                        children: [
-                          PatientAvatar(
-                            avatarUrl: row.patient?.avatarUrl,
-                            firstName: row.patient?.firstName,
-                            surname: row.patient?.surname,
-                            displayName: row.resolvedPatientName,
-                            size: 28,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              row.resolvedPatientName,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(Text(row.testName)),
-                    DataCell(Text(row.status)),
-                    DataCell(Text(row.amount.toFinancial(isMoney: true))),
-                    DataCell(Text(row.department?.name ?? '—')),
-                    DataCell(Text(row.invoice?.status ?? '—')),
-                    if (showSampleColumn)
-                      DataCell(
-                        Text(
-                          row.sampleCollected == true
-                              ? 'Collected'
-                              : row.sampleCollected == false
-                                  ? 'Pending'
-                                  : '—',
-                        ),
-                      ),
-                    if (showPriorityColumn)
-                      DataCell(Text(row.priority ?? '—')),
-                    DataCell(
-                      Text(
-                        row.createdAt != null
-                            ? DateFormatter.dateTime(row.createdAt!)
-                            : '—',
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class InvestigationSortControls extends StatelessWidget {
   const InvestigationSortControls({
     super.key,
@@ -576,10 +673,7 @@ class InvestigationSortControls extends StatelessWidget {
           },
           items: InvestigationSortBy.values
               .map(
-                (e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(_sortLabel(e)),
-                ),
+                (e) => DropdownMenuItem(value: e, child: Text(_sortLabel(e))),
               )
               .toList(),
         ),

@@ -10,15 +10,18 @@ import 'package:printing/printing.dart';
 import '../../core/extensions/number.extention.dart';
 import '../../helper/app_timezone.dart';
 import '../../helper/date.formatter.dart';
+import '../../helper/theme.dart';
 import '../../investigations/models/investigation_models.dart';
 import '../../investigations/models/investigation_query_params.dart';
 import '../../investigations/providers/investigation_providers.dart';
 import '../../investigations/widgets/investigations_report_widgets.dart';
 import '../../lab/models/lab_models.dart';
 import '../../lab/providers/lab_providers.dart';
+import '../../lab/ui/widgets/lab_clinical_ui.dart';
 import '../../models/super_admin_department_preview.dart';
 import '../../printing/pdf/investigations_report_pdf.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/helty_surface.dart';
 
 @RoutePage()
 class LabInvestigationsScreen extends ConsumerStatefulWidget {
@@ -34,6 +37,7 @@ class _LabInvestigationsScreenState
   static const _take = 20;
 
   late DateTimeRange _dateRange;
+  final _searchCtrl = TextEditingController();
   String? _testName;
   String? _categoryId;
   String? _status;
@@ -51,6 +55,12 @@ class _LabInvestigationsScreenState
       start: DateTime(now.year, now.month, now.day),
       end: DateTime(now.year, now.month, now.day, 23, 59, 59, 999),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   InvestigationsQueryParams _buildParams({bool forSummary = false}) {
@@ -88,47 +98,33 @@ class _LabInvestigationsScreenState
     );
   }
 
-  Future<void> _pickDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      initialDateRange: _dateRange,
-    );
-    if (picked == null || !mounted) return;
-    setState(() {
-      _dateRange = DateTimeRange(
-        start: DateTime(
-          picked.start.year,
-          picked.start.month,
-          picked.start.day,
-        ),
-        end: DateTime(
-          picked.end.year,
-          picked.end.month,
-          picked.end.day,
-          23,
-          59,
-          59,
-          999,
-        ),
-      );
-      _skip = 0;
-    });
-    _refresh();
-  }
-
   void _applyFilters() {
-    setState(() => _skip = 0);
+    setState(() {
+      _skip = 0;
+      final q = _searchCtrl.text.trim();
+      _testName = q.isEmpty ? null : q;
+    });
     _refresh();
   }
 
   void _clearFilters() {
     setState(() {
+      _searchCtrl.clear();
       _testName = null;
       _categoryId = null;
       _status = null;
       _sampleCollected = null;
+      _skip = 0;
+    });
+    _refresh();
+  }
+
+  void _applyDateRange(DateTime from, DateTime to) {
+    setState(() {
+      _dateRange = DateTimeRange(
+        start: DateTime(from.year, from.month, from.day),
+        end: DateTime(to.year, to.month, to.day, 23, 59, 59, 999),
+      );
       _skip = 0;
     });
     _refresh();
@@ -140,14 +136,6 @@ class _LabInvestigationsScreenState
     ).replaceAll('/', '-');
     final end = DateFormatter.shortDate(_dateRange.end).replaceAll('/', '-');
     return start == end ? start : '${start}_to_$end';
-  }
-
-  String _filenameSlug(String raw) {
-    final slug = raw
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_');
-    return slug.replaceAll(RegExp(r'^_|_$'), '');
   }
 
   String _exportSubtitle({String? extra}) {
@@ -166,6 +154,14 @@ class _LabInvestigationsScreenState
     }
     if (extra != null && extra.isNotEmpty) parts.add(extra);
     return parts.join(' · ');
+  }
+
+  String _filenameSlug(String raw) {
+    final slug = raw
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+    return slug.replaceAll(RegExp(r'^_|_$'), '');
   }
 
   Future<List<InvestigationListRow>> _fetchRowsForExport({
@@ -462,7 +458,7 @@ class _LabInvestigationsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
     final staff = ref.watch(currentStaffProvider);
     final isLabUser =
         staffIsSuperAdmin(staff) ||
@@ -472,8 +468,28 @@ class _LabInvestigationsScreenState
 
     if (!isLabUser) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Lab investigations')),
-        body: const Center(child: Text('Access denied for this account.')),
+        backgroundColor: colorScheme.surface,
+        body: ResponsiveBody(
+          builder: (context, bp) => Center(
+            child: HeltySurfaceCard(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const HeltySolidIcon(
+                    icon: Icons.lock_outline,
+                    color: Color(0xFFDC2626),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Access denied for this account.',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
     }
 
@@ -484,325 +500,580 @@ class _LabInvestigationsScreenState
     );
     final listAsync = ref.watch(labInvestigationsListProvider(listParams));
     final categoriesAsync = ref.watch(labCategoriesFutureProvider);
-    final testsAsync = ref.watch(labTestsFutureProvider);
-    final summaryData = summaryAsync.valueOrNull;
-    final listExportEnabled = (summaryData?.totalCount ?? 0) > 0;
+    final summary = summaryAsync.valueOrNull;
+    final list = listAsync.valueOrNull;
+    final loadingList = listAsync.isLoading && list == null;
+    final listError = listAsync.asError?.error;
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Lab Investigations'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-      ),
+      backgroundColor: colorScheme.surface,
       body: ResponsiveBody(
-        expand: false,
-        builder: (context, bp) => RefreshIndicator(
-        onRefresh: () async => _refresh(),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildFilterSection(theme, categoriesAsync, testsAsync),
-            const SizedBox(height: 16),
-            summaryAsync.when(
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(),
-                ),
+        center: false,
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < LabClinicalUi.cardBreakpoint;
+          final showSideBySide = width >= LabClinicalUi.sidebarBreakpoint;
+          final useSnapKpis = width < 520;
+          final useCards = compact;
+
+          final header = LabPageHeader(
+            title: 'Investigation reports',
+            subtitle:
+                'Summaries and line items for lab tests in the selected range.',
+            icon: Icons.assessment_outlined,
+            iconColor: LabClinicalUi.iconIndigo,
+            compact: compact,
+          );
+          final kpis = LabKpiStrip(
+            useSnapStrip: useSnapKpis,
+            items: [
+              LabKpiItem(
+                label: 'Investigations',
+                value: summary == null ? '—' : '${summary.totalCount}',
+                caption: 'Test lines in range',
+                icon: Icons.receipt_long_outlined,
+                accent: LabClinicalUi.iconBlue,
               ),
-              error: (e, _) => InvestigationErrorBanner(
-                message: e.toString(),
-                onRetry: _refresh,
+              LabKpiItem(
+                label: 'Amount',
+                value: summary == null
+                    ? '—'
+                    : summary.totalAmount.toFinancial(isMoney: true),
+                caption: 'Billed for these tests',
+                icon: Icons.payments_outlined,
+                accent: LabClinicalUi.iconTeal,
               ),
-              data: (summary) => _buildSummarySection(theme, summary),
+              LabKpiItem(
+                label: 'Samples collected',
+                value: summary?.sampleCollectedCount == null
+                    ? '—'
+                    : '${summary!.sampleCollectedCount}',
+                caption: 'Drawn in this range',
+                icon: Icons.biotech_outlined,
+                accent: LabClinicalUi.iconPurple,
+              ),
+              LabKpiItem(
+                label: 'Samples pending',
+                value: summary?.samplePendingCount == null
+                    ? '—'
+                    : '${summary!.samplePendingCount}',
+                caption: 'Awaiting collection',
+                icon: Icons.hourglass_empty_outlined,
+                accent: LabClinicalUi.iconAmber,
+              ),
+            ],
+          );
+          final filters = LabFilterBar(
+            searchController: _searchCtrl,
+            searchHint: 'Search by test name…',
+            compact: compact,
+            onSearchSubmitted: (_) => _applyFilters(),
+            primaryFilter: _statusDropdown(context),
+            filterMenuBody: _filterMenuBody(
+              context,
+              compact: compact,
+              categoriesAsync: categoriesAsync,
             ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Investigation list',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                InvestigationExportActions(
-                  enabled: listExportEnabled,
-                  exporting: _exporting,
-                  onPrint: () => _exportFilteredList(share: false),
-                  onShare: () => _exportFilteredList(share: true),
+          );
+
+          final mainColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: 10),
+              kpis,
+              if (summaryAsync.hasError) ...[
+                const SizedBox(height: 10),
+                InvestigationErrorBanner(
+                  message: '${summaryAsync.error}',
+                  onRetry: _refresh,
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            InvestigationSortControls(
-              sortBy: _sortBy,
-              sortOrder: _sortOrder,
-              onSortByChanged: (v) {
-                setState(() {
-                  _sortBy = v;
-                  _skip = 0;
-                });
-                _refresh();
-              },
-              onSortOrderChanged: (v) {
-                setState(() {
-                  _sortOrder = v;
-                  _skip = 0;
-                });
-                _refresh();
-              },
-            ),
-            const SizedBox(height: 8),
-            listAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+              const SizedBox(height: 10),
+              filters,
+              const SizedBox(height: 10),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, tableConstraints) {
+                    final listHeight = (tableConstraints.maxHeight * 0.72)
+                        .clamp(420.0, 720.0)
+                        .toDouble();
+                    return SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _breakdownPanel(
+                            summary: summary,
+                            loading: summaryAsync.isLoading && summary == null,
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: listHeight,
+                            child: _listPanel(
+                              list: list,
+                              loading: loadingList,
+                              error: listError,
+                              useCards: useCards,
+                              exportEnabled: (summary?.totalCount ?? 0) > 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-              error: (e, _) => InvestigationErrorBanner(
-                message: e.toString(),
-                onRetry: _refresh,
+            ],
+          );
+
+          if (showSideBySide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 9, child: mainColumn),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 3,
+                  child: _sidebar(summary: summary, fillHeight: true),
+                ),
+              ],
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: mainColumn),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 280,
+                child: SingleChildScrollView(
+                  child: _sidebar(summary: summary, fillHeight: false),
+                ),
               ),
-              data: (response) => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  InvestigationListTable(
-                    rows: response.data,
-                    showSampleColumn: true,
-                  ),
-                  const SizedBox(height: 8),
-                  InvestigationPaginationBar(
-                    total: response.total,
-                    skip: response.skip,
-                    take: response.take,
-                    onPrevious: response.skip > 0
-                        ? () {
-                            setState(() {
-                              _skip = (response.skip - _take).clamp(
-                                0,
-                                response.total,
-                              );
-                            });
-                            _refresh();
-                          }
-                        : null,
-                    onNext: response.skip + response.take < response.total
-                        ? () {
-                            setState(() {
-                              _skip = response.skip + _take;
-                            });
-                            _refresh();
-                          }
-                        : null,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSummarySection(ThemeData theme, InvestigationSummary summary) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            SizedBox(
-              width: 220,
-              child: InvestigationKpiCard(
-                label: 'Total count',
-                value: '${summary.totalCount}',
-                icon: Icons.receipt_long_outlined,
-              ),
-            ),
-            SizedBox(
-              width: 220,
-              child: InvestigationKpiCard(
-                label: 'Total amount',
-                value: summary.totalAmount.toFinancial(isMoney: true),
-                icon: Icons.payments_outlined,
-                accent: theme.colorScheme.secondary,
-              ),
-            ),
-            if (summary.sampleCollectedCount != null)
-              SizedBox(
-                width: 220,
-                child: InvestigationKpiCard(
-                  label: 'Samples collected',
-                  value: '${summary.sampleCollectedCount}',
-                  icon: Icons.biotech_outlined,
-                  accent: theme.colorScheme.tertiary,
-                ),
-              ),
-            if (summary.samplePendingCount != null)
-              SizedBox(
-                width: 220,
-                child: InvestigationKpiCard(
-                  label: 'Samples pending',
-                  value: '${summary.samplePendingCount}',
-                  icon: Icons.hourglass_empty_outlined,
-                ),
-              ),
-          ],
+  InputDecoration _filterDecoration(
+    BuildContext context, {
+    required String label,
+    required Color iconColor,
+    required IconData icon,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return InputDecoration(
+      labelText: label,
+      isDense: true,
+      prefixIcon: Padding(
+        padding: const EdgeInsets.all(6),
+        child: HeltySolidIcon(
+          icon: icon,
+          color: iconColor,
+          size: 22,
+          iconSize: 13,
+          radius: 6,
         ),
-        const SizedBox(height: 16),
-        InvestigationBreakdownTables(
-          summary: summary,
-          exporting: _exporting,
-          onPrintSummaryByTest: () => _exportSummaryByTest(share: false),
-          onShareSummaryByTest: () => _exportSummaryByTest(share: true),
-          onPrintSummaryByDepartment: () =>
-              _exportSummaryByDepartment(share: false),
-          onShareSummaryByDepartment: () =>
-              _exportSummaryByDepartment(share: true),
-          onPrintTestDetails: (testName, count) => _exportTestDetails(
-            testName: testName,
-            count: count,
-            share: false,
+      ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+      filled: true,
+      fillColor: cs.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      labelStyle: const TextStyle(fontSize: 11),
+    );
+  }
+
+  Widget _statusDropdown(BuildContext context) {
+    return DropdownButtonFormField<String?>(
+      key: ValueKey(_status ?? 'all'),
+      initialValue: _status,
+      isExpanded: true,
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      decoration: _filterDecoration(
+        context,
+        label: 'Status',
+        iconColor: LabClinicalUi.iconAmber,
+        icon: Icons.flag_outlined,
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('All statuses', overflow: TextOverflow.ellipsis),
+        ),
+        ...LabOrderStatus.values.map(
+          (s) => DropdownMenuItem<String?>(
+            value: s.apiValue,
+            child: Text(
+              LabClinicalUi.statusLabel(s),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          onShareTestDetails: (testName, count) =>
-              _exportTestDetails(testName: testName, count: count, share: true),
-          onPrintDepartmentDetails: (departmentId, departmentName, count) =>
-              _exportDepartmentDetails(
-                departmentId: departmentId,
-                departmentName: departmentName,
-                count: count,
-                share: false,
-              ),
-          onShareDepartmentDetails: (departmentId, departmentName, count) =>
-              _exportDepartmentDetails(
-                departmentId: departmentId,
-                departmentName: departmentName,
-                count: count,
-                share: true,
-              ),
+        ),
+      ],
+      onChanged: (v) {
+        setState(() {
+          _status = v;
+          _skip = 0;
+        });
+        _refresh();
+      },
+    );
+  }
+
+  Widget _categoryDropdown(BuildContext context, List<LabCategory> categories) {
+    return DropdownButtonFormField<String?>(
+      key: ValueKey(_categoryId ?? 'all-cat'),
+      initialValue: _categoryId,
+      isExpanded: true,
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      decoration: _filterDecoration(
+        context,
+        label: 'Category',
+        iconColor: LabClinicalUi.iconPink,
+        icon: Icons.category_outlined,
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('All categories', overflow: TextOverflow.ellipsis),
+        ),
+        for (final c in categories)
+          DropdownMenuItem<String?>(
+            value: c.id,
+            child: Text(c.name, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: (v) {
+        setState(() {
+          _categoryId = v;
+          _skip = 0;
+        });
+        _refresh();
+      },
+    );
+  }
+
+  Widget _sampleDropdown(BuildContext context) {
+    return DropdownButtonFormField<bool?>(
+      key: ValueKey('sample-$_sampleCollected'),
+      initialValue: _sampleCollected,
+      isExpanded: true,
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      decoration: _filterDecoration(
+        context,
+        label: 'Sample',
+        iconColor: LabClinicalUi.iconTeal,
+        icon: Icons.biotech_outlined,
+      ),
+      items: const [
+        DropdownMenuItem<bool?>(
+          value: null,
+          child: Text('All samples', overflow: TextOverflow.ellipsis),
+        ),
+        DropdownMenuItem<bool?>(value: true, child: Text('Collected')),
+        DropdownMenuItem<bool?>(value: false, child: Text('Pending')),
+      ],
+      onChanged: (v) {
+        setState(() {
+          _sampleCollected = v;
+          _skip = 0;
+        });
+        _refresh();
+      },
+    );
+  }
+
+  Widget _sortDropdowns(BuildContext context) {
+    return Column(
+      children: [
+        DropdownButtonFormField<InvestigationSortBy>(
+          key: ValueKey('sort-$_sortBy'),
+          initialValue: _sortBy,
+          isExpanded: true,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+          decoration: _filterDecoration(
+            context,
+            label: 'Sort by',
+            iconColor: LabClinicalUi.iconIndigo,
+            icon: Icons.sort,
+          ),
+          items: InvestigationSortBy.values
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(_sortLabel(e), overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _sortBy = v;
+              _skip = 0;
+            });
+            _refresh();
+          },
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<InvestigationSortOrder>(
+          key: ValueKey('order-$_sortOrder'),
+          initialValue: _sortOrder,
+          isExpanded: true,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+          decoration: _filterDecoration(
+            context,
+            label: 'Order',
+            iconColor: LabClinicalUi.iconPurple,
+            icon: Icons.swap_vert,
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: InvestigationSortOrder.desc,
+              child: Text('Newest first'),
+            ),
+            DropdownMenuItem(
+              value: InvestigationSortOrder.asc,
+              child: Text('Oldest first'),
+            ),
+          ],
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _sortOrder = v;
+              _skip = 0;
+            });
+            _refresh();
+          },
         ),
       ],
     );
   }
 
-  Widget _buildFilterSection(
-    ThemeData theme,
-    AsyncValue categoriesAsync,
-    AsyncValue testsAsync,
-  ) {
+  String _sortLabel(InvestigationSortBy value) => switch (value) {
+    InvestigationSortBy.createdAt => 'Created',
+    InvestigationSortBy.testName => 'Test name',
+    InvestigationSortBy.amount => 'Amount',
+    InvestigationSortBy.patientName => 'Patient name',
+    InvestigationSortBy.status => 'Status',
+  };
+
+  Widget _filterMenuBody(
+    BuildContext context, {
+    required bool compact,
+    required AsyncValue categoriesAsync,
+  }) {
     final categories = categoriesAsync.maybeWhen(
       data: (response) => response.data,
       orElse: () => const <LabCategory>[],
     );
-    final tests = testsAsync.maybeWhen(
-      data: (response) => response.data,
-      orElse: () => const <LabTest>[],
-    );
-    final visibleTests = _categoryId == null
-        ? tests
-        : tests.where((t) => t.category?.id == _categoryId).toList();
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _pickDateRange,
-                  icon: const Icon(Icons.date_range_outlined),
-                  label: Text(
-                    '${DateFormatter.shortDate(_dateRange.start)} – ${DateFormatter.shortDate(_dateRange.end)}',
-                  ),
-                ),
-                DropdownButton<String?>(
-                  value: _categoryId,
-                  hint: const Text('Category'),
-                  onChanged: (v) {
-                    setState(() {
-                      _categoryId = v;
-                      _testName = null;
-                    });
-                  },
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('All categories'),
-                    ),
-                    for (final c in categories)
-                      DropdownMenuItem(value: c.id, child: Text(c.name)),
-                  ],
-                ),
-                DropdownButton<String?>(
-                  value: _testName,
-                  hint: const Text('Test'),
-                  onChanged: (v) => setState(() => _testName = v),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('All tests'),
-                    ),
-                    for (final t in visibleTests)
-                      DropdownMenuItem(value: t.name, child: Text(t.name)),
-                  ],
-                ),
-                DropdownButton<String?>(
-                  value: _status,
-                  hint: const Text('Status'),
-                  onChanged: (v) => setState(() => _status = v),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('All statuses'),
-                    ),
-                    for (final s in LabOrderStatus.values)
-                      DropdownMenuItem(
-                        value: s.apiValue,
-                        child: Text(s.apiValue),
-                      ),
-                  ],
-                ),
-                DropdownButton<bool?>(
-                  value: _sampleCollected,
-                  hint: const Text('Sample'),
-                  onChanged: (v) => setState(() => _sampleCollected = v),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('All samples')),
-                    DropdownMenuItem(value: true, child: Text('Collected')),
-                    DropdownMenuItem(value: false, child: Text('Pending')),
-                  ],
-                ),
-                FilledButton.tonal(
-                  onPressed: _applyFilters,
-                  child: const Text('Apply'),
-                ),
-                TextButton(
-                  onPressed: _clearFilters,
-                  child: const Text('Clear'),
-                ),
-              ],
-            ),
+    return LabDateFilterBody(
+      from: _dateRange.start,
+      to: _dateRange.end,
+      onChanged: _applyDateRange,
+      onRefresh: _refresh,
+      leading: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (compact) ...[
+            _statusDropdown(context),
+            const SizedBox(height: 10),
           ],
+          _categoryDropdown(context, categories),
+          const SizedBox(height: 10),
+          _sampleDropdown(context),
+          const SizedBox(height: 10),
+          _sortDropdowns(context),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: _clearFilters,
+              child: const Text('Clear filters'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _breakdownPanel({
+    required InvestigationSummary? summary,
+    required bool loading,
+  }) {
+    if (loading) {
+      return const HeltySurfaceCard(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (summary == null) {
+      return HeltySurfaceCard(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: Text(
+            'No summary for this range.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
+      );
+    }
+    return InvestigationBreakdownTables(
+      summary: summary,
+      fillHeight: false,
+      shrinkWrap: true,
+      exporting: _exporting,
+      onPrintSummaryByTest: () => _exportSummaryByTest(share: false),
+      onShareSummaryByTest: () => _exportSummaryByTest(share: true),
+      onPrintSummaryByDepartment: () =>
+          _exportSummaryByDepartment(share: false),
+      onShareSummaryByDepartment: () => _exportSummaryByDepartment(share: true),
+      onPrintTestDetails: (testName, count) =>
+          _exportTestDetails(testName: testName, count: count, share: false),
+      onShareTestDetails: (testName, count) =>
+          _exportTestDetails(testName: testName, count: count, share: true),
+      onPrintDepartmentDetails: (departmentId, departmentName, count) =>
+          _exportDepartmentDetails(
+            departmentId: departmentId,
+            departmentName: departmentName,
+            count: count,
+            share: false,
+          ),
+      onShareDepartmentDetails: (departmentId, departmentName, count) =>
+          _exportDepartmentDetails(
+            departmentId: departmentId,
+            departmentName: departmentName,
+            count: count,
+            share: true,
+          ),
+    );
+  }
+
+  Widget _sidebar({
+    required InvestigationSummary? summary,
+    required bool fillHeight,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final actions = [
+      LabQuickAction(
+        label: 'Print list',
+        icon: Icons.print_outlined,
+        colors: [LabClinicalUi.iconBlue, LabClinicalUi.iconIndigo],
+        onPressed: () => _exportFilteredList(share: false),
+      ),
+      LabQuickAction(
+        label: 'Save PDF',
+        icon: Icons.ios_share_outlined,
+        colors: [LabClinicalUi.iconTeal, LabClinicalUi.iconGreen],
+        onPressed: () => _exportFilteredList(share: true),
+      ),
+      LabQuickAction(
+        label: 'Print by test',
+        icon: Icons.science_outlined,
+        colors: [LabClinicalUi.iconPurple, LabClinicalUi.iconPink],
+        onPressed: () => _exportSummaryByTest(share: false),
+      ),
+      LabQuickAction(
+        label: 'Print by department',
+        icon: Icons.apartment_outlined,
+        colors: [LabClinicalUi.iconAmber, LabClinicalUi.iconIndigo],
+        onPressed: () => _exportSummaryByDepartment(share: false),
+      ),
+      LabQuickAction(
+        label: 'Refresh',
+        icon: Icons.refresh,
+        colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.45)!],
+        onPressed: _refresh,
+      ),
+    ];
+    final mix = <LabStatusCount>[
+      if (summary != null)
+        for (final row in summary.byTestName.take(12))
+          LabStatusCount(
+            label: row.testName,
+            count: row.count,
+            color: LabClinicalUi.avatarColor(row.testName),
+          ),
+    ];
+
+    return LabSidebar(
+      actions: actions,
+      statusCounts: mix,
+      fillHeight: fillHeight,
+      mixTitle: 'By test',
+      mixEmptyLabel: 'No tests in this range',
+    );
+  }
+
+  Widget _listPanel({
+    required InvestigationListResponse? list,
+    required bool loading,
+    required Object? error,
+    required bool useCards,
+    required bool exportEnabled,
+  }) {
+    if (error != null && list == null) {
+      return InvestigationErrorBanner(message: '$error', onRetry: _refresh);
+    }
+    final rows = list?.data ?? const <InvestigationListRow>[];
+    return InvestigationListTable(
+      rows: rows,
+      showSampleColumn: true,
+      fillHeight: true,
+      useCards: useCards,
+      loading: loading,
+      skip: list?.skip ?? _skip,
+      pageSize: list?.take ?? _take,
+      total: list?.total ?? 0,
+      hasMore: list != null && list.skip + list.take < list.total,
+      onPrev: list != null && list.skip > 0
+          ? () {
+              setState(() {
+                _skip = (list.skip - _take).clamp(0, list.total);
+              });
+              _refresh();
+            }
+          : () {},
+      onNext: list != null && list.skip + list.take < list.total
+          ? () {
+              setState(() => _skip = list.skip + _take);
+              _refresh();
+            }
+          : () {},
+      trailing: InvestigationExportActions(
+        enabled: exportEnabled,
+        exporting: _exporting,
+        onPrint: () => _exportFilteredList(share: false),
+        onShare: () => _exportFilteredList(share: true),
       ),
     );
   }

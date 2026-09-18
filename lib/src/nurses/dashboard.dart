@@ -1,22 +1,26 @@
-import 'dart:math' as math;
-
 import 'package:auto_route/auto_route.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:helty/src/core/responsive.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:helty/app_router.gr.dart';
+import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
-import '../../app_router.gr.dart';
 import '../auth/nursing_permissions.dart';
-import '../core/widgets/patient_avatar.dart';
 import '../helper/date.formatter.dart';
 import '../models/nurse_dashboard_models.dart';
+import '../models/staff_model.dart';
 import '../nursing/models/nursing_models.dart';
 import '../nursing/providers/nursing_providers.dart';
-import '../models/staff_model.dart';
 import '../providers/auth_provider.dart';
-import '../shared/department_colors.dart';
+import 'dashboard/nurse_dashboard_metrics.dart';
+import 'dashboard/widgets/nurse_dashboard_charts.dart';
+import 'dashboard/widgets/nurse_dashboard_filter_bar.dart';
+import 'dashboard/widgets/nurse_dashboard_header.dart';
+import 'dashboard/widgets/nurse_dashboard_kpi_strip.dart';
+import 'dashboard/widgets/nurse_dashboard_role_strip.dart';
+import 'dashboard/widgets/nurse_dashboard_sidebar.dart';
+import 'dashboard/widgets/nurse_dashboard_worklist.dart';
 
 @RoutePage()
 class NursesDashboardScreen extends ConsumerStatefulWidget {
@@ -28,14 +32,9 @@ class NursesDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
-  static const _timeRanges = [
-    'Today',
-    'Last 7 Days',
-    'This Month',
-    'This Year',
-  ];
-
+  final _searchCtrl = TextEditingController();
   String _timeRange = 'Today';
+  String _searchQuery = '';
   NursingDashboardOverview? _data;
   bool _loading = true;
   String? _error;
@@ -43,7 +42,17 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _searchCtrl.addListener(() {
+      final q = _searchCtrl.text.trim();
+      if (q != _searchQuery) setState(() => _searchQuery = q);
+    });
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -82,255 +91,63 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
     }
   }
 
-  String _resolvedSubtitle(NurseDashboardHeader h) {
-    if (h.subtitle != null && h.subtitle!.trim().isNotEmpty) {
-      return h.subtitle!;
-    }
-    final template =
-        h.subtitleTemplate ??
-        "Welcome back, {name}. Here's what's happening today.";
-    final name = h.userDisplayName.trim().isNotEmpty
-        ? h.userDisplayName.trim()
-        : 'there';
-    return template.replaceAll('{name}', name);
-  }
-
-  Color _statusToneColor(String? tone, ColorScheme scheme) {
-    switch ((tone ?? 'neutral').toLowerCase()) {
-      case 'success':
-        return DepartmentColors.pharmacy;
-      case 'warning':
-        return DepartmentColors.billing;
-      case 'danger':
-        return DepartmentColors.emergency;
-      case 'busy':
-        return scheme.primary;
-      case 'break':
-        return DepartmentColors.accountingFinance;
-      case 'neutral':
-      default:
-        return scheme.onSurfaceVariant;
-    }
-  }
-
-  Color _alertAccent(String severity) {
-    switch (severity.toLowerCase()) {
-      case 'critical':
-      case 'error':
-        return DepartmentColors.emergency;
-      case 'warning':
-      default:
-        return DepartmentColors.billing;
-    }
-  }
-
-  double _lineChartMaxY(
-    List<NurseAdmissionDischargePoint> points,
-    NurseSeriesMeta? meta,
-  ) {
-    if (points.isEmpty) return 100;
-    if (meta?.yAxisSuggested == true && meta?.yAxisMax != null) {
-      return meta!.yAxisMax! > 0 ? meta.yAxisMax! : 100;
-    }
-    if (meta?.yAxisMax != null && meta!.yAxisMax! > 0) {
-      return meta.yAxisMax!;
-    }
-    var maxV = 0.0;
-    for (final p in points) {
-      maxV = math.max(maxV, p.admissions);
-      maxV = math.max(maxV, p.discharges);
-    }
-    if (maxV <= 0) return 100;
-    return (maxV * 1.15).ceilToDouble().clamp(1, double.infinity);
-  }
-
-  /// When [timeRange] is Today, combine hourly (or sub-day) points into 4-hour buckets
-  /// (00–04, 04–08, …) so the x-axis shows 00:00, 04:00, 08:00, … instead of hourly ticks.
-  NurseAdmissionsDischargesSeries _admissionsSeriesForChart(
-    NurseDashboardOverview overview,
-  ) {
-    final series = overview.admissionsDischargesSeries;
-    if (_timeRange != 'Today') return series;
-
-    final aggregated = _aggregateAdmissionsToFourHourBuckets(series.points);
-    if (aggregated == null) return series;
-
-    return NurseAdmissionsDischargesSeries(points: aggregated, meta: null);
-  }
-
-  /// Returns `null` if the series should be shown as-is (already bucketed or unknown shape).
-  List<NurseAdmissionDischargePoint>? _aggregateAdmissionsToFourHourBuckets(
-    List<NurseAdmissionDischargePoint> points,
-  ) {
-    if (points.length < 4) return null;
-
-    final parsedHours = [
-      for (final p in points) _tryParseHourFromLabel(p.label),
+  String? _unitLine(NursingDashboardOverview data) {
+    final staff = ref.read(authProvider).staff;
+    final bootstrap = ref.read(nursingBootstrapDataProvider);
+    final unitDisplay = isChargeNurse(staff)
+        ? (bootstrap?.ward?.name ?? bootstrap?.department?.name)
+        : bootstrap?.department?.name;
+    final parts = [
+      if (unitDisplay != null && unitDisplay.trim().isNotEmpty) unitDisplay,
+      if (data.nursingUnit != null && data.nursingUnit!.trim().isNotEmpty)
+        NurseDashboardMetrics.unitLabel(data.nursingUnit),
     ];
-    final allHoursKnown = parsedHours.every((h) => h != null);
-
-    if (allHoursKnown) {
-      final admissions = List<double>.filled(6, 0);
-      final discharges = List<double>.filled(6, 0);
-      for (var i = 0; i < points.length; i++) {
-        final h = parsedHours[i]!;
-        final b = (h ~/ 4).clamp(0, 5);
-        admissions[b] += points[i].admissions;
-        discharges[b] += points[i].discharges;
-      }
-      return [
-        for (var b = 0; b < 6; b++)
-          NurseAdmissionDischargePoint(
-            label: _fourHourBucketLabel(b),
-            admissions: admissions[b],
-            discharges: discharges[b],
-          ),
-      ];
-    }
-
-    // Assume points are consecutive hours starting at midnight (e.g. 24 hourly samples).
-    if (points.length % 4 != 0) return null;
-
-    final out = <NurseAdmissionDischargePoint>[];
-    for (var start = 0; start < points.length; start += 4) {
-      var a = 0.0;
-      var d = 0.0;
-      for (var i = start; i < start + 4; i++) {
-        a += points[i].admissions;
-        d += points[i].discharges;
-      }
-      out.add(
-        NurseAdmissionDischargePoint(
-          label: _fourHourBucketLabel(start ~/ 4),
-          admissions: a,
-          discharges: d,
-        ),
-      );
-    }
-    return out;
+    if (parts.isEmpty) return null;
+    return parts.join(' · ');
   }
 
-  static final RegExp _label24h = RegExp(r'^(\d{1,2})(?::(\d{2}))?$');
-  static final RegExp _label12h = RegExp(
-    r'^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$',
-    caseSensitive: false,
-  );
-
-  /// Parses hour 0–23 from common dashboard labels; returns null if unknown.
-  int? _tryParseHourFromLabel(String label) {
-    final s = label.trim();
-    if (s.isEmpty) return null;
-
-    final m24 = _label24h.firstMatch(s);
-    if (m24 != null) {
-      final h = int.tryParse(m24.group(1)!);
-      final min = int.tryParse(m24.group(2) ?? '0') ?? 0;
-      if (h != null && h >= 0 && h <= 23 && min >= 0 && min < 60) return h;
-    }
-
-    final m12 = _label12h.firstMatch(s);
-    if (m12 != null) {
-      var h = int.tryParse(m12.group(1)!);
-      if (h == null) return null;
-      final isPm = (m12.group(3)!.toUpperCase() == 'PM');
-      if (h == 12) {
-        h = isPm ? 12 : 0;
-      } else if (isPm) {
-        h += 12;
-      }
-      if (h >= 0 && h <= 23) return h;
-    }
-
-    if (RegExp(r'^\d{1,2}$').hasMatch(s)) {
-      final h = int.tryParse(s);
-      if (h != null && h >= 0 && h <= 23) return h;
-    }
-
-    return null;
+  String? _windowLabel(NursingDashboardOverview data) {
+    final start = DateFormatter.shortDate(data.base.window.start);
+    final end = DateFormatter.shortDate(data.base.window.end);
+    if (start == end) return start;
+    return '$start – $end';
   }
 
-  String _fourHourBucketLabel(int bucketIndex) {
-    final h = bucketIndex * 4;
-    return '${h.toString().padLeft(2, '0')}:00';
+  List<NursingAssignedAdmission> _filteredAdmissions(
+    NursingDashboardOverview data,
+  ) {
+    final q = _searchQuery.toLowerCase();
+    if (q.isEmpty) return data.assignedAdmissions;
+    return data.assignedAdmissions.where((a) {
+      final hay = [
+        a.patientName,
+        a.patientNumber ?? '',
+        a.wardName ?? '',
+        a.bedLabel ?? '',
+        a.admissionId,
+      ].join(' ').toLowerCase();
+      return hay.contains(q);
+    }).toList();
   }
 
-  double _niceInterval(double maxY) {
-    if (maxY <= 0) return 20;
-    final rough = maxY / 4;
-    final exp = (math.log(rough) / math.ln10).floor();
-    final frac = rough / math.pow(10, exp);
-    double niceFrac;
-    if (frac <= 1) {
-      niceFrac = 1;
-    } else if (frac <= 2) {
-      niceFrac = 2;
-    } else if (frac <= 5) {
-      niceFrac = 5;
-    } else {
-      niceFrac = 10;
-    }
-    return niceFrac * math.pow(10, exp).toDouble();
+  List<NursingOutpatientQueuePatient> _filteredOpd(
+    NursingDashboardOverview data,
+  ) {
+    final q = _searchQuery.toLowerCase();
+    if (q.isEmpty) return data.outpatientQueue;
+    return data.outpatientQueue.where((p) {
+      final hay = [
+        p.patientName,
+        p.serviceName ?? '',
+        p.invoiceId,
+      ].join(' ').toLowerCase();
+      return hay.contains(q);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    if (_loading && _data == null) {
-      return Scaffold(
-        backgroundColor: colorScheme.surface,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    _error!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colorScheme.error),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _load,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-    }
-
-    final data = _data;
-    if (data == null) {
-      return Scaffold(
-        backgroundColor: colorScheme.surface,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(_error ?? 'No dashboard data', textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final base = data.base;
-    final kpis = base.kpis;
-    final header = base.header;
     final staff = ref.watch(authProvider).staff;
     final bootstrap = ref.watch(nursingBootstrapDataProvider);
 
@@ -338,1611 +155,377 @@ class _NursesDashboardScreenState extends ConsumerState<NursesDashboardScreen> {
       backgroundColor: colorScheme.surface,
       body: ResponsiveBody(
         center: false,
-        builder: (context, bp) => Column(
-          children: [
-            if (_loading) const LinearProgressIndicator(minHeight: 2),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
-                  final admitH = bp.isMobile
-                      ? 280.0
-                      : bp.isTablet
-                      ? 340.0
-                      : 400.0;
-                  final deptH = bp.isMobile
-                      ? 230.0
-                      : bp.isTablet
-                      ? 270.0
-                      : 300.0;
-                  final chartPad = bp.isMobile ? 16.0 : 24.0;
-                  final pad = EdgeInsets.symmetric(
-                    horizontal: bp.paddingH,
-                    vertical: bp.paddingV,
-                  );
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < NurseDashboardMetrics.cardBreakpoint;
+          final showSideBySide =
+              width >= NurseDashboardMetrics.sidebarBreakpoint;
+          final useSnapKpis = width < 520;
 
-                  return RefreshIndicator(
-                    onRefresh: _load,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: pad,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: math.min(
-                              constraints.maxWidth,
-                              AppBreakpoints.maxContentWidth,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _nurseDashboardHeader(
-                                bp: bp,
-                                header: header,
-                                colorScheme: colorScheme,
-                                nursingUnit:
-                                    data.nursingUnit ?? bootstrap?.nursingUnit,
-                                unitDisplayName: isChargeNurse(staff)
-                                    ? (bootstrap?.ward?.name ??
-                                          bootstrap?.department?.name)
-                                    : bootstrap?.department?.name,
-                              ),
-                              SizedBox(height: bp.isMobile ? 24 : 32),
-                              _roleSpecificSections(
-                                data: data,
-                                staff: staff,
-                                bootstrap: bootstrap,
-                                colorScheme: colorScheme,
-                                bp: bp,
-                              ),
-                              if (!data.isLineDashboard) ...[
-                                _nurseKpiGrid(bp, kpis, colorScheme),
-                                const SizedBox(height: 24),
-                                _nurseChartsAndSidebar(
-                                  context: context,
-                                  bp: bp,
-                                  data: base,
-                                  colorScheme: colorScheme,
-                                  admissionsHeight: admitH,
-                                  departmentHeight: deptH,
-                                  chartInnerPadding: chartPad,
-                                  stackChartTitleRow: !bp.isDesktop,
-                                  canManageRoster: canManageShiftRoster(
-                                    staff,
-                                    bootstrap,
-                                  ),
-                                ),
-                              ] else if (base.criticalAlerts.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                _lineCriticalAlerts(
-                                  context,
-                                  base.criticalAlerts,
-                                  colorScheme,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+          if (_loading && _data == null) {
+            return _StatusScaffold(
+              compact: compact,
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final data = _data;
+          if (data == null) {
+            return _StatusScaffold(
+              compact: compact,
+              child: _ErrorState(
+                message: _error ?? 'No dashboard data',
+                onRetry: _load,
               ),
-            ),
-          ],
-        ),
+            );
+          }
+
+          return _DashboardBody(
+            data: data,
+            staff: staff,
+            bootstrap: bootstrap,
+            compact: compact,
+            showSideBySide: showSideBySide,
+            useSnapKpis: useSnapKpis,
+            loading: _loading,
+            timeRange: _timeRange,
+            searchController: _searchCtrl,
+            unitLine: _unitLine(data),
+            windowLabel: _windowLabel(data),
+            admissions: _filteredAdmissions(data),
+            outpatientQueue: _filteredOpd(data),
+            onTimeRangeChanged: (value) {
+              setState(() => _timeRange = value);
+              _load();
+            },
+            onRefresh: _load,
+          );
+        },
       ),
     );
   }
+}
 
-  Widget _roleSpecificSections({
-    required NursingDashboardOverview data,
-    required Staff? staff,
-    required NursingDashboardMe? bootstrap,
-    required ColorScheme colorScheme,
-    required AppBreakpoints bp,
-  }) {
-    final children = <Widget>[];
+class _StatusScaffold extends StatelessWidget {
+  const _StatusScaffold({required this.compact, required this.child});
 
-    if (canViewHospitalDashboard(staff, bootstrap) &&
-        data.unitRosterCounts.isNotEmpty) {
-      children.add(
-        _unitRosterCountsSection(data.unitRosterCounts, colorScheme, bp),
-      );
-      children.add(SizedBox(height: bp.isMobile ? 16 : 24));
-    }
+  final bool compact;
+  final Widget child;
 
-    if (canViewUnitDashboard(staff, bootstrap) &&
-        data.shiftBreakdown.isNotEmpty) {
-      children.add(_shiftBreakdownSection(data.shiftBreakdown, colorScheme));
-      children.add(const SizedBox(height: 16));
-      if (data.opdQueueDepth != null) {
-        children.add(
-          _infoChip(
-            'OPD queue depth: ${data.opdQueueDepth}',
-            Icons.people_outline,
-            colorScheme,
-          ),
-        );
-        children.add(const SizedBox(height: 16));
-      } else if (data.bedOccupancyPercent != null) {
-        children.add(
-          _infoChip(
-            'Bed occupancy: ${data.bedOccupancyPercent!.toStringAsFixed(0)}%',
-            Icons.bed_outlined,
-            colorScheme,
-          ),
-        );
-        children.add(const SizedBox(height: 16));
-      }
-    }
-
-    if (canViewLineDashboard(staff, bootstrap) || data.isLineDashboard) {
-      if (data.myRosterShifts.isNotEmpty) {
-        children.add(_myRosterSection(data.myRosterShifts, colorScheme));
-        children.add(const SizedBox(height: 16));
-      }
-      if (data.assignedAdmissions.isNotEmpty) {
-        children.add(
-          _assignedAdmissionsSection(data.assignedAdmissions, colorScheme),
-        );
-        children.add(const SizedBox(height: 16));
-      }
-      if (data.outpatientQueue.isNotEmpty) {
-        children.add(
-          _outpatientQueueSection(data.outpatientQueue, colorScheme),
-        );
-        children.add(const SizedBox(height: 16));
-      }
-    }
-
-    if (children.isEmpty) return const SizedBox.shrink();
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
-    );
-  }
-
-  Widget _infoChip(String label, IconData icon, ColorScheme colorScheme) {
-    return Chip(
-      avatar: Icon(icon, size: 18, color: colorScheme.primary),
-      label: Text(label),
-    );
-  }
-
-  Widget _unitRosterCountsSection(
-    List<NursingUnitRosterCount> counts,
-    ColorScheme colorScheme,
-    AppBreakpoints bp,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Unit roster & assignment gaps',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onSurface,
+        NursesDashboardHeader(
+          compact: compact,
+          header: const NurseDashboardHeader(
+            title: 'Nursing Dashboard',
+            subtitle: 'Ward coverage, patient flow, and staffing.',
           ),
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: counts.map((u) {
-            return SizedBox(
-              width: bp.isMobile ? double.infinity : 200,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        u.nursingUnit,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text('Scheduled: ${u.scheduled} · On duty: ${u.onDuty}'),
-                      if (u.coverageGap > 0)
-                        Text(
-                          'Coverage gap: ${u.coverageGap}',
-                          style: TextStyle(color: colorScheme.error),
-                        ),
-                      if (u.assignmentGap > 0)
-                        Text(
-                          'Assignment gap: ${u.assignmentGap}',
-                          style: TextStyle(color: DepartmentColors.billing),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            if (canManageShiftRoster(
-              ref.read(authProvider).staff,
-              ref.read(nursingBootstrapDataProvider),
-            ))
-              OutlinedButton.icon(
-                onPressed: () =>
-                    context.router.push(const NursingRosterRoute()),
-                icon: const Icon(Icons.calendar_month, size: 16),
-                label: const Text('Manage roster'),
-              ),
-            OutlinedButton.icon(
-              onPressed: () =>
-                  context.router.push(const NursingAssignmentsRoute()),
-              icon: const Icon(Icons.assignment_ind, size: 16),
-              label: const Text('Assignments'),
-            ),
-          ],
-        ),
+        const SizedBox(height: 10),
+        Expanded(child: child),
       ],
     );
   }
+}
 
-  Widget _shiftBreakdownSection(
-    List<NursingShiftBreakdown> shifts,
-    ColorScheme colorScheme,
-  ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Today's roster by shift",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...shifts.map(
-              (s) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(child: Text(s.shiftType)),
-                    Text('${s.onDuty}/${s.scheduled} on duty'),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
 
-  String _formatLabel(String? value) {
-    if (value == null || value.trim().isEmpty) return '';
-    return value
-        .trim()
-        .toLowerCase()
-        .replaceAll('_', ' ')
-        .split(' ')
-        .where((w) => w.isNotEmpty)
-        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
-        .join(' ');
-  }
+  final String message;
+  final VoidCallback onRetry;
 
-  Widget _myRosterSection(
-    List<NursingMyRosterShift> shifts,
-    ColorScheme colorScheme,
-  ) {
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.textTheme.bodySmall?.copyWith(
-      color: colorScheme.onSurfaceVariant,
-    );
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'My shifts today',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: HeltySurfaceCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const HeltySolidIcon(
+                icon: Icons.error_outline,
+                color: NurseDashboardMetrics.waitRed,
+                size: 34,
+                iconSize: 18,
+                radius: 8,
               ),
-            ),
-            const SizedBox(height: 12),
-            ...shifts.map((s) {
-              final shiftLabel =
-                  ShiftType.fromString(s.shiftType)?.label ?? s.shiftType;
-              final unitLabel =
-                  NursingUnit.fromString(s.nursingUnit)?.label ??
-                  _formatLabel(s.nursingUnit);
-              final shiftDate = DateFormatter.medicalDate(s.shiftDate);
-              final wardParts = <String>[
-                if (s.wardName?.isNotEmpty == true) s.wardName!,
-                if (s.wardType?.isNotEmpty == true) _formatLabel(s.wardType),
-                if (s.wardName == null && unitLabel.isNotEmpty) unitLabel,
-              ];
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: colorScheme.primaryContainer,
-                      foregroundColor: colorScheme.onPrimaryContainer,
-                      child: const Icon(Icons.schedule, size: 18),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            shiftLabel.isNotEmpty
-                                ? '$shiftLabel shift'
-                                : 'Shift',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (wardParts.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(wardParts.join(' · '), style: muted),
-                            ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              [
-                                shiftDate,
-                                if (unitLabel.isNotEmpty &&
-                                    s.wardName?.isNotEmpty == true)
-                                  unitLabel,
-                              ].join(' · '),
-                              style: muted,
-                            ),
-                          ),
-                          if (s.assignedByName?.isNotEmpty == true)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                [
-                                  'Scheduled by ${s.assignedByName}',
-                                  if (s.createdAt != null)
-                                    DateFormatter.dateTime(s.createdAt!),
-                                ].join(' · '),
-                                style: muted,
-                              ),
-                            ),
-                          if (s.notes?.isNotEmpty == true)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text('Notes: ${s.notes}', style: muted),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _assignedAdmissionsSection(
-    List<NursingAssignedAdmission> admissions,
-    ColorScheme colorScheme,
-  ) {
-    final theme = Theme.of(context);
-    final muted = theme.textTheme.bodySmall?.copyWith(
-      color: colorScheme.onSurfaceVariant,
-    );
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'My inpatient patients',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+              const SizedBox(height: 12),
+              SelectableText(
+                message,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
               ),
-            ),
-            const SizedBox(height: 12),
-            ...admissions.map((a) {
-              final patientTitle = a.patientName.isNotEmpty
-                  ? a.patientName
-                  : a.admissionId;
-              final nameParts = patientTitle
-                  .trim()
-                  .split(RegExp(r'\s+'))
-                  .where((p) => p.isNotEmpty)
-                  .toList();
-              final shiftLabel =
-                  ShiftType.fromString(a.shiftType)?.label ??
-                  _formatLabel(a.shiftType);
-              final locationParts = <String>[
-                if (a.wardName?.isNotEmpty == true) a.wardName!,
-                if (a.bedLabel?.isNotEmpty == true) 'Bed ${a.bedLabel}',
-              ];
-              final shiftParts = <String>[
-                if (shiftLabel.isNotEmpty) '$shiftLabel shift',
-                if (a.shiftDate != null)
-                  DateFormatter.medicalDate(a.shiftDate!),
-              ];
-
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: a.admissionId.isNotEmpty
-                      ? () => context.router.push(
-                          InpatientPatientViewRoute(admissionId: a.admissionId),
-                        )
-                      : null,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        PatientAvatar(
-                          avatarUrl: a.avatarUrl,
-                          firstName: nameParts.isNotEmpty
-                              ? nameParts.first
-                              : null,
-                          surname: nameParts.length > 1 ? nameParts.last : null,
-                          displayName: patientTitle,
-                          size: 36,
-                          backgroundColor: colorScheme.secondaryContainer,
-                          foregroundColor: colorScheme.onSecondaryContainer,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                patientTitle,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if (a.patientNumber?.isNotEmpty == true)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    'Patient ID ${a.patientNumber}',
-                                    style: muted,
-                                  ),
-                                ),
-                              if (locationParts.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    locationParts.join(' · '),
-                                    style: muted,
-                                  ),
-                                ),
-                              if (shiftParts.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    shiftParts.join(' · '),
-                                    style: muted,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        if (a.admissionId.isNotEmpty)
-                          Icon(
-                            Icons.chevron_right,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _outpatientQueueSection(
-    List<NursingOutpatientQueuePatient> patients,
-    ColorScheme colorScheme,
-  ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'My outpatient queue',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...patients.map(
-              (p) => ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(p.patientName),
-                subtitle: Text(p.serviceName ?? ''),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _timeRangeDropdown(ColorScheme colorScheme) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: _timeRange,
-          icon: Icon(
-            Icons.calendar_today,
-            size: 16,
-            color: colorScheme.primary,
+              const SizedBox(height: 12),
+              FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
           ),
-          style: TextStyle(
-            fontSize: 13,
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-          items: _timeRanges
-              .map(
-                (e) => DropdownMenuItem(
-                  value: e,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: Text(e),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: (val) {
-            if (val == null) return;
-            setState(() => _timeRange = val);
-            _load();
-          },
         ),
       ),
     );
   }
+}
 
-  Widget _nurseDashboardHeader({
-    required AppBreakpoints bp,
-    required NurseDashboardHeader header,
-    required ColorScheme colorScheme,
-    String? nursingUnit,
-    String? unitDisplayName,
-  }) {
-    final titleStyle = TextStyle(
-      fontSize: bp.isMobile ? 20 : 24,
-      fontWeight: FontWeight.bold,
-      color: colorScheme.onSurface,
-    );
-    final subtitleStyle = TextStyle(
-      fontSize: bp.isMobile ? 13 : 14,
-      color: colorScheme.onSurfaceVariant,
-    );
-    final timeDropdown = _timeRangeDropdown(colorScheme);
-    final avatar = CircleAvatar(
-      radius: 20,
-      backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-      child: Icon(Icons.person, color: colorScheme.primary),
-    );
+class _DashboardBody extends StatelessWidget {
+  const _DashboardBody({
+    required this.data,
+    required this.staff,
+    required this.bootstrap,
+    required this.compact,
+    required this.showSideBySide,
+    required this.useSnapKpis,
+    required this.loading,
+    required this.timeRange,
+    required this.searchController,
+    required this.unitLine,
+    required this.windowLabel,
+    required this.admissions,
+    required this.outpatientQueue,
+    required this.onTimeRangeChanged,
+    required this.onRefresh,
+  });
 
-    final unitLine = [
-      if (unitDisplayName != null && unitDisplayName.isNotEmpty)
-        unitDisplayName,
-      if (nursingUnit != null && nursingUnit.isNotEmpty) nursingUnit,
-    ].join(' · ');
+  final NursingDashboardOverview data;
+  final Staff? staff;
+  final NursingDashboardMe? bootstrap;
+  final bool compact;
+  final bool showSideBySide;
+  final bool useSnapKpis;
+  final bool loading;
+  final String timeRange;
+  final TextEditingController searchController;
+  final String? unitLine;
+  final String? windowLabel;
+  final List<NursingAssignedAdmission> admissions;
+  final List<NursingOutpatientQueuePatient> outpatientQueue;
+  final ValueChanged<String> onTimeRangeChanged;
+  final VoidCallback onRefresh;
 
-    if (bp.isMobile) {
+  bool get _showWorklist =>
+      data.isLineDashboard ||
+      admissions.isNotEmpty ||
+      outpatientQueue.isNotEmpty;
+
+  bool get _showCharts => !data.isLineDashboard;
+
+  bool get _showSearch => _showWorklist;
+
+  bool get _showKpis {
+    if (!data.isLineDashboard) return true;
+    return NurseDashboardMetrics.kpiItemsFor(
+      data,
+    ).any((item) => item.value.trim().isNotEmpty && item.value.trim() != '—');
+  }
+
+  Widget _sidebar(BuildContext context, {required bool fillHeight}) {
+    final canRoster = canManageShiftRoster(staff, bootstrap);
+    final canAssign =
+        canAssignInpatientPatients(staff, bootstrap) ||
+        canAssignOutpatientPatients(staff, bootstrap);
+    return NurseDashboardSidebar(
+      staffOnDuty: data.base.staffOnDuty,
+      alerts: data.base.criticalAlerts,
+      myShifts: data.isLineDashboard ? data.myRosterShifts : const [],
+      onRefresh: onRefresh,
+      onWardCensus: () => context.router.push(const InpatientsListRoute()),
+      onWaitingPatients: () =>
+          context.router.push(const WaitingPatientsRoute()),
+      onViewAlerts: () =>
+          showNurseDashboardAlertsDialog(context, data.base.criticalAlerts),
+      onManageRoster: canRoster
+          ? () => context.router.push(const NursingRosterRoute())
+          : null,
+      onAssignments: canAssign
+          ? () => context.router.push(const NursingAssignmentsRoute())
+          : null,
+      fillHeight: fillHeight,
+    );
+  }
+
+  Widget _mainPanel(BuildContext context, {required bool useCards}) {
+    void openAdmission(NursingAssignedAdmission a) {
+      context.router.push(
+        InpatientPatientViewRoute(admissionId: a.admissionId),
+      );
+    }
+
+    if (_showCharts && _showWorklist) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(header.title ?? 'Hospital Overview', style: titleStyle),
-          const SizedBox(height: 4),
-          Text(_resolvedSubtitle(header), style: subtitleStyle),
-          if (unitLine.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(unitLine, style: subtitleStyle),
-          ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: timeDropdown),
-              const SizedBox(width: 12),
-              avatar,
-            ],
+          Expanded(
+            flex: 5,
+            child: NurseDashboardCharts(
+              overview: data.base,
+              timeRange: timeRange,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            flex: 4,
+            child: NurseDashboardWorklist(
+              admissions: admissions,
+              outpatientQueue: outpatientQueue,
+              useCards: useCards,
+              emptyMessage: _emptyMessage,
+              onOpenAdmission: openAdmission,
+            ),
           ),
         ],
       );
     }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(header.title ?? 'Hospital Overview', style: titleStyle),
-              const SizedBox(height: 4),
-              Text(_resolvedSubtitle(header), style: subtitleStyle),
-              if (unitLine.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(unitLine, style: subtitleStyle),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 160, maxWidth: 240),
-              child: timeDropdown,
-            ),
-            const SizedBox(width: 16),
-            avatar,
-          ],
-        ),
-      ],
-    );
-  }
-
-  int _nurseKpiCrossAxisCount(AppBreakpoints bp) => bp.isDesktop ? 4 : 2;
-
-  double _nurseKpiChildAspectRatio(AppBreakpoints bp) {
-    if (bp.isDesktop) return 1.65;
-    if (bp.isTablet) return 1.48;
-    return bp.maxWidth < 360 ? 1.2 : 1.36;
-  }
-
-  Widget _nurseKpiGrid(
-    AppBreakpoints bp,
-    NurseDashboardKpis kpis,
-    ColorScheme colorScheme,
-  ) {
-    return GridView.count(
-      crossAxisCount: _nurseKpiCrossAxisCount(bp),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: _nurseKpiChildAspectRatio(bp),
-      children: [
-        _buildMetricCard(
-          'Total Patients',
-          kpis.totalPatients.valueFormatted,
-          kpis.totalPatients.delta.label,
-          Icons.people_alt,
-          DepartmentColors.outpatientClinic,
-          colorScheme,
-          trendPositive: kpis.totalPatients.delta.isPositive,
-          trendDirection: kpis.totalPatients.delta.direction,
-          showTrendArrow: kpis.totalPatients.delta.kind != 'text',
-        ),
-        _buildMetricCard(
-          'Bed Occupancy',
-          kpis.bedOccupancy.valueFormatted,
-          kpis.bedOccupancy.delta.label,
-          Icons.bed,
-          DepartmentColors.billing,
-          colorScheme,
-          isProgress: true,
-          progressValue: kpis.bedOccupancy.ratio.clamp(0.0, 1.0),
-          trendPositive: kpis.bedOccupancy.delta.isPositive,
-          trendDirection: kpis.bedOccupancy.delta.direction,
-          showTrendArrow: kpis.bedOccupancy.delta.kind != 'text',
-        ),
-        _buildMetricCard(
-          'Active Staff',
-          kpis.activeStaff.valueFormatted,
-          kpis.activeStaff.delta.label,
-          Icons.medical_information,
-          DepartmentColors.pharmacy,
-          colorScheme,
-          trendPositive: kpis.activeStaff.delta.isPositive,
-          trendDirection: kpis.activeStaff.delta.direction,
-          showTrendArrow: kpis.activeStaff.delta.kind != 'text',
-        ),
-        _buildMetricCard(
-          'Avg. Wait Time',
-          kpis.averageWaitTime.valueFormatted,
-          kpis.averageWaitTime.delta.label,
-          Icons.timer,
-          DepartmentColors.laboratory,
-          colorScheme,
-          trendPositive: kpis.averageWaitTime.delta.isPositive,
-          trendDirection: kpis.averageWaitTime.delta.direction,
-          showTrendArrow: kpis.averageWaitTime.delta.kind != 'text',
-        ),
-      ],
-    );
-  }
-
-  Widget _nurseChartsColumn({
-    required NurseDashboardOverview data,
-    required ColorScheme colorScheme,
-    required double admissionsHeight,
-    required double departmentHeight,
-    required double chartInnerPadding,
-    required bool stackChartTitleRow,
-  }) {
-    final titleRow = stackChartTitleRow
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Patient Admissions vs Discharges',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 16,
-                runSpacing: 8,
-                children: [
-                  _buildLegendIndicator(colorScheme, colorScheme.primary, 'Admissions'),
-                  _buildLegendIndicator(colorScheme, DepartmentColors.billing, 'Discharges'),
-                ],
-              ),
-            ],
-          )
-        : Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Patient Admissions vs Discharges',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              Row(
-                children: [
-                  _buildLegendIndicator(colorScheme, colorScheme.primary, 'Admissions'),
-                  const SizedBox(width: 16),
-                  _buildLegendIndicator(colorScheme, DepartmentColors.billing, 'Discharges'),
-                ],
-              ),
-            ],
-          );
-
-    return Column(
-      children: [
-        Container(
-          height: admissionsHeight,
-          padding: EdgeInsets.all(chartInnerPadding),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: colorScheme.outline.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              titleRow,
-              SizedBox(height: stackChartTitleRow ? 20 : 32),
-              Expanded(
-                child: _buildPatientInfluxChart(
-                  colorScheme,
-                  _admissionsSeriesForChart(data),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          height: departmentHeight,
-          padding: EdgeInsets.all(chartInnerPadding),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: colorScheme.outline.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Department Load (Patients)',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              SizedBox(height: stackChartTitleRow ? 16 : 24),
-              Expanded(
-                child: _buildDepartmentBarChart(
-                  colorScheme,
-                  data.departmentLoad,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _nurseSidebarColumn({
-    required BuildContext context,
-    required NurseDashboardOverview data,
-    required ColorScheme colorScheme,
-    required double chartInnerPadding,
-    required bool canManageRoster,
-  }) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Container(
-          padding: EdgeInsets.all(chartInnerPadding),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: colorScheme.outline.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Staff on Duty',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              if (data.staffOnDuty.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(
-                    'No staff on duty',
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                )
-              else
-                ...data.staffOnDuty.map(
-                  (staff) => Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: _staffRow(staff, colorScheme),
-                  ),
-                ),
-              if (canManageRoster) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        context.router.push(const NursingRosterRoute()),
-                    icon: const Icon(Icons.assignment_ind, size: 16),
-                    label: const Text('Manage Roster'),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: EdgeInsets.all(chartInnerPadding),
-          decoration: BoxDecoration(
-            color: colorScheme.errorContainer.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colorScheme.error.withValues(alpha: 0.25)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.warning_rounded,
-                    color: colorScheme.error,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Critical Alerts',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.error,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (data.criticalAlerts.isEmpty)
-                Text(
-                  'No critical alerts',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onErrorContainer,
-                  ),
-                )
-              else
-                ..._alertTiles(context, data.criticalAlerts),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _nurseChartsAndSidebar({
-    required BuildContext context,
-    required AppBreakpoints bp,
-    required NurseDashboardOverview data,
-    required ColorScheme colorScheme,
-    required double admissionsHeight,
-    required double departmentHeight,
-    required double chartInnerPadding,
-    required bool stackChartTitleRow,
-    required bool canManageRoster,
-  }) {
-    final charts = _nurseChartsColumn(
-      data: data,
-      colorScheme: colorScheme,
-      admissionsHeight: admissionsHeight,
-      departmentHeight: departmentHeight,
-      chartInnerPadding: chartInnerPadding,
-      stackChartTitleRow: stackChartTitleRow,
-    );
-    final aside = _nurseSidebarColumn(
-      context: context,
-      data: data,
-      colorScheme: colorScheme,
-      chartInnerPadding: chartInnerPadding,
-      canManageRoster: canManageRoster,
-    );
-
-    if (bp.isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(flex: 5, child: charts),
-          const SizedBox(width: 24),
-          Expanded(flex: 2, child: aside),
-        ],
-      );
+    if (_showCharts) {
+      return NurseDashboardCharts(overview: data.base, timeRange: timeRange);
     }
+    return NurseDashboardWorklist(
+      admissions: admissions,
+      outpatientQueue: outpatientQueue,
+      useCards: useCards,
+      emptyMessage: _emptyMessage,
+      onOpenAdmission: openAdmission,
+    );
+  }
+
+  String get _emptyMessage {
+    if (_searchQueryActive) {
+      return 'No patients match the current search.';
+    }
+    if (data.isLineDashboard) {
+      return 'No assigned patients for this shift.';
+    }
+    return 'No patients to display.';
+  }
+
+  bool get _searchQueryActive => searchController.text.trim().isNotEmpty;
+
+  Widget _mainColumn(BuildContext context, {required bool useCards}) {
+    final canRoster = canManageShiftRoster(staff, bootstrap);
+    final canAssign =
+        canAssignInpatientPatients(staff, bootstrap) ||
+        canAssignOutpatientPatients(staff, bootstrap);
+    final showHospitalUnits =
+        canViewHospitalDashboard(staff, bootstrap) &&
+        data.unitRosterCounts.isNotEmpty;
+    final showShifts =
+        canViewUnitDashboard(staff, bootstrap) &&
+        data.shiftBreakdown.isNotEmpty;
+
+    final roleStrip = NurseDashboardRoleStrip(
+      unitRosterCounts: showHospitalUnits ? data.unitRosterCounts : const [],
+      shiftBreakdown: showShifts ? data.shiftBreakdown : const [],
+      onManageRoster: canRoster
+          ? () => context.router.push(const NursingRosterRoute())
+          : null,
+      onAssignments: canAssign
+          ? () => context.router.push(const NursingAssignmentsRoute())
+          : null,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        charts,
-        SizedBox(height: bp.isMobile ? 20 : 24),
-        aside,
+        if (loading) const LinearProgressIndicator(minHeight: 2),
+        NursesDashboardHeader(
+          compact: compact,
+          header: data.base.header,
+          unitLine: unitLine,
+        ),
+        const SizedBox(height: 10),
+        if (_showKpis) ...[
+          NurseDashboardKpiStrip(
+            items: NurseDashboardMetrics.kpiItemsFor(data),
+            useSnapStrip: useSnapKpis,
+          ),
+          const SizedBox(height: 10),
+        ],
+        NurseDashboardFilterBar(
+          timeRange: timeRange,
+          onTimeRangeChanged: onTimeRangeChanged,
+          compact: compact,
+          searchController: searchController,
+          showSearch: _showSearch,
+          windowLabel: windowLabel,
+        ),
+        if (!roleStrip.isEmpty) ...[const SizedBox(height: 10), roleStrip],
+        const SizedBox(height: 10),
+        Expanded(child: _mainPanel(context, useCards: useCards)),
       ],
     );
   }
 
-  Widget _staffRow(NurseStaffOnDuty staff, ColorScheme colorScheme) {
-    final toneColor = _statusToneColor(staff.statusTone, colorScheme);
-    final nameTrim = staff.name.trim();
-    final initial = nameTrim.isNotEmpty
-        ? nameTrim.substring(0, 1).toUpperCase()
-        : '?';
-
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-          child: Text(
-            initial,
-            style: TextStyle(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                staff.name,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              Text(
-                staff.role,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: toneColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            staff.status,
-            style: TextStyle(
-              fontSize: 10,
-              color: toneColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _lineCriticalAlerts(
-    BuildContext context,
-    List<NurseCriticalAlert> alerts,
-    ColorScheme colorScheme,
-  ) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colorScheme.errorContainer.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.error.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  @override
+  Widget build(BuildContext context) {
+    final useCards = compact;
+    if (showSideBySide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(Icons.warning_rounded, color: colorScheme.error, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Critical Alerts',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.error,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ..._alertTiles(context, alerts),
+          Expanded(flex: 9, child: _mainColumn(context, useCards: useCards)),
+          const SizedBox(width: 12),
+          Expanded(flex: 3, child: _sidebar(context, fillHeight: true)),
         ],
-      ),
-    );
-  }
-
-  List<Widget> _alertTiles(BuildContext context, List<NurseCriticalAlert> alerts) {
-    final widgets = <Widget>[];
-    for (var i = 0; i < alerts.length; i++) {
-      final a = alerts[i];
-      final accent = _alertAccent(a.severity);
-      widgets.add(
-        _buildAlertItem(
-          context,
-          a.location,
-          a.message,
-          a.relativeLabel ?? _formatAlertTime(a.occurredAt),
-          accent,
-        ),
-      );
-      if (i < alerts.length - 1) {
-        widgets.add(const Divider(height: 24));
-      }
-    }
-    return widgets;
-  }
-
-  String _formatAlertTime(DateTime t) {
-    // Fallback when API omits relativeLabel
-    return DateFormatter.shortDate(t);
-  }
-
-  IconData _trendArrowIcon({
-    required bool trendPositive,
-    String? trendDirection,
-  }) {
-    final d = trendDirection?.toLowerCase();
-    if (d == 'up') return Icons.arrow_upward;
-    if (d == 'down') return Icons.arrow_downward;
-    return trendPositive ? Icons.arrow_upward : Icons.arrow_downward;
-  }
-
-  Widget _buildMetricCard(
-    String title,
-    String value,
-    String trendLabel,
-    IconData icon,
-    Color color,
-    ColorScheme colorScheme, {
-    bool isProgress = false,
-    double progressValue = 0,
-    bool trendPositive = true,
-    String? trendDirection,
-    bool showTrendArrow = true,
-  }) {
-    final trendColor =
-        trendPositive ? DepartmentColors.pharmacy : DepartmentColors.emergency;
-
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              if (isProgress)
-                SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CircularProgressIndicator(
-                        value: progressValue,
-                        backgroundColor: colorScheme.outline.withValues(
-                          alpha: 0.1,
-                        ),
-                        color: color,
-                        strokeWidth: 4,
-                      ),
-                      Center(
-                        child: Text(
-                          '${(progressValue * 100).round()}%',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: trendColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      if (showTrendArrow)
-                        Icon(
-                          _trendArrowIcon(
-                            trendPositive: trendPositive,
-                            trendDirection: trendDirection,
-                          ),
-                          size: 12,
-                          color: trendColor,
-                        ),
-                      if (showTrendArrow) const SizedBox(width: 4),
-                      Text(
-                        trendLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: trendColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 0),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 13,
-              color: colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegendIndicator(ColorScheme colorScheme, Color color, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAlertItem(
-    BuildContext context,
-    String location,
-    String message,
-    String time,
-    Color color,
-  ) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          margin: const EdgeInsets.only(top: 4),
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    location,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    time,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                message,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPatientInfluxChart(
-    ColorScheme colorScheme,
-    NurseAdmissionsDischargesSeries series,
-  ) {
-    final points = series.points;
-    if (points.isEmpty) {
-      return Center(
-        child: Text(
-          'No admissions or discharge data for this period',
-          style: TextStyle(color: colorScheme.onSurfaceVariant),
-        ),
       );
     }
 
-    final maxY = _lineChartMaxY(points, series.meta);
-    final interval = _niceInterval(maxY);
-    final maxX = (points.length - 1).toDouble();
-
-    final admissionSpots = <FlSpot>[
-      for (var i = 0; i < points.length; i++)
-        FlSpot(i.toDouble(), points[i].admissions),
-    ];
-    final dischargeSpots = <FlSpot>[
-      for (var i = 0; i < points.length; i++)
-        FlSpot(i.toDouble(), points[i].discharges),
-    ];
-
-    return LineChart(
-      LineChartData(
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: colorScheme.outline.withValues(alpha: 0.1),
-            strokeWidth: 1,
-          ),
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-              interval: 1,
-              getTitlesWidget: (double value, TitleMeta meta) {
-                final i = value.round();
-                if (i < 0 || i >= points.length) {
-                  return const SizedBox.shrink();
-                }
-                final label = points[i].label;
-                return SideTitleWidget(
-                  meta: meta,
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                );
-              },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bounded = constraints.maxHeight.isFinite;
+        if (bounded) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: _mainColumn(context, useCards: useCards)),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 280,
+                child: SingleChildScrollView(
+                  child: _sidebar(context, fillHeight: false),
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            NursesDashboardHeader(
+              compact: compact,
+              header: data.base.header,
+              unitLine: unitLine,
             ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: interval,
-              reservedSize: 42,
-              getTitlesWidget: (value, meta) {
-                if (value == 0 && maxY > 0) {
-                  return const SizedBox.shrink();
-                }
-                if (value > maxY) return const SizedBox.shrink();
-                return Text(
-                  '${value.toInt()}',
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 11,
-                  ),
-                );
-              },
+            const SizedBox(height: 10),
+            if (_showKpis) ...[
+              NurseDashboardKpiStrip(
+                items: NurseDashboardMetrics.kpiItemsFor(data),
+                useSnapStrip: useSnapKpis,
+              ),
+              const SizedBox(height: 10),
+            ],
+            NurseDashboardFilterBar(
+              timeRange: timeRange,
+              onTimeRangeChanged: onTimeRangeChanged,
+              compact: compact,
+              searchController: searchController,
+              showSearch: _showSearch,
+              windowLabel: windowLabel,
             ),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        minX: 0,
-        maxX: maxX,
-        minY: 0,
-        maxY: maxY,
-        lineBarsData: [
-          LineChartBarData(
-            spots: admissionSpots,
-            isCurved: true,
-            color: colorScheme.primary,
-            barWidth: 4,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: colorScheme.primary.withValues(alpha: 0.1),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: compact ? 480 : 520,
+              child: _mainPanel(context, useCards: useCards),
             ),
-          ),
-          LineChartBarData(
-            spots: dischargeSpots,
-            isCurved: true,
-            color: DepartmentColors.billing,
-            barWidth: 3,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static const _barPalette = <Color>[
-    DepartmentColors.outpatientClinic,
-    DepartmentColors.frontDesk,
-    DepartmentColors.emergency,
-    DepartmentColors.billing,
-    DepartmentColors.laboratory,
-    DepartmentColors.radiology,
-    DepartmentColors.theatre,
-  ];
-
-  Widget _buildDepartmentBarChart(
-    ColorScheme colorScheme,
-    NurseDepartmentLoadBundle bundle,
-  ) {
-    final bars = bundle.bars;
-    final chartMax = bundle.chartMax > 0 ? bundle.chartMax : 100.0;
-
-    if (bars.isEmpty) {
-      return Center(
-        child: Text(
-          'No department load data',
-          style: TextStyle(color: colorScheme.onSurfaceVariant),
-        ),
-      );
-    }
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: chartMax,
-        barTouchData: BarTouchData(enabled: false),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (double value, TitleMeta meta) {
-                final i = value.toInt();
-                if (i < 0 || i >= bars.length) {
-                  return const SizedBox.shrink();
-                }
-                return SideTitleWidget(
-                  meta: meta,
-                  child: Text(
-                    bars[i].shortLabel,
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                );
-              },
-            ),
-          ),
-          leftTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        barGroups: [
-          for (var i = 0; i < bars.length; i++)
-            _makeBarGroup(
-              i,
-              bars[i].load.clamp(0, chartMax),
-              _barPalette[i % _barPalette.length],
-              chartMax,
-            ),
-        ],
-      ),
-    );
-  }
-
-  BarChartGroupData _makeBarGroup(
-    int x,
-    double y,
-    Color color,
-    double chartMax,
-  ) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y,
-          color: color,
-          width: 22,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: chartMax,
-            color: color.withValues(alpha: 0.1),
-          ),
-        ),
-      ],
+            const SizedBox(height: 10),
+            _sidebar(context, fillHeight: false),
+          ],
+        );
+      },
     );
   }
 }

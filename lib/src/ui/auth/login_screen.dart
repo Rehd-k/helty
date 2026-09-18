@@ -1,13 +1,19 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../app_router.gr.dart';
 import '../../app/product_definition.dart';
 import '../../app/product_environment.dart';
+import '../../core/responsive.dart';
 import '../../core/storage/saved_login_storage.dart';
+import '../../helper/app_timezone.dart';
+import '../../helper/theme.dart';
 import '../../models/saved_login.dart';
 import '../../models/super_admin_department_preview.dart';
 import '../../providers/auth_provider.dart';
@@ -19,14 +25,30 @@ import '../../services/window_chrome.dart';
 import '../../system_announcements/providers/system_announcement_providers.dart';
 import '../../system_announcements/services/system_announcement_service.dart';
 import '../../system_announcements/widgets/announcement_modal.dart';
+import '../../widgets/helty_surface.dart';
 
 /// Helty product mark (not the org logo from `ORG_LOGO`).
 const _kLogoAsset = 'assets/logo.png';
 
-/// Side-by-side brand / form when wide enough (desktop & large tablet).
-const _kLoginSplitBreakpoint = 900.0;
-
 const _kFormMaxWidth = 440.0;
+
+const _kAccentBlue = Color(0xFF2563EB);
+const _kAccentTeal = Color(0xFF0D9488);
+const _kAccentPurple = Color(0xFF7C3AED);
+const _kAccentPink = Color(0xFFDB2777);
+const _kAccentIndigo = Color(0xFF4F46E5);
+const _kAccentGreen = Color(0xFF16A34A);
+const _kAccentAmber = Color(0xFFEA580C);
+
+const _kAccentPalette = <Color>[
+  _kAccentBlue,
+  _kAccentTeal,
+  _kAccentPurple,
+  _kAccentPink,
+  _kAccentIndigo,
+  _kAccentGreen,
+  _kAccentAmber,
+];
 
 final _kEmailReg = RegExp(
   r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
@@ -69,7 +91,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _loadSavedLogins();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowAnnouncements());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeShowAnnouncements(),
+    );
   }
 
   Future<void> _maybeShowAnnouncements() async {
@@ -82,14 +106,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final activeIds = active.map((a) => a.id).toSet();
       await AnnouncementDismissalStorage.pruneStaleIds(activeIds);
 
-      final toShow = await AnnouncementDismissalStorage.filterForLoginModal(active);
+      final toShow = await AnnouncementDismissalStorage.filterForLoginModal(
+        active,
+      );
       if (!mounted || toShow.isEmpty) return;
 
       _announcementModalShown = true;
-      await AnnouncementModal.show(
-        context,
-        announcements: toShow,
-      );
+      await AnnouncementModal.show(context, announcements: toShow);
       await AnnouncementDismissalStorage.markModalSeenIds(
         toShow.map((a) => a.id).toSet(),
       );
@@ -176,7 +199,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               errorBuilder: (context, _, __) => Icon(
                 Icons.local_hospital_rounded,
                 size: math.min(maxWidth, maxHeight) * 0.42,
-                color: Theme.of(context).colorScheme.primary,
+                color: Colors.white,
               ),
             ),
           ),
@@ -211,8 +234,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final accountType = staff?.accountType?.name ?? '';
       final PageRouteInfo initialChild = staffIsSuperAdmin(staff)
           ? (ProductEnvironment.isModuleEnabled(AppModule.administration)
-              ? const SuperAdminHubRoute()
-              : const SuperAdminStaffListRoute())
+                ? const SuperAdminHubRoute()
+                : const SuperAdminStaffListRoute())
           : initialRouteForRole(staffRole, accountType);
       context.router.replaceAll([
         HomeRoute(children: [initialChild]),
@@ -226,7 +249,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final colors = theme.colorScheme;
     final auth = ref.watch(authProvider);
 
-    // Show error snackbar
     ref.listen(authProvider, (_, next) {
       if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -240,96 +262,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
-    Widget buildTitleBar(BuildContext context) {
-      return WindowTitleBarBox(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0F172A), Color(0xFF1E3A5F), Color(0xFF2563EB)],
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: MoveWindow(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        _brandLogo(
-                          maxWidth: 30,
-                          maxHeight: 30,
-                          borderRadius: BorderRadius.circular(10),
-                          padding: EdgeInsets.zero,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          ProductEnvironment.displayName,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Row(
-                  spacing: 8,
-                  children: [
-                    const SlidingNotificationDropdown(),
-                    const WindowButtons(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       body: Column(
         children: [
-          if (HeltyPlatform.isWindows) buildTitleBar(context),
+          if (HeltyPlatform.isWindows) _buildTitleBar(context),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final w = constraints.maxWidth;
-                final split = w >= _kLoginSplitBreakpoint;
-                final padH = w < 400
-                    ? 20.0
-                    : w < 600
-                    ? 24.0
-                    : 32.0;
-                final padV = w < 600 ? 20.0 : 28.0;
+                final bp = AppBreakpoints.fromWidth(constraints.maxWidth);
+                final form = _loginFormCard(
+                  theme: theme,
+                  colors: colors,
+                  auth: auth,
+                  compact: bp.isMobile,
+                  showHeroLogo: !bp.isDesktop,
+                );
 
-                if (split) {
+                if (bp.isDesktop) {
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(flex: 46, child: _brandingHero(theme, colors)),
+                      Expanded(flex: 5, child: _brandingHero(theme)),
                       Expanded(
-                        flex: 54,
+                        flex: 6,
                         child: ColoredBox(
                           color: colors.surface,
                           child: Center(
                             child: SingleChildScrollView(
                               padding: EdgeInsets.symmetric(
-                                horizontal: padH,
-                                vertical: padV,
+                                horizontal: bp.paddingH,
+                                vertical: bp.paddingV,
                               ),
-                              child: _loginFormCard(
-                                theme: theme,
-                                colors: colors,
-                                auth: auth,
-                                showHeroLogo: false,
-                              ),
+                              child: form,
                             ),
                           ),
                         ),
@@ -338,34 +302,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   );
                 }
 
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        colors.surface,
-                        colors.primary.withValues(alpha: 0.05),
-                        colors.tertiary.withValues(alpha: 0.07),
-                      ],
-                    ),
-                  ),
-                  child: SafeArea(
-                    child: Center(
-                      child: SingleChildScrollView(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: padH,
-                          vertical: padV,
-                        ),
-                        child: _loginFormCard(
-                          theme: theme,
-                          colors: colors,
-                          auth: auth,
-                          showHeroLogo: true,
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF0F172A),
+                            Color(0xFF312E81),
+                            Color(0xFF0F766E),
+                          ],
                         ),
                       ),
                     ),
-                  ),
+                    const _ColorBlobs(),
+                    SafeArea(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: bp.paddingH,
+                            vertical: bp.paddingV,
+                          ),
+                          child: Column(
+                            children: [
+                              if (bp.isTablet) ...[
+                                _compactHeroStrip(theme),
+                                const SizedBox(height: 12),
+                              ],
+                              form,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -375,49 +348,139 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _brandingHero(ThemeData theme, ColorScheme colors) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colors.primary, colors.tertiary],
-        ),
-      ),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _brandLogo(
-                maxWidth: 240,
-                maxHeight: 110,
-                padding: const EdgeInsets.all(12),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                'Hospital Management System',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: colors.onPrimary.withValues(alpha: 0.95),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Secure staff access to wards, clinical workflows, and operations.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colors.onPrimary.withValues(alpha: 0.78),
-                  height: 1.5,
-                ),
-              ),
+  Widget _buildTitleBar(BuildContext context) {
+    return WindowTitleBarBox(
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF0F172A),
+              Color(0xFF4F46E5),
+              Color(0xFF0D9488),
+              Color(0xFF7C3AED),
             ],
           ),
         ),
+        child: Row(
+          children: [
+            Expanded(
+              child: MoveWindow(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      _brandLogo(
+                        maxWidth: 30,
+                        maxHeight: 30,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        ProductEnvironment.displayName,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Row(
+                spacing: 8,
+                children: [SlidingNotificationDropdown(), WindowButtons()],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _brandingHero(ThemeData theme) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF134E4A)],
+            ),
+          ),
+        ),
+        const _ColorBlobs(),
+        Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(28, 28, 28, 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _brandLogo(
+                  maxWidth: 220,
+                  maxHeight: 96,
+                  padding: const EdgeInsets.all(10),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  ProductEnvironment.displayName,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Hospital Management System',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Secure staff access to wards, clinical workflows, and operations.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const _LoginClock(onDark: true),
+                const SizedBox(height: 16),
+                const _ModuleTiles(compact: false),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _compactHeroStrip(ThemeData theme) {
+    return Column(
+      children: [
+        Text(
+          ProductEnvironment.displayName,
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const _LoginClock(onDark: true),
+        const SizedBox(height: 12),
+        const _ModuleTiles(compact: true),
+      ],
     );
   }
 
@@ -425,27 +488,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ColorScheme colors, {
     required String label,
     String? hint,
-    Widget? prefixIcon,
+    required Widget prefixIcon,
     Widget? suffixIcon,
   }) {
-    final r = BorderRadius.circular(14);
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      prefixIcon: prefixIcon,
+      prefixIcon: Padding(padding: const EdgeInsets.all(8), child: prefixIcon),
+      prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.4),
-      border: OutlineInputBorder(borderRadius: r),
+      fillColor: colors.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: r,
-        borderSide: BorderSide(color: colors.outline.withValues(alpha: 0.22)),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: BorderSide(color: colors.outline.withValues(alpha: 0.28)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: r,
-        borderSide: BorderSide(color: colors.primary, width: 1.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        borderSide: const BorderSide(color: _kAccentIndigo, width: 1.6),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      labelStyle: const TextStyle(fontSize: 13),
     );
   }
 
@@ -453,152 +519,188 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     required ThemeData theme,
     required ColorScheme colors,
     required AuthState auth,
+    required bool compact,
     required bool showHeroLogo,
   }) {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: _kFormMaxWidth),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: colors.outline.withValues(alpha: 0.12)),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colors.surface,
-              colors.surfaceContainerHighest.withValues(alpha: 0.22),
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: showHeroLogo ? 24 : 24,
-            vertical: showHeroLogo ? 24 : 32,
-          ),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (showHeroLogo) ...[
-                  Center(
-                    child: _brandLogo(
-                      maxWidth: 240,
-                      maxHeight: 100,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 10,
-                      ),
+      child: HeltySurfaceCard(
+        padding: EdgeInsets.fromLTRB(16, compact ? 16 : 20, 16, 18),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (showHeroLogo) ...[
+                Center(
+                  child: _brandLogo(
+                    maxWidth: 180,
+                    maxHeight: 80,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                Text(
-                  'Welcome back',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sign in to your staff account',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colors.onSurfaceVariant,
-                    height: 1.35,
-                  ),
-                ),
-                if (_savedLogins.isNotEmpty) ...[
-                  SizedBox(height: showHeroLogo ? 22 : 24),
-                  _recentStaffSection(theme, colors),
-                ],
-                SizedBox(height: showHeroLogo ? 28 : 32),
-
-                TextFormField(
-                  controller: _emailOrPhoneCtrl,
-                  onChanged: (_) {
-                    if (_selectedLoginKey != null) {
-                      setState(() => _selectedLoginKey = null);
-                    }
-                  },
-                  keyboardType: TextInputType.text,
-                  autocorrect: false,
-                  textInputAction: TextInputAction.next,
-                  decoration: _fieldDecoration(
-                    colors,
-                    label: 'Email or phone',
-                    hint: 'you@imsh.org or 080…',
-                    prefixIcon: const Icon(Icons.person_outline),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Email or phone is required';
-                    }
-                    if (!_isValidEmailOrPhone(v)) {
-                      return 'Enter a valid email or phone number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _passwordCtrl,
-                  focusNode: _passwordFocusNode,
-                  obscureText: _obscurePassword,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _submit(),
-                  decoration: _fieldDecoration(
-                    colors,
-                    label: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      tooltip: _obscurePassword ? 'Show password' : 'Hide',
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Password is required' : null,
-                ),
-                const SizedBox(height: 10),
-
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () =>
-                        context.router.push(const ForgotPasswordRoute()),
-                    child: const Text('Forgot password?'),
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                FilledButton(
-                  onPressed: auth.isLoading ? null : _submit,
-                  child: auth.isLoading
-                      ? SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: colors.onPrimary,
-                          ),
-                        )
-                      : Text(
-                          'Sign in',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colors.onPrimary,
+              ],
+              Row(
+                children: [
+                  const HeltySolidIcon(
+                    icon: Icons.login_rounded,
+                    color: _kAccentPurple,
+                    size: 34,
+                    iconSize: 18,
+                    radius: AppTheme.radiusMd,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HeltyEllipsisText(
+                          text: 'Welcome back',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: colors.onSurface,
                           ),
                         ),
-                ),
+                        HeltyEllipsisText(
+                          text: 'Sign in to your staff account',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (_savedLogins.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                _recentStaffSection(theme, colors),
               ],
-            ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _emailOrPhoneCtrl,
+                onChanged: (_) {
+                  if (_selectedLoginKey != null) {
+                    setState(() => _selectedLoginKey = null);
+                  }
+                },
+                keyboardType: TextInputType.text,
+                autocorrect: false,
+                textInputAction: TextInputAction.next,
+                decoration: _fieldDecoration(
+                  colors,
+                  label: 'Email or phone',
+                  hint: 'you@imsh.org or 080…',
+                  prefixIcon: const HeltySolidIcon(
+                    icon: Icons.person_outline,
+                    color: _kAccentBlue,
+                    size: 28,
+                    iconSize: 16,
+                    radius: 8,
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Email or phone is required';
+                  }
+                  if (!_isValidEmailOrPhone(v)) {
+                    return 'Enter a valid email or phone number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _passwordCtrl,
+                focusNode: _passwordFocusNode,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
+                decoration: _fieldDecoration(
+                  colors,
+                  label: 'Password',
+                  prefixIcon: const HeltySolidIcon(
+                    icon: Icons.lock_outline,
+                    color: _kAccentTeal,
+                    size: 28,
+                    iconSize: 16,
+                    radius: 8,
+                  ),
+                  suffixIcon: IconButton(
+                    tooltip: _obscurePassword ? 'Show password' : 'Hide',
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: _kAccentIndigo,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Password is required' : null,
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () =>
+                      context.router.push(const ForgotPasswordRoute()),
+                  icon: const HeltySolidIcon(
+                    icon: Icons.help_outline,
+                    color: _kAccentAmber,
+                    size: 20,
+                    iconSize: 12,
+                    radius: 6,
+                  ),
+                  label: const Text('Forgot password?'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: auth.isLoading ? null : _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kAccentIndigo,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: const StadiumBorder(),
+                ),
+                child: auth.isLoading
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const HeltySolidIcon(
+                            icon: Icons.arrow_forward_rounded,
+                            color: _kAccentPink,
+                            size: 22,
+                            iconSize: 14,
+                            radius: 6,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Sign in',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ],
           ),
         ),
       ),
@@ -609,24 +711,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Recent staff',
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: colors.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            const HeltySolidIcon(
+              icon: Icons.groups_outlined,
+              color: _kAccentPink,
+              size: 22,
+              iconSize: 12,
+              radius: 6,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Recent staff',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final login in _savedLogins)
+            for (var i = 0; i < _savedLogins.length; i++)
               _SavedLoginChip(
-                login: login,
-                selected: _selectedLoginKey == login.normalizedKey,
-                onTap: () => _selectSavedLogin(login),
-                onRemove: () => _removeSavedLogin(login),
+                login: _savedLogins[i],
+                accent: _kAccentPalette[i % _kAccentPalette.length],
+                selected: _selectedLoginKey == _savedLogins[i].normalizedKey,
+                onTap: () => _selectSavedLogin(_savedLogins[i]),
+                onRemove: () => _removeSavedLogin(_savedLogins[i]),
               ),
           ],
         ),
@@ -635,15 +749,402 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
+class _MovingBlob {
+  _MovingBlob({
+    required this.x,
+    required this.y,
+    required this.vx,
+    required this.vy,
+    required this.radius,
+    required this.color,
+  });
+
+  double x;
+  double y;
+  double vx;
+  double vy;
+  final double radius;
+  final Color color;
+}
+
+class _ColorBlobs extends StatefulWidget {
+  const _ColorBlobs();
+
+  @override
+  State<_ColorBlobs> createState() => _ColorBlobsState();
+}
+
+class _ColorBlobsState extends State<_ColorBlobs>
+    with SingleTickerProviderStateMixin {
+  static const _specs = <(Color, double)>[
+    (_kAccentPurple, 110),
+    (_kAccentPink, 90),
+    (_kAccentTeal, 100),
+    (_kAccentAmber, 80),
+    (_kAccentBlue, 70),
+  ];
+
+  static const _minSpeed = 42.0;
+  static const _maxSpeed = 130.0;
+
+  late final Ticker _ticker;
+  final math.Random _rng = math.Random(7);
+  final List<_MovingBlob> _blobs = [];
+  Size _size = Size.zero;
+  Duration? _lastElapsed;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker(_onTick)..start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _spawn(Size size) {
+    _blobs
+      ..clear()
+      ..addAll([
+        for (final spec in _specs)
+          _MovingBlob(
+            x:
+                spec.$2 +
+                _rng.nextDouble() * math.max(1, size.width - spec.$2 * 2),
+            y:
+                spec.$2 +
+                _rng.nextDouble() * math.max(1, size.height - spec.$2 * 2),
+            vx: (_rng.nextBool() ? 1 : -1) * (48 + _rng.nextDouble() * 56),
+            vy: (_rng.nextBool() ? 1 : -1) * (48 + _rng.nextDouble() * 56),
+            radius: spec.$2,
+            color: spec.$1,
+          ),
+      ]);
+  }
+
+  void _ensureBlobs(Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    if (_blobs.isEmpty) {
+      _spawn(size);
+      _size = size;
+      setState(() {});
+      return;
+    }
+    if (size == _size) return;
+    for (final blob in _blobs) {
+      blob.x = blob.x.clamp(
+        blob.radius,
+        math.max(blob.radius, size.width - blob.radius),
+      );
+      blob.y = blob.y.clamp(
+        blob.radius,
+        math.max(blob.radius, size.height - blob.radius),
+      );
+    }
+    _size = size;
+  }
+
+  void _bounceWalls(_MovingBlob blob) {
+    final maxX = math.max(blob.radius, _size.width - blob.radius);
+    final maxY = math.max(blob.radius, _size.height - blob.radius);
+    if (blob.x < blob.radius) {
+      blob.x = blob.radius;
+      blob.vx = blob.vx.abs();
+    } else if (blob.x > maxX) {
+      blob.x = maxX;
+      blob.vx = -blob.vx.abs();
+    }
+    if (blob.y < blob.radius) {
+      blob.y = blob.radius;
+      blob.vy = blob.vy.abs();
+    } else if (blob.y > maxY) {
+      blob.y = maxY;
+      blob.vy = -blob.vy.abs();
+    }
+  }
+
+  void _collide(_MovingBlob a, _MovingBlob b) {
+    final dx = b.x - a.x;
+    final dy = b.y - a.y;
+    final distSq = dx * dx + dy * dy;
+    final minDist = a.radius + b.radius;
+    if (distSq >= minDist * minDist) return;
+
+    final dist = distSq <= 0.0001 ? 0.0001 : math.sqrt(distSq);
+    final nx = dx / dist;
+    final ny = dy / dist;
+
+    final overlap = minDist - dist;
+    final massA = a.radius * a.radius;
+    final massB = b.radius * b.radius;
+    final massSum = massA + massB;
+    a.x -= nx * overlap * (massB / massSum);
+    a.y -= ny * overlap * (massB / massSum);
+    b.x += nx * overlap * (massA / massSum);
+    b.y += ny * overlap * (massA / massSum);
+
+    final relVx = b.vx - a.vx;
+    final relVy = b.vy - a.vy;
+    final velAlongNormal = relVx * nx + relVy * ny;
+    if (velAlongNormal > 0) return;
+
+    const restitution = 1.0;
+    final impulse = -(1 + restitution) * velAlongNormal / massSum;
+    a.vx -= impulse * massB * nx;
+    a.vy -= impulse * massB * ny;
+    b.vx += impulse * massA * nx;
+    b.vy += impulse * massA * ny;
+  }
+
+  void _clampSpeed(_MovingBlob blob) {
+    final speed = math.sqrt(blob.vx * blob.vx + blob.vy * blob.vy);
+    if (speed < 1) {
+      blob.vx = _minSpeed * (_rng.nextBool() ? 1 : -1);
+      blob.vy = _minSpeed * (_rng.nextBool() ? 1 : -1);
+      return;
+    }
+    if (speed < _minSpeed) {
+      final scale = _minSpeed / speed;
+      blob.vx *= scale;
+      blob.vy *= scale;
+    } else if (speed > _maxSpeed) {
+      final scale = _maxSpeed / speed;
+      blob.vx *= scale;
+      blob.vy *= scale;
+    }
+  }
+
+  void _onTick(Duration elapsed) {
+    if (!mounted || _size == Size.zero || _blobs.isEmpty) {
+      _lastElapsed = elapsed;
+      return;
+    }
+
+    final last = _lastElapsed ?? elapsed;
+    _lastElapsed = elapsed;
+    var dt = (elapsed - last).inMicroseconds / 1e6;
+    if (dt <= 0) return;
+    if (dt > 0.05) dt = 0.05;
+
+    for (final blob in _blobs) {
+      blob.x += blob.vx * dt;
+      blob.y += blob.vy * dt;
+      _bounceWalls(blob);
+    }
+
+    for (var i = 0; i < _blobs.length; i++) {
+      for (var j = i + 1; j < _blobs.length; j++) {
+        _collide(_blobs[i], _blobs[j]);
+      }
+    }
+
+    for (final blob in _blobs) {
+      _bounceWalls(blob);
+      _clampSpeed(blob);
+    }
+
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+          if (size.width > 0 && size.height > 0 && size != _size) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              _ensureBlobs(size);
+            });
+          }
+          return Stack(
+            children: [
+              for (final blob in _blobs)
+                Positioned(
+                  left: blob.x - blob.radius,
+                  top: blob.y - blob.radius,
+                  width: blob.radius * 2,
+                  height: blob.radius * 2,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: blob.color.withValues(alpha: 0.28),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ModuleTiles extends StatelessWidget {
+  const _ModuleTiles({required this.compact});
+
+  final bool compact;
+
+  static const _tiles = <(IconData, String, Color)>[
+    (Icons.hotel_outlined, 'Wards', _kAccentPurple),
+    (Icons.medical_services_outlined, 'Clinical', _kAccentTeal),
+    (Icons.medication_outlined, 'Pharmacy', _kAccentAmber),
+    (Icons.biotech_outlined, 'Laboratory', _kAccentIndigo),
+    (Icons.payments_outlined, 'Billing', _kAccentPink),
+    (Icons.dashboard_outlined, 'Operations', _kAccentGreen),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tiles = compact ? _tiles.take(4).toList() : _tiles;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
+      children: [
+        for (final tile in tiles)
+          Container(
+            width: compact ? 150 : 168,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: Row(
+              children: [
+                HeltySolidIcon(
+                  icon: tile.$1,
+                  color: tile.$3,
+                  size: 26,
+                  iconSize: 14,
+                  radius: 7,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    tile.$2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _LoginClock extends StatefulWidget {
+  const _LoginClock({required this.onDark});
+
+  final bool onDark;
+
+  @override
+  State<_LoginClock> createState() => _LoginClockState();
+}
+
+class _LoginClockState extends State<_LoginClock> {
+  late DateTime _now;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = AppTimezone.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _now = AppTimezone.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final time = DateFormat('hh:mm a').format(_now);
+    final date = DateFormat('EEE, MMM d, yyyy').format(_now);
+    final onDark = widget.onDark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: onDark
+            ? Colors.white.withValues(alpha: 0.12)
+            : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: onDark
+              ? Colors.white.withValues(alpha: 0.22)
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: _kAccentGreen,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                time,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: onDark ? Colors.white : null,
+                ),
+              ),
+              Text(
+                date,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: onDark
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SavedLoginChip extends StatelessWidget {
   const _SavedLoginChip({
     required this.login,
+    required this.accent,
     required this.selected,
     required this.onTap,
     required this.onRemove,
   });
 
   final SavedLogin login;
+  final Color accent;
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback onRemove;
@@ -664,36 +1165,39 @@ class _SavedLoginChip extends StatelessWidget {
       button: true,
       child: Material(
         color: selected
-            ? colors.primaryContainer.withValues(alpha: 0.55)
+            ? accent.withValues(alpha: 0.14)
             : colors.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 260),
             padding: const EdgeInsets.fromLTRB(8, 6, 2, 6),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               border: Border.all(
                 color: selected
-                    ? colors.primary.withValues(alpha: 0.45)
+                    ? accent.withValues(alpha: 0.55)
                     : colors.outline.withValues(alpha: 0.18),
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: selected
-                      ? colors.primary.withValues(alpha: 0.18)
-                      : colors.primary.withValues(alpha: 0.12),
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Text(
                     login.initials,
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: colors.primary,
-                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -703,19 +1207,15 @@ class _SavedLoginChip extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        login.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      HeltyEllipsisText(
+                        text: login.displayName,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       if (role.isNotEmpty)
-                        Text(
-                          role,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        HeltyEllipsisText(
+                          text: role,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colors.onSurfaceVariant,
                           ),
