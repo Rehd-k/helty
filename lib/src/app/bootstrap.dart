@@ -20,7 +20,7 @@ import 'org_config.dart';
 import 'product_definition.dart';
 import 'product_environment.dart';
 
-/// Shared app startup for hospital, pharmacy, and diagnostics entry points.
+/// Shared app startup for hospital, pharmacy, diagnostics, and lab-pharmacy entry points.
 Future<void> bootstrapHeltyApp({AppProduct? product}) async {
   WidgetsFlutterBinding.ensureInitialized();
 

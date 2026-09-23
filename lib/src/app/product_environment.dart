@@ -8,7 +8,8 @@ export 'api_candidates.dart';
 
 /// Compile-time and entry-point product / API configuration.
 ///
-/// Prefer dedicated entry points ([main_pharmacy.dart], [main_diagnostics.dart])
+/// Prefer dedicated entry points ([main_pharmacy.dart], [main_diagnostics.dart],
+/// [main_lab_pharmacy.dart])
 /// which call [bind] so the product is selected without relying only on
 /// `--dart-define=APP_PRODUCT=...`. Always pass `--dart-define=API_BASE_URL=...`
 /// for non-hospital release builds.

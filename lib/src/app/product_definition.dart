@@ -3,6 +3,7 @@ enum AppProduct {
   hospital,
   pharmacy,
   diagnostics,
+  labPharmacy,
 }
 
 /// Capability modules that products may enable.
@@ -89,11 +90,25 @@ const kDiagnosticsProduct = ProductDefinition(
   },
 );
 
+/// Laboratory, pharmacy, and HMO — without radiology or hospital clinical ops.
+const kLabPharmacyProduct = ProductDefinition(
+  product: AppProduct.labPharmacy,
+  displayName: 'Helty Lab & Pharmacy',
+  enabledModules: {
+    AppModule.registration,
+    AppModule.billing,
+    AppModule.pharmacy,
+    AppModule.laboratory,
+    AppModule.hmo,
+  },
+);
+
 ProductDefinition productDefinitionFor(AppProduct product) {
   return switch (product) {
     AppProduct.hospital => kHospitalProduct,
     AppProduct.pharmacy => kPharmacyProduct,
     AppProduct.diagnostics => kDiagnosticsProduct,
+    AppProduct.labPharmacy => kLabPharmacyProduct,
   };
 }
 
@@ -104,6 +119,10 @@ AppProduct parseAppProduct(String raw) {
     case 'diagnostics':
     case 'diagnostic':
       return AppProduct.diagnostics;
+    case 'lab_pharmacy':
+    case 'lab-pharmacy':
+    case 'labpharmacy':
+      return AppProduct.labPharmacy;
     case 'hospital':
     case '':
       return AppProduct.hospital;

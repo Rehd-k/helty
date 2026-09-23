@@ -14,7 +14,7 @@ Match **Walk-in Queue** (`lib/src/doctor/walk_in/`) for all new or redesigned sc
 
 ## Page chrome
 
-- Compact header: solid title icon + title/subtitle + optional live clock. No oversized CTAs crowding the title
+- Compact header: solid title icon + title/subtitle. No oversized CTAs crowding the title
 - KPI row: small `HeltySurfaceCard`s, solid icon tiles, label / large value / caption. Dense padding (`8–10`)
 - Filters on **one row**: search + primary dropdowns. Extra controls (dates, advanced) go behind a **filter icon** (`HeltySolidIcon` + menu/dialog), not a second fat toolbar
 - Utility rail (Quick Actions / lists / notes): **full height** beside main content from `≥1100`. Stack or a compact sheet below that. Cards inside the rail stretch to fill leftover height

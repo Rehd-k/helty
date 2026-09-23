@@ -590,15 +590,6 @@ List<AutoRoute> hospitalOnlyRoutes({bool initialCmd = true}) => [
     guards: const [ProductModuleGuard()],
   ),
 
-  // HMO
-  AutoRoute(page: HmoListRoute.page, guards: const [ProductModuleGuard()]),
-  AutoRoute(page: HmoDetailRoute.page, guards: const [ProductModuleGuard()]),
-  AutoRoute(page: HmoFormRoute.page, guards: const [ProductModuleGuard()]),
-  AutoRoute(
-    page: HmoServicePricingRoute.page,
-    guards: const [ProductModuleGuard()],
-  ),
-
   // ICT
   AutoRoute(page: DashboardRoute.page, guards: const [ProductModuleGuard()]),
 

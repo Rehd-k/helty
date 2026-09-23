@@ -37,6 +37,7 @@ void main() {
       expect(names, contains('CMDDashboardRoute'));
       expect(names, contains('FrontDeskDashboardRoute'));
       expect(names, contains('BillingDashboardRoute'));
+      expect(names, contains('HmoListRoute'));
       expect(names, contains('SuperAdminStaffListRoute'));
       expect(names, contains('SuperAdminStaffDetailRoute'));
     });
@@ -74,6 +75,23 @@ void main() {
       expect(names, isNot(contains('CMDDashboardRoute')));
       expect(names, contains('SuperAdminStaffListRoute'));
       expect(names, contains('SuperAdminStaffDetailRoute'));
+      expect(names, isNot(contains('HmoListRoute')));
+    });
+
+    test('lab and pharmacy registers lab, pharmacy, and hmo', () {
+      final names =
+          ProductRoutes.registeredHomeRouteNames(AppProduct.labPharmacy);
+      expect(names, contains('FrontDeskDashboardRoute'));
+      expect(names, contains('BillingDashboardRoute'));
+      expect(names, contains('PharmacyDashboardRoute'));
+      expect(names, contains('LabDashboardRoute'));
+      expect(names, contains('HmoListRoute'));
+      expect(names, contains('HmoServicePricingRoute'));
+      expect(names, contains('ReceivablesHmoRoute'));
+      expect(names, isNot(contains('RadiologyDashboardRoute')));
+      expect(names, isNot(contains('DoctorDashboardRoute')));
+      expect(names, isNot(contains('NursesDashboardRoute')));
+      expect(names, isNot(contains('CMDDashboardRoute')));
     });
 
     test('exactly one initial Home child per product', () {
@@ -141,6 +159,41 @@ void main() {
           'SuperAdminStaffListRoute',
           AppProduct.diagnostics,
         ),
+        isTrue,
+      );
+    });
+
+    test('lab and pharmacy blocks hospital-only deep links', () {
+      expect(
+        ProductRoutes.isRouteAllowed(
+          'DoctorDashboardRoute',
+          AppProduct.labPharmacy,
+        ),
+        isFalse,
+      );
+      expect(
+        ProductRoutes.isRouteAllowed(
+          'RadiologyDashboardRoute',
+          AppProduct.labPharmacy,
+        ),
+        isFalse,
+      );
+      expect(
+        ProductRoutes.isRouteAllowed(
+          'LabDashboardRoute',
+          AppProduct.labPharmacy,
+        ),
+        isTrue,
+      );
+      expect(
+        ProductRoutes.isRouteAllowed(
+          'PharmacyDashboardRoute',
+          AppProduct.labPharmacy,
+        ),
+        isTrue,
+      );
+      expect(
+        ProductRoutes.isRouteAllowed('HmoListRoute', AppProduct.labPharmacy),
         isTrue,
       );
     });

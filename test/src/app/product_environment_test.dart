@@ -22,6 +22,12 @@ void main() {
       expect(parseAppProduct('diagnostics'), AppProduct.diagnostics);
       expect(parseAppProduct('diagnostic'), AppProduct.diagnostics);
     });
+
+    test('parses lab and pharmacy', () {
+      expect(parseAppProduct('lab_pharmacy'), AppProduct.labPharmacy);
+      expect(parseAppProduct('lab-pharmacy'), AppProduct.labPharmacy);
+      expect(parseAppProduct('labpharmacy'), AppProduct.labPharmacy);
+    });
   });
 
   group('product definitions', () {
@@ -71,6 +77,23 @@ void main() {
         },
       );
       expect(ProductEnvironment.isModuleEnabled(AppModule.pharmacy), isFalse);
+    });
+
+    test('lab and pharmacy enables lab, pharmacy, and hmo', () {
+      ProductEnvironment.bind(AppProduct.labPharmacy);
+      expect(ProductEnvironment.displayName, 'Helty Lab & Pharmacy');
+      expect(
+        ProductEnvironment.enabledModules,
+        {
+          AppModule.registration,
+          AppModule.billing,
+          AppModule.pharmacy,
+          AppModule.laboratory,
+          AppModule.hmo,
+        },
+      );
+      expect(ProductEnvironment.isModuleEnabled(AppModule.radiology), isFalse);
+      expect(ProductEnvironment.isModuleEnabled(AppModule.physician), isFalse);
     });
   });
 
@@ -241,6 +264,42 @@ void main() {
           'front_desk',
           'billing',
           'pharmacy',
+          'super_admin',
+        },
+      );
+    });
+
+    test('lab and pharmacy allows lab, pharmacy, and hmo account types', () {
+      ProductEnvironment.bind(AppProduct.labPharmacy);
+      expect(
+        ProductModuleAccess.isAccountTypeAllowedForProduct('laboratory'),
+        isTrue,
+      );
+      expect(
+        ProductModuleAccess.isAccountTypeAllowedForProduct('pharmacy'),
+        isTrue,
+      );
+      expect(
+        ProductModuleAccess.isAccountTypeAllowedForProduct('hmo'),
+        isTrue,
+      );
+      expect(
+        ProductModuleAccess.isAccountTypeAllowedForProduct('radiology'),
+        isFalse,
+      );
+      expect(
+        ProductModuleAccess.isAccountTypeAllowedForProduct('physician'),
+        isFalse,
+      );
+      final types = ProductModuleAccess.allowedDepartmentTypes();
+      expect(
+        types.map((t) => t.name).toSet(),
+        {
+          'front_desk',
+          'billing',
+          'pharmacy',
+          'laboratory',
+          'hmo',
           'super_admin',
         },
       );

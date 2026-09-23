@@ -54,7 +54,7 @@ class _DoctorWalkInQueueScreenState
   ConsultingRoomModel? _selectedRoom;
   String? _selectedDepartmentId;
   String _statusValue = 'all';
-  bool _sortLongestFirst = true;
+  final bool _sortLongestFirst = true;
   bool _loading = false;
   bool _reloadQueued = false;
   bool _queuedReset = false;
