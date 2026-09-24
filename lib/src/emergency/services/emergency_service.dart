@@ -19,12 +19,12 @@ class EmergencyService {
     AdmissionService? admissionService,
     PatientService? patientService,
     Dio? dio,
-  })  : _encounterService = encounterService ?? EncounterService(),
-        _clinicalSpecialtyService =
-            clinicalSpecialtyService ?? ClinicalSpecialtyService(),
-        _admissionService = admissionService ?? AdmissionService(),
-        _patientService = patientService ?? PatientService(),
-        _dio = dio ?? ApiService().dio;
+  }) : _encounterService = encounterService ?? EncounterService(),
+       _clinicalSpecialtyService =
+           clinicalSpecialtyService ?? ClinicalSpecialtyService(),
+       _admissionService = admissionService ?? AdmissionService(),
+       _patientService = patientService ?? PatientService(),
+       _dio = dio ?? ApiService().dio;
 
   final EncounterService _encounterService;
   final ClinicalSpecialtyService _clinicalSpecialtyService;
@@ -42,15 +42,12 @@ class EmergencyService {
 
   /// Enables EMERGENCY_MEDICINE specialty modules on an encounter.
   Future<void> enableEmergencyModules(String encounterId) async {
-    await _clinicalSpecialtyService.syncModules(
-      encounterId,
-      [
-        const EncounterSpecialtyModuleModel(
-          specialty: _emSpecialty,
-          enabledSectionKeys: _emSections,
-        ),
-      ],
-    );
+    await _clinicalSpecialtyService.syncModules(encounterId, [
+      const EncounterSpecialtyModuleModel(
+        specialty: _emSpecialty,
+        enabledSectionKeys: _emSections,
+      ),
+    ]);
   }
 
   /// Register ED visit — `POST /emergency/visits` or interim `POST /encounters`.
@@ -91,10 +88,7 @@ class EmergencyService {
         throw StateError('Encounter missing after ED registration');
       }
       await enableEmergencyModules(enc.id);
-      return EmergencyRegisterResult(
-        emergencyVisit: visit,
-        encounter: enc,
-      );
+      return EmergencyRegisterResult(emergencyVisit: visit, encounter: enc);
     } on DioException catch (e) {
       if (!_isProposedUnavailable(e)) rethrow;
     }
@@ -147,7 +141,7 @@ class EmergencyService {
         'skip': skip,
         'take': take,
         if (status != null && status.isNotEmpty) 'status': status,
-        if (esiLevel != null) 'esiLevel': esiLevel,
+        'esiLevel': ?esiLevel,
         if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
         if (toDate != null) 'toDate': toDate.toIso8601String(),
       };
@@ -161,9 +155,7 @@ class EmergencyService {
         final visits = list
             .whereType<Map>()
             .map(
-              (e) => EmergencyVisitModel.fromJson(
-                Map<String, dynamic>.from(e),
-              ),
+              (e) => EmergencyVisitModel.fromJson(Map<String, dynamic>.from(e)),
             )
             .toList();
         return EmergencyVisitListResult(
@@ -291,13 +283,13 @@ class EmergencyService {
     try {
       final body = <String, dynamic>{
         if (workflowStatus != null) 'workflowStatus': workflowStatus.apiValue,
-        if (esiLevel != null) 'esiLevel': esiLevel,
+        'esiLevel': ?esiLevel,
         if (triageCompletedAt != null)
           'triageCompletedAt': triageCompletedAt.toIso8601String(),
         if (assignedDoctorId != null && assignedDoctorId.isNotEmpty)
           'assignedDoctorId': assignedDoctorId,
       };
-      if (body.isEmpty) return getVisit(visitId);
+      if (body.isEmpty) return await getVisit(visitId);
 
       final response = await _dio.patch<Map<String, dynamic>>(
         '/emergency/visits/$visitId',
@@ -335,16 +327,12 @@ class EmergencyService {
       if (!_isProposedUnavailable(e)) rethrow;
     }
 
-    await _clinicalSpecialtyService.upsertSection(
-      encounterId,
-      _emSpecialty,
-      'em.disposition',
-      {
-        'disposition': payload.disposition.apiValue,
-        if (payload.followUpInstructions != null)
-          'followUp': payload.followUpInstructions,
-      },
-    );
+    await _clinicalSpecialtyService
+        .upsertSection(encounterId, _emSpecialty, 'em.disposition', {
+          'disposition': payload.disposition.apiValue,
+          if (payload.followUpInstructions != null)
+            'followUp': payload.followUpInstructions,
+        });
 
     if (payload.disposition == EdDisposition.admitWard ||
         payload.disposition == EdDisposition.admitIcu) {

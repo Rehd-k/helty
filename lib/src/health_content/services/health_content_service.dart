@@ -33,20 +33,20 @@ class HealthContentService {
       queryParameters: {
         'skip': skip,
         'take': take,
-        if (isPublished != null) 'isPublished': isPublished,
+        'isPublished': ?isPublished,
       },
     );
     return _asList(resp.data).map(HealthCampaign.fromJson).toList();
   }
 
-  Future<HealthCampaign> createCampaign(HealthContentWritePayload payload) async {
+  Future<HealthCampaign> createCampaign(
+    HealthContentWritePayload payload,
+  ) async {
     final resp = await _dio.post(
       '/health-content/campaigns',
       data: payload.toJson(),
     );
-    return HealthCampaign.fromJson(
-      Map<String, dynamic>.from(resp.data as Map),
-    );
+    return HealthCampaign.fromJson(Map<String, dynamic>.from(resp.data as Map));
   }
 
   Future<HealthCampaign> updateCampaign(
@@ -57,9 +57,7 @@ class HealthContentService {
       '/health-content/campaigns/$id',
       data: payload.toJson(),
     );
-    return HealthCampaign.fromJson(
-      Map<String, dynamic>.from(resp.data as Map),
-    );
+    return HealthCampaign.fromJson(Map<String, dynamic>.from(resp.data as Map));
   }
 
   Future<void> deleteCampaign(String id) async {
@@ -76,13 +74,15 @@ class HealthContentService {
       queryParameters: {
         'skip': skip,
         'take': take,
-        if (isPublished != null) 'isPublished': isPublished,
+        'isPublished': ?isPublished,
       },
     );
     return _asList(resp.data).map(HealthNewsArticle.fromJson).toList();
   }
 
-  Future<HealthNewsArticle> createNews(HealthContentWritePayload payload) async {
+  Future<HealthNewsArticle> createNews(
+    HealthContentWritePayload payload,
+  ) async {
     final resp = await _dio.post(
       '/health-content/news',
       data: payload.toJson(),

@@ -139,7 +139,7 @@ class _AnnouncementManagementScreenState
           }
           return ListView.separated(
             itemCount: _items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final item = _items[i];
               final icon = announcementIconForKey(item.iconKey);

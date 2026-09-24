@@ -23,9 +23,7 @@ class MonitoringChartService {
       '/admissions/$admissionId/monitoring-charts',
     );
     return _listData(response.data)
-        .map(
-          (e) => MonitoringChartModel.fromJson(e as Map<String, dynamic>),
-        )
+        .map((e) => MonitoringChartModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -59,10 +57,7 @@ class MonitoringChartService {
     Map<String, dynamic>? value,
     String? chartType,
   }) async {
-    final body = <String, dynamic>{
-      if (value != null) 'value': value,
-      if (chartType != null) 'chartType': chartType,
-    };
+    final body = <String, dynamic>{'value': ?value, 'chartType': ?chartType};
     final response = await _dio.patch<Map<String, dynamic>>(
       '/admissions/$admissionId/monitoring-charts/$chartId',
       data: body,

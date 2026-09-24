@@ -636,62 +636,95 @@ class _ServiceForm extends StatelessWidget {
   final VoidCallback onCancel;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      SetupFormHeader(
-        icon: Icons.medical_services,
-        title: 'Add New Service',
-        subtitle: '_',
-      ),
-      const SizedBox(height: 12),
-      SetupTextField(label: 'Service Code', controller: codeCtrl),
-      const SizedBox(height: 24),
-      SetupTextField(label: 'Service Name', controller: nameCtrl),
-      const SizedBox(height: 16),
-      SetupTextField(label: 'Description', controller: descCtrl, maxLines: 2),
-      const SizedBox(height: 16),
-      SetupTextField(label: 'Cost (₦)', controller: costCtrl, isNumber: true),
-      const SizedBox(height: 16),
-      SetupDropdown(
-        label: 'Category',
-        value: selectedCatId,
-        items: categories.map((c) => c.id).toList(),
-        itemLabels: categories.map((c) => c.name).toList(),
-        onChanged: onCatChanged,
-      ),
-      const SizedBox(height: 16),
-      SetupDropdown(
-        label: 'Department',
-        value: selectedDeptId,
-        items: departments.map((d) => d.id).toList(),
-        itemLabels: departments.map((d) => d.name).toList(),
-        onChanged: onDeptChanged,
-      ),
-      const Spacer(),
-      if (isEditing) ...[
-        OutlinedButton(onPressed: onCancel, child: const Text('Cancel Edit')),
-        const SizedBox(height: 8),
+  Widget build(BuildContext context) {
+    final fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SetupFormHeader(
+          icon: Icons.medical_services,
+          title: 'Add New Service',
+          subtitle: '_',
+        ),
+        const SizedBox(height: 12),
+        SetupTextField(label: 'Service Code', controller: codeCtrl),
+        const SizedBox(height: 24),
+        SetupTextField(label: 'Service Name', controller: nameCtrl),
+        const SizedBox(height: 16),
+        SetupTextField(label: 'Description', controller: descCtrl, maxLines: 2),
+        const SizedBox(height: 16),
+        SetupTextField(label: 'Cost (₦)', controller: costCtrl, isNumber: true),
+        const SizedBox(height: 16),
+        SetupDropdown(
+          label: 'Category',
+          value: selectedCatId,
+          items: categories.map((c) => c.id).toList(),
+          itemLabels: categories.map((c) => c.name).toList(),
+          onChanged: onCatChanged,
+        ),
+        const SizedBox(height: 16),
+        SetupDropdown(
+          label: 'Department',
+          value: selectedDeptId,
+          items: departments.map((d) => d.id).toList(),
+          itemLabels: departments.map((d) => d.name).toList(),
+          onChanged: onDeptChanged,
+        ),
       ],
-      if (!canManageServices)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text(
-            isEditing
-                ? 'Updates require billing head, accounting head, or super admin.'
-                : 'Adding services requires billing head, accounting head, or super admin.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.error,
+    );
+
+    final actions = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (isEditing) ...[
+          OutlinedButton(onPressed: onCancel, child: const Text('Cancel Edit')),
+          const SizedBox(height: 8),
+        ],
+        if (!canManageServices)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              isEditing
+                  ? 'Updates require billing head, accounting head, or super admin.'
+                  : 'Adding services requires billing head, accounting head, or super admin.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.error,
+              ),
             ),
           ),
+        SetupSubmitButton(
+          label: isEditing ? 'Update Service' : 'Add Service',
+          onPressed: !canManageServices ? null : onSave,
         ),
-      SetupSubmitButton(
-        label: isEditing ? 'Update Service' : 'Add Service',
-        onPressed: !canManageServices ? null : onSave,
-      ),
-    ],
-  );
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Short panels used to clip the submit button. Keep it pinned and
+        // let the fields scroll when the panel height is bounded.
+        if (constraints.maxHeight.isFinite) {
+          return SizedBox(
+            height: constraints.maxHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: SingleChildScrollView(child: fields)),
+                const SizedBox(height: 16),
+                actions,
+              ],
+            ),
+          );
+        }
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [fields, const SizedBox(height: 24), actions],
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

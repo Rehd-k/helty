@@ -14,7 +14,8 @@ class HealthCampaignsAdminScreen extends StatefulWidget {
       _HealthCampaignsAdminScreenState();
 }
 
-class _HealthCampaignsAdminScreenState extends State<HealthCampaignsAdminScreen> {
+class _HealthCampaignsAdminScreenState
+    extends State<HealthCampaignsAdminScreen> {
   final _service = HealthContentService();
   bool _loading = false;
   String? _error;
@@ -70,9 +71,9 @@ class _HealthCampaignsAdminScreenState extends State<HealthCampaignsAdminScreen>
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     }
   }
 
@@ -100,9 +101,9 @@ class _HealthCampaignsAdminScreenState extends State<HealthCampaignsAdminScreen>
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     }
   }
 
@@ -137,7 +138,7 @@ class _HealthCampaignsAdminScreenState extends State<HealthCampaignsAdminScreen>
           }
           return ListView.separated(
             itemCount: _items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final item = _items[i];
               return ListTile(
@@ -237,9 +238,9 @@ class _HealthNewsAdminScreenState extends State<HealthNewsAdminScreen> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     }
   }
 
@@ -267,9 +268,9 @@ class _HealthNewsAdminScreenState extends State<HealthNewsAdminScreen> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     }
   }
 
@@ -304,7 +305,7 @@ class _HealthNewsAdminScreenState extends State<HealthNewsAdminScreen> {
           }
           return ListView.separated(
             itemCount: _items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final item = _items[i];
               return ListTile(
@@ -364,7 +365,8 @@ class _HealthContentEditorDialog extends StatefulWidget {
       _HealthContentEditorDialogState();
 }
 
-class _HealthContentEditorDialogState extends State<_HealthContentEditorDialog> {
+class _HealthContentEditorDialogState
+    extends State<_HealthContentEditorDialog> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _bodyCtrl;
   late final TextEditingController _imageCtrl;

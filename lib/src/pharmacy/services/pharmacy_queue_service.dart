@@ -40,9 +40,9 @@ abstract class IPharmacyQueueService {
   Future<QueueOrder> updateInvoiceDrugItem(
     String id,
     String itemId,
-    Map<String, dynamic> payload,
-    {String? locationId}
-  );
+    Map<String, dynamic> payload, {
+    String? locationId,
+  });
 
   /// Delete a specific item from an invoice-drug order.
   Future<QueueOrder> deleteInvoiceDrugItem(String id, String itemId);
@@ -80,8 +80,8 @@ class PharmacyQueueApiService implements IPharmacyQueueService {
       final response = await _dio.get(
         '/invoice-drugs',
         queryParameters: {
-          if (fromDate != null) 'fromDate': fromDate,
-          if (toDate != null) 'toDate': toDate,
+          'fromDate': ?fromDate,
+          'toDate': ?toDate,
           'skip': skip,
           'take': take,
           if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
@@ -146,9 +146,9 @@ class PharmacyQueueApiService implements IPharmacyQueueService {
   Future<QueueOrder> updateInvoiceDrugItem(
     String id,
     String itemId,
-    Map<String, dynamic> payload,
-    {String? locationId}
-  ) async {
+    Map<String, dynamic> payload, {
+    String? locationId,
+  }) async {
     try {
       final response = await _dio.patch(
         '/invoice-drugs/$id/items/$itemId',
@@ -299,9 +299,9 @@ class MockPharmacyQueueService implements IPharmacyQueueService {
   Future<QueueOrder> updateInvoiceDrugItem(
     String id,
     String itemId,
-    Map<String, dynamic> payload,
-    {String? locationId}
-  ) async {
+    Map<String, dynamic> payload, {
+    String? locationId,
+  }) async {
     return getInvoiceDrug(id);
   }
 

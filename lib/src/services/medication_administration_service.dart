@@ -39,9 +39,8 @@ class MedicationAdministrationService {
     }
     return list
         .map(
-          (e) => MedicationAdministrationModel.fromJson(
-            e as Map<String, dynamic>,
-          ),
+          (e) =>
+              MedicationAdministrationModel.fromJson(e as Map<String, dynamic>),
         )
         .toList();
   }
@@ -83,8 +82,9 @@ class MedicationAdministrationService {
       'medicationOrderId': medicationOrderId,
       'scheduledTime': AppTimezone.toBackendIso(scheduledTime),
       'status': status,
-      if (actualTime != null) 'actualTime': AppTimezone.toBackendIso(actualTime),
-      if (quantity != null) 'quantity': quantity,
+      if (actualTime != null)
+        'actualTime': AppTimezone.toBackendIso(actualTime),
+      'quantity': ?quantity,
       if (reasonIfNotGiven != null && reasonIfNotGiven.isNotEmpty)
         'reasonIfNotGiven': reasonIfNotGiven,
       if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,

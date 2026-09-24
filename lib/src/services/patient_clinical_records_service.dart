@@ -80,7 +80,7 @@ class PatientClinicalRecordsService {
       data: {
         'vaccineName': vaccineName,
         if (detail != null && detail.trim().isNotEmpty) 'detail': detail,
-        if (doseNumber != null) 'doseNumber': doseNumber,
+        'doseNumber': ?doseNumber,
         'administeredAt': administeredAt.toUtc().toIso8601String(),
       },
     );

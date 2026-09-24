@@ -359,7 +359,7 @@ class _AlertsCard extends StatelessWidget {
             ? const AlwaysScrollableScrollPhysics()
             : const NeverScrollableScrollPhysics(),
         itemCount: alerts.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, i) {
           final a = alerts[i];
           final title = (a.title ?? a.message ?? 'Alert').trim();

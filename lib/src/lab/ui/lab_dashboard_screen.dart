@@ -130,7 +130,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
       final bytes = Uint8List.fromList(
         utf8.encode(const JsonEncoder.withIndent('  ').convert(payload)),
       );
-      final path = await FilePicker.platform.saveFile(
+      final path = await FilePicker.saveFile(
         dialogTitle: 'Save lab configuration',
         fileName: 'helty-lab-config.json',
         type: FileType.custom,
@@ -154,9 +154,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
 
@@ -186,7 +184,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final picked = await FilePicker.platform.pickFiles(
+      final picked = await FilePicker.pickFiles(
         dialogTitle: 'Import lab configuration',
         type: FileType.custom,
         allowedExtensions: const ['json'],
@@ -229,9 +227,7 @@ class _LabDashboardScreenState extends ConsumerState<LabDashboardScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Import failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Import failed: $e')));
     }
   }
 
@@ -898,10 +894,8 @@ class _PatientOrdersList extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               itemCount: groups.length,
-              separatorBuilder: (_, __) => Divider(
-                height: 1,
-                color: cs.outline.withValues(alpha: 0.08),
-              ),
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, color: cs.outline.withValues(alpha: 0.08)),
               itemBuilder: (context, index) {
                 return ColoredBox(
                   color: LabClinicalUi.zebraFill(cs, index),
@@ -1382,8 +1376,7 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
                 Expanded(
                   flex: 2,
                   child: HeltyEllipsisText(
-                    text:
-                        '${group.orders.length} / ${group.totalTests} tests',
+                    text: '${group.orders.length} / ${group.totalTests} tests',
                     style: theme.textTheme.bodyMedium,
                   ),
                 ),
@@ -1460,21 +1453,21 @@ class _OrderItemsSection extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                            HeltyEllipsisText(
-                              text:
-                                  'Order #${order.id.length >= 8 ? order.id.substring(0, 8) : order.id}',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                          HeltyEllipsisText(
+                            text:
+                                'Order #${order.id.length >= 8 ? order.id.substring(0, 8) : order.id}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
-                            const SizedBox(height: 2),
-                            HeltyEllipsisText(
-                              text: LabClinicalUi.statusLabel(order.status),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: statusColor,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          ),
+                          const SizedBox(height: 2),
+                          HeltyEllipsisText(
+                            text: LabClinicalUi.statusLabel(order.status),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.w600,
                             ),
+                          ),
                         ],
                       ),
                     ),
@@ -1521,4 +1514,3 @@ class _OrderItemsSection extends StatelessWidget {
     );
   }
 }
-

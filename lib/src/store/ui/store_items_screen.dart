@@ -38,7 +38,7 @@ class _StoreItemsScreenState extends ConsumerState<StoreItemsScreen> {
           IconButton(
             icon: const Icon(Icons.add_rounded),
             onPressed: () {
-              final list = categoriesAsync.valueOrNull?.data ?? [];
+              final list = categoriesAsync.value?.data ?? [];
               _showCreateItem(context, ref, list);
             },
             tooltip: 'Add item',
@@ -47,197 +47,196 @@ class _StoreItemsScreenState extends ConsumerState<StoreItemsScreen> {
       ),
       body: ResponsiveBody(
         builder: (context, bp) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-            child: Row(
-              children: [
-                categoriesAsync.when(
-                  data: (cats) {
-                    final list = cats.data;
-                    return DropdownButton<String?>(
-                      value: _filterCategoryId,
-                      hint: const Text('All categories'),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('All categories'),
-                        ),
-                        ...list.map(
-                          (c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Text(c.name),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: Row(
+                children: [
+                  categoriesAsync.when(
+                    data: (cats) {
+                      final list = cats.data;
+                      return DropdownButton<String?>(
+                        value: _filterCategoryId,
+                        hint: const Text('All categories'),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('All categories'),
                           ),
-                        ),
-                      ],
-                      onChanged: (v) => setState(() => _filterCategoryId = v),
-                    );
-                  },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                ),
-                const SizedBox(width: 16),
-                SegmentedButton<bool?>(
-                  segments: const [
-                    ButtonSegment(value: null, label: Text('All')),
-                    ButtonSegment(value: true, label: Text('Active')),
-                    ButtonSegment(value: false, label: Text('Inactive')),
-                  ],
-                  selected: {_filterIsActive},
-                  onSelectionChanged: (s) =>
-                      setState(() => _filterIsActive = s.first),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: asyncItems.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(err.toString(), textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: () => ref.invalidate(
-                          storeItemsFutureProvider(itemsParams),
-                        ),
-                        child: const Text('Retry'),
-                      ),
-                    ],
+                          ...list.map(
+                            (c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Text(c.name),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) => setState(() => _filterCategoryId = v),
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
                   ),
-                ),
+                  const SizedBox(width: 16),
+                  SegmentedButton<bool?>(
+                    segments: const [
+                      ButtonSegment(value: null, label: Text('All')),
+                      ButtonSegment(value: true, label: Text('Active')),
+                      ButtonSegment(value: false, label: Text('Inactive')),
+                    ],
+                    selected: {_filterIsActive},
+                    onSelectionChanged: (s) =>
+                        setState(() => _filterIsActive = s.first),
+                  ),
+                ],
               ),
-              data: (response) {
-                final list = response.data;
-                if (list.isEmpty) {
-                  return Center(
+            ),
+            Expanded(
+              child: asyncItems.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          size: 64,
-                          color: theme.colorScheme.outline,
-                        ),
+                        Text(err.toString(), textAlign: TextAlign.center),
                         const SizedBox(height: 16),
-                        Text(
-                          'No items yet',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton.icon(
-                          onPressed: () {
-                            final list =
-                                categoriesAsync.valueOrNull?.data ?? [];
-                            _showCreateItem(context, ref, list);
-                          },
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text('Add item'),
+                        FilledButton(
+                          onPressed: () => ref.invalidate(
+                            storeItemsFutureProvider(itemsParams),
+                          ),
+                          child: const Text('Retry'),
                         ),
                       ],
                     ),
-                  );
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.all(24),
-                  itemCount: list.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == list.length) {
-                      final hasMore =
-                          (response.skip ?? 0) + list.length < response.total;
-                      if (!hasMore) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _skip += _limit),
-                            child: const Text('Load more'),
+                  ),
+                ),
+                data: (response) {
+                  final list = response.data;
+                  if (list.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 64,
+                            color: theme.colorScheme.outline,
                           ),
-                        ),
-                      );
-                    }
-                    final item = list[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 8,
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: theme.colorScheme.primaryContainer,
-                          child: Icon(
-                            Icons.inventory_rounded,
-                            color: theme.colorScheme.onPrimaryContainer,
+                          const SizedBox(height: 16),
+                          Text(
+                            'No items yet',
+                            style: theme.textTheme.titleMedium,
                           ),
-                        ),
-                        title: Text(item.name),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (item.sku != null && item.sku!.isNotEmpty)
-                              Text(
-                                'SKU: ${item.sku}',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            Text(
-                              '${item.unitOfMeasure} • Reorder: ${item.reorderLevel}',
-                              style: theme.textTheme.bodySmall,
-                            ),
-                            if (item.category != null)
-                              Text(
-                                item.category!.name,
-                                style: theme.textTheme.bodySmall,
-                              ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Chip(
-                              label: Text(
-                                item.isActive ? 'Active' : 'Inactive',
-                                style: theme.textTheme.labelSmall,
-                              ),
-                              backgroundColor: item.isActive
-                                  ? theme.colorScheme.primaryContainer
-                                  : theme.colorScheme.surfaceContainerHighest,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_rounded),
-                              onPressed: () {
-                                final list =
-                                    categoriesAsync.valueOrNull?.data ?? [];
-                                _showEditItem(context, ref, item, list);
-                              },
-                            ),
-                          ],
-                        ),
-                        onTap: () {
-                          final list = categoriesAsync.valueOrNull?.data ?? [];
-                          _showEditItem(context, ref, item, list);
-                        },
+                          const SizedBox(height: 8),
+                          FilledButton.icon(
+                            onPressed: () {
+                              final list = categoriesAsync.value?.data ?? [];
+                              _showCreateItem(context, ref, list);
+                            },
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Add item'),
+                          ),
+                        ],
                       ),
                     );
-                  },
-                );
-              },
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(24),
+                    itemCount: list.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == list.length) {
+                        final hasMore =
+                            (response.skip ?? 0) + list.length < response.total;
+                        if (!hasMore) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Center(
+                            child: TextButton(
+                              onPressed: () => setState(() => _skip += _limit),
+                              child: const Text('Load more'),
+                            ),
+                          ),
+                        );
+                      }
+                      final item = list[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: theme.colorScheme.primaryContainer,
+                            child: Icon(
+                              Icons.inventory_rounded,
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          title: Text(item.name),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (item.sku != null && item.sku!.isNotEmpty)
+                                Text(
+                                  'SKU: ${item.sku}',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              Text(
+                                '${item.unitOfMeasure} • Reorder: ${item.reorderLevel}',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                              if (item.category != null)
+                                Text(
+                                  item.category!.name,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Chip(
+                                label: Text(
+                                  item.isActive ? 'Active' : 'Inactive',
+                                  style: theme.textTheme.labelSmall,
+                                ),
+                                backgroundColor: item.isActive
+                                    ? theme.colorScheme.primaryContainer
+                                    : theme.colorScheme.surfaceContainerHighest,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_rounded),
+                                onPressed: () {
+                                  final list =
+                                      categoriesAsync.value?.data ?? [];
+                                  _showEditItem(context, ref, item, list);
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            final list = categoriesAsync.value?.data ?? [];
+                            _showEditItem(context, ref, item, list);
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          final list = categoriesAsync.valueOrNull?.data ?? [];
+          final list = categoriesAsync.value?.data ?? [];
           _showCreateItem(context, ref, list);
         },
         icon: const Icon(Icons.add_rounded),

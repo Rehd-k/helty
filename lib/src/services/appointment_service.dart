@@ -234,11 +234,11 @@ class AppointmentService {
             'date': AppTimezone.toBackendIso(appointmentDate),
             'appointmentDate': AppTimezone.toBackendIso(appointmentDate),
           },
-          if (status != null) 'status': status,
-          if (notes != null) 'notes': notes,
-          if (referral != null) 'referral': referral,
-          if (assigned != null) 'staffId': assigned,
-          if (updatedById != null) 'updatedById': updatedById,
+          'status': ?status,
+          'notes': ?notes,
+          'referral': ?referral,
+          'staffId': ?assigned,
+          'updatedById': ?updatedById,
         },
       );
       return Appointment.fromJson(_asMap(resp.data));

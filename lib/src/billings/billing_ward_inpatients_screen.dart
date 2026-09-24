@@ -404,7 +404,7 @@ class _BillingWardInpatientsScreenState
 
     return ListView.separated(
       itemCount: _filteredRows.length,
-      separatorBuilder: (_, __) => Divider(
+      separatorBuilder: (_, _) => Divider(
         height: 1,
         color: colorScheme.outline.withValues(alpha: 0.06),
       ),
@@ -510,7 +510,7 @@ class _BillingWardInpatientsScreenState
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemCount: _filteredRows.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final row = _filteredRows[index];
         final isOpening = _openingPatientId == row.id;

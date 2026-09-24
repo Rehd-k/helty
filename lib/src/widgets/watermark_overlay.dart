@@ -29,7 +29,7 @@ class WatermarkOverlay extends StatelessWidget {
             width: size,
             height: size,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
           ),
         ),
       ),

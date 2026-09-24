@@ -42,9 +42,9 @@ class HospitalAssetsApiService {
       final response = await _dio.get<dynamic>(
         '/hospital-assets',
         queryParameters: {
-          if (accountType != null) 'accountType': accountType,
-          if (kind != null) 'kind': kind,
-          if (status != null) 'status': status,
+          'accountType': ?accountType,
+          'kind': ?kind,
+          'status': ?status,
           if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
         },
       );
@@ -135,7 +135,7 @@ class HospitalAssetsApiService {
           'staffId': staffId,
           'canView': canView,
           'canLog': canLog,
-          if (accountType != null) 'accountType': accountType,
+          'accountType': ?accountType,
         },
       );
     } on DioException catch (e) {

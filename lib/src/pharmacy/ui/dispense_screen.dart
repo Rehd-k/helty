@@ -635,7 +635,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final cat = categories[index];
               final isSelected = selectedCategory == cat;
@@ -890,7 +890,7 @@ class _DispenseScreenState extends ConsumerState<DispenseScreen> {
                   )
                 : ListView.separated(
                     itemCount: cart.length,
-                    separatorBuilder: (_, __) => const Divider(height: 24),
+                    separatorBuilder: (_, _) => const Divider(height: 24),
                     itemBuilder: (context, index) {
                       final item = cart[index];
                       final drug = item.drug;

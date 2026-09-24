@@ -159,7 +159,7 @@ class _WardsCard extends StatelessWidget {
         shrinkWrap: !expanded,
         physics: expanded ? null : const NeverScrollableScrollPhysics(),
         itemCount: wards.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 4),
+        separatorBuilder: (_, _) => const SizedBox(height: 4),
         itemBuilder: (context, i) {
           final ward = wards[i];
           final selected = ward.id == selectedWardId;

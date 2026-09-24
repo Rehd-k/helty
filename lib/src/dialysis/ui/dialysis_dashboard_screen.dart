@@ -17,7 +17,8 @@ class DialysisDashboardScreen extends ConsumerStatefulWidget {
       _DialysisDashboardScreenState();
 }
 
-class _DialysisDashboardScreenState extends ConsumerState<DialysisDashboardScreen> {
+class _DialysisDashboardScreenState
+    extends ConsumerState<DialysisDashboardScreen> {
   DialysisSessionStatus? _filterStatus;
   static const _skip = 0;
   static const _take = 20;
@@ -57,7 +58,11 @@ class _DialysisDashboardScreenState extends ConsumerState<DialysisDashboardScree
     if (picked == null || !mounted) return;
     setState(() {
       _sessionsDateRange = DateTimeRange(
-        start: DateTime(picked.start.year, picked.start.month, picked.start.day),
+        start: DateTime(
+          picked.start.year,
+          picked.start.month,
+          picked.start.day,
+        ),
         end: DateTime(
           picked.end.year,
           picked.end.month,
@@ -86,9 +91,7 @@ class _DialysisDashboardScreenState extends ConsumerState<DialysisDashboardScree
         skip: 0,
         take: 100,
       );
-      final counts = {
-        for (final s in DialysisSessionStatus.values) s: 0,
-      };
+      final counts = {for (final s in DialysisSessionStatus.values) s: 0};
       for (final session in response.sessions) {
         counts[session.status] = (counts[session.status] ?? 0) + 1;
       }
@@ -133,7 +136,9 @@ class _DialysisDashboardScreenState extends ConsumerState<DialysisDashboardScree
                     end: Alignment.bottomRight,
                     colors: [
                       theme.colorScheme.primaryContainer,
-                      theme.colorScheme.secondaryContainer.withValues(alpha: 0.7),
+                      theme.colorScheme.secondaryContainer.withValues(
+                        alpha: 0.7,
+                      ),
                     ],
                   ),
                 ),
@@ -208,8 +213,8 @@ class _DialysisDashboardScreenState extends ConsumerState<DialysisDashboardScree
       ),
       _SummaryCard(
         label: 'In progress',
-        value:
-            (_statusCounts[DialysisSessionStatus.inProgress] ?? 0).toString(),
+        value: (_statusCounts[DialysisSessionStatus.inProgress] ?? 0)
+            .toString(),
         icon: Icons.play_circle_outline_rounded,
         accent: theme.colorScheme.secondary,
       ),
@@ -392,7 +397,9 @@ class _SessionsList extends ConsumerWidget {
     );
 
     return FutureBuilder<DialysisSessionsResponse>(
-      future: ref.read(dialysisApiServiceProvider).getSessions(
+      future: ref
+          .read(dialysisApiServiceProvider)
+          .getSessions(
             fromDate: from,
             toDate: to,
             status: status,
@@ -429,7 +436,7 @@ class _SessionsList extends ConsumerWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: sessions.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final s = sessions[index];
             final patientName = s.patient?.displayName ?? s.patientId;

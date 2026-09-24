@@ -49,7 +49,7 @@ class ModernFormCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (headerAction != null) headerAction!,
+                ?headerAction,
               ],
             ),
           ),

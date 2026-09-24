@@ -31,10 +31,8 @@ class EncounterTemplatePickerSheet extends StatefulWidget {
         initialChildSize: 0.6,
         minChildSize: 0.35,
         maxChildSize: 0.9,
-        builder: (_, scrollController) => EncounterTemplatePickerSheet(
-          scope: scope,
-          onApplied: onApplied,
-        ),
+        builder: (_, scrollController) =>
+            EncounterTemplatePickerSheet(scope: scope, onApplied: onApplied),
       ),
     );
   }
@@ -103,9 +101,9 @@ class _EncounterTemplatePickerSheetState
     } catch (e) {
       if (!mounted) return;
       setState(() => _applying = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to apply template: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to apply template: $e')));
     }
   }
 
@@ -149,11 +147,8 @@ class _EncounterTemplatePickerSheetState
             ],
           ),
         ),
-        if (_applying)
-          const LinearProgressIndicator(minHeight: 2),
-        Expanded(
-          child: _buildBody(theme, scheme),
-        ),
+        if (_applying) const LinearProgressIndicator(minHeight: 2),
+        Expanded(child: _buildBody(theme, scheme)),
       ],
     );
   }
@@ -192,13 +187,16 @@ class _EncounterTemplatePickerSheetState
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       itemCount: _templates.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final t = _templates[index];
         final updated = t.updatedAt ?? t.createdAt;
         return Card(
           child: ListTile(
-            title: Text(t.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+            title: Text(
+              t.name,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

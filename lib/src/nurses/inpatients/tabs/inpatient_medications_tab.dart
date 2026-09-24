@@ -223,9 +223,7 @@ class _InpatientMedicationsScreenState
     return _schedulesByOrderId[order.id];
   }
 
-  MedicationDoseScheduleModel _effectiveSchedule(
-    MedicationOrderModel order,
-  ) {
+  MedicationDoseScheduleModel _effectiveSchedule(MedicationOrderModel order) {
     final fromApi = _scheduleForOrder(order);
     if (fromApi != null) return fromApi;
     return _computeClientSchedule(order);
@@ -234,18 +232,19 @@ class _InpatientMedicationsScreenState
   MedicationDoseScheduleModel _computeClientSchedule(
     MedicationOrderModel order,
   ) {
-    final givenForOrder = _administrations
-        .where((a) => a.status.trim().toUpperCase() == 'GIVEN')
-        .where((a) => (a.drugName ?? '').trim() == order.drugName.trim())
-        .toList()
-      ..sort((a, b) {
-        final ta = a.actualTime ?? a.scheduledTime;
-        final tb = b.actualTime ?? b.scheduledTime;
-        if (ta == null && tb == null) return 0;
-        if (ta == null) return 1;
-        if (tb == null) return -1;
-        return ta.compareTo(tb);
-      });
+    final givenForOrder =
+        _administrations
+            .where((a) => a.status.trim().toUpperCase() == 'GIVEN')
+            .where((a) => (a.drugName ?? '').trim() == order.drugName.trim())
+            .toList()
+          ..sort((a, b) {
+            final ta = a.actualTime ?? a.scheduledTime;
+            final tb = b.actualTime ?? b.scheduledTime;
+            if (ta == null && tb == null) return 0;
+            if (ta == null) return 1;
+            if (tb == null) return -1;
+            return ta.compareTo(tb);
+          });
 
     final stopped =
         order.administrationStatus == MedicationAdministrationStatus.stopped;
@@ -259,7 +258,8 @@ class _InpatientMedicationsScreenState
 
     final first = givenForOrder.first;
     final last = givenForOrder.last;
-    final firstTime = first.actualTime ?? first.scheduledTime ?? AppTimezone.now();
+    final firstTime =
+        first.actualTime ?? first.scheduledTime ?? AppTimezone.now();
     final lastTime = last.actualTime ?? last.scheduledTime ?? firstTime;
     final parsed = parseRxDurationPhrase(order.duration ?? '');
     final applied = applyGivenDoseToSchedule(
@@ -591,13 +591,14 @@ class _InpatientMedicationsScreenState
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _dueOrders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final order = _dueOrders[index];
         final schedule = _effectiveSchedule(order);
         final overdue =
             schedule.scheduleStatus == MedicationScheduleStatus.overdue;
-        final accent = _scheduleAccentColor(context, schedule.scheduleStatus) ??
+        final accent =
+            _scheduleAccentColor(context, schedule.scheduleStatus) ??
             InpatientMetrics.waitAmber;
         return HeltySurfaceCard(
           onTap: () => _openAdministerDialog(
@@ -610,9 +611,7 @@ class _InpatientMedicationsScreenState
           child: Row(
             children: [
               HeltySolidIcon(
-                icon: overdue
-                    ? Icons.warning_amber_rounded
-                    : Icons.schedule,
+                icon: overdue ? Icons.warning_amber_rounded : Icons.schedule,
                 color: accent,
                 size: 28,
                 iconSize: 15,
@@ -659,7 +658,6 @@ class _InpatientMedicationsScreenState
       },
     );
   }
-
 
   Widget _buildOrderCard(
     BuildContext context,
@@ -730,8 +728,7 @@ class _InpatientMedicationsScreenState
                   const SizedBox(width: 8),
                   Expanded(
                     child: HeltyEllipsisText(
-                      text:
-                          'Expired & discontinued (${inactiveOrders.length})',
+                      text: 'Expired & discontinued (${inactiveOrders.length})',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -753,7 +750,7 @@ class _InpatientMedicationsScreenState
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: inactiveOrders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) =>
                 _buildOrderCard(context, scope, inactiveOrders[index]),
           ),
@@ -780,10 +777,12 @@ class _InpatientMedicationsScreenState
       );
     }
 
-    final activeOrders =
-        _orders.where((o) => !_isInactiveOrder(o)).toList(growable: false);
-    final inactiveOrders =
-        _orders.where(_isInactiveOrder).toList(growable: false);
+    final activeOrders = _orders
+        .where((o) => !_isInactiveOrder(o))
+        .toList(growable: false);
+    final inactiveOrders = _orders
+        .where(_isInactiveOrder)
+        .toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -798,7 +797,7 @@ class _InpatientMedicationsScreenState
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: activeOrders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) =>
                 _buildOrderCard(context, scope, activeOrders[index]),
           ),
@@ -830,7 +829,9 @@ class _InpatientMedicationsScreenState
 
     if (saved == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Medication request submitted to pharmacy')),
+        const SnackBar(
+          content: Text('Medication request submitted to pharmacy'),
+        ),
       );
       setState(() => _expandedRequestHistoryOrderIds.add(order.id));
       await _loadMarData();
@@ -927,7 +928,9 @@ class _InpatientMedicationsScreenState
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-            final width = constraints.maxWidth < 980 ? 980.0 : constraints.maxWidth;
+            final width = constraints.maxWidth < 980
+                ? 980.0
+                : constraints.maxWidth;
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SizedBox(
@@ -962,8 +965,9 @@ class _InpatientMedicationsScreenState
                         _HistoryDrugGroupSection(
                           groupKey: group.key,
                           items: group.items,
-                          expanded:
-                              !_collapsedHistoryDrugKeys.contains(group.key),
+                          expanded: !_collapsedHistoryDrugKeys.contains(
+                            group.key,
+                          ),
                           headerStyle: headerStyle,
                           formatTime: _formatHistoryTime,
                           formatQty: _formatAdministeredQuantity,
@@ -1035,7 +1039,9 @@ class _InpatientMedicationsScreenState
         color: _statusColor(context, a.status),
       ),
       HeltyEllipsisText(text: a.nurseDisplayName ?? '—'),
-      HeltyEllipsisText(text: (reason == null || reason.isEmpty) ? '—' : reason),
+      HeltyEllipsisText(
+        text: (reason == null || reason.isEmpty) ? '—' : reason,
+      ),
     ];
   }
 
@@ -1361,7 +1367,9 @@ class _AdministerMedicationDialogState
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),
-                  Text('Patient: $patientName â€¢ Hosp No: $hospNo\n$orderLine'),
+                  Text(
+                    'Patient: $patientName â€¢ Hosp No: $hospNo\n$orderLine',
+                  ),
                 ],
               ),
             ),
@@ -1626,9 +1634,7 @@ class _HistoryAdministrationRow extends StatelessWidget {
           ),
           Expanded(
             flex: _kHistoryColumnFlex[5],
-            child: Text(
-              _InpatientMedicationsScreenState._formatDispensary(a),
-            ),
+            child: Text(_InpatientMedicationsScreenState._formatDispensary(a)),
           ),
           Expanded(
             flex: _kHistoryColumnFlex[6],
@@ -1792,9 +1798,7 @@ class _HistoryDrugGroupSection extends StatelessWidget {
                           ? 'Tap to collapse'
                           : (latest.reasonIfNotGiven ?? ''),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: expanded
-                            ? scheme.onSurfaceVariant
-                            : null,
+                        color: expanded ? scheme.onSurfaceVariant : null,
                         fontStyle: expanded ? FontStyle.italic : null,
                       ),
                     ),
@@ -1878,9 +1882,9 @@ class _ActiveOrderCard extends StatelessWidget {
     final requestCount = order.medicationRequests.length;
     final scheduleAccent =
         _InpatientMedicationsScreenState._scheduleAccentColor(
-      context,
-      doseSchedule.scheduleStatus,
-    );
+          context,
+          doseSchedule.scheduleStatus,
+        );
     final isExpired =
         doseSchedule.scheduleStatus == MedicationScheduleStatus.expired;
 
@@ -1929,137 +1933,134 @@ class _ActiveOrderCard extends StatelessWidget {
                 ),
             ],
           ),
-            if (order.wasSubstituted) ...[
-              const SizedBox(height: 6),
-              MedicationSubstitutionSummary(
-                prescribedDrug: order.prescribedDrugLabel,
-                currentDrug: order.currentDrugLabel,
-                compact: true,
-              ),
-            ],
-            if (order.doctor != null &&
-                order.doctor!.displayName.trim().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Prescribing doctor: ${order.doctor!.displayName}',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
+          if (order.wasSubstituted) ...[
+            const SizedBox(height: 6),
+            MedicationSubstitutionSummary(
+              prescribedDrug: order.prescribedDrugLabel,
+              currentDrug: order.currentDrugLabel,
+              compact: true,
+            ),
+          ],
+          if (order.doctor != null &&
+              order.doctor!.displayName.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              [
-                if (order.dose != null && order.dose!.isNotEmpty) order.dose,
-                if (order.route != null && order.route!.isNotEmpty) order.route,
-                if (order.frequency != null && order.frequency!.isNotEmpty)
-                  order.frequency,
-                if (order.duration != null && order.duration!.isNotEmpty)
-                  order.duration,
-              ].join(' · '),
+              'Prescribing doctor: ${order.doctor!.displayName}',
               style: theme.textTheme.bodySmall,
             ),
-            const SizedBox(height: 6),
-            Text(
-              _InpatientMedicationsScreenState._formatScheduleLine(doseSchedule),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheduleAccent,
-                fontWeight: FontWeight.w600,
-              ),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            [
+              if (order.dose != null && order.dose!.isNotEmpty) order.dose,
+              if (order.route != null && order.route!.isNotEmpty) order.route,
+              if (order.frequency != null && order.frequency!.isNotEmpty)
+                order.frequency,
+              if (order.duration != null && order.duration!.isNotEmpty)
+                order.duration,
+            ].join(' · '),
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _InpatientMedicationsScreenState._formatScheduleLine(doseSchedule),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheduleAccent,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: [
-                if (scope.isNurse && !scope.isOutpatient) ...[
-                  if (requestDisableReason != null)
-                    Tooltip(
-                      message: requestDisableReason,
-                      child: FilledButton.tonal(
-                        onPressed: null,
-                        style: inpatientCompactFill(),
-                        child: const Text('Request'),
-                      ),
-                    )
-                  else
-                    FilledButton.tonal(
-                      onPressed: onRequest,
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: [
+              if (scope.isNurse && !scope.isOutpatient) ...[
+                if (requestDisableReason != null)
+                  Tooltip(
+                    message: requestDisableReason,
+                    child: FilledButton.tonal(
+                      onPressed: null,
                       style: inpatientCompactFill(),
                       child: const Text('Request'),
                     ),
-                  if (canAdminister)
-                    OutlinedButton(
-                      onPressed: onAdminister,
-                      style: inpatientCompactOutline(),
-                      child: const Text('Administer'),
-                    ),
-                ],
-                if (requestCount > 0 || expanded)
-                  TextButton.icon(
-                    onPressed: onToggleHistory,
+                  )
+                else
+                  FilledButton.tonal(
+                    onPressed: onRequest,
+                    style: inpatientCompactFill(),
+                    child: const Text('Request'),
+                  ),
+                if (canAdminister)
+                  OutlinedButton(
+                    onPressed: onAdminister,
                     style: inpatientCompactOutline(),
-                    icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
-                    label: Text(
-                      requestCount > 0
-                          ? 'Requests ($requestCount)'
-                          : 'Request history',
-                    ),
+                    child: const Text('Administer'),
                   ),
               ],
-            ),
-            if (expanded) ...[
-              const Divider(height: 20),
-              if (order.medicationRequests.isEmpty)
-                Text(
-                  'No pharmacy requests yet.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+              if (requestCount > 0 || expanded)
+                TextButton.icon(
+                  onPressed: onToggleHistory,
+                  style: inpatientCompactOutline(),
+                  icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+                  label: Text(
+                    requestCount > 0
+                        ? 'Requests ($requestCount)'
+                        : 'Request history',
                   ),
-                )
-              else
-                ...order.medicationRequests.map((req) {
-                  final when = req.createdAt;
-                  final canCancel = req.canCancelAsNurse(currentNurseId);
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    title: Text(
-                      'Qty ${req.requestedQuantity} · ${req.status.label}',
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        MedicationRequestAttribution(
-                          request: req,
-                          compact: true,
-                        ),
-                        if (when != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(DateFormatter.dateTime(when)),
-                          ),
-                      ],
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        MedicationRequestStatusBadge(status: req.status),
-                        if (canCancel &&
-                            scope.isNurse &&
-                            !scope.isOutpatient) ...[
-                          const SizedBox(width: 4),
-                          IconButton(
-                            tooltip: 'Cancel request',
-                            icon: const Icon(Icons.close, size: 18),
-                            onPressed: () => onCancelRequest(req.id),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                }),
+                ),
             ],
+          ),
+          if (expanded) ...[
+            const Divider(height: 20),
+            if (order.medicationRequests.isEmpty)
+              Text(
+                'No pharmacy requests yet.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
+            else
+              ...order.medicationRequests.map((req) {
+                final when = req.createdAt;
+                final canCancel = req.canCancelAsNurse(currentNurseId);
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text(
+                    'Qty ${req.requestedQuantity} · ${req.status.label}',
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      MedicationRequestAttribution(request: req, compact: true),
+                      if (when != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(DateFormatter.dateTime(when)),
+                        ),
+                    ],
+                  ),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MedicationRequestStatusBadge(status: req.status),
+                      if (canCancel &&
+                          scope.isNurse &&
+                          !scope.isOutpatient) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'Cancel request',
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => onCancelRequest(req.id),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
           ],
-        ),
+        ],
+      ),
     );
   }
 }

@@ -361,20 +361,19 @@ class _NursingRosterScreenState extends ConsumerState<NursingRosterScreen> {
     );
     final unitLabel =
         NursingUnit.fromString(e.nursingUnit)?.label ?? e.nursingUnit;
-    final shiftLabel =
-        ShiftType.fromString(e.shiftType)?.label ?? e.shiftType;
+    final shiftLabel = ShiftType.fromString(e.shiftType)?.label ?? e.shiftType;
     final shiftDate = DateFormatter.medicalDate(e.shiftDate);
     final nurseTitle = e.nurseName ?? e.nurseId;
     final nurseRole = _formatRole(e.nurseRole);
     final initials = nurseTitle.trim().isNotEmpty
         ? nurseTitle
-            .trim()
-            .split(RegExp(r'\s+'))
-            .where((p) => p.isNotEmpty)
-            .map((p) => p[0])
-            .take(2)
-            .join()
-            .toUpperCase()
+              .trim()
+              .split(RegExp(r'\s+'))
+              .where((p) => p.isNotEmpty)
+              .map((p) => p[0])
+              .take(2)
+              .join()
+              .toUpperCase()
         : '?';
 
     final wardParts = <String>[
@@ -425,8 +424,7 @@ class _NursingRosterScreenState extends ConsumerState<NursingRosterScreen> {
               child: Text(
                 [
                   'Scheduled by ${e.assignedByName}',
-                  if (e.createdAt != null)
-                    DateFormatter.dateTime(e.createdAt!),
+                  if (e.createdAt != null) DateFormatter.dateTime(e.createdAt!),
                 ].join(' · '),
                 style: muted,
               ),
@@ -485,103 +483,106 @@ class _NursingRosterScreenState extends ConsumerState<NursingRosterScreen> {
                     padding: EdgeInsets.zero,
                     child: ResponsiveToolbar(
                       actions: [
-                      OutlinedButton.icon(
-                        onPressed: _pickDate,
-                        icon: const Icon(Icons.calendar_today, size: 16),
-                        label: Text(
-                          '${_shiftDate.year}-${_shiftDate.month.toString().padLeft(2, '0')}-${_shiftDate.day.toString().padLeft(2, '0')}',
+                        OutlinedButton.icon(
+                          onPressed: _pickDate,
+                          icon: const Icon(Icons.calendar_today, size: 16),
+                          label: Text(
+                            '${_shiftDate.year}-${_shiftDate.month.toString().padLeft(2, '0')}-${_shiftDate.day.toString().padLeft(2, '0')}',
+                          ),
                         ),
-                      ),
-                      DropdownButton<String?>(
-                        value: _shiftType,
-                        hint: const Text('All shifts'),
-                        items: [
-                          const DropdownMenuItem(
-                            value: null,
-                            child: Text('All shifts'),
-                          ),
-                          ...ShiftType.values.map(
-                            (s) => DropdownMenuItem(
-                              value: s.apiValue,
-                              child: Text(s.label),
-                            ),
-                          ),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _shiftType = v);
-                          _load();
-                        },
-                      ),
-                      if (matron)
                         DropdownButton<String?>(
-                          value: _nursingUnit,
-                          hint: const Text('All units'),
+                          value: _shiftType,
+                          hint: const Text('All shifts'),
                           items: [
                             const DropdownMenuItem(
                               value: null,
-                              child: Text('All units'),
+                              child: Text('All shifts'),
                             ),
-                            ...NursingUnit.values.map(
-                              (u) => DropdownMenuItem(
-                                value: u.apiValue,
-                                child: Text(u.label),
+                            ...ShiftType.values.map(
+                              (s) => DropdownMenuItem(
+                                value: s.apiValue,
+                                child: Text(s.label),
                               ),
                             ),
                           ],
                           onChanged: (v) {
-                            setState(() => _nursingUnit = v);
+                            setState(() => _shiftType = v);
                             _load();
                           },
                         ),
-                      if (_summary != null)
-                        Chip(
-                          label: Text(
-                            'Scheduled ${_summary!.scheduled} · '
-                            'On duty ${_summary!.onDuty} · '
-                            'Gap ${_summary!.coverageGap}',
-                          ),
-                        ),
-                      IconButton(
-                        onPressed: _load,
-                        icon: const Icon(Icons.refresh),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_loading) const LinearProgressIndicator(minHeight: 2),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      _error!,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _load,
-                    child: _entries.isEmpty && !_loading
-                        ? ListView(
-                            children: const [
-                              SizedBox(height: 80),
-                              Center(child: Text('No roster entries')),
+                        if (matron)
+                          DropdownButton<String?>(
+                            value: _nursingUnit,
+                            hint: const Text('All units'),
+                            items: [
+                              const DropdownMenuItem(
+                                value: null,
+                                child: Text('All units'),
+                              ),
+                              ...NursingUnit.values.map(
+                                (u) => DropdownMenuItem(
+                                  value: u.apiValue,
+                                  child: Text(u.label),
+                                ),
+                              ),
                             ],
-                          )
-                        : ListView.separated(
-                            itemCount: _entries.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              return _rosterEntryTile(_entries[index], canManage);
+                            onChanged: (v) {
+                              setState(() => _nursingUnit = v);
+                              _load();
                             },
                           ),
+                        if (_summary != null)
+                          Chip(
+                            label: Text(
+                              'Scheduled ${_summary!.scheduled} · '
+                              'On duty ${_summary!.onDuty} · '
+                              'Gap ${_summary!.coverageGap}',
+                            ),
+                          ),
+                        IconButton(
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  if (_loading) const LinearProgressIndicator(minHeight: 2),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        _error!,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _load,
+                      child: _entries.isEmpty && !_loading
+                          ? ListView(
+                              children: const [
+                                SizedBox(height: 80),
+                                Center(child: Text('No roster entries')),
+                              ],
+                            )
+                          : ListView.separated(
+                              itemCount: _entries.length,
+                              separatorBuilder: (_, _) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                return _rosterEntryTile(
+                                  _entries[index],
+                                  canManage,
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
     );
   }
 }

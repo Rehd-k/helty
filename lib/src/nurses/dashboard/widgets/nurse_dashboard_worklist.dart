@@ -177,7 +177,7 @@ class _InpatientTable extends StatelessWidget {
                     )
                   : ListView.separated(
                       itemCount: admissions.length,
-                      separatorBuilder: (_, __) => Divider(
+                      separatorBuilder: (_, _) => Divider(
                         height: 1,
                         color: cs.outline.withValues(alpha: 0.08),
                       ),
@@ -599,7 +599,7 @@ class _OpdWorklist extends StatelessWidget {
                       Expanded(
                         child: ListView.separated(
                           itemCount: patients.length,
-                          separatorBuilder: (_, __) => Divider(
+                          separatorBuilder: (_, _) => Divider(
                             height: 1,
                             color: cs.outline.withValues(alpha: 0.08),
                           ),

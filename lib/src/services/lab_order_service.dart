@@ -82,7 +82,7 @@ class LabOrderService {
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (pregnancyId != null && pregnancyId.isNotEmpty)
         'pregnancyId': pregnancyId,
-      if (useAntenatalPackage != null) 'useAntenatalPackage': useAntenatalPackage,
+      'useAntenatalPackage': ?useAntenatalPackage,
     };
     final response = await _dio.post<Map<String, dynamic>>(
       '/lab-requests',

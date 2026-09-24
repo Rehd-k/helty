@@ -77,9 +77,9 @@ class _PurchasesRequisitionHistoryScreenState
     try {
       await _api.approveRequisition(req.id!);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Requisition approved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Requisition approved')));
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -94,9 +94,9 @@ class _PurchasesRequisitionHistoryScreenState
     try {
       await _api.rejectRequisition(req.id!, reason: 'Rejected by purchases');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Requisition rejected')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Requisition rejected')));
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -111,9 +111,9 @@ class _PurchasesRequisitionHistoryScreenState
     try {
       await _api.convertRequisitionToPo(req.id!);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Purchase order created')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Purchase order created')));
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -142,7 +142,10 @@ class _PurchasesRequisitionHistoryScreenState
               if (req.createdAt != null)
                 Text('Created: ${DateFormatter.dateTime(req.createdAt!)}'),
               const SizedBox(height: 12),
-              const Text('Line items:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Line items:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               ...req.lines.map(
                 (l) => Text('• ${l.itemName} × ${l.quantity} (${l.priority})'),
               ),
@@ -150,7 +153,10 @@ class _PurchasesRequisitionHistoryScreenState
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
@@ -181,9 +187,13 @@ class _PurchasesRequisitionHistoryScreenState
                   value: _statusFilter,
                   hint: const Text('All statuses'),
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('All statuses')),
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('All statuses'),
+                    ),
                     ...RequisitionStatus.values.map(
-                      (s) => DropdownMenuItem(value: s.name, child: Text(s.name)),
+                      (s) =>
+                          DropdownMenuItem(value: s.name, child: Text(s.name)),
                     ),
                   ],
                   onChanged: (v) {
@@ -195,8 +205,14 @@ class _PurchasesRequisitionHistoryScreenState
                   value: _departmentFilter,
                   hint: const Text('All departments'),
                   items: const [
-                    DropdownMenuItem(value: null, child: Text('All departments')),
-                    DropdownMenuItem(value: 'PHARMACY', child: Text('Pharmacy')),
+                    DropdownMenuItem(
+                      value: null,
+                      child: Text('All departments'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'PHARMACY',
+                      child: Text('Pharmacy'),
+                    ),
                     DropdownMenuItem(value: 'STORE', child: Text('Store')),
                     DropdownMenuItem(value: 'LAB', child: Text('Lab')),
                     DropdownMenuItem(value: 'OTHER', child: Text('Other')),
@@ -218,7 +234,7 @@ class _PurchasesRequisitionHistoryScreenState
                   ? const Center(child: Text('No requisitions found.'))
                   : ListView.separated(
                       itemCount: _rows.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final req = _rows[index];
                         return ListTile(
@@ -236,7 +252,8 @@ class _PurchasesRequisitionHistoryScreenState
                                 DateFormatter.dateTime(req.createdAt!),
                             ].join(' · '),
                           ),
-                          trailing: req.status == RequisitionStatus.PENDING && isHead
+                          trailing:
+                              req.status == RequisitionStatus.PENDING && isHead
                               ? Wrap(
                                   spacing: 4,
                                   children: [

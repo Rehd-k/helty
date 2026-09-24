@@ -970,12 +970,12 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
     showDialog<void>(
       context: context,
       barrierColor: Colors.transparent,
-        builder: (ctx) => PayBill(
-          patientId: detail.patientId,
-          firstName: name,
-          lastName: '',
-          patientDisplayName: name,
-          selectedItems: models,
+      builder: (ctx) => PayBill(
+        patientId: detail.patientId,
+        firstName: name,
+        lastName: '',
+        patientDisplayName: name,
+        selectedItems: models,
         total: total,
         staffId: staff.id,
         isInvoice: true,
@@ -2650,7 +2650,7 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                           return Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              if (refundBtn != null) refundBtn,
+                                              ?refundBtn,
                                               if (canDeleteLine && line != null)
                                                 IconButton(
                                                   tooltip: 'Delete item',

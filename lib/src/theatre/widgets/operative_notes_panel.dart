@@ -46,10 +46,11 @@ class OperativeNotesPanel extends StatelessWidget {
             Expanded(
               child: Text(
                 compact ? 'OP notes' : 'Operative notes',
-                style: (compact
-                        ? theme.textTheme.titleSmall
-                        : theme.textTheme.titleMedium)
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style:
+                    (compact
+                            ? theme.textTheme.titleSmall
+                            : theme.textTheme.titleMedium)
+                        ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
             if (canWrite && _unlocked)
@@ -133,10 +134,7 @@ class _OperativeNoteCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      [
-                        note.authorName,
-                        if (when != null) when,
-                      ].join(' · '),
+                      [note.authorName, ?when].join(' · '),
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,

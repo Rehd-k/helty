@@ -43,7 +43,7 @@ class _ArchivedEncounterUploadSheetState
   }
 
   Future<void> _pickFiles() async {
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'],

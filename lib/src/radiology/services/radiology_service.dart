@@ -47,9 +47,7 @@ class RadiologyService {
       e.response?.data,
       e.message ?? 'Radiology request failed.',
     );
-    throw UnknownException(
-      message,
-    );
+    throw UnknownException(message);
   }
 
   // ─── Orders ─────────────────────────────────────────────────────────────
@@ -86,8 +84,8 @@ class RadiologyService {
           if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
           if (encounterId != null && encounterId.isNotEmpty)
             'encounterId': encounterId,
-          if (fromDate != null) 'fromDate': fromDate,
-          if (toDate != null) 'toDate': toDate,
+          'fromDate': ?fromDate,
+          'toDate': ?toDate,
           if (priority != null) 'priority': priority.apiValue,
           'skip': skip,
           'take': take > 100 ? 100 : take,
@@ -123,8 +121,8 @@ class RadiologyService {
         queryParameters: {
           if (status != null) 'status': status.apiValue,
           if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
-          if (fromDate != null) 'fromDate': fromDate,
-          if (toDate != null) 'toDate': toDate,
+          'fromDate': ?fromDate,
+          'toDate': ?toDate,
           if (priority != null) 'priority': priority.apiValue,
           'skip': skip,
           'take': take > 100 ? 100 : take,
@@ -157,7 +155,9 @@ class RadiologyService {
   }
 
   Future<RadiologyOrder> updateOrder(
-      String id, Map<String, dynamic> body) async {
+    String id,
+    Map<String, dynamic> body,
+  ) async {
     try {
       final resp = await _dio.patch<Map<String, dynamic>>(
         '$_base/orders/$id',
@@ -454,7 +454,8 @@ class RadiologyService {
   // ─── Patient history ────────────────────────────────────────────────────
 
   Future<RadiologyPatientHistoryResponse> getPatientRadiologyHistory(
-      String patientId) async {
+    String patientId,
+  ) async {
     try {
       final resp = await _dio.get<Map<String, dynamic>>(
         '$_base/patients/$patientId/radiology-history',
@@ -549,10 +550,7 @@ class RadiologyService {
 }
 
 class RadiologyDashboardQuery {
-  const RadiologyDashboardQuery({
-    required this.fromDate,
-    required this.toDate,
-  });
+  const RadiologyDashboardQuery({required this.fromDate, required this.toDate});
 
   final DateTime fromDate;
   final DateTime toDate;

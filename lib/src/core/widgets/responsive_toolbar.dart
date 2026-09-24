@@ -34,7 +34,7 @@ class ResponsiveToolbar extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (leading != null) leading!,
+              ?leading,
               if (leading != null) SizedBox(height: spacing),
               Wrap(
                 spacing: spacing,

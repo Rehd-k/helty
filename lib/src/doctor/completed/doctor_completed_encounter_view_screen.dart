@@ -211,7 +211,7 @@ class _DoctorCompletedEncounterViewScreenState
                         initialChildSize: 0.92,
                         minChildSize: 0.5,
                         maxChildSize: 0.98,
-                        builder: (_, __) => EncounterSpecialtyFormsPanel(
+                        builder: (_, _) => EncounterSpecialtyFormsPanel(
                           encounterId: widget.encounterId,
                           patientId: widget.patientId,
                           readOnly: true,

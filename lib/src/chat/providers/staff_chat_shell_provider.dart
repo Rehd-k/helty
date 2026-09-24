@@ -31,7 +31,7 @@ class StaffChatShellNotifier extends Notifier<StaffChatShellState> {
 
   @override
   StaffChatShellState build() {
-    ref.listen(internalChatSocketProvider, (_, __) {
+    ref.listen(internalChatSocketProvider, (_, _) {
       _bindSocket();
     });
     ref.onDispose(() {

@@ -88,12 +88,11 @@ class DialysisApiService {
       final response = await _dio.get<Map<String, dynamic>>(
         '$_prefix/sessions',
         queryParameters: {
-          if (patientId != null && patientId.isNotEmpty)
-            'patientId': patientId,
+          if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
           if (status != null) 'status': status.apiValue,
           if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
           if (toDate != null) 'toDate': toDate.toIso8601String(),
-          if (skip != null) 'skip': skip,
+          'skip': ?skip,
           if (take != null) 'take': take > 100 ? 100 : take,
         },
       );
@@ -132,10 +131,10 @@ class DialysisApiService {
         '$_prefix/sessions/$id',
         data: {
           if (status != null) 'status': status.apiValue,
-          if (notes != null) 'notes': notes,
+          'notes': ?notes,
           if (performedById != null && performedById.isNotEmpty)
             'performedById': performedById,
-          if (machineId != null) 'machineId': machineId,
+          'machineId': ?machineId,
         },
       );
       final data = response.data;

@@ -15,9 +15,8 @@ class MedicationRequestService {
       return raw
           .whereType<Map>()
           .map(
-            (e) => MedicationRequestModel.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
+            (e) =>
+                MedicationRequestModel.fromJson(Map<String, dynamic>.from(e)),
           )
           .toList();
     }
@@ -190,8 +189,7 @@ class MedicationRequestService {
         '/medication-requests/$id',
         data: {
           'modifiedByStaffId': modifiedByStaffId,
-          if (requestedQuantity != null)
-            'requestedQuantity': requestedQuantity,
+          'requestedQuantity': ?requestedQuantity,
           if (notes != null) 'notes': notes.trim(),
           if (drugId != null && drugId.isNotEmpty) 'drugId': drugId,
           if (alternativeDrugId != null && alternativeDrugId.isNotEmpty)

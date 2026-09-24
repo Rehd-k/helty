@@ -62,7 +62,7 @@ class ParkedBillingChipsBar extends ConsumerWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: sessions.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final session = sessions[index];
                 return _ParkedBillChip(
@@ -137,12 +137,7 @@ class _ParkedBillChip extends StatelessWidget {
         : session.totalDue.toFinancial(isMoney: true);
     final ago = DateFormatter.relativeTimeAgo(session.parkedAt);
 
-    final labelParts = <String>[
-      name,
-      itemLabel,
-      if (amountLabel != null) amountLabel,
-      ago,
-    ];
+    final labelParts = <String>[name, itemLabel, ?amountLabel, ago];
 
     final accent = DepartmentColors.billing;
 

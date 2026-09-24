@@ -45,7 +45,9 @@ class StoreApiService {
     if (data is Map) {
       return StoreCategoriesResponse.fromJson(_storeResponseAsMap(data));
     }
-    throw StateError('Get categories returned unexpected type: ${data.runtimeType}');
+    throw StateError(
+      'Get categories returned unexpected type: ${data.runtimeType}',
+    );
   }
 
   Future<StoreCategory> getCategoryById(String id) async {
@@ -91,8 +93,8 @@ class StoreApiService {
     final response = await _dio.get<dynamic>(
       '$_prefix/items',
       queryParameters: {
-        if (categoryId != null) 'categoryId': categoryId,
-        if (isActive != null) 'isActive': isActive,
+        'categoryId': ?categoryId,
+        'isActive': ?isActive,
         'limit': limit,
         'skip': skip,
       },
@@ -159,7 +161,9 @@ class StoreApiService {
     if (data is Map) {
       return StoreLocationsResponse.fromJson(_storeResponseAsMap(data));
     }
-    throw StateError('Get locations returned unexpected type: ${data.runtimeType}');
+    throw StateError(
+      'Get locations returned unexpected type: ${data.runtimeType}',
+    );
   }
 
   Future<StoreLocation> getLocationById(String id) async {
@@ -195,8 +199,8 @@ class StoreApiService {
     final response = await _dio.get<dynamic>(
       '$_prefix/stock',
       queryParameters: {
-        if (locationId != null) 'locationId': locationId,
-        if (itemId != null) 'itemId': itemId,
+        'locationId': ?locationId,
+        'itemId': ?itemId,
         'limit': limit,
         'skip': skip,
       },
@@ -244,10 +248,10 @@ class StoreApiService {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_prefix/analytics/dashboard',
       queryParameters: {
-        if (fromDate != null) 'fromDate': fromDate,
-        if (toDate != null) 'toDate': toDate,
-        if (departmentId != null) 'departmentId': departmentId,
-        if (categoryId != null) 'categoryId': categoryId,
+        'fromDate': ?fromDate,
+        'toDate': ?toDate,
+        'departmentId': ?departmentId,
+        'categoryId': ?categoryId,
         'limit': limit,
       },
     );

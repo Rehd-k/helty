@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:helty/src/billings/parked_billing_session.dart';
 import 'package:helty/src/models/service_model.dart';
 import 'package:helty/src/paitients/patient_model.dart';

@@ -73,7 +73,7 @@ class EncounterSpecialtyGate extends ConsumerStatefulWidget {
             initialChildSize: 0.92,
             minChildSize: 0.5,
             maxChildSize: 0.98,
-            builder: (_, __) => EncounterSpecialtyGate(
+            builder: (_, _) => EncounterSpecialtyGate(
               encounterId: encounterId,
               onFinished: () {
                 Navigator.of(ctx).pop();

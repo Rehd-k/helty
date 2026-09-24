@@ -37,7 +37,7 @@ class CMDAlertsIncidentsScreen extends ConsumerWidget {
         return ListView.separated(
           padding: const EdgeInsets.only(bottom: 24),
           itemCount: data.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, i) {
             final e = data[i];
             final severity = _cmdIncidentSeverityColor(e.severity);

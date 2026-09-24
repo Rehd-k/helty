@@ -150,7 +150,9 @@ class _ObstetricsPregnanciesListScreenState
   }
 
   void _addPregnancy() {
-    context.router.push(ObstetricsAddPregnancyRoute()).then((_) => _load(reset: true));
+    context.router
+        .push(ObstetricsAddPregnancyRoute())
+        .then((_) => _load(reset: true));
   }
 
   @override
@@ -232,49 +234,49 @@ class _ObstetricsPregnanciesListScreenState
       center: false,
       bottomPadding: 0,
       builder: (context, bp) => _loading && _pregnancies.isEmpty
-        ? const SizedBox(
-            height: 200,
-            child: Center(child: CircularProgressIndicator()),
-          )
-        : _pregnancies.isEmpty
-            ? _EmptyPregnancies(onAdd: _addPregnancy)
-            : Column(
-                children: [
-                  Padding(
+          ? const SizedBox(
+              height: 200,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : _pregnancies.isEmpty
+          ? _EmptyPregnancies(onAdd: _addPregnancy)
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ObstetricsTheme.listHorizontalPadding,
+                  ),
+                  child: Text(
+                    '$_total record${_total == 1 ? '' : 's'}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ..._pregnancies.map(
+                  (p) => Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: ObstetricsTheme.listHorizontalPadding,
                     ),
-                    child: Text(
-                      '$_total record${_total == 1 ? '' : 's'}',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: PregnancySummaryCard(
+                      pregnancy: p,
+                      onTap: () => _openPregnancy(p),
                     ),
                   ),
-                  ..._pregnancies.map(
-                    (p) => Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: ObstetricsTheme.listHorizontalPadding,
-                      ),
-                      child: PregnancySummaryCard(
-                        pregnancy: p,
-                        onTap: () => _openPregnancy(p),
-                      ),
-                    ),
+                ),
+                if (_skip + _pregnancies.length < _total)
+                  TextButton(
+                    onPressed: _loading
+                        ? null
+                        : () {
+                            setState(() => _skip += _take);
+                            _load();
+                          },
+                    child: const Text('Load more'),
                   ),
-                  if (_skip + _pregnancies.length < _total)
-                    TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () {
-                              setState(() => _skip += _take);
-                              _load();
-                            },
-                      child: const Text('Load more'),
-                    ),
-                  const SizedBox(height: 80),
-                ],
-              ),
+                const SizedBox(height: 80),
+              ],
+            ),
     );
 
     return ObListScaffold(
@@ -291,7 +293,7 @@ class _ObstetricsPregnanciesListScreenState
       errorBanner: errorBanner,
       header: Column(
         children: [
-          if (encounterBanner != null) encounterBanner,
+          ?encounterBanner,
           ObPatientBanner(patient: selectedPatient),
         ],
       ),
@@ -334,10 +336,7 @@ class _EmptyPregnancies extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'No pregnancies recorded',
-            style: theme.textTheme.titleMedium,
-          ),
+          Text('No pregnancies recorded', style: theme.textTheme.titleMedium),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: onAdd,

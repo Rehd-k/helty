@@ -94,7 +94,7 @@ class _RadiologyRequestDetailScreenState
 
   Future<void> _uploadImage(String itemId) async {
     final service = ref.read(radiologyServiceProvider);
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'],
       withData: true,

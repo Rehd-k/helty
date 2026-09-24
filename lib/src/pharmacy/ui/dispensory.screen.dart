@@ -147,10 +147,7 @@ class _PharmacyPOSState extends State<PharmacyPOSScreen> {
               return SingleChildScrollView(
                 child: Column(
                   children: [
-                    SizedBox(
-                      height: 500,
-                      child: _buildLeftPanel(colorScheme),
-                    ),
+                    SizedBox(height: 500, child: _buildLeftPanel(colorScheme)),
                     const SizedBox(height: 16),
                     SizedBox(
                       height: 400,
@@ -387,7 +384,7 @@ class _PharmacyPOSState extends State<PharmacyPOSScreen> {
                   )
                 : ListView.separated(
                     itemCount: cart.length,
-                    separatorBuilder: (_, __) => const Divider(height: 24),
+                    separatorBuilder: (_, _) => const Divider(height: 24),
                     itemBuilder: (context, index) {
                       final item = cart[index];
                       return Row(

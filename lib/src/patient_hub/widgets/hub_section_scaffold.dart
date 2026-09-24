@@ -34,7 +34,10 @@ class HubSectionScaffold extends StatelessWidget {
             Text(error!, textAlign: TextAlign.center),
             if (onRetry != null) ...[
               const SizedBox(height: 12),
-              FilledButton.tonal(onPressed: onRetry, child: const Text('Retry')),
+              FilledButton.tonal(
+                onPressed: onRetry,
+                child: const Text('Retry'),
+              ),
             ],
           ],
         ),
@@ -51,13 +54,16 @@ class HubSectionScaffold extends StatelessWidget {
           if (compact && filterRow != null) {
             return Row(
               children: [
-                if (sortDropdown != null) sortDropdown!,
+                ?sortDropdown,
                 const Spacer(),
                 IconButton(
                   tooltip: 'Filters',
                   onPressed: () => _showFilterMenu(context),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                   icon: const HubSolidIcon(
                     icon: Icons.tune,
                     color: PatientHubMetrics.iconPurple,
@@ -72,7 +78,7 @@ class HubSectionScaffold extends StatelessWidget {
           return Row(
             children: [
               if (filterRow != null) Expanded(child: filterRow!),
-              if (sortDropdown != null) sortDropdown!,
+              ?sortDropdown,
             ],
           );
         }
@@ -130,7 +136,7 @@ class HubSectionScaffold extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (filterRow != null) filterRow!,
+                  ?filterRow,
                 ],
               ),
             ),

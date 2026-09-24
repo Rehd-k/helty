@@ -20,7 +20,9 @@ bool _isLabCategoryName(String name) {
 
 List<PaidInvoiceServiceLine> _labServiceLines(PaidModuleRequestContext? ctx) {
   if (ctx == null) return const [];
-  return ctx.serviceLines.where((l) => _isLabCategoryName(l.categoryName)).toList();
+  return ctx.serviceLines
+      .where((l) => _isLabCategoryName(l.categoryName))
+      .toList();
 }
 
 LabTestVersion? _activeLabVersion(LabTest test) {
@@ -42,15 +44,18 @@ class LabCreateOrderScreen extends ConsumerStatefulWidget {
 class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
   Patient? _patient;
   Staff? _doctor;
+
   /// Non–invoice flows (e.g. enlist) only.
   final Set<String> _selectedTestIds = {};
+
   /// Paid lab: test ids per invoice line.
   final Map<String, Set<String>> _testIdsByInvoiceItemId = {};
+
   /// Standard flow: AST requested per test id.
   final Map<String, bool> _astRequestedByTestId = {};
+
   /// Paid lab: AST requested per invoice line and test id.
-  final Map<String, Map<String, bool>> _astRequestedByInvoiceItemAndTestId =
-      {};
+  final Map<String, Map<String, bool>> _astRequestedByInvoiceItemAndTestId = {};
   bool _loading = false;
   String? _error;
   List<Patient> _patientSearchResults = [];
@@ -104,8 +109,10 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     setState(() {
       if (isPaidLab && _selectedInvoiceLine != null) {
         final itemId = _selectedInvoiceLine!.invoiceItemId;
-        final set =
-            _testIdsByInvoiceItemId.putIfAbsent(itemId, () => <String>{});
+        final set = _testIdsByInvoiceItemId.putIfAbsent(
+          itemId,
+          () => <String>{},
+        );
         if (set.contains(testId)) {
           set.remove(testId);
           _astRequestedByInvoiceItemAndTestId[itemId]?.remove(testId);
@@ -143,8 +150,10 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
   }) {
     setState(() {
       if (isPaidLab && invoiceItemId != null) {
-        _astRequestedByInvoiceItemAndTestId
-            .putIfAbsent(invoiceItemId, () => {})[testId] = value;
+        _astRequestedByInvoiceItemAndTestId.putIfAbsent(
+          invoiceItemId,
+          () => {},
+        )[testId] = value;
       } else {
         _astRequestedByTestId[testId] = value;
       }
@@ -235,8 +244,7 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
 
     final hasInvoiceRequestingStaff =
         paidCtx?.invoiceStaffId?.trim().isNotEmpty ?? false;
-    final showRequestingDoctorSection =
-        !isPaidLab || hasInvoiceRequestingStaff;
+    final showRequestingDoctorSection = !isPaidLab || hasInvoiceRequestingStaff;
 
     return Scaffold(
       appBar: AppBar(
@@ -250,605 +258,651 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
         expand: false,
         builder: (context, bp) => SingleChildScrollView(
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (isPaidLabEmptyLines)
-              Card(
-                color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded,
-                          color: theme.colorScheme.error),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'This invoice has no laboratory service lines. '
-                          'Add laboratory items to the invoice or contact billing.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isPaidLabEmptyLines)
+                Card(
+                  color: theme.colorScheme.errorContainer.withValues(
+                    alpha: 0.35,
                   ),
-                ),
-              ),
-            if (isPaidLabEmptyLines) const SizedBox(height: 20),
-            if (_needsExternalAck) ...[
-              Material(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(12),
-                child: CheckboxListTile(
-                  value: _externalPatientAcknowledged,
-                  onChanged: (v) {
-                    setState(() => _externalPatientAcknowledged = v ?? false);
-                  },
-                  title: const Text('External patient'),
-                  subtitle: const Text(
-                    'I confirm this invoice has no requesting doctor on file '
-                    '(external / walk-in billing).',
-                  ),
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            _SectionCard(
-              title: 'Patient',
-              child: _patient == null
-                  ? _SearchField(
-                      hint: 'Search patient by name or ID',
-                      onSearch: (q) async {
-                        setState(() {
-                          _searchingPatients = true;
-                        });
-                        final list = await patientService.fetchPatients(
-                          query: q,
-                          take: 15,
-                          isAscending: true,
-                        );
-                        if (mounted) {
-                          setState(() {
-                            _patientSearchResults = list;
-                            _searchingPatients = false;
-                          });
-                        }
-                      },
-                      suggestions: _patientSearchResults,
-                      searching: _searchingPatients,
-                      suggestionTitle: (p) =>
-                          '${p.surname} ${p.firstName} (${p.patientId})',
-                      onSelect: (p) => setState(() => _patient = p),
-                    )
-                  : ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        _formatPatientName(_patient!),
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      subtitle: _patientLocked &&
-                              paidCtx != null &&
-                              paidCtx.invoiceDisplayId.trim().isNotEmpty
-                          ? Text('Invoice ${paidCtx.invoiceDisplayId}')
-                          : null,
-                      trailing: _patientLocked
-                          ? const Icon(Icons.lock_rounded)
-                          : IconButton(
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: () => setState(() => _patient = null),
-                            ),
-                    ),
-            ),
-            const SizedBox(height: 20),
-            if (showRequestingDoctorSection) ...[
-              _SectionCard(
-                title: isPaidLab
-                    ? 'Requesting doctor'
-                    : 'Requesting doctor (optional)',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (!isPaidLab)
-                      Text(
-                        'If left empty, your signed-in account is used when the server requires a doctor id.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    if (!isPaidLab) const SizedBox(height: 12),
-                    if (_invoiceStaffLoadError != null) ...[
-                      Text(
-                        _invoiceStaffLoadError!,
-                        style: theme.textTheme.bodySmall?.copyWith(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
                           color: theme.colorScheme.error,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    _doctor == null
-                        ? _SearchField<Staff>(
-                            hint: 'Search doctor / staff',
-                            onSearch: (q) async {
-                              setState(() {
-                                _searchingDoctors = true;
-                              });
-                              final list = await staffService.fetchStaff(
-                                query: q,
-                                limit: 15,
-                              );
-                              if (mounted) {
-                                setState(() {
-                                  _doctorSearchResults = list;
-                                  _searchingDoctors = false;
-                                });
-                              }
-                            },
-                            suggestions: _doctorSearchResults,
-                            searching: _searchingDoctors,
-                            suggestionTitle: (s) => s.fullName,
-                            onSelect: (s) => setState(() => _doctor = s),
-                          )
-                        : ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              _doctor!.fullName,
-                              style: theme.textTheme.titleSmall,
-                            ),
-                            subtitle: Text(_doctor!.staffRole),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: () => setState(() => _doctor = null),
-                            ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'This invoice has no laboratory service lines. '
+                            'Add laboratory items to the invoice or contact billing.',
+                            style: theme.textTheme.bodyMedium,
                           ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-            if (isPaidLab && currentHasOrder && selectedLine != null) ...[
-              _ExistingOrderForLineCard(
-                orderId: _orderIdByInvoiceItemId[selectedLine.invoiceItemId]!,
-                cached: _orderDetailByInvoiceItemId[selectedLine.invoiceItemId],
-                api: api,
-                onLoaded: (order) {
-                  setState(() {
-                    _orderDetailByInvoiceItemId[selectedLine.invoiceItemId] =
-                        order;
-                  });
-                },
-                onOpenDetail: () {
-                  final oid =
-                      _orderIdByInvoiceItemId[selectedLine.invoiceItemId];
-                  if (oid != null) {
-                    context.router.push(LabOrderDetailRoute(orderId: oid));
-                  }
-                },
-              ),
-              const SizedBox(height: 20),
-            ],
-            if (isPaidLab) ...[
-              Text(
-                'Invoice items (laboratory)',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final line in labLines)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(
-                            line.serviceName,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          selected: selectedLine?.invoiceItemId == line.invoiceItemId,
-                          onSelected: (_) => _selectInvoiceLine(line),
-                          avatar: _orderIdByInvoiceItemId
-                                  .containsKey(line.invoiceItemId)
-                              ? const Icon(Icons.check_circle, size: 18)
-                              : ((_testIdsByInvoiceItemId[line.invoiceItemId]
-                                          ?.isNotEmpty ??
-                                      false)
-                                  ? const Icon(Icons.science_outlined, size: 18)
-                                  : null),
                         ),
-                      ),
-                  ],
-                ),
-              ),
-              if (_orderIdByInvoiceItemId.length == labLines.length)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    'All ${labLines.length} invoice line(s) have a lab order.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
+                      ],
                     ),
                   ),
                 ),
-              const SizedBox(height: 20),
-            ],
-            if (!isPaidLab || !currentHasOrder)
+              if (isPaidLabEmptyLines) const SizedBox(height: 20),
+              if (_needsExternalAck) ...[
+                Material(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.6,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  child: CheckboxListTile(
+                    value: _externalPatientAcknowledged,
+                    onChanged: (v) {
+                      setState(() => _externalPatientAcknowledged = v ?? false);
+                    },
+                    title: const Text('External patient'),
+                    subtitle: const Text(
+                      'I confirm this invoice has no requesting doctor on file '
+                      '(external / walk-in billing).',
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               _SectionCard(
-                title: 'Tests',
-                child: FutureBuilder<LabTestsResponse>(
-                  future: api.getTests(isActive: true, take: 500),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    final tests = snapshot.data!.data;
-                    if (tests.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Center(
-                          child: Text('No active lab tests configured.'),
+                title: 'Patient',
+                child: _patient == null
+                    ? _SearchField(
+                        hint: 'Search patient by name or ID',
+                        onSearch: (q) async {
+                          setState(() {
+                            _searchingPatients = true;
+                          });
+                          final list = await patientService.fetchPatients(
+                            query: q,
+                            take: 15,
+                            isAscending: true,
+                          );
+                          if (mounted) {
+                            setState(() {
+                              _patientSearchResults = list;
+                              _searchingPatients = false;
+                            });
+                          }
+                        },
+                        suggestions: _patientSearchResults,
+                        searching: _searchingPatients,
+                        suggestionTitle: (p) =>
+                            '${p.surname} ${p.firstName} (${p.patientId})',
+                        onSelect: (p) => setState(() => _patient = p),
+                      )
+                    : ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          _formatPatientName(_patient!),
+                          style: theme.textTheme.titleSmall,
                         ),
-                      );
+                        subtitle:
+                            _patientLocked &&
+                                paidCtx != null &&
+                                paidCtx.invoiceDisplayId.trim().isNotEmpty
+                            ? Text('Invoice ${paidCtx.invoiceDisplayId}')
+                            : null,
+                        trailing: _patientLocked
+                            ? const Icon(Icons.lock_rounded)
+                            : IconButton(
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: () =>
+                                    setState(() => _patient = null),
+                              ),
+                      ),
+              ),
+              const SizedBox(height: 20),
+              if (showRequestingDoctorSection) ...[
+                _SectionCard(
+                  title: isPaidLab
+                      ? 'Requesting doctor'
+                      : 'Requesting doctor (optional)',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!isPaidLab)
+                        Text(
+                          'If left empty, your signed-in account is used when the server requires a doctor id.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      if (!isPaidLab) const SizedBox(height: 12),
+                      if (_invoiceStaffLoadError != null) ...[
+                        Text(
+                          _invoiceStaffLoadError!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      _doctor == null
+                          ? _SearchField<Staff>(
+                              hint: 'Search doctor / staff',
+                              onSearch: (q) async {
+                                setState(() {
+                                  _searchingDoctors = true;
+                                });
+                                final list = await staffService.fetchStaff(
+                                  query: q,
+                                  limit: 15,
+                                );
+                                if (mounted) {
+                                  setState(() {
+                                    _doctorSearchResults = list;
+                                    _searchingDoctors = false;
+                                  });
+                                }
+                              },
+                              suggestions: _doctorSearchResults,
+                              searching: _searchingDoctors,
+                              suggestionTitle: (s) => s.fullName,
+                              onSelect: (s) => setState(() => _doctor = s),
+                            )
+                          : ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                _doctor!.fullName,
+                                style: theme.textTheme.titleSmall,
+                              ),
+                              subtitle: Text(_doctor!.staffRole),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: () => setState(() => _doctor = null),
+                              ),
+                            ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+              if (isPaidLab && currentHasOrder && selectedLine != null) ...[
+                _ExistingOrderForLineCard(
+                  orderId: _orderIdByInvoiceItemId[selectedLine.invoiceItemId]!,
+                  cached:
+                      _orderDetailByInvoiceItemId[selectedLine.invoiceItemId],
+                  api: api,
+                  onLoaded: (order) {
+                    setState(() {
+                      _orderDetailByInvoiceItemId[selectedLine.invoiceItemId] =
+                          order;
+                    });
+                  },
+                  onOpenDetail: () {
+                    final oid =
+                        _orderIdByInvoiceItemId[selectedLine.invoiceItemId];
+                    if (oid != null) {
+                      context.router.push(LabOrderDetailRoute(orderId: oid));
                     }
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+              if (isPaidLab) ...[
+                Text(
+                  'Invoice items (laboratory)',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final line in labLines)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(
+                              line.serviceName,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            selected:
+                                selectedLine?.invoiceItemId ==
+                                line.invoiceItemId,
+                            onSelected: (_) => _selectInvoiceLine(line),
+                            avatar:
+                                _orderIdByInvoiceItemId.containsKey(
+                                  line.invoiceItemId,
+                                )
+                                ? const Icon(Icons.check_circle, size: 18)
+                                : ((_testIdsByInvoiceItemId[line.invoiceItemId]
+                                              ?.isNotEmpty ??
+                                          false)
+                                      ? const Icon(
+                                          Icons.science_outlined,
+                                          size: 18,
+                                        )
+                                      : null),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (_orderIdByInvoiceItemId.length == labLines.length)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(
+                      'All ${labLines.length} invoice line(s) have a lab order.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 20),
+              ],
+              if (!isPaidLab || !currentHasOrder)
+                _SectionCard(
+                  title: 'Tests',
+                  child: FutureBuilder<LabTestsResponse>(
+                    future: api.getTests(isActive: true, take: 500),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      final tests = snapshot.data!.data;
+                      if (tests.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(
+                            child: Text('No active lab tests configured.'),
+                          ),
+                        );
+                      }
 
-                    final activeTestIds = isPaidLab && selectedLine != null
-                        ? (_testIdsByInvoiceItemId[selectedLine.invoiceItemId] ??
-                            <String>{})
-                        : _selectedTestIds;
+                      final activeTestIds = isPaidLab && selectedLine != null
+                          ? (_testIdsByInvoiceItemId[selectedLine
+                                    .invoiceItemId] ??
+                                <String>{})
+                          : _selectedTestIds;
 
-                    final Map<String, List<LabTest>> byCategory = {};
-                    for (final t in tests) {
-                      final key = t.category?.name ?? 'Other';
-                      byCategory.putIfAbsent(key, () => []).add(t);
-                    }
-                    final categoryEntries = byCategory.entries.toList()
-                      ..sort((a, b) => a.key.compareTo(b.key));
+                      final Map<String, List<LabTest>> byCategory = {};
+                      for (final t in tests) {
+                        final key = t.category?.name ?? 'Other';
+                        byCategory.putIfAbsent(key, () => []).add(t);
+                      }
+                      final categoryEntries = byCategory.entries.toList()
+                        ..sort((a, b) => a.key.compareTo(b.key));
 
-                    final selectedCategoryName = _selectedCategoryId;
+                      final selectedCategoryName = _selectedCategoryId;
 
-                    List<LabTest> filtered = tests;
-                    if (selectedCategoryName != null &&
-                        byCategory.containsKey(selectedCategoryName)) {
-                      filtered = byCategory[selectedCategoryName]!;
-                    }
-                    if (_testSearchQuery.trim().isNotEmpty) {
-                      final q = _testSearchQuery.trim().toLowerCase();
-                      filtered = filtered.where((t) {
-                        final inName = t.name.toLowerCase().contains(q);
-                        final inSample = t.sampleType.toLowerCase().contains(q);
-                        final inCategory =
-                            (t.category?.name.toLowerCase() ?? '').contains(q);
-                        return inName || inSample || inCategory;
-                      }).toList();
-                    }
+                      List<LabTest> filtered = tests;
+                      if (selectedCategoryName != null &&
+                          byCategory.containsKey(selectedCategoryName)) {
+                        filtered = byCategory[selectedCategoryName]!;
+                      }
+                      if (_testSearchQuery.trim().isNotEmpty) {
+                        final q = _testSearchQuery.trim().toLowerCase();
+                        filtered = filtered.where((t) {
+                          final inName = t.name.toLowerCase().contains(q);
+                          final inSample = t.sampleType.toLowerCase().contains(
+                            q,
+                          );
+                          final inCategory =
+                              (t.category?.name.toLowerCase() ?? '').contains(
+                                q,
+                              );
+                          return inName || inSample || inCategory;
+                        }).toList();
+                      }
 
-                    filtered.sort((a, b) => a.name.compareTo(b.name));
+                      filtered.sort((a, b) => a.name.compareTo(b.name));
 
-                    final selectedTests = tests
-                        .where((t) => activeTestIds.contains(t.id))
-                        .toList()
-                      ..sort((a, b) => a.name.compareTo(b.name));
+                      final selectedTests =
+                          tests
+                              .where((t) => activeTestIds.contains(t.id))
+                              .toList()
+                            ..sort((a, b) => a.name.compareTo(b.name));
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          decoration: InputDecoration(
-                            hintText:
-                                'Search tests by name, sample or category',
-                            prefixIcon: const Icon(Icons.search_rounded),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Search tests by name, sample or category',
+                              prefixIcon: const Icon(Icons.search_rounded),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onChanged: (v) {
+                              setState(() {
+                                _testSearchQuery = v;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('All'),
+                                  selected: selectedCategoryName == null,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      _selectedCategoryId = null;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                ...categoryEntries.map((entry) {
+                                  final selected =
+                                      selectedCategoryName == entry.key;
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child: ChoiceChip(
+                                      label: Text(
+                                        '${entry.key} (${entry.value.length})',
+                                      ),
+                                      selected: selected,
+                                      onSelected: (_) {
+                                        setState(() {
+                                          _selectedCategoryId = selected
+                                              ? null
+                                              : entry.key;
+                                        });
+                                      },
+                                    ),
+                                  );
+                                }),
+                              ],
                             ),
                           ),
-                          onChanged: (v) {
-                            setState(() {
-                              _testSearchQuery = v;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
+                          const SizedBox(height: 16),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              ChoiceChip(
-                                label: const Text('All'),
-                                selected: selectedCategoryName == null,
-                                onSelected: (_) {
-                                  setState(() {
-                                    _selectedCategoryId = null;
-                                  });
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              ...categoryEntries.map((entry) {
-                                final selected =
-                                    selectedCategoryName == entry.key;
-                                return Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 4),
-                                  child: ChoiceChip(
-                                    label: Text(
-                                        '${entry.key} (${entry.value.length})'),
-                                    selected: selected,
-                                    onSelected: (_) {
-                                      setState(() {
-                                        _selectedCategoryId = selected
-                                            ? null
-                                            : entry.key;
-                                      });
-                                    },
+                              Expanded(
+                                flex: 3,
+                                child: Container(
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 320,
                                   ),
-                                );
-                              }),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: Container(
-                                constraints:
-                                    const BoxConstraints(maxHeight: 320),
-                                decoration: BoxDecoration(
-                                  color: theme
-                                      .colorScheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: theme.colorScheme.outlineVariant
-                                        .withValues(alpha: 0.8),
+                                  decoration: BoxDecoration(
+                                    color: theme
+                                        .colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(alpha: 0.6),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: theme.colorScheme.outlineVariant
+                                          .withValues(alpha: 0.8),
+                                    ),
                                   ),
-                                ),
-                                child: filtered.isEmpty
-                                    ? Center(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(24),
-                                          child: Text(
-                                            'No tests match your filters.',
-                                            style: theme.textTheme.bodySmall,
+                                  child: filtered.isEmpty
+                                      ? Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(24),
+                                            child: Text(
+                                              'No tests match your filters.',
+                                              style: theme.textTheme.bodySmall,
+                                            ),
                                           ),
-                                        ),
-                                      )
-                                    : ListView.separated(
-                                        shrinkWrap: true,
-                                        itemCount: filtered.length,
-                                        separatorBuilder: (_, __) =>
-                                            const Divider(height: 1),
-                                        itemBuilder: (context, index) {
-                                          final t = filtered[index];
-                                          final selected =
-                                              activeTestIds.contains(t.id);
-                                          return ListTile(
-                                            dense: true,
-                                            onTap: () {
-                                              _toggleTestId(
-                                                t.id,
-                                                isPaidLab: isPaidLab,
-                                              );
-                                            },
-                                            leading: Checkbox(
-                                              value: selected,
-                                              onChanged: (v) {
+                                        )
+                                      : ListView.separated(
+                                          shrinkWrap: true,
+                                          itemCount: filtered.length,
+                                          separatorBuilder: (_, _) =>
+                                              const Divider(height: 1),
+                                          itemBuilder: (context, index) {
+                                            final t = filtered[index];
+                                            final selected = activeTestIds
+                                                .contains(t.id);
+                                            return ListTile(
+                                              dense: true,
+                                              onTap: () {
                                                 _toggleTestId(
                                                   t.id,
                                                   isPaidLab: isPaidLab,
                                                 );
                                               },
-                                            ),
-                                            title: Text(
-                                              t.name,
-                                              style: theme
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            subtitle: Text(
-                                              [
-                                                t.sampleType,
-                                                if (t.category != null)
-                                                  t.category!.name,
-                                              ].where((e) => e.isNotEmpty).join(
-                                                    ' • ',
-                                                  ),
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(
-                                                color: theme.colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                            trailing: (paidCtx == null &&
-                                                    t.price != null)
-                                                ? Text(
-                                                    t.price!.toStringAsFixed(2),
-                                                    style: theme
-                                                        .textTheme.bodySmall
-                                                        ?.copyWith(
-                                                      color: theme.colorScheme
-                                                          .primary,
-                                                    ),
-                                                  )
-                                                : null,
-                                          );
-                                        },
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              flex: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Selected tests (${selectedTests.length})',
-                                    style:
-                                        theme.textTheme.labelLarge?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (selectedTests.isEmpty)
-                                    Text(
-                                      'No tests selected yet.',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                        color: theme
-                                            .colorScheme.onSurfaceVariant,
-                                      ),
-                                    )
-                                  else
-                                    Container(
-                                      constraints: const BoxConstraints(
-                                          maxHeight: 220),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: theme
-                                              .colorScheme.outlineVariant,
-                                        ),
-                                      ),
-                                      child: ListView.separated(
-                                        shrinkWrap: true,
-                                        itemCount: selectedTests.length,
-                                        separatorBuilder: (_, __) =>
-                                            const Divider(height: 1),
-                                        itemBuilder: (context, index) {
-                                          final t = selectedTests[index];
-                                          final invoiceItemId =
-                                              selectedLine?.invoiceItemId;
-                                          final astRequested = _isAstRequested(
-                                            t.id,
-                                            isPaidLab: isPaidLab,
-                                            invoiceItemId: invoiceItemId,
-                                          );
-                                          return Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.stretch,
-                                            children: [
-                                              ListTile(
-                                                dense: true,
-                                                title: Text(
-                                                  t.name,
-                                                  style: theme
-                                                      .textTheme.bodySmall
-                                                      ?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                                subtitle: Text(
-                                                  t.sampleType,
-                                                  style: theme
-                                                      .textTheme.bodySmall
-                                                      ?.copyWith(
-                                                    color: theme.colorScheme
-                                                        .onSurfaceVariant,
-                                                  ),
-                                                ),
-                                                trailing: IconButton(
-                                                  icon: const Icon(
-                                                    Icons.close_rounded,
-                                                    size: 18,
-                                                  ),
-                                                  onPressed: () {
-                                                    _toggleTestId(
-                                                      t.id,
-                                                      isPaidLab: isPaidLab,
-                                                    );
-                                                  },
-                                                ),
-                                              ),
-                                              CheckboxListTile(
-                                                dense: true,
-                                                contentPadding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 16,
-                                                ),
-                                                title: Text(
-                                                  'Include AST (antibiotic susceptibility)',
-                                                  style: theme
-                                                      .textTheme.bodySmall,
-                                                ),
-                                                value: astRequested,
+                                              leading: Checkbox(
+                                                value: selected,
                                                 onChanged: (v) {
-                                                  _setAstRequested(
+                                                  _toggleTestId(
                                                     t.id,
-                                                    v ?? false,
                                                     isPaidLab: isPaidLab,
-                                                    invoiceItemId:
-                                                        invoiceItemId,
                                                   );
                                                 },
-                                                controlAffinity:
-                                                    ListTileControlAffinity
-                                                        .leading,
                                               ),
-                                            ],
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                ],
+                                              title: Text(
+                                                t.name,
+                                                style: theme
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                              ),
+                                              subtitle: Text(
+                                                [
+                                                      t.sampleType,
+                                                      if (t.category != null)
+                                                        t.category!.name,
+                                                    ]
+                                                    .where((e) => e.isNotEmpty)
+                                                    .join(' • '),
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                              ),
+                                              trailing:
+                                                  (paidCtx == null &&
+                                                      t.price != null)
+                                                  ? Text(
+                                                      t.price!.toStringAsFixed(
+                                                        2,
+                                                      ),
+                                                      style: theme
+                                                          .textTheme
+                                                          .bodySmall
+                                                          ?.copyWith(
+                                                            color: theme
+                                                                .colorScheme
+                                                                .primary,
+                                                          ),
+                                                    )
+                                                  : null,
+                                            );
+                                          },
+                                        ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ],
-            const SizedBox(height: 32),
-            if (!currentHasOrder || !isPaidLab)
-              FilledButton(
-                onPressed: _loading ||
-                        !_canSubmit(
-                          isPaidLab: isPaidLab,
-                          labLines: labLines,
-                          isPaidLabEmptyLines: isPaidLabEmptyLines,
-                        )
-                    ? null
-                    : () => _submit(context, ref, paidCtx),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Selected tests (${selectedTests.length})',
+                                      style: theme.textTheme.labelLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (selectedTests.isEmpty)
+                                      Text(
+                                        'No tests selected yet.',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                      )
+                                    else
+                                      Container(
+                                        constraints: const BoxConstraints(
+                                          maxHeight: 220,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border: Border.all(
+                                            color: theme
+                                                .colorScheme
+                                                .outlineVariant,
+                                          ),
+                                        ),
+                                        child: ListView.separated(
+                                          shrinkWrap: true,
+                                          itemCount: selectedTests.length,
+                                          separatorBuilder: (_, _) =>
+                                              const Divider(height: 1),
+                                          itemBuilder: (context, index) {
+                                            final t = selectedTests[index];
+                                            final invoiceItemId =
+                                                selectedLine?.invoiceItemId;
+                                            final astRequested =
+                                                _isAstRequested(
+                                                  t.id,
+                                                  isPaidLab: isPaidLab,
+                                                  invoiceItemId: invoiceItemId,
+                                                );
+                                            return Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                ListTile(
+                                                  dense: true,
+                                                  title: Text(
+                                                    t.name,
+                                                    style: theme
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                  ),
+                                                  subtitle: Text(
+                                                    t.sampleType,
+                                                    style: theme
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          color: theme
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
+                                                        ),
+                                                  ),
+                                                  trailing: IconButton(
+                                                    icon: const Icon(
+                                                      Icons.close_rounded,
+                                                      size: 18,
+                                                    ),
+                                                    onPressed: () {
+                                                      _toggleTestId(
+                                                        t.id,
+                                                        isPaidLab: isPaidLab,
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                                CheckboxListTile(
+                                                  dense: true,
+                                                  contentPadding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                      ),
+                                                  title: Text(
+                                                    'Include AST (antibiotic susceptibility)',
+                                                    style: theme
+                                                        .textTheme
+                                                        .bodySmall,
+                                                  ),
+                                                  value: astRequested,
+                                                  onChanged: (v) {
+                                                    _setAstRequested(
+                                                      t.id,
+                                                      v ?? false,
+                                                      isPaidLab: isPaidLab,
+                                                      invoiceItemId:
+                                                          invoiceItemId,
+                                                    );
+                                                  },
+                                                  controlAffinity:
+                                                      ListTileControlAffinity
+                                                          .leading,
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
-                child: _loading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(
-                        isPaidLab && labLines.length > 1
-                            ? 'Create order(s)'
-                            : 'Create order',
-                      ),
-              ),
-          ],
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 32),
+              if (!currentHasOrder || !isPaidLab)
+                FilledButton(
+                  onPressed:
+                      _loading ||
+                          !_canSubmit(
+                            isPaidLab: isPaidLab,
+                            labLines: labLines,
+                            isPaidLabEmptyLines: isPaidLabEmptyLines,
+                          )
+                      ? null
+                      : () => _submit(context, ref, paidCtx),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(
+                          isPaidLab && labLines.length > 1
+                              ? 'Create order(s)'
+                              : 'Create order',
+                        ),
+                ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -988,9 +1042,7 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
         final n = toCreate.length;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              n == 1 ? 'Created 1 order.' : 'Created $n orders.',
-            ),
+            content: Text(n == 1 ? 'Created 1 order.' : 'Created $n orders.'),
           ),
         );
         if (lastOrder != null) {
@@ -1075,8 +1127,9 @@ class _LabCreateOrderScreenState extends ConsumerState<LabCreateOrderScreen> {
     if (lines.isNotEmpty) {
       _selectedInvoiceLine = lines.first;
     }
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _prefillDoctorFromInvoice());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _prefillDoctorFromInvoice(),
+    );
   }
 }
 
@@ -1121,16 +1174,10 @@ class _ExistingOrderForLineCardState extends State<_ExistingOrderForLineCard> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  'Order ID: ${order.id}',
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text('Order ID: ${order.id}', style: theme.textTheme.bodySmall),
                 if (order.items.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    'Tests:',
-                    style: theme.textTheme.labelMedium,
-                  ),
+                  Text('Tests:', style: theme.textTheme.labelMedium),
                   ...order.items.map(
                     (it) => Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -1286,9 +1333,7 @@ class _SearchField<T> extends StatelessWidget {
                     ),
                   )
                 : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
           onChanged: (v) => onSearch(v),
         ),

@@ -617,7 +617,7 @@ class PurchasesApiService {
     try {
       final resp = await _dio.post(
         '$_basePath/requisitions/$id/approve',
-        data: {if (notes != null) 'notes': notes},
+        data: {'notes': ?notes},
       );
       return Requisition.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
@@ -629,7 +629,7 @@ class PurchasesApiService {
     try {
       final resp = await _dio.post(
         '$_basePath/requisitions/$id/reject',
-        data: {if (reason != null) 'reason': reason},
+        data: {'reason': ?reason},
       );
       return Requisition.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {

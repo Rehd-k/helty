@@ -25,16 +25,15 @@ class AccountsAuditService extends AccountsBaseService {
           if (user != null && user.isNotEmpty) 'user': user,
           if (from != null) 'from': from.toUtc().toIso8601String(),
           if (to != null) 'to': to.toUtc().toIso8601String(),
-          if (skip != null) 'skip': skip,
-          if (take != null) 'take': take,
+          'skip': ?skip,
+          'take': ?take,
         },
       );
       final map = asMap(response.data);
       final logs = asList(map, key: 'logs')
           .whereType<Map>()
           .map(
-            (e) =>
-                AccountsAuditLogEntry.fromJson(Map<String, dynamic>.from(e)),
+            (e) => AccountsAuditLogEntry.fromJson(Map<String, dynamic>.from(e)),
           )
           .toList();
       final compliance = asList(map, key: 'compliance')
@@ -52,8 +51,9 @@ class AccountsAuditService extends AccountsBaseService {
 
   Future<List<AccountsComplianceItem>> fetchComplianceChecklist() async {
     try {
-      final response =
-          await dio.get<dynamic>(AccountsEndpoints.complianceChecklist);
+      final response = await dio.get<dynamic>(
+        AccountsEndpoints.complianceChecklist,
+      );
       return asList(response.data, key: 'compliance')
           .whereType<Map>()
           .map(
@@ -91,8 +91,8 @@ class AccountsAuditService extends AccountsBaseService {
           if (query != null && query.isNotEmpty) 'query': query,
           if (from != null) 'from': from.toUtc().toIso8601String(),
           if (to != null) 'to': to.toUtc().toIso8601String(),
-          if (skip != null) 'skip': skip,
-          if (take != null) 'take': take,
+          'skip': ?skip,
+          'take': ?take,
         },
       );
       return asList(response.data, key: 'changes')

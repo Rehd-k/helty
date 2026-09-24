@@ -233,161 +233,167 @@ class _StaffChatListContentState extends ConsumerState<StaffChatListContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(pad, 0, pad, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Conversations',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+          Padding(
+            padding: EdgeInsets.fromLTRB(pad, 0, pad, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Conversations',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: _loading ? null : _load,
-                icon: const Icon(Icons.refresh_rounded, size: 22),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: _openDirect,
-                icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
-                label: const Text('Direct'),
-              ),
-            ],
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: _loading ? null : _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 22),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: _openDirect,
+                  icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+                  label: const Text('Direct'),
+                ),
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: _loading && _conversations.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null && _conversations.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(16 + pad),
-                  children: [
-                    Text(
-                      _error!,
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(onPressed: _load, child: const Text('Retry')),
-                  ],
-                )
-              : _conversations.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(16 + pad),
-                  children: [
-                    Text(
-                      'No conversations yet.',
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Start a direct chat with a colleague.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+          Expanded(
+            child: _loading && _conversations.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null && _conversations.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.all(16 + pad),
+                    children: [
+                      Text(
+                        _error!,
+                        style: TextStyle(color: theme.colorScheme.error),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.tonalIcon(
-                      onPressed: _openDirect,
-                      icon: const Icon(Icons.forum_outlined),
-                      label: const Text('Message someone'),
-                    ),
-                  ],
-                )
-              : ListView.separated(
-                  padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
-                  itemCount: _conversations.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (context, i) {
-                    final c = _conversations[i];
-                    final title = c.displayTitle(myStaffId);
-                    final peerId = c.peerStaffId(myStaffId);
-                    final peerPresence = peerId != null
-                        ? (_presenceByStaffId[peerId] ??
-                              ChatPresenceStatus.offline)
-                        : ChatPresenceStatus.unknown;
-                    return Material(
-                      color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(12),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => widget.onOpenConversation(
-                          c.id,
-                          title: title,
-                          peerStaffId: peerId,
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _load,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  )
+                : _conversations.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.all(16 + pad),
+                    children: [
+                      Text(
+                        'No conversations yet.',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Start a direct chat with a colleague.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.tonalIcon(
+                        onPressed: _openDirect,
+                        icon: const Icon(Icons.forum_outlined),
+                        label: const Text('Message someone'),
+                      ),
+                    ],
+                  )
+                : ListView.separated(
+                    padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
+                    itemCount: _conversations.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (context, i) {
+                      final c = _conversations[i];
+                      final title = c.displayTitle(myStaffId);
+                      final peerId = c.peerStaffId(myStaffId);
+                      final peerPresence = peerId != null
+                          ? (_presenceByStaffId[peerId] ??
+                                ChatPresenceStatus.offline)
+                          : ChatPresenceStatus.unknown;
+                      return Material(
+                        color: cs.surfaceContainerHighest.withValues(
+                          alpha: 0.45,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => widget.onOpenConversation(
+                            c.id,
+                            title: title,
+                            peerStaffId: peerId,
                           ),
-                          child: Row(
-                            children: [
-                              StaffAvatarWithPresence(
-                                initials: _initials(title),
-                                status: peerPresence,
-                                radius: 18,
-                                backgroundColor: cs.primaryContainer,
-                                foregroundColor: cs.onPrimaryContainer,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                    ),
-                                    if (c.lastMessagePreview != null)
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              children: [
+                                StaffAvatarWithPresence(
+                                  initials: _initials(title),
+                                  status: peerPresence,
+                                  radius: 18,
+                                  backgroundColor: cs.primaryContainer,
+                                  foregroundColor: cs.onPrimaryContainer,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
                                       Text(
-                                        c.lastMessagePreview!,
+                                        title,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: theme.textTheme.bodySmall
+                                        style: theme.textTheme.titleSmall
                                             ?.copyWith(
-                                              color: cs.onSurfaceVariant,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                       ),
-                                  ],
-                                ),
-                              ),
-                              if (c.unreadCount > 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: Badge(
-                                    label: Text('${c.unreadCount}'),
-                                    child: Icon(
-                                      Icons.chat_bubble_rounded,
-                                      size: 22,
-                                      color: cs.primary,
-                                    ),
+                                      if (c.lastMessagePreview != null)
+                                        Text(
+                                          c.lastMessagePreview!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: cs.onSurfaceVariant,
+                                              ),
+                                        ),
+                                    ],
                                   ),
-                                )
-                              else
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: cs.outline,
                                 ),
-                            ],
+                                if (c.unreadCount > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Badge(
+                                      label: Text('${c.unreadCount}'),
+                                      child: Icon(
+                                        Icons.chat_bubble_rounded,
+                                        size: 22,
+                                        color: cs.primary,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: cs.outline,
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
-    ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -569,7 +575,7 @@ class _StaffDirectPickerSheetState
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                     itemCount: filteredStaff.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
                     itemBuilder: (context, i) {
                       final s = filteredStaff[i];
                       final presence = _presenceFor(s.id);

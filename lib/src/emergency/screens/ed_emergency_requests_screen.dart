@@ -68,11 +68,9 @@ class _EdEmergencyRequestsScreenState
                       selected: status == option.$1,
                       onSelected: (_) {
                         ref
-                                .read(
-                                  emergencyRequestStatusFilterProvider.notifier,
-                                )
-                                .state =
-                            option.$1;
+                            .read(emergencyRequestStatusFilterProvider.notifier)
+                            .state = option
+                            .$1;
                       },
                     ),
                   ),
@@ -111,14 +109,15 @@ class _EdEmergencyRequestsScreenState
                   child: ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: response.data.length,
-                    separatorBuilder: (_, __) => const Gap(8),
+                    separatorBuilder: (_, _) => const Gap(8),
                     itemBuilder: (context, index) {
                       final item = response.data[index];
                       return Card(
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: _statusColor(item.status)
-                                .withValues(alpha: 0.15),
+                            backgroundColor: _statusColor(
+                              item.status,
+                            ).withValues(alpha: 0.15),
                             child: Icon(
                               Icons.emergency_outlined,
                               color: _statusColor(item.status),

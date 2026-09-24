@@ -23,7 +23,8 @@ Future<List<int>> buildInvestigationsReportPdf({
   num? totalAmount,
   int? totalCount,
 }) async {
-  final logoBytes = await rootBundle.load(OrgConfig.instance.logoAsset);
+  final org = OrgConfig.instance;
+  final logoBytes = await rootBundle.load(org.logoAsset);
   final logo = pw.MemoryImage(logoBytes.buffer.asUint8List());
   final generatedAt = AppTimezone.now();
   final generatedStr = DateFormatter.shortDate(generatedAt);
@@ -210,7 +211,7 @@ Future<List<int>> buildInvestigationsReportPdf({
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
-            'IBOM Multispeciality Hospital',
+            org.name,
             style: pw.TextStyle(fontSize: 7, color: textMuted),
           ),
           pw.Text(
@@ -250,7 +251,7 @@ Future<List<int>> buildInvestigationsReportPdf({
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
                           pw.Text(
-                            'IBOM MULTISPECIALITY HOSPITAL',
+                            org.name.toUpperCase(),
                             style: pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 13,

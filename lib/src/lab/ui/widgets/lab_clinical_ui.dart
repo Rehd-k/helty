@@ -268,7 +268,7 @@ class LabKpiStrip extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           physics: const PageScrollPhysics(),
           itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
           itemBuilder: (context, i) =>
               SizedBox(width: 200, child: _LabKpiCard(item: items[i])),
         ),
@@ -561,7 +561,7 @@ class LabDateFilterBody extends StatelessWidget {
           notifyOnInit: false,
           initialFrom: from,
           initialTo: to,
-          onFilterChanged: (_, __, nextFrom, nextTo) {
+          onFilterChanged: (_, _, nextFrom, nextTo) {
             onChanged(
               nextFrom ?? AppTimezone.startOfDay(),
               nextTo ?? AppTimezone.endOfDay(),
@@ -831,7 +831,7 @@ class _LabStatusMixCard extends StatelessWidget {
                 ? const AlwaysScrollableScrollPhysics()
                 : const NeverScrollableScrollPhysics(),
             itemCount: counts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final row = counts[i];
               return Row(

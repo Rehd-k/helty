@@ -41,13 +41,9 @@ class NursingApiService {
       throw e.error as AppException;
     }
     final status = e.response?.statusCode;
-    var message = parseBackendError(
-      e.response?.data,
-      e.message ?? fallback,
-    );
+    var message = parseBackendError(e.response?.data, e.message ?? fallback);
     if (status == 403) {
-      message =
-          'You do not have permission for this nursing action. $message';
+      message = 'You do not have permission for this nursing action. $message';
     }
     throw UnknownException(message);
   }
@@ -180,9 +176,9 @@ class NursingApiService {
       if (data is List) {
         return data
             .whereType<Map>()
-            .map((e) => NursingRosterEntry.fromJson(
-                  Map<String, dynamic>.from(e),
-                ))
+            .map(
+              (e) => NursingRosterEntry.fromJson(Map<String, dynamic>.from(e)),
+            )
             .toList();
       }
       if (data is Map) {
@@ -190,9 +186,10 @@ class NursingApiService {
         if (items is List) {
           return items
               .whereType<Map>()
-              .map((e) => NursingRosterEntry.fromJson(
-                    Map<String, dynamic>.from(e),
-                  ))
+              .map(
+                (e) =>
+                    NursingRosterEntry.fromJson(Map<String, dynamic>.from(e)),
+              )
               .toList();
         }
       }
@@ -275,17 +272,19 @@ class NursingApiService {
           if (nursingUnit != null && nursingUnit.isNotEmpty)
             'nursingUnit': nursingUnit,
           if (wardId != null && wardId.isNotEmpty) 'wardId': wardId,
-          if (skip != null) 'skip': skip,
-          if (take != null) 'take': take,
+          'skip': ?skip,
+          'take': ?take,
         },
       );
       final data = response.data;
       if (data is List) {
         final items = data
             .whereType<Map>()
-            .map((e) => InpatientNurseAssignment.fromJson(
-                  Map<String, dynamic>.from(e),
-                ))
+            .map(
+              (e) => InpatientNurseAssignment.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
             .toList();
         return InpatientAssignmentsResponse(
           assignments: items,
@@ -309,9 +308,11 @@ class NursingApiService {
       if (data is List) {
         return data
             .whereType<Map>()
-            .map((e) => InpatientNurseAssignment.fromJson(
-                  Map<String, dynamic>.from(e),
-                ))
+            .map(
+              (e) => InpatientNurseAssignment.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
             .toList();
       }
       if (data is Map) {
@@ -319,9 +320,11 @@ class NursingApiService {
         if (items is List) {
           return items
               .whereType<Map>()
-              .map((e) => InpatientNurseAssignment.fromJson(
-                    Map<String, dynamic>.from(e),
-                  ))
+              .map(
+                (e) => InpatientNurseAssignment.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
               .toList();
         }
       }
@@ -378,17 +381,19 @@ class NursingApiService {
         queryParameters: {
           if (nursingUnit != null && nursingUnit.isNotEmpty)
             'nursingUnit': nursingUnit,
-          if (skip != null) 'skip': skip,
-          if (take != null) 'take': take,
+          'skip': ?skip,
+          'take': ?take,
         },
       );
       final data = response.data;
       if (data is List) {
         final items = data
             .whereType<Map>()
-            .map((e) => OutpatientNurseAssignment.fromJson(
-                  Map<String, dynamic>.from(e),
-                ))
+            .map(
+              (e) => OutpatientNurseAssignment.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
             .toList();
         return OutpatientAssignmentsResponse(
           assignments: items,

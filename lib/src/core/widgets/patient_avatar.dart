@@ -51,10 +51,10 @@ class PatientAvatar extends StatelessWidget {
   final FontWeight? fontWeight;
 
   String get _initials => patientInitials(
-        firstName: firstName,
-        surname: surname,
-        displayName: displayName,
-      );
+    firstName: firstName,
+    surname: surname,
+    displayName: displayName,
+  );
 
   Color _bg(BuildContext context) =>
       backgroundColor ??
@@ -78,7 +78,7 @@ class PatientAvatar extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _initialsFallback(context),
+          errorBuilder: (_, _, _) => _initialsFallback(context),
           loadingBuilder: (context, child, progress) {
             if (progress == null) return child;
             return _loadingPlaceholder(context);
@@ -94,10 +94,7 @@ class PatientAvatar extends StatelessWidget {
       width: size,
       height: size,
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: _bg(context),
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: _bg(context), shape: BoxShape.circle),
       ),
     );
   }

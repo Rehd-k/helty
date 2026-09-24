@@ -292,7 +292,7 @@ class _DoctorEncounterInvestigationsTabState
         ? _InvestigationsEmptyState(encounterOnly: _encounterOnly, theme: theme)
         : ListView.separated(
             itemCount: _orders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
               final o = _orders[i];
               final otherVisit =

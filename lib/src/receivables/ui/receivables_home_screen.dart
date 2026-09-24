@@ -514,9 +514,9 @@ class _ReceivablesScreenState extends ConsumerState<_ReceivablesScreen> {
                               '${e.outstandingAmount.toFinancial(isMoney: true)} · ${e.coverageId}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                             value: selected[e.coverageId] ?? false,
@@ -842,7 +842,7 @@ class _ReceivablesList extends StatelessWidget {
           ),
         );
       },
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemCount: items.length,
     );
   }

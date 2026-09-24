@@ -421,7 +421,7 @@ class OngoingEncountersTable extends StatelessWidget {
                     )
                   : ListView.separated(
                       itemCount: encounters.length,
-                      separatorBuilder: (_, __) => Divider(
+                      separatorBuilder: (_, _) => Divider(
                         height: 1,
                         color: cs.outline.withValues(alpha: 0.08),
                       ),

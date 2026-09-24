@@ -184,10 +184,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
     });
 
     try {
-      final query = <String, dynamic>{
-        'skip': '$skip',
-        'take': '$_rowsPerPage',
-      };
+      final query = <String, dynamic>{'skip': '$skip', 'take': '$_rowsPerPage'};
       final search = _searchController.text.trim();
       final range = _selectedDateRange;
       final now = DateTime.now();
@@ -658,7 +655,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
 
     return ListView.separated(
       itemCount: patients.length,
-      separatorBuilder: (_, __) => useCards
+      separatorBuilder: (_, _) => useCards
           ? const SizedBox.shrink()
           : Divider(height: 1, color: cs.outline.withValues(alpha: 0.08)),
       itemBuilder: (context, index) {
@@ -1052,7 +1049,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                 Expanded(
                   child: ListView.separated(
                     itemCount: patient.services.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
                     itemBuilder: (context, index) {
                       return HeltyEllipsisText(
                         text: patient.services[index],
@@ -1135,6 +1132,7 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
       ),
     );
   }
+
   void _goToRegister(_UnregisteredPatientTxn patient) {
     if (_isNursingQueueUse) {
       _openSendToRoomDialog(patient);

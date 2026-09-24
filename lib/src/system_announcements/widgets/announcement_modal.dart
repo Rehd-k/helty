@@ -21,10 +21,8 @@ class AnnouncementModal extends StatelessWidget {
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => AnnouncementModal(
-        announcements: announcements,
-        onDismiss: onDismiss,
-      ),
+      builder: (ctx) =>
+          AnnouncementModal(announcements: announcements, onDismiss: onDismiss),
     );
   }
 
@@ -44,7 +42,7 @@ class AnnouncementModal extends StatelessWidget {
         child: ListView.separated(
           shrinkWrap: true,
           itemCount: announcements.length,
-          separatorBuilder: (_, __) => const Divider(height: 20),
+          separatorBuilder: (_, _) => const Divider(height: 20),
           itemBuilder: (context, index) {
             final item = announcements[index];
             return _AnnouncementModalTile(announcement: item);
@@ -84,9 +82,9 @@ class _AnnouncementModalTile extends StatelessWidget {
             children: [
               Text(
                 announcement.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
               Text(

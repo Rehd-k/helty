@@ -10,8 +10,7 @@ import '../models/consumable_models.dart';
 /// **Route choice:** This client targets `/store/consumables`. If your server
 /// only exposes `/pharmacy/consumables`, repoint [prefix] or add a gateway alias.
 class StoreConsumableApiService {
-  StoreConsumableApiService({Dio? dio})
-      : _dio = dio ?? ApiService().dio;
+  StoreConsumableApiService({Dio? dio}) : _dio = dio ?? ApiService().dio;
 
   final Dio _dio;
 
@@ -110,10 +109,7 @@ class StoreConsumableApiService {
   ]) async {
     final p = params ?? const StoreConsumableListParams();
     try {
-      final resp = await _dio.get(
-        prefix,
-        queryParameters: p.toQuery(),
-      );
+      final resp = await _dio.get(prefix, queryParameters: p.toQuery());
       return _parsePaginated(resp, (m) => Consumable.fromJson(m));
     } on DioException catch (e) {
       _handleError(e);
@@ -235,10 +231,7 @@ class StoreConsumableApiService {
   /// `POST /store/consumables/usage`
   Future<ConsumableUsageEvent> recordUsage(RecordConsumableUsageDto dto) async {
     try {
-      final resp = await _dio.post(
-        '$prefix/usage',
-        data: dto.toJson(),
-      );
+      final resp = await _dio.post('$prefix/usage', data: dto.toJson());
       return ConsumableUsageEvent.fromJson(_mapFromResponse(resp));
     } on DioException catch (e) {
       _handleError(e);
@@ -278,8 +271,8 @@ class StoreConsumableApiService {
             'encounterId': encounterId.trim(),
           if (admissionId != null && admissionId.trim().isNotEmpty)
             'admissionId': admissionId.trim(),
-          if (fromDate != null) 'fromDate': fromDate,
-          if (toDate != null) 'toDate': toDate,
+          'fromDate': ?fromDate,
+          'toDate': ?toDate,
           'skip': skip,
           'limit': limit,
         },

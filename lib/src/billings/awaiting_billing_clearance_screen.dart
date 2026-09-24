@@ -374,7 +374,7 @@ class _AwaitingBillingClearanceScreenState
         onRefresh: () async => _reload(),
         child: ListView.separated(
           itemCount: rows.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, index) =>
               _buildMobileCard(colorScheme, rows[index]),
         ),
@@ -426,7 +426,7 @@ class _AwaitingBillingClearanceScreenState
           Expanded(
             child: ListView.separated(
               itemCount: rows.length,
-              separatorBuilder: (_, __) => Divider(
+              separatorBuilder: (_, _) => Divider(
                 height: 1,
                 color: colorScheme.outline.withValues(alpha: 0.06),
               ),
@@ -542,7 +542,9 @@ class _AwaitingBillingClearanceScreenState
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text('View bill'),
                       ),
@@ -554,7 +556,9 @@ class _AwaitingBillingClearanceScreenState
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text('Clear billing'),
                       ),
@@ -725,7 +729,8 @@ class _ClearanceStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final ready = billing.allPaid && billing.totalBalance <= 0.005;
-    final partial = billing.totalBalance > 0.005 && billing.totalAmountPaid > 0.005;
+    final partial =
+        billing.totalBalance > 0.005 && billing.totalAmountPaid > 0.005;
 
     final (bg, fg) = ready
         ? (
@@ -750,11 +755,7 @@ class _ClearanceStatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
         overflow: TextOverflow.ellipsis,
       ),
     );

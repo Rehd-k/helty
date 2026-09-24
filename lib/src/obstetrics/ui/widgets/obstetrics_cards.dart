@@ -43,9 +43,9 @@ class ObStatChip extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: fg,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -148,7 +148,7 @@ class ObSectionHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -184,7 +184,9 @@ class ObPatientBanner extends StatelessWidget {
     } else if (obstetricsPatient != null) {
       name = obstetricsPatient!.displayName;
       if (name.isEmpty) name = 'Patient';
-      idLine = obstetricsPatient!.id.isNotEmpty ? 'ID ${obstetricsPatient!.id}' : null;
+      idLine = obstetricsPatient!.id.isNotEmpty
+          ? 'ID ${obstetricsPatient!.id}'
+          : null;
     }
 
     return Container(
@@ -259,11 +261,7 @@ class ObPatientBanner extends StatelessWidget {
 }
 
 class PregnancySummaryCard extends StatelessWidget {
-  const PregnancySummaryCard({
-    super.key,
-    required this.pregnancy,
-    this.onTap,
-  });
+  const PregnancySummaryCard({super.key, required this.pregnancy, this.onTap});
 
   final Pregnancy pregnancy;
   final VoidCallback? onTap;
@@ -290,9 +288,7 @@ class PregnancySummaryCard extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: ObstetricsTheme.borderRadius,
-              border: Border(
-                left: BorderSide(color: statusColor, width: 5),
-              ),
+              border: Border(left: BorderSide(color: statusColor, width: 5)),
             ),
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -376,12 +372,14 @@ class PregnancySummaryCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                if (glance.lastFhr != null || glance.lastPresentation != null) ...[
+                if (glance.lastFhr != null ||
+                    glance.lastPresentation != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     [
                       if (glance.lastFhr != null) 'FHR ${glance.lastFhr}',
-                      if (glance.lastPresentation != null) glance.lastPresentation,
+                      if (glance.lastPresentation != null)
+                        glance.lastPresentation,
                     ].join(' · '),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
@@ -434,11 +432,7 @@ class _MiniStat extends StatelessWidget {
 }
 
 class GynaeProcedureCard extends StatelessWidget {
-  const GynaeProcedureCard({
-    super.key,
-    required this.procedure,
-    this.onTap,
-  });
+  const GynaeProcedureCard({super.key, required this.procedure, this.onTap});
 
   final GynaeProcedure procedure;
   final VoidCallback? onTap;
@@ -448,7 +442,8 @@ class GynaeProcedureCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final hasComplications =
-        procedure.complications != null && procedure.complications!.trim().isNotEmpty;
+        procedure.complications != null &&
+        procedure.complications!.trim().isNotEmpty;
     final dateStr = DateFormatter.formatFromBackend(
       procedure.procedureDate,
       DateFormatter.medicalDate,
@@ -500,8 +495,11 @@ class GynaeProcedureCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.calendar_month_rounded,
-                        size: 18, color: scheme.primary),
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      size: 18,
+                      color: scheme.primary,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       dateStr,
@@ -521,7 +519,8 @@ class GynaeProcedureCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                if (procedure.notes != null && procedure.notes!.trim().isNotEmpty)
+                if (procedure.notes != null &&
+                    procedure.notes!.trim().isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
@@ -544,10 +543,7 @@ class GynaeProcedureCard extends StatelessWidget {
 
 /// Hero strip for pregnancy detail screens.
 class PregnancyHeroHeader extends StatelessWidget {
-  const PregnancyHeroHeader({
-    super.key,
-    required this.pregnancy,
-  });
+  const PregnancyHeroHeader({super.key, required this.pregnancy});
 
   final Pregnancy pregnancy;
 
@@ -588,8 +584,10 @@ class PregnancyHeroHeader extends StatelessWidget {
               ObStatChip(
                 label: pregnancyStatusLabel(pregnancy.status),
                 color: statusColor,
-                backgroundColor:
-                    pregnancyStatusContainerColor(pregnancy.status, scheme),
+                backgroundColor: pregnancyStatusContainerColor(
+                  pregnancy.status,
+                  scheme,
+                ),
               ),
             ],
           ),
@@ -613,9 +611,7 @@ class PregnancyHeroHeader extends StatelessWidget {
           if (pregnancy.createdByName != null &&
               pregnancy.createdByName!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
-            CreatedByCaption(
-              label: 'Created by: ${pregnancy.createdByName}',
-            ),
+            CreatedByCaption(label: 'Created by: ${pregnancy.createdByName}'),
           ],
           if (pregnancy.updatedByName != null &&
               pregnancy.updatedByName!.trim().isNotEmpty) ...[
@@ -676,11 +672,7 @@ class ObKpiStatCard extends StatelessWidget {
 }
 
 class AntenatalVisitCard extends StatelessWidget {
-  const AntenatalVisitCard({
-    super.key,
-    required this.visit,
-    this.onTap,
-  });
+  const AntenatalVisitCard({super.key, required this.visit, this.onTap});
 
   final AntenatalVisit visit;
   final VoidCallback? onTap;
@@ -734,29 +726,43 @@ class AntenatalVisitCard extends StatelessWidget {
                   children: [
                     if (visit.systolicBP != null && visit.diastolicBP != null)
                       _VitalChip(
-                          icon: Icons.favorite, label: 'BP ${visit.systolicBP}/${visit.diastolicBP}'),
+                        icon: Icons.favorite,
+                        label: 'BP ${visit.systolicBP}/${visit.diastolicBP}',
+                      ),
                     if (visit.fetalHeartRate != null)
-                      _VitalChip(icon: Icons.monitor_heart, label: 'FHR ${visit.fetalHeartRate}'),
+                      _VitalChip(
+                        icon: Icons.monitor_heart,
+                        label: 'FHR ${visit.fetalHeartRate}',
+                      ),
                     if (visit.fundalHeight != null)
-                      _VitalChip(icon: Icons.height, label: 'FH ${visit.fundalHeight} cm'),
+                      _VitalChip(
+                        icon: Icons.height,
+                        label: 'FH ${visit.fundalHeight} cm',
+                      ),
                     if (visit.weight != null)
-                      _VitalChip(icon: Icons.scale, label: '${visit.weight} kg'),
+                      _VitalChip(
+                        icon: Icons.scale,
+                        label: '${visit.weight} kg',
+                      ),
                     if (visit.presentation != null)
                       _VitalChip(
-                          icon: Icons.child_care,
-                          label: formatPresentation(visit.presentation)),
+                        icon: Icons.child_care,
+                        label: formatPresentation(visit.presentation),
+                      ),
                     if (visit.descent != null && visit.descent!.isNotEmpty)
                       _VitalChip(
                         icon: Icons.arrow_downward,
                         label: 'Descent ${visit.descent}',
                       ),
-                    if (visit.urineProtein != null && visit.urineProtein!.isNotEmpty)
+                    if (visit.urineProtein != null &&
+                        visit.urineProtein!.isNotEmpty)
                       _VitalChip(
                         icon: Icons.science,
                         label: 'Protein ${visit.urineProtein}',
                         alert: proteinAlert,
                       ),
-                    if (visit.urineGlucose != null && visit.urineGlucose!.isNotEmpty)
+                    if (visit.urineGlucose != null &&
+                        visit.urineGlucose!.isNotEmpty)
                       _VitalChip(
                         icon: Icons.water_drop,
                         label: 'Glucose ${visit.urineGlucose}',
@@ -798,18 +804,17 @@ class _VitalChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color)),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+        ),
       ],
     );
   }
 }
 
 class LabourDeliveryCard extends StatelessWidget {
-  const LabourDeliveryCard({
-    super.key,
-    required this.delivery,
-    this.onTap,
-  });
+  const LabourDeliveryCard({super.key, required this.delivery, this.onTap});
 
   final LabourDelivery delivery;
   final VoidCallback? onTap;
@@ -882,11 +887,7 @@ class LabourDeliveryCard extends StatelessWidget {
 }
 
 class PostnatalVisitCard extends StatelessWidget {
-  const PostnatalVisitCard({
-    super.key,
-    required this.visit,
-    this.onTap,
-  });
+  const PostnatalVisitCard({super.key, required this.visit, this.onTap});
 
   final PostnatalVisit visit;
   final VoidCallback? onTap;
@@ -916,7 +917,8 @@ class PostnatalVisitCard extends StatelessWidget {
                         children: [
                           ObStatChip(
                             label: formatPostnatalType(visit.type),
-                            backgroundColor: visit.type == PostnatalVisitType.MOTHER
+                            backgroundColor:
+                                visit.type == PostnatalVisitType.MOTHER
                                 ? scheme.primaryContainer
                                 : scheme.secondaryContainer,
                             color: visit.type == PostnatalVisitType.MOTHER
@@ -938,8 +940,10 @@ class PostnatalVisitCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         [
-                          if (visit.bloodPressure != null) 'BP ${visit.bloodPressure}',
-                          if (visit.temperature != null) '${visit.temperature}°C',
+                          if (visit.bloodPressure != null)
+                            'BP ${visit.bloodPressure}',
+                          if (visit.temperature != null)
+                            '${visit.temperature}°C',
                           if (visit.breastfeeding != null) visit.breastfeeding,
                           if (visit.notes != null && visit.notes!.isNotEmpty)
                             visit.notes,

@@ -958,7 +958,7 @@ class _WaitingPatientsScreenState extends ConsumerState<WaitingPatientsScreen> {
                               children: [
                                 ListView.separated(
                                   itemCount: _visiblePatients.length,
-                                  separatorBuilder: (_, __) => Divider(
+                                  separatorBuilder: (_, _) => Divider(
                                     height: 1,
                                     color: colorScheme.outline.withValues(
                                       alpha: 0.05,

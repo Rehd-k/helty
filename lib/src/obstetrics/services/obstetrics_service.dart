@@ -62,7 +62,9 @@ class ObstetricsService {
 
   Future<Pregnancy> getPregnancy(String id) async {
     try {
-      final resp = await _dio.get<Map<String, dynamic>>('$_base/pregnancies/$id');
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/pregnancies/$id',
+      );
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
       return Pregnancy.fromJson(data);
@@ -119,7 +121,10 @@ class ObstetricsService {
     }
   }
 
-  Future<Pregnancy> updatePregnancy(String id, Map<String, dynamic> body) async {
+  Future<Pregnancy> updatePregnancy(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
     try {
       final resp = await _dio.patch<Map<String, dynamic>>(
         '$_base/pregnancies/$id',
@@ -146,8 +151,8 @@ class ObstetricsService {
       final resp = await _dio.get<Map<String, dynamic>>(
         '$_base/pregnancies/$pregnancyId/visits',
         queryParameters: {
-          if (fromDate != null) 'fromDate': fromDate,
-          if (toDate != null) 'toDate': toDate,
+          'fromDate': ?fromDate,
+          'toDate': ?toDate,
           'skip': skip,
           'take': take > 100 ? 100 : take,
         },
@@ -169,8 +174,9 @@ class ObstetricsService {
 
   Future<AntenatalVisit> getAntenatalVisit(String id) async {
     try {
-      final resp =
-          await _dio.get<Map<String, dynamic>>('$_base/antenatal-visits/$id');
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/antenatal-visits/$id',
+      );
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
       return AntenatalVisit.fromJson(data);
@@ -281,7 +287,9 @@ class ObstetricsService {
     }
   }
 
-  Future<LabourDelivery> getLabourDeliveryByAdmission(String admissionId) async {
+  Future<LabourDelivery> getLabourDeliveryByAdmission(
+    String admissionId,
+  ) async {
     try {
       final resp = await _dio.get<Map<String, dynamic>>(
         '$_base/admissions/$admissionId/labour-delivery',
@@ -456,8 +464,8 @@ class ObstetricsService {
           if (labourDeliveryId != null && labourDeliveryId.isNotEmpty)
             'labourDeliveryId': labourDeliveryId,
           if (type != null) 'type': type.apiValue,
-          if (fromDate != null) 'fromDate': fromDate,
-          if (toDate != null) 'toDate': toDate,
+          'fromDate': ?fromDate,
+          'toDate': ?toDate,
           'skip': skip,
           'take': take > 100 ? 100 : take,
         },
@@ -479,8 +487,9 @@ class ObstetricsService {
 
   Future<PostnatalVisit> getPostnatalVisit(String id) async {
     try {
-      final resp =
-          await _dio.get<Map<String, dynamic>>('$_base/postnatal-visits/$id');
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/postnatal-visits/$id',
+      );
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
       return PostnatalVisit.fromJson(data);
@@ -537,8 +546,8 @@ class ObstetricsService {
           if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
           if (procedureType != null && procedureType.isNotEmpty)
             'procedureType': procedureType,
-          if (fromDate != null) 'fromDate': fromDate,
-          if (toDate != null) 'toDate': toDate,
+          'fromDate': ?fromDate,
+          'toDate': ?toDate,
           'skip': skip,
           'take': take > 100 ? 100 : take,
         },
@@ -560,8 +569,9 @@ class ObstetricsService {
 
   Future<GynaeProcedure> getGynaeProcedure(String id) async {
     try {
-      final resp =
-          await _dio.get<Map<String, dynamic>>('$_base/gynae-procedures/$id');
+      final resp = await _dio.get<Map<String, dynamic>>(
+        '$_base/gynae-procedures/$id',
+      );
       final data = resp.data;
       if (data == null) throw const UnknownException('Empty response');
       return GynaeProcedure.fromJson(data);

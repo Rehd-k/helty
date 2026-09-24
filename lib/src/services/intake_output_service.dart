@@ -24,11 +24,7 @@ class IntakeOutputService {
       '/admissions/$admissionId/intake-output-records',
     );
     return _listData(response.data)
-        .map(
-          (e) => IntakeOutputRecordModel.fromJson(
-            e as Map<String, dynamic>,
-          ),
-        )
+        .map((e) => IntakeOutputRecordModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -73,12 +69,12 @@ class IntakeOutputService {
     String? notes,
   }) async {
     final body = <String, dynamic>{
-      if (type != null) 'type': type,
-      if (category != null) 'category': category,
-      if (amountMl != null) 'amountMl': amountMl,
+      'type': ?type,
+      'category': ?category,
+      'amountMl': ?amountMl,
       if (recordedAt != null)
         'recordedAt': AppTimezone.toBackendIso(recordedAt),
-      if (notes != null) 'notes': notes,
+      'notes': ?notes,
     };
     final response = await _dio.patch<Map<String, dynamic>>(
       '/admissions/$admissionId/intake-output-records/$recordId',

@@ -261,7 +261,7 @@ class _LabInvestigationsScreenState
   Future<void> _exportFilteredList({required bool share}) async {
     final summary = ref
         .read(labInvestigationsSummaryProvider(_buildParams(forSummary: true)))
-        .valueOrNull;
+        .value;
     final total = summary?.totalCount ?? 0;
     if (total <= 0) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -304,7 +304,7 @@ class _LabInvestigationsScreenState
   Future<void> _exportSummaryByTest({required bool share}) async {
     final summary = ref
         .read(labInvestigationsSummaryProvider(_buildParams(forSummary: true)))
-        .valueOrNull;
+        .value;
     if (summary == null || summary.byTestName.isEmpty) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         const SnackBar(content: Text('No summary data to export.')),
@@ -337,7 +337,7 @@ class _LabInvestigationsScreenState
   Future<void> _exportSummaryByDepartment({required bool share}) async {
     final summary = ref
         .read(labInvestigationsSummaryProvider(_buildParams(forSummary: true)))
-        .valueOrNull;
+        .value;
     if (summary == null || summary.byDepartment.isEmpty) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         const SnackBar(content: Text('No summary data to export.')),
@@ -500,8 +500,8 @@ class _LabInvestigationsScreenState
     );
     final listAsync = ref.watch(labInvestigationsListProvider(listParams));
     final categoriesAsync = ref.watch(labCategoriesFutureProvider);
-    final summary = summaryAsync.valueOrNull;
-    final list = listAsync.valueOrNull;
+    final summary = summaryAsync.value;
+    final list = listAsync.value;
     final loadingList = listAsync.isLoading && list == null;
     final listError = listAsync.asError?.error;
 

@@ -1,6 +1,7 @@
 // lib/src/providers/invoices_providers.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../models/invoice.dart';
 import '../models/invoice_billing_models.dart';

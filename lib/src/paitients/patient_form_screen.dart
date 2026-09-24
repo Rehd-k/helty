@@ -317,8 +317,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     final mergedWardId = p.fromUnregisteredFlow
         ? _resolveWardIdForSave()
         : (_selectionBaselinesReady && _selectedWardId == _wardIdBaseline
-            ? p.wardId
-            : _selectedWardId);
+              ? p.wardId
+              : _selectedWardId);
     final mergedHmoId =
         _selectionBaselinesReady && _selectedHmoId == _hmoIdBaseline
         ? p.hmoId
@@ -610,9 +610,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     final normalizedForm = formPhone.replaceAll(RegExp(r'\s+'), '');
     final samePhone = matches.any((m) {
       final p = (m.phoneNumber ?? '').replaceAll(RegExp(r'\s+'), '');
-      return p.isNotEmpty &&
-          normalizedForm.isNotEmpty &&
-          p == normalizedForm;
+      return p.isNotEmpty && normalizedForm.isNotEmpty && p == normalizedForm;
     });
 
     return showDialog<bool>(
@@ -640,7 +638,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: matches.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (_, i) {
                       final m = matches[i];
                       return ListTile(
@@ -855,261 +853,258 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                    if (isEditing &&
-                        (widget.patient?.patientId ?? '')
-                            .trim()
-                            .isNotEmpty) ...[
-                      _buildPatientIdBanner(
-                        context,
-                        widget.patient!.patientId.trim(),
+                  if (isEditing &&
+                      (widget.patient?.patientId ?? '').trim().isNotEmpty) ...[
+                    _buildPatientIdBanner(
+                      context,
+                      widget.patient!.patientId.trim(),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  ModernFormCard(
+                    title: 'Patient Information',
+                    leadingIcon: Icons.person_outline,
+                    headerAction: IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () {},
+                    ),
+                    children: [
+                      _buildTextField(_cardNoController, 'Card Number'),
+                      _buildDropdownField(
+                        _titleController,
+                        'Title',
+                        options: _titleOptions,
                       ),
-                      const SizedBox(height: 12),
-                    ],
-                    ModernFormCard(
-                      title: 'Patient Information',
-                      leadingIcon: Icons.person_outline,
-                      headerAction: IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () {},
+                      _buildTextField(
+                        _firstNameController,
+                        'First Name *',
+                        required: true,
+                        readOnly: widget.patient?.lockNames ?? false,
                       ),
-                      children: [
-                        _buildTextField(_cardNoController, 'Card Number'),
-                        _buildDropdownField(
-                          _titleController,
-                          'Title',
-                          options: _titleOptions,
-                        ),
-                        _buildTextField(
-                          _firstNameController,
-                          'First Name *',
-                          required: true,
-                          readOnly: widget.patient?.lockNames ?? false,
-                        ),
-                        _buildTextField(
-                          _surnameController,
-                          'Surname *',
-                          required: true,
-                          readOnly: widget.patient?.lockNames ?? false,
-                        ),
+                      _buildTextField(
+                        _surnameController,
+                        'Surname *',
+                        required: true,
+                        readOnly: widget.patient?.lockNames ?? false,
+                      ),
 
-                        _buildTextField(_otherNameController, 'Other Name'),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ModernFormCard(
-                      title: 'Demographics',
-                      leadingIcon: Icons.badge_outlined,
-                      children: [
-                        _buildDateField(
-                          _dobController,
-                          'Date of Birth',
+                      _buildTextField(_otherNameController, 'Other Name'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ModernFormCard(
+                    title: 'Demographics',
+                    leadingIcon: Icons.badge_outlined,
+                    children: [
+                      _buildDateField(
+                        _dobController,
+                        'Date of Birth',
+                        required: true,
+                      ),
+                      _buildDropdownField(
+                        _genderController,
+                        'Gender',
+                        required: true,
+                        options: _genderOptions,
+                      ),
+                      _buildDropdownField(
+                        _maritalStatusController,
+                        'Marital Status',
+                        options: _maritalStatusOptions,
+                      ),
+                      _buildNationalityDropdown(),
+                      if (_isNigeriaSelected) ...[
+                        _buildNigerianStateDropdown(),
+                        _buildNigerianLgaDropdown(),
+                      ] else ...[
+                        _buildTextField(
+                          _stateController,
+                          'State of Origin',
                           required: true,
                         ),
-                        _buildDropdownField(
-                          _genderController,
-                          'Gender',
-                          required: true,
-                          options: _genderOptions,
-                        ),
-                        _buildDropdownField(
-                          _maritalStatusController,
-                          'Marital Status',
-                          options: _maritalStatusOptions,
-                        ),
-                        _buildNationalityDropdown(),
-                        if (_isNigeriaSelected) ...[
-                          _buildNigerianStateDropdown(),
-                          _buildNigerianLgaDropdown(),
-                        ] else ...[
-                          _buildTextField(
-                            _stateController,
-                            'State of Origin',
-                            required: true,
-                          ),
-                          _buildTextField(_lgaController, 'LGA'),
-                        ],
-                        _buildTextField(_townController, 'Town'),
-                        _buildTextField(
-                          _permanentAddressController,
-                          'Permanent Address',
-                        ),
-                        _buildTextField(_religionController, 'Religion'),
+                        _buildTextField(_lgaController, 'LGA'),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    ModernFormCard(
-                      title: 'Contact',
-                      leadingIcon: Icons.call_outlined,
-                      children: [
-                        _buildTextField(
-                          _emailController,
-                          'Email',
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        _buildTextField(
-                          _phoneController,
-                          'Phone number *',
-                          keyboardType: TextInputType.phone,
-                          required: true,
-                        ),
-                        _buildTextField(
-                          _preferredLanguageController,
-                          'Preferred Language',
-                        ),
-                        _buildTextField(
-                          _addressOfResidenceController,
-                          'Address of Residence',
-                        ),
-                        _buildTextField(_professionController, 'Profession'),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    ModernFormCard(
-                      title: 'Next of Kin',
-                      leadingIcon: Icons.family_restroom_outlined,
-                      children: [
-                        _buildTextField(_nextOfKinNameController, 'Name'),
-                        _buildTextField(_nextOfKinPhoneController, 'Phone'),
-                        _buildTextField(_nextOfKinAddressController, 'Address'),
-                        _buildTextField(
-                          _nextOfKinRelationshipController,
-                          'Relationship',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-                    _sectionHeader('Other Info'),
-                    ModernFormCard(
-                      title: 'Other Info',
-                      leadingIcon: Icons.more_horiz,
-                      children: [
-                        if (showWardPicker) ...[
-                          if (_loadingWards)
-                            const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: LinearProgressIndicator(),
-                            )
-                          else
-                            DropdownButtonFormField<String>(
-                              key: ValueKey(
-                                '${_wards.length}_${_selectedWardId ?? 'none'}',
-                              ),
-                              initialValue: _selectedWardId,
-                              decoration: const InputDecoration(
-                                labelText: 'Ward *',
-                                border: OutlineInputBorder(),
-                              ),
-                              isExpanded: true,
-                              items: [
-                                if (_selectedWardId != null &&
-                                    _selectedWardId!.isNotEmpty &&
-                                    !_wards.any((w) => w.id == _selectedWardId))
-                                  DropdownMenuItem<String>(
-                                    value: _selectedWardId,
-                                    child: Text(
-                                      widget.patient?.ward ??
-                                          'Current ward (reload lists if needed)',
-                                    ),
-                                  ),
-                                ..._wards.map(
-                                  (w) => DropdownMenuItem<String>(
-                                    value: w.id,
-                                    child: Text(w.name),
-                                  ),
-                                ),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => _selectedWardId = v),
-                              validator: (v) => (v == null || v.trim().isEmpty)
-                                  ? 'Required'
-                                  : null,
-                            ),
-                          const SizedBox(height: 8),
-                        ],
-                        if (_loadingHmos)
+                      _buildTextField(_townController, 'Town'),
+                      _buildTextField(
+                        _permanentAddressController,
+                        'Permanent Address',
+                      ),
+                      _buildTextField(_religionController, 'Religion'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ModernFormCard(
+                    title: 'Contact',
+                    leadingIcon: Icons.call_outlined,
+                    children: [
+                      _buildTextField(
+                        _emailController,
+                        'Email',
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      _buildTextField(
+                        _phoneController,
+                        'Phone number *',
+                        keyboardType: TextInputType.phone,
+                        required: true,
+                      ),
+                      _buildTextField(
+                        _preferredLanguageController,
+                        'Preferred Language',
+                      ),
+                      _buildTextField(
+                        _addressOfResidenceController,
+                        'Address of Residence',
+                      ),
+                      _buildTextField(_professionController, 'Profession'),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  ModernFormCard(
+                    title: 'Next of Kin',
+                    leadingIcon: Icons.family_restroom_outlined,
+                    children: [
+                      _buildTextField(_nextOfKinNameController, 'Name'),
+                      _buildTextField(_nextOfKinPhoneController, 'Phone'),
+                      _buildTextField(_nextOfKinAddressController, 'Address'),
+                      _buildTextField(
+                        _nextOfKinRelationshipController,
+                        'Relationship',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  _sectionHeader('Other Info'),
+                  ModernFormCard(
+                    title: 'Other Info',
+                    leadingIcon: Icons.more_horiz,
+                    children: [
+                      if (showWardPicker) ...[
+                        if (_loadingWards)
                           const Padding(
                             padding: EdgeInsets.all(12),
                             child: LinearProgressIndicator(),
                           )
                         else
-                          DropdownButtonFormField<String?>(
+                          DropdownButtonFormField<String>(
                             key: ValueKey(
-                              '${_hmoPlans.length}_${_selectedHmoId ?? 'none'}',
+                              '${_wards.length}_${_selectedWardId ?? 'none'}',
                             ),
-                            initialValue: _selectedHmoId,
+                            initialValue: _selectedWardId,
                             decoration: const InputDecoration(
-                              labelText: 'HMO plan',
+                              labelText: 'Ward *',
                               border: OutlineInputBorder(),
-                              helperText: 'Link patient to a configured plan',
                             ),
                             isExpanded: true,
                             items: [
-                              const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('None'),
-                              ),
-                              if (_selectedHmoId != null &&
-                                  _selectedHmoId!.isNotEmpty &&
-                                  !_hmoPlans.any((h) => h.id == _selectedHmoId))
-                                DropdownMenuItem<String?>(
-                                  value: _selectedHmoId,
+                              if (_selectedWardId != null &&
+                                  _selectedWardId!.isNotEmpty &&
+                                  !_wards.any((w) => w.id == _selectedWardId))
+                                DropdownMenuItem<String>(
+                                  value: _selectedWardId,
                                   child: Text(
-                                    widget.patient?.hmoProvider?.name ??
-                                        widget.patient?.hmo ??
-                                        'Current HMO plan',
+                                    widget.patient?.ward ??
+                                        'Current ward (reload lists if needed)',
                                   ),
                                 ),
-                              ..._hmoPlans.map(
-                                (h) => DropdownMenuItem<String?>(
-                                  value: h.id,
-                                  child: Text(
-                                    h.code != null && h.code!.isNotEmpty
-                                        ? '${h.name} (${h.code})'
-                                        : h.name,
-                                  ),
+                              ..._wards.map(
+                                (w) => DropdownMenuItem<String>(
+                                  value: w.id,
+                                  child: Text(w.name),
                                 ),
                               ),
                             ],
                             onChanged: (v) =>
-                                setState(() => _selectedHmoId = v),
+                                setState(() => _selectedWardId = v),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
                           ),
                         const SizedBox(height: 8),
-                        _buildTextField(
-                          _hmoController,
-                          'HMO membership code',
-                          required: false,
-                        ),
-                        _buildFingerprintSection(),
                       ],
-                    ),
-                    const SizedBox(height: 32),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 260),
-                        child: ElevatedButton(
-                          onPressed: _save,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 16.0,
-                              horizontal: 16.0,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                      if (_loadingHmos)
+                        const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: LinearProgressIndicator(),
+                        )
+                      else
+                        DropdownButtonFormField<String?>(
+                          key: ValueKey(
+                            '${_hmoPlans.length}_${_selectedHmoId ?? 'none'}',
                           ),
-                          child: Text(
-                            isEditing ? 'Update Patient' : 'Create Patient',
+                          initialValue: _selectedHmoId,
+                          decoration: const InputDecoration(
+                            labelText: 'HMO plan',
+                            border: OutlineInputBorder(),
+                            helperText: 'Link patient to a configured plan',
                           ),
+                          isExpanded: true,
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('None'),
+                            ),
+                            if (_selectedHmoId != null &&
+                                _selectedHmoId!.isNotEmpty &&
+                                !_hmoPlans.any((h) => h.id == _selectedHmoId))
+                              DropdownMenuItem<String?>(
+                                value: _selectedHmoId,
+                                child: Text(
+                                  widget.patient?.hmoProvider?.name ??
+                                      widget.patient?.hmo ??
+                                      'Current HMO plan',
+                                ),
+                              ),
+                            ..._hmoPlans.map(
+                              (h) => DropdownMenuItem<String?>(
+                                value: h.id,
+                                child: Text(
+                                  h.code != null && h.code!.isNotEmpty
+                                      ? '${h.name} (${h.code})'
+                                      : h.name,
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: (v) => setState(() => _selectedHmoId = v),
+                        ),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        _hmoController,
+                        'HMO membership code',
+                        required: false,
+                      ),
+                      _buildFingerprintSection(),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 260),
+                      child: ElevatedButton(
+                        onPressed: _save,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16.0,
+                            horizontal: 16.0,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          isEditing ? 'Update Patient' : 'Create Patient',
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
+      ),
     );
   }
 

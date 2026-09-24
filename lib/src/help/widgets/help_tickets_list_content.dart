@@ -23,7 +23,8 @@ class HelpTicketsListContent extends ConsumerStatefulWidget {
       _HelpTicketsListContentState();
 }
 
-class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent> {
+class _HelpTicketsListContentState
+    extends ConsumerState<HelpTicketsListContent> {
   List<SupportTicketSummary> _tickets = [];
   bool _loading = true;
   String? _error;
@@ -97,8 +98,11 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
       }
     } catch (e) {
       if (!mounted) return;
-      showAppNotification(ref, 'Could not create ticket: $e',
-          level: AppNotificationLevel.error);
+      showAppNotification(
+        ref,
+        'Could not create ticket: $e',
+        level: AppNotificationLevel.error,
+      );
     }
   }
 
@@ -140,46 +144,51 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
             child: _loading && _tickets.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null && _tickets.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: EdgeInsets.all(16 + pad),
-                        children: [
-                          Text(_error!,
-                              style: TextStyle(color: theme.colorScheme.error)),
-                          const SizedBox(height: 12),
-                          FilledButton(onPressed: _load, child: const Text('Retry')),
-                        ],
-                      )
-                    : _tickets.isEmpty
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: EdgeInsets.all(16 + pad),
-                            children: [
-                              Text(
-                                'No support tickets yet.',
-                                style: theme.textTheme.titleSmall,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Create a ticket to reach IT or support.',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          )
-                        : isSuperAdmin
-                            ? _buildGroupedTicketList(theme, pad)
-                            : ListView.separated(
-                                padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
-                                itemCount: _tickets.length,
-                                separatorBuilder: (_, __) => Divider(
-                                    height: 1, color: theme.dividerColor),
-                                itemBuilder: (context, i) {
-                                  final t = _tickets[i];
-                                  return _ticketTile(theme, t);
-                                },
-                              ),
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.all(16 + pad),
+                    children: [
+                      Text(
+                        _error!,
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _load,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  )
+                : _tickets.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.all(16 + pad),
+                    children: [
+                      Text(
+                        'No support tickets yet.',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Create a ticket to reach IT or support.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  )
+                : isSuperAdmin
+                ? _buildGroupedTicketList(theme, pad)
+                : ListView.separated(
+                    padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
+                    itemCount: _tickets.length,
+                    separatorBuilder: (_, _) =>
+                        Divider(height: 1, color: theme.dividerColor),
+                    itemBuilder: (context, i) {
+                      final t = _tickets[i];
+                      return _ticketTile(theme, t);
+                    },
+                  ),
           ),
         ],
       ),
@@ -193,8 +202,10 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
     }
     final keys = grouped.keys.toList()
       ..sort((a, b) {
-        final la = (grouped[a]!.first.requesterDisplayLabel ?? '').toLowerCase();
-        final lb = (grouped[b]!.first.requesterDisplayLabel ?? '').toLowerCase();
+        final la = (grouped[a]!.first.requesterDisplayLabel ?? '')
+            .toLowerCase();
+        final lb = (grouped[b]!.first.requesterDisplayLabel ?? '')
+            .toLowerCase();
         return la.compareTo(lb);
       });
 
@@ -215,7 +226,8 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
                 });
               final sample = list.first;
               final requesterName = sample.requesterDisplayLabel;
-              final subtitle = sample.createdBy != null &&
+              final subtitle =
+                  sample.createdBy != null &&
                       sample.createdBy!.staffId.isNotEmpty
                   ? 'Staff ID ${sample.createdBy!.staffId} · ${list.length} ticket(s)'
                   : '${list.length} ticket(s)';
@@ -240,8 +252,7 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
                     : null,
                 children: [
                   for (var i = 0; i < list.length; i++) ...[
-                    if (i > 0)
-                      Divider(height: 1, color: theme.dividerColor),
+                    if (i > 0) Divider(height: 1, color: theme.dividerColor),
                     _ticketTile(theme, list[i]),
                   ],
                 ],
@@ -256,15 +267,8 @@ class _HelpTicketsListContentState extends ConsumerState<HelpTicketsListContent>
   Widget _ticketTile(ThemeData theme, SupportTicketSummary t) {
     return ListTile(
       dense: widget.dense,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 2,
-      ),
-      title: Text(
-        t.title,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      title: Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         '${t.status}${t.updatedAt != null ? ' · ${_formatDate(t.updatedAt!)}' : ''}',
         style: theme.textTheme.bodySmall,

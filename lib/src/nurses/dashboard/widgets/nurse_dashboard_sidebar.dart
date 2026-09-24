@@ -240,7 +240,7 @@ class _StaffCard extends StatelessWidget {
             shrinkWrap: !expanded,
             physics: expanded ? null : const NeverScrollableScrollPhysics(),
             itemCount: staff.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final row = staff[i];
               final tone = NurseDashboardMetrics.statusToneColor(
@@ -345,7 +345,7 @@ class _MyShiftsCard extends StatelessWidget {
       shrinkWrap: !expanded,
       physics: expanded ? null : const NeverScrollableScrollPhysics(),
       itemCount: shifts.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final s = shifts[i];
         final shift = NurseDashboardMetrics.shiftLabel(s.shiftType);
@@ -458,7 +458,7 @@ class _AlertsCard extends StatelessWidget {
             shrinkWrap: !expanded,
             physics: expanded ? null : const NeverScrollableScrollPhysics(),
             itemCount: preview.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
               final a = preview[i];
               final accent = NurseDashboardMetrics.alertAccent(a.severity);
@@ -574,7 +574,7 @@ Future<void> showNurseDashboardAlertsDialog(
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: alerts.length,
-                  separatorBuilder: (_, __) => const Divider(height: 16),
+                  separatorBuilder: (_, _) => const Divider(height: 16),
                   itemBuilder: (context, i) {
                     final a = alerts[i];
                     return ListTile(

@@ -89,16 +89,13 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
   Future<void> _saveRoom() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      showSnackBar(
-        context,
-        message: 'Name is required',
-        isError: true,
-      );
+      showSnackBar(context, message: 'Name is required', isError: true);
       return;
     }
 
-    final capacity =
-        int.tryParse(_capacityCtrl.text.trim().isEmpty ? '0' : _capacityCtrl.text);
+    final capacity = int.tryParse(
+      _capacityCtrl.text.trim().isEmpty ? '0' : _capacityCtrl.text,
+    );
 
     setState(() => _saving = true);
     try {
@@ -163,18 +160,14 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete consulting room'),
-        content: Text(
-          'Are you sure you want to delete "${room.name}"?',
-        ),
+        content: Text('Are you sure you want to delete "${room.name}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Delete'),
           ),
@@ -193,11 +186,7 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
           _selected = _rooms.isNotEmpty ? _rooms.first : null;
         }
       });
-      showSnackBar(
-        context,
-        message: 'Consulting room deleted',
-        isError: false,
-      );
+      showSnackBar(context, message: 'Consulting room deleted', isError: false);
     } catch (e) {
       if (!mounted) return;
       showSnackBar(
@@ -260,7 +249,9 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: cs.onSurface.withValues(alpha: 0.02),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
             ),
             child: Row(
               children: [
@@ -308,10 +299,8 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
           Expanded(
             child: ListView.separated(
               itemCount: _rooms.length,
-              separatorBuilder: (_, __) => Divider(
-                height: 1,
-                color: cs.outline.withValues(alpha: 0.06),
-              ),
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, color: cs.outline.withValues(alpha: 0.06)),
               itemBuilder: (context, index) {
                 final room = _rooms[index];
                 final isSelected = _selected?.id == room.id;
@@ -339,14 +328,8 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
                           value: 'view',
                           child: Text('View details'),
                         ),
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Text('Edit'),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete'),
-                        ),
+                        PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(value: 'delete', child: Text('Delete')),
                       ],
                     );
 
@@ -392,14 +375,13 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: cs.primary.withValues(alpha: 0.04),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.meeting_room_outlined,
-                  color: cs.primary,
-                ),
+                Icon(Icons.meeting_room_outlined, color: cs.primary),
                 const SizedBox(width: 12),
                 Text(
                   room?.name ?? 'New consulting room',
@@ -419,10 +401,7 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (room != null) ...[
-                    _InfoRow(
-                      label: 'Location',
-                      value: room.location ?? '—',
-                    ),
+                    _InfoRow(label: 'Location', value: room.location ?? '—'),
                     const SizedBox(height: 6),
                     _InfoRow(
                       label: 'Capacity',
@@ -523,9 +502,7 @@ class _ConsultingRoomsScreenState extends State<ConsultingRoomsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(
-                  color: cs.outline.withValues(alpha: 0.12),
-                ),
+                top: BorderSide(color: cs.outline.withValues(alpha: 0.12)),
               ),
             ),
             child: Row(
@@ -602,8 +579,9 @@ class _RoomRow extends StatelessWidget {
                       room.name,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                         color: cs.onSurface.withValues(alpha: 0.9),
                       ),
                     ),
@@ -687,4 +665,3 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-

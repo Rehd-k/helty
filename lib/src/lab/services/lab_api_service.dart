@@ -36,10 +36,7 @@ class LabApiService {
   Future<LabCategoriesResponse> getCategories({int? skip, int? take}) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_prefix/categories',
-      queryParameters: {
-        if (skip != null) 'skip': skip,
-        if (take != null) 'take': take,
-      },
+      queryParameters: {'skip': ?skip, 'take': ?take},
     );
     final data = response.data;
     if (data == null) throw StateError('Get categories returned no data');
@@ -53,10 +50,7 @@ class LabApiService {
   }) async {
     final response = await _dio.patch<Map<String, dynamic>>(
       '$_prefix/categories/$id',
-      data: {
-        if (name != null) 'name': name,
-        if (description != null) 'description': description,
-      },
+      data: {'name': ?name, 'description': ?description},
     );
     final data = response.data;
     if (data == null) throw StateError('Update category returned no data');
@@ -85,8 +79,8 @@ class LabApiService {
         'sampleType': sampleType,
         if (description != null && description.isNotEmpty)
           'description': description,
-        if (price != null) 'price': price,
-        if (isActive != null) 'isActive': isActive,
+        'price': ?price,
+        'isActive': ?isActive,
       },
     );
     final data = response.data;
@@ -105,10 +99,10 @@ class LabApiService {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_prefix/tests',
       queryParameters: {
-        if (categoryId != null) 'categoryId': categoryId,
-        if (isActive != null) 'isActive': isActive,
-        if (skip != null) 'skip': skip,
-        if (take != null) 'take': take,
+        'categoryId': ?categoryId,
+        'isActive': ?isActive,
+        'skip': ?skip,
+        'take': ?take,
         if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
         if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
       },
@@ -137,12 +131,12 @@ class LabApiService {
     final response = await _dio.patch<Map<String, dynamic>>(
       '$_prefix/tests/$id',
       data: {
-        if (categoryId != null) 'categoryId': categoryId,
-        if (name != null) 'name': name,
-        if (sampleType != null) 'sampleType': sampleType,
-        if (description != null) 'description': description,
-        if (price != null) 'price': price,
-        if (isActive != null) 'isActive': isActive,
+        'categoryId': ?categoryId,
+        'name': ?name,
+        'sampleType': ?sampleType,
+        'description': ?description,
+        'price': ?price,
+        'isActive': ?isActive,
       },
     );
     final data = response.data;
@@ -201,8 +195,8 @@ class LabApiService {
         if (unit != null && unit.isNotEmpty) 'unit': unit,
         if (referenceRange != null && referenceRange.isNotEmpty)
           'referenceRange': referenceRange,
-        if (required != null) 'required': required,
-        if (position != null) 'position': position,
+        'required': ?required,
+        'position': ?position,
         if (optionsJson != null && optionsJson.isNotEmpty)
           'optionsJson': optionsJson,
       },
@@ -238,13 +232,13 @@ class LabApiService {
     final response = await _dio.patch<Map<String, dynamic>>(
       '$_prefix/test-fields/field/$fieldId',
       data: {
-        if (label != null) 'label': label,
-        if (fieldType != null) 'fieldType': fieldType,
-        if (unit != null) 'unit': unit,
-        if (referenceRange != null) 'referenceRange': referenceRange,
-        if (required != null) 'required': required,
-        if (position != null) 'position': position,
-        if (optionsJson != null) 'optionsJson': optionsJson,
+        'label': ?label,
+        'fieldType': ?fieldType,
+        'unit': ?unit,
+        'referenceRange': ?referenceRange,
+        'required': ?required,
+        'position': ?position,
+        'optionsJson': ?optionsJson,
       },
     );
     final data = response.data;
@@ -297,12 +291,12 @@ class LabApiService {
     final response = await _dio.get<Map<String, dynamic>>(
       '$_prefix/orders',
       queryParameters: {
-        if (patientId != null) 'patientId': patientId,
+        'patientId': ?patientId,
         if (status != null) 'status': status.apiValue,
         if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
         if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
-        if (skip != null) 'skip': skip,
-        if (take != null) 'take': take,
+        'skip': ?skip,
+        'take': ?take,
       },
     );
     final data = response.data;
@@ -430,8 +424,8 @@ class LabApiService {
       '$_prefix/antibiotics',
       queryParameters: {
         if (activeOnly == true) 'activeOnly': true,
-        if (skip != null) 'skip': skip,
-        if (take != null) 'take': take,
+        'skip': ?skip,
+        'take': ?take,
       },
     );
     return _antibioticsResponseFromBody(response.data);
@@ -447,10 +441,10 @@ class LabApiService {
     final response = await _dio.patch<Map<String, dynamic>>(
       '$_prefix/antibiotics/$id',
       data: {
-        if (name != null) 'name': name,
-        if (code != null) 'code': code,
-        if (isActive != null) 'isActive': isActive,
-        if (position != null) 'position': position,
+        'name': ?name,
+        'code': ?code,
+        'isActive': ?isActive,
+        'position': ?position,
       },
     );
     final data = response.data;
@@ -495,8 +489,8 @@ class LabApiService {
       '$_prefix/ast-result-options',
       queryParameters: {
         if (activeOnly == true) 'activeOnly': true,
-        if (skip != null) 'skip': skip,
-        if (take != null) 'take': take,
+        'skip': ?skip,
+        'take': ?take,
       },
     );
     return _astResultOptionsResponseFromBody(response.data);
@@ -512,10 +506,10 @@ class LabApiService {
     final response = await _dio.patch<Map<String, dynamic>>(
       '$_prefix/ast-result-options/$id',
       data: {
-        if (label != null) 'label': label,
-        if (code != null) 'code': code,
-        if (isActive != null) 'isActive': isActive,
-        if (position != null) 'position': position,
+        'label': ?label,
+        'code': ?code,
+        'isActive': ?isActive,
+        'position': ?position,
       },
     );
     final data = response.data;

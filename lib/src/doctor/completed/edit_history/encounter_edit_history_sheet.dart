@@ -128,86 +128,82 @@ class _EncounterEditHistorySheetState extends State<EncounterEditHistorySheet> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(_error!, textAlign: TextAlign.center),
-                              const SizedBox(height: 16),
-                              FilledButton(
-                                onPressed: _load,
-                                child: const Text('Retry'),
-                              ),
-                            ],
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_error!, textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: _load,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _items.isEmpty
+                ? Center(
+                    child: Text(
+                      'No amendments recorded yet.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    itemCount: _items.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = _items[index];
+                      final by = item.editedBy?.displayName ?? 'Staff';
+                      final keys = item.changedKeys;
+                      return Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: scheme.outline.withValues(alpha: 0.2),
                           ),
                         ),
-                      )
-                    : _items.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No amendments recorded yet.',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                            itemCount: _items.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final item = _items[index];
-                              final by = item.editedBy?.displayName ?? 'Staff';
-                              final keys = item.changedKeys;
-                              return Card(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(
-                                    color: scheme.outline.withValues(
-                                      alpha: 0.2,
-                                    ),
-                                  ),
+                        child: ListTile(
+                          title: Text(DateFormatter.dateTime(item.editedAt)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('By $by'),
+                              if (item.reason != null &&
+                                  item.reason!.isNotEmpty)
+                                Text('Reason: ${item.reason}'),
+                              if (keys.isNotEmpty)
+                                Text(
+                                  keys
+                                      .map(
+                                        EncounterClinicalSnapshotFields
+                                            .labelForKey,
+                                      )
+                                      .join(', '),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                child: ListTile(
-                                  title: Text(DateFormatter.dateTime(item.editedAt)),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('By $by'),
-                                      if (item.reason != null &&
-                                          item.reason!.isNotEmpty)
-                                        Text('Reason: ${item.reason}'),
-                                      if (keys.isNotEmpty)
-                                        Text(
-                                          keys
-                                              .map(
-                                                EncounterClinicalSnapshotFields
-                                                    .labelForKey,
-                                              )
-                                              .join(', '),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                    ],
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    context.router.push(
-                                      EncounterEditHistoryDetailRoute(
-                                        encounterId: widget.encounterId,
-                                        historyId: item.id,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              );
-                            },
+                            ],
                           ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.router.push(
+                              EncounterEditHistoryDetailRoute(
+                                encounterId: widget.encounterId,
+                                historyId: item.id,
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

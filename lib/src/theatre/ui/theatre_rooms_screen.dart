@@ -13,8 +13,7 @@ class TheatreRoomsScreen extends ConsumerStatefulWidget {
   const TheatreRoomsScreen({super.key});
 
   @override
-  ConsumerState<TheatreRoomsScreen> createState() =>
-      _TheatreRoomsScreenState();
+  ConsumerState<TheatreRoomsScreen> createState() => _TheatreRoomsScreenState();
 }
 
 class _TheatreRoomsScreenState extends ConsumerState<TheatreRoomsScreen> {
@@ -101,14 +100,14 @@ class _TheatreRoomsScreenState extends ConsumerState<TheatreRoomsScreen> {
       invalidateTheatreRooms(ref);
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Room saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Room saved')));
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -121,10 +120,7 @@ class _TheatreRoomsScreenState extends ConsumerState<TheatreRoomsScreen> {
       appBar: AppBar(
         title: const Text('Theatre rooms'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _load,
-          ),
+          IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
         ],
       ),
       floatingActionButton: canManage
@@ -139,41 +135,38 @@ class _TheatreRoomsScreenState extends ConsumerState<TheatreRoomsScreen> {
         builder: (context, bp) => _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(_error!),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: _load,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_error!),
+                    const SizedBox(height: 16),
+                    FilledButton(onPressed: _load, child: const Text('Retry')),
+                  ],
+                ),
+              )
+            : _rooms.isEmpty
+            ? const Center(child: Text('No theatre rooms configured'))
+            : ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: _rooms.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final room = _rooms[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(room.name),
+                      subtitle: Text(room.isActive ? 'Active' : 'Inactive'),
+                      trailing: canManage
+                          ? IconButton(
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: () => _showRoomDialog(existing: room),
+                            )
+                          : null,
                     ),
-                  )
-                : _rooms.isEmpty
-                    ? const Center(child: Text('No theatre rooms configured'))
-                    : ListView.separated(
-                        padding: EdgeInsets.zero,
-              itemCount: _rooms.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final room = _rooms[index];
-                return Card(
-                  child: ListTile(
-                    title: Text(room.name),
-                    subtitle: Text(room.isActive ? 'Active' : 'Inactive'),
-                    trailing: canManage
-                        ? IconButton(
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => _showRoomDialog(existing: room),
-                          )
-                        : null,
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
       ),
     );
   }

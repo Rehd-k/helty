@@ -35,16 +35,14 @@ class SystemAnnouncementService {
   }) async {
     final resp = await _dio.get(
       '/system-announcements',
-      queryParameters: {
-        'skip': skip,
-        'take': take,
-        if (isActive != null) 'isActive': isActive,
-      },
+      queryParameters: {'skip': skip, 'take': take, 'isActive': ?isActive},
     );
     return _asList(resp.data).map(SystemAnnouncement.fromJson).toList();
   }
 
-  Future<SystemAnnouncement> create(SystemAnnouncementWritePayload payload) async {
+  Future<SystemAnnouncement> create(
+    SystemAnnouncementWritePayload payload,
+  ) async {
     final resp = await _dio.post(
       '/system-announcements',
       data: payload.toJson(),

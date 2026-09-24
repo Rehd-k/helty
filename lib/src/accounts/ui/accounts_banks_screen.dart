@@ -76,22 +76,22 @@ class _ReadOnlyBanksViewState extends State<_ReadOnlyBanksView> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(24),
-                  itemCount: _banks.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) {
-                    final b = _banks[i];
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.account_balance_outlined),
-                        title: Text(b.name),
-                        subtitle: Text(b.accountNumber),
-                      ),
-                    );
-                  },
-                ),
+          ? Center(child: Text(_error!))
+          : ListView.separated(
+              padding: const EdgeInsets.all(24),
+              itemCount: _banks.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, i) {
+                final b = _banks[i];
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.account_balance_outlined),
+                    title: Text(b.name),
+                    subtitle: Text(b.accountNumber),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

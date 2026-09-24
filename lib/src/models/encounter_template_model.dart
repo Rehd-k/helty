@@ -232,7 +232,9 @@ class EncounterTemplateModel {
     final out = <String, dynamic>{};
     if (name.trim().isNotEmpty) out['name'] = name.trim();
     if (description != null) {
-      out['description'] = description!.trim().isEmpty ? null : description!.trim();
+      out['description'] = description!.trim().isEmpty
+          ? null
+          : description!.trim();
     }
     if (encounterType != null) {
       out['encounterType'] = encounterType!.trim().isEmpty
@@ -311,8 +313,8 @@ class EncounterTemplateModel {
         'secondaryDiagnosesJson': enc.secondaryDiagnosesJson,
       if (enc.proceduresJson != null && enc.proceduresJson!.trim().isNotEmpty)
         'proceduresJson': enc.proceduresJson,
-      if (modulesJson != null) 'specialtyModulesJson': modulesJson,
-      if (sectionsJson != null) 'clinicalSectionsJson': sectionsJson,
+      'specialtyModulesJson': ?modulesJson,
+      'clinicalSectionsJson': ?sectionsJson,
       if (enc.followUpDate != null && enc.followUpDate!.trim().isNotEmpty)
         'followUpDate': enc.followUpDate,
       if (enc.followUpInstructions != null &&

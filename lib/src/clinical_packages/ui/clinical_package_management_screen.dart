@@ -218,12 +218,16 @@ class _ClinicalPackageManagementScreenState
                     value: isDefaultAntenatal,
                     onChanged: (v) => setDialog(() => isDefaultAntenatal = v),
                     title: const Text('Default antenatal package'),
-                    subtitle: const Text('Only one default at a time (API enforced)'),
+                    subtitle: const Text(
+                      'Only one default at a time (API enforced)',
+                    ),
                     contentPadding: EdgeInsets.zero,
                   ),
                   const SizedBox(height: 8),
-                  Text('Items (${items.length})',
-                      style: Theme.of(ctx).textTheme.titleSmall),
+                  Text(
+                    'Items (${items.length})',
+                    style: Theme.of(ctx).textTheme.titleSmall,
+                  ),
                   ...List.generate(items.length, (index) {
                     final item = items[index];
                     return ListTile(
@@ -238,7 +242,8 @@ class _ClinicalPackageManagementScreenState
                       ),
                       subtitle: Text(
                         [
-                          if (item.serviceId != null) 'service: ${item.serviceId}',
+                          if (item.serviceId != null)
+                            'service: ${item.serviceId}',
                           if (item.drugId != null) 'drug: ${item.drugId}',
                         ].join(' · '),
                       ),
@@ -338,32 +343,32 @@ class _ClinicalPackageManagementScreenState
         builder: (context, bp) => _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(child: Text(_error!))
-                : ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: _items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final p = _items[index];
-                      return ListTile(
-                        title: Text(p.name),
-                        subtitle: Text(
-                          [
-                            '${p.items.length} item(s)',
-                            if (p.isDefaultAntenatal) 'Default ANC',
-                            if (!p.active) 'Inactive',
-                            if (p.createdByName != null &&
-                                p.createdByName!.trim().isNotEmpty)
-                              'Created by: ${p.createdByName}',
-                          ].join(' · '),
-                        ),
-                        trailing: IconButton(
-                          onPressed: () => _upsert(existing: p),
-                          icon: const Icon(Icons.edit_outlined),
-                        ),
-                      );
-                    },
-                  ),
+            ? Center(child: Text(_error!))
+            : ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: _items.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final p = _items[index];
+                  return ListTile(
+                    title: Text(p.name),
+                    subtitle: Text(
+                      [
+                        '${p.items.length} item(s)',
+                        if (p.isDefaultAntenatal) 'Default ANC',
+                        if (!p.active) 'Inactive',
+                        if (p.createdByName != null &&
+                            p.createdByName!.trim().isNotEmpty)
+                          'Created by: ${p.createdByName}',
+                      ].join(' · '),
+                    ),
+                    trailing: IconButton(
+                      onPressed: () => _upsert(existing: p),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                  );
+                },
+              ),
       ),
     );
   }

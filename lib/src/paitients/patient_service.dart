@@ -84,7 +84,7 @@ class PatientService {
         'filterCategory': filterCategory,
         if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
         if (toDate != null) 'toDate': toDate.toIso8601String(),
-        if (sortBy != null) 'sortBy': sortBy,
+        'sortBy': ?sortBy,
         'isAscending': isAscending,
         if (listStatusFilter != PatientListStatusFilter.none)
           'listStatusFilter': listStatusFilter.name,
@@ -193,7 +193,9 @@ class PatientService {
         ? raw
         : (raw is Map && raw['candidates'] is List
               ? raw['candidates'] as List
-              : (raw is Map && raw['data'] is List ? raw['data'] as List : const []));
+              : (raw is Map && raw['data'] is List
+                    ? raw['data'] as List
+                    : const []));
     return list
         .whereType<Map>()
         .map((e) => SimilarPatientMatch.fromJson(Map<String, dynamic>.from(e)))
@@ -201,10 +203,7 @@ class PatientService {
   }
 
   Future<Patient> createPatient(Patient p, {bool forceCreate = false}) async {
-    final body = {
-      ...p.toJson(),
-      if (forceCreate) 'forceCreate': true,
-    };
+    final body = {...p.toJson(), if (forceCreate) 'forceCreate': true};
     final resp = await _dio.post(
       '/patients',
       data: body,
@@ -219,10 +218,7 @@ class PatientService {
   }) async {
     final resp = await _dio.post(
       '/patients/merge',
-      data: {
-        'survivorId': survivorId,
-        'duplicateId': duplicateId,
-      },
+      data: {'survivorId': survivorId, 'duplicateId': duplicateId},
     );
     return Patient.fromJson(resp.data as Map<String, dynamic>);
   }
@@ -252,10 +248,7 @@ class PatientService {
       message = e.message!.trim();
     }
     if (status == 404) {
-      return PatientDeleteException(
-        'Patient not found.',
-        statusCode: status,
-      );
+      return PatientDeleteException('Patient not found.', statusCode: status);
     }
     if (status == 409) {
       return PatientDeleteException(message, statusCode: status);

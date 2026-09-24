@@ -22,8 +22,9 @@ class AccountsReportsService extends AccountsBaseService {
       return asList(response.data, key: 'rows')
           .whereType<Map>()
           .map(
-            (e) =>
-                AccountsDailyCollectionRow.fromJson(Map<String, dynamic>.from(e)),
+            (e) => AccountsDailyCollectionRow.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
           )
           .toList();
     } on DioException catch (e) {
@@ -35,7 +36,7 @@ class AccountsReportsService extends AccountsBaseService {
     try {
       final response = await dio.get<dynamic>(
         AccountsEndpoints.aging,
-        queryParameters: {if (type != null) 'type': type},
+        queryParameters: {'type': ?type},
       );
       return AccountsAgingReport.fromJson(asMap(response.data));
     } on DioException catch (e) {
@@ -155,9 +156,8 @@ class AccountsReportsService extends AccountsBaseService {
       return asList(response.data, key: 'rows')
           .whereType<Map>()
           .map(
-            (e) => AccountsExpenseBudgetRow.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
+            (e) =>
+                AccountsExpenseBudgetRow.fromJson(Map<String, dynamic>.from(e)),
           )
           .toList();
     } on DioException catch (e) {
@@ -251,7 +251,7 @@ class AccountsReportsService extends AccountsBaseService {
       data: {
         'date': date.toUtc().toIso8601String(),
         'countedCash': countedCash,
-        if (notes != null) 'notes': notes,
+        'notes': ?notes,
       },
     );
     return AccountsDailyCashRecon.fromJson(asMap(response.data));
@@ -273,8 +273,9 @@ class AccountsReportsService extends AccountsBaseService {
 
   Future<List<AccountsApprovalRequest>> fetchPendingApprovals() async {
     try {
-      final response =
-          await dio.get<dynamic>(AccountsEndpoints.approvalsPending);
+      final response = await dio.get<dynamic>(
+        AccountsEndpoints.approvalsPending,
+      );
       return asList(response.data, key: 'approvals')
           .whereType<Map>()
           .map(
@@ -290,7 +291,7 @@ class AccountsReportsService extends AccountsBaseService {
   Future<void> approveRequest(String id, {String? note}) async {
     await dio.post<void>(
       AccountsEndpoints.approveApproval(id),
-      data: {if (note != null) 'note': note},
+      data: {'note': ?note},
     );
   }
 
@@ -331,8 +332,8 @@ class AccountsReportsService extends AccountsBaseService {
         queryParameters: {
           if (from != null) 'from': from.toUtc().toIso8601String(),
           if (to != null) 'to': to.toUtc().toIso8601String(),
-          if (skip != null) 'skip': skip,
-          if (take != null) 'take': take,
+          'skip': ?skip,
+          'take': ?take,
         },
       );
       return asList(response.data, key: 'entries')
@@ -370,8 +371,9 @@ class AccountsReportsService extends AccountsBaseService {
 
   Future<List<AccountsChartAccount>> fetchChartOfAccounts() async {
     try {
-      final response =
-          await dio.get<dynamic>(AccountsEndpoints.chartOfAccounts);
+      final response = await dio.get<dynamic>(
+        AccountsEndpoints.chartOfAccounts,
+      );
       return asList(response.data, key: 'accounts')
           .whereType<Map>()
           .map(

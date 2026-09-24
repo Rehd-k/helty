@@ -142,9 +142,9 @@ class _EncounterSpecialtyFormsPanelState
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not load section: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not load section: $e')));
       }
     }
   }
@@ -187,9 +187,9 @@ class _EncounterSpecialtyFormsPanelState
           _saving = false;
           _lastSaveMessage = 'Save failed';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
       }
     });
   }
@@ -198,7 +198,9 @@ class _EncounterSpecialtyFormsPanelState
   Widget build(BuildContext context) {
     final encounterId = widget.encounterId;
     final patientId = widget.patientId;
-    final modulesAsync = ref.watch(encounterSpecialtyModulesProvider(encounterId));
+    final modulesAsync = ref.watch(
+      encounterSpecialtyModulesProvider(encounterId),
+    );
     final catalogAsync = ref.watch(clinicalSpecialtyCatalogProvider);
 
     return modulesAsync.when(
@@ -218,14 +220,17 @@ class _EncounterSpecialtyFormsPanelState
 
             if (flat.isEmpty) {
               _didPickInitialSection = false;
-            } else if (!_didPickInitialSection && _selectedCompositeKey == null) {
+            } else if (!_didPickInitialSection &&
+                _selectedCompositeKey == null) {
               _didPickInitialSection = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final first = flat.first;
                 if (!mounted) return;
                 setState(() {
-                  _selectedCompositeKey =
-                      _composite(first.specialty, first.sectionKey);
+                  _selectedCompositeKey = _composite(
+                    first.specialty,
+                    first.sectionKey,
+                  );
                 });
                 _ensureLoaded(encounterId, first.specialty, first.sectionKey);
               });
@@ -241,8 +246,10 @@ class _EncounterSpecialtyFormsPanelState
                 if (!mounted) return;
                 final first = flat.first;
                 setState(() {
-                  _selectedCompositeKey =
-                      _composite(first.specialty, first.sectionKey);
+                  _selectedCompositeKey = _composite(
+                    first.specialty,
+                    first.sectionKey,
+                  );
                 });
                 _ensureLoaded(encounterId, first.specialty, first.sectionKey);
               });
@@ -277,8 +284,12 @@ class _EncounterSpecialtyFormsPanelState
                   ),
                 if (!widget.readOnly)
                   Padding(
-                    padding:
-                        EdgeInsets.fromLTRB(16, widget.showAppBar ? 4 : 0, 16, 8),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      widget.showAppBar ? 4 : 0,
+                      16,
+                      8,
+                    ),
                     child: Row(
                       children: [
                         const Spacer(),
@@ -349,7 +360,7 @@ class _EncounterSpecialtyFormsPanelState
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       itemCount: flat.length,
-                      separatorBuilder: (_, __) => const Gap(8),
+                      separatorBuilder: (_, _) => const Gap(8),
                       itemBuilder: (ctx, i) {
                         final item = flat[i];
                         final ck = _composite(item.specialty, item.sectionKey);
@@ -361,10 +372,7 @@ class _EncounterSpecialtyFormsPanelState
                         final label = meta?.label ?? item.sectionKey;
                         final on = ck == selected;
                         return ChoiceChip(
-                          label: Text(
-                            label,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          label: Text(label, overflow: TextOverflow.ellipsis),
                           selected: on,
                           onSelected: (_) {
                             setState(() => _selectedCompositeKey = ck);
@@ -447,7 +455,9 @@ class _EncounterSpecialtyFormsPanelState
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
+              color: Theme.of(
+                context,
+              ).colorScheme.outline.withValues(alpha: 0.15),
             ),
           ),
           child: Padding(

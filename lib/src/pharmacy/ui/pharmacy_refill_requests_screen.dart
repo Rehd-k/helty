@@ -552,7 +552,7 @@ class _PharmacyRefillRequestsScreenState
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       itemCount: _requests.length + (canLoadMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 6),
+      separatorBuilder: (_, _) => const SizedBox(height: 6),
       itemBuilder: (context, index) {
         if (index >= _requests.length) {
           return Center(

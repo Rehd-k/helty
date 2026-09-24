@@ -84,7 +84,7 @@ class _HmoTariffImportSheetState extends State<HmoTariffImportSheet> {
   Future<void> _pickFile() async {
     setState(() => _picking = true);
     try {
-      final picked = await FilePicker.platform.pickFiles(
+      final picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['csv'],
         withData: true,

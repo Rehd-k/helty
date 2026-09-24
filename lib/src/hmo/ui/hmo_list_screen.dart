@@ -91,7 +91,9 @@ class _HmoListScreenState extends State<HmoListScreen> {
                 hintText: 'Search by name or code',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -113,7 +115,10 @@ class _HmoListScreenState extends State<HmoListScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
               ),
             Expanded(
               child: _loading
@@ -135,7 +140,7 @@ class _HmoListScreenState extends State<HmoListScreen> {
                       clipBehavior: Clip.antiAlias,
                       child: ListView.separated(
                         itemCount: _items.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final h = _items[i];
                           return ListTile(
@@ -145,7 +150,9 @@ class _HmoListScreenState extends State<HmoListScreen> {
                             ),
                             title: Text(
                               h.name,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             subtitle: Text(
                               [
@@ -161,7 +168,9 @@ class _HmoListScreenState extends State<HmoListScreen> {
                             ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () async {
-                              await context.router.push(HmoDetailRoute(hmoId: h.id));
+                              await context.router.push(
+                                HmoDetailRoute(hmoId: h.id),
+                              );
                               _load();
                             },
                           );

@@ -38,7 +38,7 @@ class PendingOrdersTickNotifier extends Notifier<PendingOrdersTickState> {
 
   @override
   PendingOrdersTickState build() {
-    ref.listen(internalChatSocketProvider, (_, __) {
+    ref.listen(internalChatSocketProvider, (_, _) {
       _bindSocket();
     });
     _bindSocket();
@@ -71,7 +71,9 @@ class PendingOrdersTickNotifier extends Notifier<PendingOrdersTickState> {
         .map((item) => item.toNotificationState())
         .toList(growable: false);
 
-    await ref.read(pendingOrdersNotificationServiceProvider).reconcile(activeItems);
+    await ref
+        .read(pendingOrdersNotificationServiceProvider)
+        .reconcile(activeItems);
     state = state.copyWith(
       lastTickAt: parsed.tickAt,
       lastTickReceivedAt: DateTime.now(),
@@ -82,7 +84,12 @@ class PendingOrdersTickNotifier extends Notifier<PendingOrdersTickState> {
 
   bool _shouldNotify(PendingOrdersItem item) {
     final normalizedStatus = item.status.trim().toUpperCase();
-    final resolvedStatuses = <String>{'DONE', 'COMPLETED', 'RESOLVED', 'CLOSED'};
+    final resolvedStatuses = <String>{
+      'DONE',
+      'COMPLETED',
+      'RESOLVED',
+      'CLOSED',
+    };
     if (resolvedStatuses.contains(normalizedStatus)) return false;
     final eventAt = item.eventAt;
     if (eventAt == null) return true;
@@ -97,9 +104,7 @@ class PendingOrdersTickNotifier extends Notifier<PendingOrdersTickState> {
     if (stale && !_staleLogged) {
       _staleLogged = true;
       if (kDebugMode) {
-        debugPrint(
-          'pending_orders_tick stale: no events for >45 seconds',
-        );
+        debugPrint('pending_orders_tick stale: no events for >45 seconds');
       }
     }
     if (stale != state.isStale) {
@@ -110,5 +115,5 @@ class PendingOrdersTickNotifier extends Notifier<PendingOrdersTickState> {
 
 final pendingOrdersTickProvider =
     NotifierProvider<PendingOrdersTickNotifier, PendingOrdersTickState>(
-  PendingOrdersTickNotifier.new,
-);
+      PendingOrdersTickNotifier.new,
+    );

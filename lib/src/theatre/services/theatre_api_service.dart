@@ -101,12 +101,11 @@ class TheatreApiService {
         queryParameters: {
           if (encounterId != null && encounterId.isNotEmpty)
             'encounterId': encounterId,
-          if (patientId != null && patientId.isNotEmpty)
-            'patientId': patientId,
+          if (patientId != null && patientId.isNotEmpty) 'patientId': patientId,
           if (status != null) 'status': status.apiValue,
           if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
           if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
-          if (skip != null) 'skip': skip,
+          'skip': ?skip,
           if (take != null) 'take': take > 100 ? 100 : take,
         },
       );
@@ -168,7 +167,7 @@ class TheatreApiService {
         '$_surgeryPrefix/$id',
         data: {
           if (priority != null) 'priority': priority.apiValue,
-          if (clinicalNotes != null) 'clinicalNotes': clinicalNotes,
+          'clinicalNotes': ?clinicalNotes,
           if (preferredDate != null)
             'preferredDate': AppTimezone.toBackendIso(preferredDate),
           if (status != null) 'status': status.apiValue,
@@ -218,10 +217,7 @@ class TheatreApiService {
     try {
       final response = await _dio.patch<Map<String, dynamic>>(
         '$_theatrePrefix/rooms/$id',
-        data: {
-          if (name != null) 'name': name,
-          if (isActive != null) 'isActive': isActive,
-        },
+        data: {'name': ?name, 'isActive': ?isActive},
       );
       final data = response.data;
       if (data == null) throw const UnknownException('Empty response');
@@ -249,10 +245,8 @@ class TheatreApiService {
           'surgeryRequestId': surgeryRequestId,
           'theatreRoomId': theatreRoomId,
           'scheduledAt': AppTimezone.toBackendIso(scheduledAt),
-          if (estimatedDurationMins != null)
-            'estimatedDurationMins': estimatedDurationMins,
-          if (surgeonId != null && surgeonId.isNotEmpty)
-            'surgeonId': surgeonId,
+          'estimatedDurationMins': ?estimatedDurationMins,
+          if (surgeonId != null && surgeonId.isNotEmpty) 'surgeonId': surgeonId,
           if (anaesthetistId != null && anaesthetistId.isNotEmpty)
             'anaesthetistId': anaesthetistId,
           if (scrubNurseId != null && scrubNurseId.isNotEmpty)
@@ -281,11 +275,10 @@ class TheatreApiService {
         queryParameters: {
           if (theatreRoomId != null && theatreRoomId.isNotEmpty)
             'theatreRoomId': theatreRoomId,
-          if (surgeonId != null && surgeonId.isNotEmpty)
-            'surgeonId': surgeonId,
+          if (surgeonId != null && surgeonId.isNotEmpty) 'surgeonId': surgeonId,
           if (fromDate != null) 'fromDate': AppTimezone.toBackendIso(fromDate),
           if (toDate != null) 'toDate': AppTimezone.toBackendIso(toDate),
-          if (skip != null) 'skip': skip,
+          'skip': ?skip,
           if (take != null) 'take': take > 100 ? 100 : take,
         },
       );
@@ -312,14 +305,13 @@ class TheatreApiService {
       final response = await _dio.patch<Map<String, dynamic>>(
         '$_theatrePrefix/schedules/$id',
         data: {
-          if (theatreRoomId != null) 'theatreRoomId': theatreRoomId,
+          'theatreRoomId': ?theatreRoomId,
           if (scheduledAt != null)
             'scheduledAt': AppTimezone.toBackendIso(scheduledAt),
-          if (estimatedDurationMins != null)
-            'estimatedDurationMins': estimatedDurationMins,
-          if (surgeonId != null) 'surgeonId': surgeonId,
-          if (anaesthetistId != null) 'anaesthetistId': anaesthetistId,
-          if (scrubNurseId != null) 'scrubNurseId': scrubNurseId,
+          'estimatedDurationMins': ?estimatedDurationMins,
+          'surgeonId': ?surgeonId,
+          'anaesthetistId': ?anaesthetistId,
+          'scrubNurseId': ?scrubNurseId,
         },
       );
       final data = response.data;
@@ -370,9 +362,9 @@ class TheatreApiService {
       final response = await _dio.patch<Map<String, dynamic>>(
         '$_theatrePrefix/cases/$surgeryRequestId',
         data: {
-          if (findings != null) 'findings': findings,
-          if (complications != null) 'complications': complications,
-          if (operativeNotes != null) 'operativeNotes': operativeNotes,
+          'findings': ?findings,
+          'complications': ?complications,
+          'operativeNotes': ?operativeNotes,
           if (performedById != null && performedById.isNotEmpty)
             'performedById': performedById,
           if (team != null) 'team': team.map((m) => m.toJson()).toList(),
@@ -398,9 +390,8 @@ class TheatreApiService {
         return data
             .whereType<Map>()
             .map(
-              (e) => TheatreOperativeNote.fromJson(
-                Map<String, dynamic>.from(e),
-              ),
+              (e) =>
+                  TheatreOperativeNote.fromJson(Map<String, dynamic>.from(e)),
             )
             .toList();
       }
@@ -410,9 +401,8 @@ class TheatreApiService {
           return raw
               .whereType<Map>()
               .map(
-                (e) => TheatreOperativeNote.fromJson(
-                  Map<String, dynamic>.from(e),
-                ),
+                (e) =>
+                    TheatreOperativeNote.fromJson(Map<String, dynamic>.from(e)),
               )
               .toList();
         }
@@ -464,7 +454,7 @@ class TheatreApiService {
           'answersJson': answersJson,
           'narrative': narrative,
           'schemaVersion': schemaVersion,
-          if (additionalNotes != null) 'additionalNotes': additionalNotes,
+          'additionalNotes': ?additionalNotes,
         },
       );
       final data = response.data;

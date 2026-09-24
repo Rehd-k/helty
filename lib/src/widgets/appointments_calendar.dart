@@ -396,7 +396,7 @@ class _DayAppointmentsBottomSheetState
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount:
                         items.length + (data.total > items.length ? 1 : 0),
-                    separatorBuilder: (_, __) => Divider(
+                    separatorBuilder: (_, _) => Divider(
                       height: 1,
                       color: scheme.outlineVariant.withValues(alpha: 0.5),
                     ),

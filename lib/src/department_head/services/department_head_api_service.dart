@@ -29,15 +29,15 @@ class DepartmentHeadApiService {
     try {
       final response = await _dio.get<dynamic>(
         '/department-head/staff',
-        queryParameters: {
-          if (accountType != null) 'accountType': accountType,
-        },
+        queryParameters: {'accountType': ?accountType},
       );
       final data = response.data;
       if (data is! List) return const [];
       return data
           .whereType<Map>()
-          .map((e) => DepartmentStaffMember.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) => DepartmentStaffMember.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList();
     } on DioException catch (e) {
       _throw(e, 'Failed to load department staff');
@@ -52,15 +52,18 @@ class DepartmentHeadApiService {
       final response = await _dio.get<dynamic>(
         '/department-head/rosters',
         queryParameters: {
-          if (shiftDate != null) 'shiftDate': AppTimezone.dateOnlyKey(shiftDate),
-          if (shiftType != null) 'shiftType': shiftType,
+          if (shiftDate != null)
+            'shiftDate': AppTimezone.dateOnlyKey(shiftDate),
+          'shiftType': ?shiftType,
         },
       );
       final data = response.data;
       if (data is! List) return const [];
       return data
           .whereType<Map>()
-          .map((e) => DepartmentRosterEntry.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) => DepartmentRosterEntry.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList();
     } on DioException catch (e) {
       _throw(e, 'Failed to load shift roster');
@@ -72,7 +75,8 @@ class DepartmentHeadApiService {
       final response = await _dio.get<dynamic>(
         '/department-head/rosters/summary',
         queryParameters: {
-          if (shiftDate != null) 'shiftDate': AppTimezone.dateOnlyKey(shiftDate),
+          if (shiftDate != null)
+            'shiftDate': AppTimezone.dateOnlyKey(shiftDate),
         },
       );
       return DepartmentRosterSummary.fromJson(_map(response.data));

@@ -781,7 +781,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       common.addAll(departmentHeadMenu);
     }
 
-    final assetAccess = ref.watch(hospitalAssetAccessProvider).valueOrNull;
+    final assetAccess = ref.watch(hospitalAssetAccessProvider).value;
     final alreadyHasAssets = common.any((m) => m.route is HospitalAssetsRoute);
     if (!alreadyHasAssets &&
         ProductEnvironment.currentProduct == AppProduct.hospital &&
@@ -966,7 +966,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onHelpCenter: openHelpCenter,
                   onStaffChat: openStaffChat,
                 ),
-              if (previewBanner != null) previewBanner,
+              ?previewBanner,
               const AnnouncementBannerHost(),
               Expanded(
                 child: ColoredBox(
@@ -1000,7 +1000,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onHelpCenter: openHelpCenter,
               onStaffChat: openStaffChat,
             ),
-            if (previewBanner != null) previewBanner,
+            ?previewBanner,
             const AnnouncementBannerHost(),
             const Expanded(child: AutoRouter()),
           ],
@@ -1767,7 +1767,7 @@ class _SidebarEntryState extends State<_SidebarEntry> {
             ),
           ),
         ),
-        if (trailing != null) trailing,
+        ?trailing,
       ],
     );
   }

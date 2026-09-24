@@ -9,7 +9,7 @@ import 'package:helty/src/printing/escpos/windows_default_raw_printer.dart';
 Future<void> showReceiptPrinterPickerSheet(
   BuildContext context, {
   required Map<String, dynamic> data,
-  ReceiptHospitalHeader header = const ReceiptHospitalHeader(),
+  ReceiptHospitalHeader? header,
   bool isCopy = false,
   String? logoAssetPath,
 }) async {
@@ -24,6 +24,7 @@ Future<void> showReceiptPrinterPickerSheet(
   }
 
   final resolvedLogo = logoAssetPath ?? OrgConfig.instance.logoAsset;
+  final resolvedHeader = header ?? ReceiptHospitalHeader.fromOrg();
 
   await showModalBottomSheet<void>(
     context: context,
@@ -33,7 +34,7 @@ Future<void> showReceiptPrinterPickerSheet(
     ),
     builder: (ctx) => _ReceiptPrinterPickerBody(
       data: data,
-      header: header,
+      header: resolvedHeader,
       isCopy: isCopy,
       logoAssetPath: resolvedLogo,
     ),
@@ -184,7 +185,7 @@ class _ReceiptPrinterPickerBodyState extends State<_ReceiptPrinterPickerBody> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: _printers!.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, i) {
                     final p = _printers![i];
                     return ListTile(

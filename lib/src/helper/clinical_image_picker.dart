@@ -34,7 +34,7 @@ class PickedClinicalImage {
 
 /// Opens the system picker for any image type (jpg, png, heic, etc.).
 Future<PickedClinicalImage?> pickClinicalImage() async {
-  final picked = await FilePicker.platform.pickFiles(
+  final picked = await FilePicker.pickFiles(
     type: FileType.image,
     withData: true,
   );

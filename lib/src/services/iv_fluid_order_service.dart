@@ -25,9 +25,7 @@ class IvFluidOrderService {
       '/admissions/$admissionId/iv-fluid-orders',
     );
     return _listData(response.data)
-        .map(
-          (e) => IvFluidOrderModel.fromJson(e as Map<String, dynamic>),
-        )
+        .map((e) => IvFluidOrderModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -94,9 +92,7 @@ class IvFluidOrderService {
       '/admissions/$admissionId/iv-fluid-orders/$orderId/monitorings',
     );
     return _listData(response.data)
-        .map(
-          (e) => IvMonitoringModel.fromJson(e as Map<String, dynamic>),
-        )
+        .map((e) => IvMonitoringModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -109,8 +105,8 @@ class IvFluidOrderService {
     DateTime? expectedEndTime,
   }) async {
     final body = <String, dynamic>{
-      if (status != null) 'status': status,
-      if (rate != null) 'rate': rate,
+      'status': ?status,
+      'rate': ?rate,
       if (expectedEndTime != null)
         'expectedEndTime': AppTimezone.toBackendIso(expectedEndTime),
     };

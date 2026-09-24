@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../auth/nursing_permissions.dart';
 import '../../models/staff_model.dart';
@@ -59,5 +60,5 @@ final nursingBootstrapProvider =
 
 /// Convenience: current bootstrap data (null if not loaded or not nurse).
 final nursingBootstrapDataProvider = Provider<NursingDashboardMe?>((ref) {
-  return ref.watch(nursingBootstrapProvider).valueOrNull;
+  return ref.watch(nursingBootstrapProvider).value;
 });

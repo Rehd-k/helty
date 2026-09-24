@@ -163,8 +163,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
             labelText: 'Name *',
             border: OutlineInputBorder(),
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Required' : null,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
         ),
         TextFormField(
           controller: _code,
@@ -283,7 +282,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
                     child: ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: _listItems.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final h = _listItems[i];
                         final selected = widget.hmoId == h.id;
@@ -310,9 +309,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
                             selected
                                 ? Icons.check_circle_outline
                                 : Icons.chevron_right,
-                            color: selected
-                                ? theme.colorScheme.primary
-                                : null,
+                            color: selected ? theme.colorScheme.primary : null,
                           ),
                           onTap: () async {
                             if (selected) return;
@@ -336,8 +333,10 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
                   onPressed: _listSkip == 0
                       ? null
                       : () {
-                          _listSkip =
-                              (_listSkip - _listTake).clamp(0, _listTotal);
+                          _listSkip = (_listSkip - _listTake).clamp(
+                            0,
+                            _listTotal,
+                          );
                           _loadList();
                         },
                   child: const Text('Previous'),
@@ -368,9 +367,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (_loadingDetail) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
@@ -382,10 +379,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
         builder: (context, bp) {
           final formScroll = SingleChildScrollView(
             padding: EdgeInsets.all(bp.paddingH),
-            child: Form(
-              key: _formKey,
-              child: _buildFormCard(),
-            ),
+            child: Form(key: _formKey, child: _buildFormCard()),
           );
 
           if (!bp.stackPanels) {
@@ -402,10 +396,7 @@ class _HmoFormScreenState extends State<HmoFormScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                flex: 11,
-                child: formScroll,
-              ),
+              Expanded(flex: 11, child: formScroll),
               Divider(
                 height: 1,
                 thickness: 1,

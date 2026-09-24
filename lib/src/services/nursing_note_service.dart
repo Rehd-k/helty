@@ -22,11 +22,9 @@ class NursingNoteService {
     final response = await _dio.get<dynamic>(
       '/admissions/$admissionId/nursing-notes',
     );
-    return _listData(response.data)
-        .map(
-          (e) => NursingNoteModel.fromJson(e as Map<String, dynamic>),
-        )
-        .toList();
+    return _listData(
+      response.data,
+    ).map((e) => NursingNoteModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// POST `/admissions/:admissionId/nursing-notes`
@@ -59,10 +57,7 @@ class NursingNoteService {
     String? noteType,
     String? content,
   }) async {
-    final body = <String, dynamic>{
-      if (noteType != null) 'noteType': noteType,
-      if (content != null) 'content': content,
-    };
+    final body = <String, dynamic>{'noteType': ?noteType, 'content': ?content};
     final response = await _dio.patch<Map<String, dynamic>>(
       '/admissions/$admissionId/nursing-notes/$noteId',
       data: body,

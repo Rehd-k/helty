@@ -32,7 +32,8 @@ class WardRoundNoteService {
       data: body,
     );
     final data = response.data;
-    if (data == null) throw StateError('Create ward round note returned no data');
+    if (data == null)
+      throw StateError('Create ward round note returned no data');
     return WardRoundNoteModel.fromJson(data);
   }
 
@@ -70,17 +71,18 @@ class WardRoundNoteService {
   }) async {
     final body = <String, dynamic>{
       if (roundDate != null) 'roundDate': _dateOnly(roundDate),
-      if (subjective != null) 'subjective': subjective,
-      if (objective != null) 'objective': objective,
-      if (assessment != null) 'assessment': assessment,
-      if (plan != null) 'plan': plan,
+      'subjective': ?subjective,
+      'objective': ?objective,
+      'assessment': ?assessment,
+      'plan': ?plan,
     };
     final response = await _dio.patch<Map<String, dynamic>>(
       '/ward-round-notes/$id',
       data: body,
     );
     final data = response.data;
-    if (data == null) throw StateError('Update ward round note returned no data');
+    if (data == null)
+      throw StateError('Update ward round note returned no data');
     return WardRoundNoteModel.fromJson(data);
   }
 

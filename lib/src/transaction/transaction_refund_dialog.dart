@@ -28,10 +28,8 @@ Future<bool> showTransactionRefundDialog({
 
   final result = await showDialog<bool>(
     context: context,
-    builder: (_) => TransactionRefundDialog(
-      transaction: transaction,
-      invoiceId: invoiceId,
-    ),
+    builder: (_) =>
+        TransactionRefundDialog(transaction: transaction, invoiceId: invoiceId),
   );
   return result == true;
 }
@@ -77,7 +75,9 @@ class _TransactionRefundDialogState
       if (!mounted) return;
       final items = _visibleItems(detail);
       String? initial;
-      final eligible = items.where(invoiceLineEligibleForRefundRequest).toList();
+      final eligible = items
+          .where(invoiceLineEligibleForRefundRequest)
+          .toList();
       if (eligible.length == 1) {
         initial = eligible.first.id;
       } else if (items.length == 1) {
@@ -150,14 +150,12 @@ class _TransactionRefundDialogState
         await _loadInvoice();
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -184,9 +182,7 @@ class _TransactionRefundDialogState
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -206,7 +202,9 @@ class _TransactionRefundDialogState
     if (!invoiceLineEligibleForRefundRequest(line)) {
       final msg = invoiceItemRefundTooltip(line);
       if (msg != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
       return;
     }
@@ -241,7 +239,9 @@ class _TransactionRefundDialogState
         ),
         if (!_loading && _error == null && _invoice != null)
           FilledButton(
-            onPressed: _submitting || _selectedItem == null ? null : _onPrimaryAction,
+            onPressed: _submitting || _selectedItem == null
+                ? null
+                : _onPrimaryAction,
             child: _submitting
                 ? const SizedBox(
                     width: 18,
@@ -306,11 +306,12 @@ class _TransactionRefundDialogState
           child: ListView.separated(
             shrinkWrap: true,
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final line = items[index];
               final eligible = invoiceLineEligibleForRefundRequest(line);
-              final canCancel = line.refundPending &&
+              final canCancel =
+                  line.refundPending &&
                   canCancelInvoiceItemRefundRequest(
                     staff,
                     line.activeRefundRequest,

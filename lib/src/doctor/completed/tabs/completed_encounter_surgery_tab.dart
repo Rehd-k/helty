@@ -81,7 +81,7 @@ class _CompletedEncounterSurgeryTabState
       builder: (context, bp) => ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: _requests.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final request = _requests[index];
           final notes = request.theatreCase?.operativeNoteRecords ?? const [];

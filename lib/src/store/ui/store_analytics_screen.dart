@@ -95,95 +95,104 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
       ),
       body: ResponsiveBody(
         builder: (context, bp) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Card(
-            margin: const EdgeInsets.all(24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Filters',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              margin: const EdgeInsets.all(24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.6,
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () => _pickFromDate(context),
-                        icon: const Icon(Icons.calendar_today_rounded, size: 18),
-                        label: Text(
-                          _fromDate != null
-                              ? 'From: ${_fromDate!.day}/${_fromDate!.month}/${_fromDate!.year}'
-                              : 'From date',
-                        ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filters',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => _pickToDate(context),
-                        icon: const Icon(Icons.calendar_today_rounded, size: 18),
-                        label: Text(
-                          _toDate != null
-                              ? 'To: ${_toDate!.day}/${_toDate!.month}/${_toDate!.year}'
-                              : 'To date',
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _pickFromDate(context),
+                          icon: const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _fromDate != null
+                                ? 'From: ${_fromDate!.day}/${_fromDate!.month}/${_fromDate!.year}'
+                                : 'From date',
+                          ),
                         ),
-                      ),
-                      categoriesAsync.when(
-                        data: (res) {
-                          final list = res.data;
-                          return DropdownButton<String?>(
-                            value: _categoryId,
-                            hint: const Text('Category'),
-                            items: [
-                              const DropdownMenuItem(
-                                value: null,
-                                child: Text('All categories'),
-                              ),
-                              ...list.map((c) => DropdownMenuItem(
+                        OutlinedButton.icon(
+                          onPressed: () => _pickToDate(context),
+                          icon: const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _toDate != null
+                                ? 'To: ${_toDate!.day}/${_toDate!.month}/${_toDate!.year}'
+                                : 'To date',
+                          ),
+                        ),
+                        categoriesAsync.when(
+                          data: (res) {
+                            final list = res.data;
+                            return DropdownButton<String?>(
+                              value: _categoryId,
+                              hint: const Text('Category'),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('All categories'),
+                                ),
+                                ...list.map(
+                                  (c) => DropdownMenuItem(
                                     value: c.id,
                                     child: Text(c.name),
-                                  )),
-                            ],
-                            onChanged: (v) =>
-                                setState(() => _categoryId = v),
-                          );
-                        },
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                      ),
-                      FilledButton.icon(
-                        onPressed: _loading ? null : _loadAnalytics,
-                        icon: _loading
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.analytics_rounded, size: 18),
-                        label: const Text('Apply'),
-                      ),
-                    ],
-                  ),
-                ],
+                                  ),
+                                ),
+                              ],
+                              onChanged: (v) => setState(() => _categoryId = v),
+                            );
+                          },
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, _) => const SizedBox.shrink(),
+                        ),
+                        FilledButton.icon(
+                          onPressed: _loading ? null : _loadAnalytics,
+                          icon: _loading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.analytics_rounded, size: 18),
+                          label: const Text('Apply'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: _buildBody(theme),
-          ),
-        ],
-      ),
+            Expanded(child: _buildBody(theme)),
+          ],
+        ),
       ),
     );
   }
@@ -226,7 +235,9 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (a.issueCount != null || a.receiveCount != null || a.transferCount != null) ...[
+          if (a.issueCount != null ||
+              a.receiveCount != null ||
+              a.transferCount != null) ...[
             Row(
               children: [
                 if (a.issueCount != null)
@@ -350,26 +361,36 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
                             ),
                           ],
                         ),
-                        ...a.lowStockItems.map((e) => TableRow(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  child: Text(e.itemName),
+                        ...a.lowStockItems.map(
+                          (e) => TableRow(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  child: Text(e.locationName),
+                                child: Text(e.itemName),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  child: Text(e.quantity.toStringAsFixed(0)),
+                                child: Text(e.locationName),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  child: Text(e.reorderLevel.toStringAsFixed(0)),
+                                child: Text(e.quantity.toStringAsFixed(0)),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
                                 ),
-                              ],
-                            )),
+                                child: Text(e.reorderLevel.toStringAsFixed(0)),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                 ],
@@ -455,22 +476,30 @@ class _StoreAnalyticsScreenState extends ConsumerState<StoreAnalyticsScreen> {
                             ),
                           ],
                         ),
-                        ...a.topMovingItems.map((e) => TableRow(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  child: Text(e.itemName),
+                        ...a.topMovingItems.map(
+                          (e) => TableRow(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  child: Text(e.quantityMoved.toStringAsFixed(0)),
+                                child: Text(e.itemName),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  child: Text(e.movementType ?? '–'),
+                                child: Text(e.quantityMoved.toStringAsFixed(0)),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
                                 ),
-                              ],
-                            )),
+                                child: Text(e.movementType ?? '–'),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                 ],

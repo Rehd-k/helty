@@ -45,10 +45,7 @@ class EmergencyRequestService {
   }) async {
     final resp = await _dio.patch<Map<String, dynamic>>(
       '/emergency/requests/$id',
-      data: {
-        'status': status.apiValue,
-        if (staffNote != null) 'staffNote': staffNote,
-      },
+      data: {'status': status.apiValue, 'staffNote': ?staffNote},
     );
     return StaffEmergencyRequest.fromJson(resp.data ?? {});
   }

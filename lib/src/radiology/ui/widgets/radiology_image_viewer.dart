@@ -39,15 +39,12 @@ Future<void> saveRadiologyImageBytes(
     await Printing.sharePdf(bytes: bytes, filename: fileName);
     return;
   }
-  final saved = await FilePicker.platform.saveFile(
-    fileName: fileName,
-    bytes: bytes,
-  );
+  final saved = await FilePicker.saveFile(fileName: fileName, bytes: bytes);
   if (!context.mounted) return;
   if (saved != null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Saved $fileName')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Saved $fileName')));
   }
 }
 
@@ -83,8 +80,11 @@ void showRadiologyImageExpanded(
                     ),
                     if (!isPdf && !isRaster)
                       TextButton.icon(
-                        onPressed: () =>
-                            saveRadiologyImageBytes(ctx, image: image, bytes: bytes),
+                        onPressed: () => saveRadiologyImageBytes(
+                          ctx,
+                          image: image,
+                          bytes: bytes,
+                        ),
                         icon: const Icon(Icons.save_alt_outlined, size: 18),
                         label: const Text('Save'),
                       ),
@@ -104,43 +104,43 @@ void showRadiologyImageExpanded(
                         pdfFileName: image.fileName,
                       )
                     : isRaster
-                        ? InteractiveViewer(
-                            minScale: 0.5,
-                            maxScale: 4,
-                            child: Center(
-                              child: Image.memory(bytes, fit: BoxFit.contain),
-                            ),
-                          )
-                        : Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.insert_drive_file_outlined,
-                                    size: 64,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'This file type cannot be previewed in the app.',
-                                    style: Theme.of(ctx).textTheme.bodyMedium,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  FilledButton.icon(
-                                    onPressed: () => saveRadiologyImageBytes(
-                                      ctx,
-                                      image: image,
-                                      bytes: bytes,
-                                    ),
-                                    icon: const Icon(Icons.save_alt_outlined),
-                                    label: const Text('Save file'),
-                                  ),
-                                ],
+                    ? InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 4,
+                        child: Center(
+                          child: Image.memory(bytes, fit: BoxFit.contain),
+                        ),
+                      )
+                    : Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.insert_drive_file_outlined,
+                                size: 64,
                               ),
-                            ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'This file type cannot be previewed in the app.',
+                                style: Theme.of(ctx).textTheme.bodyMedium,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton.icon(
+                                onPressed: () => saveRadiologyImageBytes(
+                                  ctx,
+                                  image: image,
+                                  bytes: bytes,
+                                ),
+                                icon: const Icon(Icons.save_alt_outlined),
+                                label: const Text('Save file'),
+                              ),
+                            ],
                           ),
+                        ),
+                      ),
               ),
             ],
           ),
@@ -244,10 +244,7 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
     if (widget.compact) {
       return content;
     }
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: content,
-    );
+    return Card(clipBehavior: Clip.antiAlias, child: content);
   }
 
   Widget _slideLoading(ThemeData theme) {
@@ -308,10 +305,7 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
                         color: theme.colorScheme.error,
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Tap to view PDF',
-                        style: theme.textTheme.bodySmall,
-                      ),
+                      Text('Tap to view PDF', style: theme.textTheme.bodySmall),
                     ],
                   ),
                 ),
@@ -339,10 +333,7 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
         if (widget.showHeader) _listHeader(theme, Icons.picture_as_pdf),
         Material(
           color: theme.colorScheme.surfaceContainerHighest,
-          child: InkWell(
-            onTap: () => _onTap(context, bytes),
-            child: preview,
-          ),
+          child: InkWell(onTap: () => _onTap(context, bytes), child: preview),
         ),
       ],
     );
@@ -413,7 +404,7 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
             child: Image.memory(
               bytes,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Padding(
+              errorBuilder: (_, _, _) => Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   'Preview not available for this file.',
@@ -477,9 +468,7 @@ class _RadiologyImageSlideState extends State<RadiologyImageSlide> {
       dense: true,
       leading: Icon(
         icon,
-        color: icon == Icons.picture_as_pdf
-            ? theme.colorScheme.error
-            : null,
+        color: icon == Icons.picture_as_pdf ? theme.colorScheme.error : null,
       ),
       title: Text(widget.image.fileName),
       subtitle: _subtitle != null ? Text(_subtitle!) : null,

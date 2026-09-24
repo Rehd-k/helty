@@ -196,7 +196,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               width: maxWidth,
               height: maxHeight,
               filterQuality: FilterQuality.high,
-              errorBuilder: (context, _, __) => Icon(
+              errorBuilder: (context, _, _) => Icon(
                 Icons.local_hospital_rounded,
                 size: math.min(maxWidth, maxHeight) * 0.42,
                 color: Colors.white,

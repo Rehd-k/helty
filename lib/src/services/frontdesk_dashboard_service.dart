@@ -96,7 +96,7 @@ class FrontdeskDashboardService {
         '/frontdesk/feedback/$id',
         data: {
           if (status != null) 'status': status.apiValue,
-          if (staffResponse != null) 'staffResponse': staffResponse,
+          'staffResponse': ?staffResponse,
         },
       );
       return FrontdeskFeedbackItem.fromJson(_asMap(response.data));

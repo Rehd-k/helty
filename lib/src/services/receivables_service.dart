@@ -46,8 +46,8 @@ class ReceivablesService {
       final response = await _dio.get(
         '/receivables/hmo',
         queryParameters: {
-          if (skip != null) 'skip': skip,
-          if (take != null) 'take': take,
+          'skip': ?skip,
+          'take': ?take,
           if (search != null && search.trim().isNotEmpty) 'q': search.trim(),
           if (status != null && status.trim().isNotEmpty) 'status': status,
           if (hmoId != null && hmoId.trim().isNotEmpty) 'hmoId': hmoId.trim(),
@@ -81,8 +81,8 @@ class ReceivablesService {
       final response = await _dio.get(
         '/receivables/discount',
         queryParameters: {
-          if (skip != null) 'skip': skip,
-          if (take != null) 'take': take,
+          'skip': ?skip,
+          'take': ?take,
           if (search != null && search.trim().isNotEmpty) 'q': search.trim(),
           if (status != null && status.trim().isNotEmpty) 'status': status,
           if (from != null) 'fromDate': AppTimezone.toBackendIso(from),

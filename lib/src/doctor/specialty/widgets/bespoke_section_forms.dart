@@ -53,7 +53,8 @@ Widget? buildBespokeSectionForm({
     case 'neurology.exam':
       return _multiTextCard(
         title: 'Neurological examination',
-        subtitle: 'Mental status, cranial nerves, motor, sensory, reflexes, gait',
+        subtitle:
+            'Mental status, cranial nerves, motor, sensory, reflexes, gait',
         data: data,
         onChanged: onChanged,
         readOnly: readOnly,
@@ -134,7 +135,8 @@ Widget? buildBespokeSectionForm({
     case 'obgyn.pregnancy_summary':
       return _multiTextCard(
         title: 'Pregnancy summary (visit note)',
-        subtitle: 'Lightweight summary; canonical antenatal data lives in Obstetrics module',
+        subtitle:
+            'Lightweight summary; canonical antenatal data lives in Obstetrics module',
         data: data,
         onChanged: onChanged,
         readOnly: readOnly,
@@ -698,7 +700,7 @@ Widget _multiTextCard({
           ),
           const Gap(14),
         ],
-        if (extra != null) extra,
+        ?extra,
       ],
     ),
   );
@@ -730,55 +732,52 @@ Widget _riskScoresForm(
           'HEART — History (0–2)',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        _heartDropdown(
-          'heartHistory',
-          data,
-          setKey,
-          readOnly,
-          const ['0', '1', '2'],
-        ),
+        _heartDropdown('heartHistory', data, setKey, readOnly, const [
+          '0',
+          '1',
+          '2',
+        ]),
         const Gap(12),
         Text(
           'HEART — ECG (0–2)',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        _heartDropdown(
-          'heartEcg',
-          data,
-          setKey,
-          readOnly,
-          const ['0', '1', '2'],
-        ),
+        _heartDropdown('heartEcg', data, setKey, readOnly, const [
+          '0',
+          '1',
+          '2',
+        ]),
         const Gap(12),
         Text(
           'HEART — Age (0–2)',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        _heartDropdown('heartAge', data, setKey, readOnly, const ['0', '1', '2']),
+        _heartDropdown('heartAge', data, setKey, readOnly, const [
+          '0',
+          '1',
+          '2',
+        ]),
         const Gap(12),
         Text(
           'HEART — Risk factors (0–2)',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        _heartDropdown(
-          'heartRiskFactors',
-          data,
-          setKey,
-          readOnly,
-          const ['0', '1', '2'],
-        ),
+        _heartDropdown('heartRiskFactors', data, setKey, readOnly, const [
+          '0',
+          '1',
+          '2',
+        ]),
         const Gap(12),
         Text(
           'HEART — Troponin (0–3)',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        _heartDropdown(
-          'heartTroponin',
-          data,
-          setKey,
-          readOnly,
-          const ['0', '1', '2', '3'],
-        ),
+        _heartDropdown('heartTroponin', data, setKey, readOnly, const [
+          '0',
+          '1',
+          '2',
+          '3',
+        ]),
         const Gap(16),
         FilledButton.tonalIcon(
           onPressed: readOnly
@@ -799,30 +798,30 @@ Widget _riskScoresForm(
                   onChanged(next);
                 },
           icon: const Icon(Icons.calculate_outlined, size: 20),
-          label: Text(
-            'HEART total: ${heartScore() ?? "—"} (tap to recompute)',
-          ),
+          label: Text('HEART total: ${heartScore() ?? "—"} (tap to recompute)'),
         ),
         const Gap(16),
-          ClinicalLabeledField(
-            label: 'ASCVD / other notes',
-            child: TextFormField(
-              initialValue: data['otherRiskNotes']?.toString() ?? '',
-              readOnly: readOnly,
-              maxLines: 3,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
+        ClinicalLabeledField(
+          label: 'ASCVD / other notes',
+          child: TextFormField(
+            initialValue: data['otherRiskNotes']?.toString() ?? '',
+            readOnly: readOnly,
+            maxLines: 3,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              onChanged: readOnly
-                  ? null
-                  : (v) {
-                      final next = Map<String, dynamic>.from(data);
-                      next['otherRiskNotes'] = v;
-                      onChanged(next);
-                    },
+              filled: true,
             ),
+            onChanged: readOnly
+                ? null
+                : (v) {
+                    final next = Map<String, dynamic>.from(data);
+                    next['otherRiskNotes'] = v;
+                    onChanged(next);
+                  },
           ),
+        ),
       ],
     ),
   );
@@ -917,7 +916,9 @@ Widget _nihssForm(
             readOnly: readOnly,
             maxLines: 3,
             decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               filled: true,
             ),
             onChanged: readOnly

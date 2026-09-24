@@ -140,8 +140,8 @@ Map<String, int>? _detectHeaders(List<String> cells) {
   }
 
   return {
-    if (serviceIdIdx != null) 'serviceId': serviceIdIdx,
-    if (serviceCodeIdx != null) 'serviceCode': serviceCodeIdx,
+    'serviceId': ?serviceIdIdx,
+    'serviceCode': ?serviceCodeIdx,
     'cost': costIdx,
   };
 }

@@ -6,11 +6,7 @@ Map<String, dynamic> _encounter({
   required String status,
   String? createdAt,
 }) {
-  return {
-    'id': id,
-    'status': status,
-    if (createdAt != null) 'createdAt': createdAt,
-  };
+  return {'id': id, 'status': status, 'createdAt': ?createdAt};
 }
 
 void main() {
@@ -41,7 +37,10 @@ void main() {
       ];
 
       expect(
-        filterEncountersByStatus(encounters, DialysisEncounterStatusFilter.all).length,
+        filterEncountersByStatus(
+          encounters,
+          DialysisEncounterStatusFilter.all,
+        ).length,
         2,
       );
     });

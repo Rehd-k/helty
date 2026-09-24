@@ -22,11 +22,9 @@ class CarePlanService {
     final response = await _dio.get<dynamic>(
       '/admissions/$admissionId/care-plans',
     );
-    return _listData(response.data)
-        .map(
-          (e) => CarePlanModel.fromJson(e as Map<String, dynamic>),
-        )
-        .toList();
+    return _listData(
+      response.data,
+    ).map((e) => CarePlanModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// POST `/admissions/:admissionId/care-plans`
@@ -40,9 +38,9 @@ class CarePlanService {
   }) async {
     final body = <String, dynamic>{
       'problem': problem,
-      if (goal != null) 'goal': goal,
-      if (interventions != null) 'interventions': interventions,
-      if (evaluation != null) 'evaluation': evaluation,
+      'goal': ?goal,
+      'interventions': ?interventions,
+      'evaluation': ?evaluation,
       if (nurseId != null && nurseId.isNotEmpty) 'nurseId': nurseId,
     };
     final response = await _dio.post<Map<String, dynamic>>(
@@ -67,11 +65,11 @@ class CarePlanService {
     String? status,
   }) async {
     final body = <String, dynamic>{
-      if (problem != null) 'problem': problem,
-      if (goal != null) 'goal': goal,
-      if (interventions != null) 'interventions': interventions,
-      if (evaluation != null) 'evaluation': evaluation,
-      if (status != null) 'status': status,
+      'problem': ?problem,
+      'goal': ?goal,
+      'interventions': ?interventions,
+      'evaluation': ?evaluation,
+      'status': ?status,
     };
     final response = await _dio.patch<Map<String, dynamic>>(
       '/admissions/$admissionId/care-plans/$carePlanId',

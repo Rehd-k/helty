@@ -25,7 +25,7 @@ class NurseDashboardKpiStrip extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           physics: const PageScrollPhysics(),
           itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
           itemBuilder: (context, i) =>
               SizedBox(width: 200, child: _KpiCard(item: items[i])),
         ),

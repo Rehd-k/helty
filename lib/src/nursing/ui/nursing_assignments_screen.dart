@@ -432,7 +432,10 @@ class _NursingAssignmentsScreenState
         center: false,
         builder: (context, bp) => TabBarView(
           controller: _tabs,
-          children: [_inpatientTab(canInpatient), _outpatientTab(canOutpatient)],
+          children: [
+            _inpatientTab(canInpatient),
+            _outpatientTab(canOutpatient),
+          ],
         ),
       ),
     );
@@ -466,7 +469,7 @@ class _NursingAssignmentsScreenState
 
     final shiftParts = <String>[
       if (shiftLabel.isNotEmpty) '$shiftLabel shift',
-      if (shiftDate != null) shiftDate,
+      ?shiftDate,
       if (unitLabel.isNotEmpty) unitLabel,
     ];
 
@@ -561,7 +564,7 @@ class _NursingAssignmentsScreenState
       onRefresh: _loadInpatient,
       child: ListView.separated(
         itemCount: _inpatient.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, index) {
           return _inpatientAssignmentTile(_inpatient[index], canDelete);
         },
@@ -583,7 +586,7 @@ class _NursingAssignmentsScreenState
       onRefresh: _loadOutpatient,
       child: ListView.separated(
         itemCount: _outpatient.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final a = _outpatient[index];
           return ListTile(

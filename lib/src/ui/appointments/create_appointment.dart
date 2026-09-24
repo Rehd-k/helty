@@ -392,7 +392,7 @@ class _NewAppointmentPageState extends State<NewAppointmentScreen> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: _patientHits.length,
-                    separatorBuilder: (_, __) => Divider(
+                    separatorBuilder: (_, _) => Divider(
                       height: 1,
                       color: colorScheme.outlineVariant.withValues(alpha: 0.35),
                     ),

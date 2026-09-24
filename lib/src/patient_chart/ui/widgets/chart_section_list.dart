@@ -28,14 +28,15 @@ class ChartSectionList extends StatelessWidget {
       return const EmptyStateWidget(
         icon: Icons.folder_open_outlined,
         title: 'No records in this section',
-        message: 'Clinical data for this category will appear here when available.',
+        message:
+            'Clinical data for this category will appear here when available.',
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: items.length + (hasMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (index >= items.length) {
           return Center(
@@ -52,10 +53,7 @@ class ChartSectionList extends StatelessWidget {
         }
         final item = items[index];
         final key = item['_section']?.toString() ?? sectionKey;
-        return _SectionTile(
-          sectionKey: key,
-          item: item,
-        );
+        return _SectionTile(sectionKey: key, item: item);
       },
     );
   }
@@ -101,8 +99,7 @@ class _SectionTile extends StatelessWidget {
             ? (item['ward'] as Map)['name']?.toString() ?? 'Admission'
             : 'Admission';
       case PatientChartSectionKeys.vitals:
-        return _formatDate(item['recordedAt'] ?? item['createdAt']) ??
-            'Vitals';
+        return _formatDate(item['recordedAt'] ?? item['createdAt']) ?? 'Vitals';
       case PatientChartSectionKeys.allergies:
         return item['name']?.toString() ??
             item['substance']?.toString() ??
@@ -164,9 +161,9 @@ class _SectionTile extends StatelessWidget {
     if (amount != null) {
       return Text(
         amount is num ? amount.toStringAsFixed(2) : amount.toString(),
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
       );
     }
     return null;

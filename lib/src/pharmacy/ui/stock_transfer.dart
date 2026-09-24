@@ -488,7 +488,9 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
       onPressed: eligible ? () => _showQuantityCorrectionDialog(b) : null,
       icon: Icon(
         Icons.edit_note_outlined,
-        color: eligible ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+        color: eligible
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurfaceVariant,
       ),
     );
   }
@@ -582,9 +584,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
                   ? Icon(icon, size: 20, color: cs.onSurfaceVariant)
                   : null,
               filled: true,
-              fillColor: isDisabled
-                  ? cs.surfaceContainerHighest
-                  : cs.surface,
+              fillColor: isDisabled ? cs.surfaceContainerHighest : cs.surface,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
@@ -599,10 +599,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: cs.primary,
-                  width: 2,
-                ),
+                borderSide: BorderSide(color: cs.primary, width: 2),
               ),
               disabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -818,7 +815,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
 
     return ListView.separated(
       itemCount: drugs.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final d = drugs[index];
         final selected = _selectedDrug?.id == d.id;
@@ -919,7 +916,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
 
     return ListView.separated(
       itemCount: batches.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final b = batches[index];
         final selected = _selectedBatch?.id == b.id;
@@ -1059,7 +1056,10 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
             const SizedBox(height: 4),
             Text(
               'Review and confirm before moving stock.',
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             ModernTextField(
@@ -1079,7 +1079,7 @@ class _StockTransferScreenState extends ConsumerState<StockTransferScreen> {
                     )
                   : ListView.separated(
                       itemCount: _lines.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final line = _lines[index];
                         return ListTile(

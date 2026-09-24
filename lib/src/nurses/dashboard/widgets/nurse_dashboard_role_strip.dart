@@ -109,7 +109,7 @@ class _UnitRosterRow extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: counts.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, i) =>
                     SizedBox(width: 200, child: _UnitCard(count: counts[i])),
               ),
@@ -237,7 +237,7 @@ class _ShiftBreakdownRow extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: shifts.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, i) =>
                     SizedBox(width: 180, child: _ShiftCard(shift: shifts[i])),
               ),

@@ -59,7 +59,11 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
     if (picked == null || !mounted) return;
     setState(() {
       _dateRange = DateTimeRange(
-        start: DateTime(picked.start.year, picked.start.month, picked.start.day),
+        start: DateTime(
+          picked.start.year,
+          picked.start.month,
+          picked.start.day,
+        ),
         end: DateTime(
           picked.end.year,
           picked.end.month,
@@ -79,9 +83,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
         TheatreScheduleFormRoute(surgeryRequestId: request.id),
       );
     } else {
-      context.router.push(
-        TheatreCaseDetailRoute(surgeryRequestId: request.id),
-      );
+      context.router.push(TheatreCaseDetailRoute(surgeryRequestId: request.id));
     }
   }
 
@@ -95,7 +97,11 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
       to: to,
       take: 100,
     );
-    final scheduleParams = TheatreSchedulesParams(from: from, to: to, take: 100);
+    final scheduleParams = TheatreSchedulesParams(
+      from: from,
+      to: to,
+      take: 100,
+    );
 
     final queueAsync = ref.watch(surgeryRequestsProvider(queueParams));
     final scheduleAsync = ref.watch(theatreSchedulesProvider(scheduleParams));
@@ -147,8 +153,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
             children: [
               FilterChip(
                 label: const Text('Requested'),
-                selected:
-                    _queueStatusFilter == SurgeryRequestStatus.requested,
+                selected: _queueStatusFilter == SurgeryRequestStatus.requested,
                 onSelected: (_) => setState(
                   () => _queueStatusFilter = SurgeryRequestStatus.requested,
                 ),
@@ -156,8 +161,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
               const SizedBox(width: 8),
               FilterChip(
                 label: const Text('Scheduled'),
-                selected:
-                    _queueStatusFilter == SurgeryRequestStatus.scheduled,
+                selected: _queueStatusFilter == SurgeryRequestStatus.scheduled,
                 onSelected: (_) => setState(
                   () => _queueStatusFilter = SurgeryRequestStatus.scheduled,
                 ),
@@ -165,8 +169,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
               const SizedBox(width: 8),
               FilterChip(
                 label: const Text('In progress'),
-                selected:
-                    _queueStatusFilter == SurgeryRequestStatus.inProgress,
+                selected: _queueStatusFilter == SurgeryRequestStatus.inProgress,
                 onSelected: (_) => setState(
                   () => _queueStatusFilter = SurgeryRequestStatus.inProgress,
                 ),
@@ -174,8 +177,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
               const SizedBox(width: 8),
               FilterChip(
                 label: const Text('Completed'),
-                selected:
-                    _queueStatusFilter == SurgeryRequestStatus.completed,
+                selected: _queueStatusFilter == SurgeryRequestStatus.completed,
                 onSelected: (_) => setState(
                   () => _queueStatusFilter = SurgeryRequestStatus.completed,
                 ),
@@ -213,7 +215,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
                 child: ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: response.requests.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final request = response.requests[index];
                     return _RequestCard(
@@ -252,10 +254,9 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
         }
         final sorted = [...response.schedules]
           ..sort(
-            (a, b) =>
-                (a.scheduledAt ?? DateTime(1970)).compareTo(
-                  b.scheduledAt ?? DateTime(1970),
-                ),
+            (a, b) => (a.scheduledAt ?? DateTime(1970)).compareTo(
+              b.scheduledAt ?? DateTime(1970),
+            ),
           );
         return RefreshIndicator(
           onRefresh: () async {
@@ -264,7 +265,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: sorted.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final schedule = sorted[index];
               final request = schedule.surgeryRequest;
@@ -288,9 +289,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
                     children: [
                       Text(patientName),
                       if (schedule.scheduledAt != null)
-                        Text(
-                          DateFormatter.dateTime(schedule.scheduledAt!),
-                        ),
+                        Text(DateFormatter.dateTime(schedule.scheduledAt!)),
                       Text(
                         'Room: ${schedule.theatreRoom?.name ?? schedule.theatreRoomId}',
                       ),
@@ -301,9 +300,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
                       : null,
                   onTap: request != null
                       ? () => context.router.push(
-                          TheatreCaseDetailRoute(
-                            surgeryRequestId: request.id,
-                          ),
+                          TheatreCaseDetailRoute(surgeryRequestId: request.id),
                         )
                       : null,
                 ),
@@ -317,10 +314,7 @@ class _TheatreDashboardScreenState extends ConsumerState<TheatreDashboardScreen>
 }
 
 class _RequestCard extends StatelessWidget {
-  const _RequestCard({
-    required this.request,
-    required this.onTap,
-  });
+  const _RequestCard({required this.request, required this.onTap});
 
   final SurgeryRequest request;
   final VoidCallback onTap;

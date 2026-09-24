@@ -67,8 +67,8 @@ class BillingService {
     final resp = await _dio.get(
       '/billing',
       queryParameters: {
-        if (patientId != null) 'patientId': patientId,
-        if (status != null) 'status': status,
+        'patientId': ?patientId,
+        'status': ?status,
         'page': page,
         'limit': limit,
       },
@@ -112,11 +112,7 @@ class BillingService {
   }) async {
     final resp = await _dio.post(
       '/billing/$billId/payments',
-      data: {
-        'amount': amount,
-        if (method != null) 'method': method,
-        if (reference != null) 'reference': reference,
-      },
+      data: {'amount': amount, 'method': ?method, 'reference': ?reference},
     );
     return Bill.fromJson(resp.data as Map<String, dynamic>);
   }

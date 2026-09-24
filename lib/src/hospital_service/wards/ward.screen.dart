@@ -385,7 +385,7 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
               Expanded(
                 child: ListView.separated(
                   itemCount: _wards.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final ward = _wards[index];
                     final isSelected = _selectedWard?.id == ward.id;
@@ -670,7 +670,7 @@ class _WardManagementScreenState extends State<WardManagementScreen> {
                     )
                   : ListView.separated(
                       itemCount: _beds.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final bed = _beds[index];
                         return Container(

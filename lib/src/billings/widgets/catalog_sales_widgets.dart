@@ -202,10 +202,7 @@ class CatalogSalesCartRow extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: Text(
               lineTotal.toFinancial(isMoney: true),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -325,7 +322,7 @@ class CatalogSalesCartPanel extends StatelessWidget {
                   )
                 : ListView.separated(
                     itemCount: itemCount,
-                    separatorBuilder: (_, __) => const Divider(height: 24),
+                    separatorBuilder: (_, _) => const Divider(height: 24),
                     itemBuilder: itemBuilder,
                   ),
           ),
@@ -401,7 +398,10 @@ class CatalogSalesSummaryPanel extends StatelessWidget {
                     ),
                     Text(
                       patientSubtitle,
-                      style: TextStyle(fontSize: 12, color: colorScheme.primary),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.primary,
+                      ),
                     ),
                   ],
                 ),
@@ -435,9 +435,7 @@ class CatalogSalesSummaryPanel extends StatelessWidget {
                     children: [
                       Text(
                         'Subtotal',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
                       Text(
                         subtotal.toFinancial(isMoney: true),

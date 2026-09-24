@@ -63,8 +63,8 @@ class InvoiceService {
       final response = await _dio.get(
         '/invoices',
         queryParameters: {
-          if (patientId != null) 'patientId': patientId,
-          if (status != null) 'status': status,
+          'patientId': ?patientId,
+          'status': ?status,
           if (query != null && query.isNotEmpty) 'query': query,
           if (category != null && category.isNotEmpty) 'category': category,
           // Use full ISO-8601 strings (UTC) for NestJS-friendly date parsing
@@ -126,9 +126,7 @@ class InvoiceService {
         if (e is! Map) continue;
         try {
           rows.add(
-            InvoiceByServiceCategoryRow.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
+            InvoiceByServiceCategoryRow.fromJson(Map<String, dynamic>.from(e)),
           );
         } catch (_) {
           // Skip malformed rows; keep the rest of the table usable.
@@ -173,8 +171,8 @@ class InvoiceService {
     try {
       final now = DateTime.now();
       final from = fromDate ?? DateTime(now.year, now.month, now.day);
-      final to = toDate ??
-          DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+      final to =
+          toDate ?? DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
 
       final response = await _dio.get(
         '/invoices/paid-without-encounter',
@@ -389,7 +387,7 @@ class InvoiceService {
   }) async {
     try {
       await _dio.post('/invoices/$invoiceId/items', data: payload.toJson());
-      return getBillingInvoice(invoiceId);
+      return await getBillingInvoice(invoiceId);
     } on DioException catch (e) {
       throw Exception(
         'Failed to add invoice item: ${_dioMessage(e, 'Unknown error')}',
@@ -403,7 +401,7 @@ class InvoiceService {
   }) async {
     try {
       await _dio.post('/invoices/$invoiceId/items/$itemId/pause');
-      return getBillingInvoice(invoiceId);
+      return await getBillingInvoice(invoiceId);
     } on DioException catch (e) {
       throw Exception(
         'Failed to pause recurring item: ${_dioMessage(e, 'Unknown error')}',
@@ -417,7 +415,7 @@ class InvoiceService {
   }) async {
     try {
       await _dio.post('/invoices/$invoiceId/items/$itemId/resume');
-      return getBillingInvoice(invoiceId);
+      return await getBillingInvoice(invoiceId);
     } on DioException catch (e) {
       throw Exception(
         'Failed to resume recurring item: ${_dioMessage(e, 'Unknown error')}',
@@ -493,7 +491,7 @@ class InvoiceService {
           response.data as Map<String, dynamic>,
         );
       }
-      return getBillingInvoice(invoiceId);
+      return await getBillingInvoice(invoiceId);
     } on DioException catch (e) {
       throw Exception(
         'Failed to record payment: ${_dioMessage(e, 'Unknown error')}',
@@ -520,7 +518,7 @@ class InvoiceService {
         }
         return BillingInvoiceDetail.fromJson(data);
       }
-      return getBillingInvoice(invoiceId);
+      return await getBillingInvoice(invoiceId);
     } on DioException catch (e) {
       throw Exception(
         'Failed to allocate item payment: ${_dioMessage(e, 'Unknown error')}',
@@ -602,7 +600,7 @@ class InvoiceService {
       }
 
       await _dio.post('/invoices/$invoiceId/coverages/hmo', data: data);
-      return getBillingInvoice(invoiceId);
+      return await getBillingInvoice(invoiceId);
     } on DioException catch (e) {
       throw Exception(
         'Failed to apply HMO coverage: ${_dioMessage(e, 'Unknown error')}',
@@ -625,11 +623,11 @@ class InvoiceService {
           'policyId': policyId,
           'scope': scope,
           if (itemIds != null && itemIds.isNotEmpty) 'itemIds': itemIds,
-          if (valueOverride != null) 'valueOverride': valueOverride,
+          'valueOverride': ?valueOverride,
           if (notes != null && notes.trim().isNotEmpty) 'notes': notes,
         },
       );
-      return getBillingInvoice(invoiceId);
+      return await getBillingInvoice(invoiceId);
     } on DioException catch (e) {
       throw Exception(
         'Failed to apply discount coverage: ${_dioMessage(e, 'Unknown error')}',
@@ -649,7 +647,7 @@ class InvoiceService {
           if (reason != null && reason.trim().isNotEmpty) 'reason': reason,
         },
       );
-      return getBillingInvoice(invoiceId);
+      return await getBillingInvoice(invoiceId);
     } on DioException catch (e) {
       throw Exception(
         'Failed to reverse coverage: ${_dioMessage(e, 'Unknown error')}',
@@ -704,18 +702,13 @@ class InvoiceService {
     try {
       final response = await _dio.get(
         '/invoices/payments',
-        queryParameters: {
-          'patientId': patientId,
-          'skip': skip,
-          'take': take,
-        },
+        queryParameters: {'patientId': patientId, 'skip': skip, 'take': take},
       );
       final list = _extractList(response.data, key: 'payments');
       return list
           .whereType<Map>()
           .map(
-            (e) =>
-                PatientAccountPayment.fromJson(Map<String, dynamic>.from(e)),
+            (e) => PatientAccountPayment.fromJson(Map<String, dynamic>.from(e)),
           )
           .toList();
     } on DioException catch (e) {
@@ -828,10 +821,7 @@ class InvoiceService {
     try {
       final response = await _dio.patch(
         '/invoices/$id',
-        data: {
-          'status': status,
-          if (transactionId != null) 'transactionId': transactionId,
-        },
+        data: {'status': status, 'transactionId': ?transactionId},
       );
       return Invoice.fromJson(response.data);
     } on DioException catch (e) {
@@ -902,8 +892,7 @@ class InvoiceService {
     String invoiceId,
   ) async {
     try {
-      final response =
-          await _dio.get('/invoices/$invoiceId/refund-requests');
+      final response = await _dio.get('/invoices/$invoiceId/refund-requests');
       return _extractList(response.data, key: 'requests')
           .whereType<Map>()
           .map(

@@ -51,9 +51,9 @@ class _SelectUserState extends State<SelectUser> {
 
   void createNewPatient() async {
     if (wardId.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a ward')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a ward')));
       return;
     }
     try {
@@ -92,9 +92,7 @@ class _SelectUserState extends State<SelectUser> {
         icon: Icons.person_off_outlined,
         title: "No matching patients",
         message: "We couldn't find any patient matching '${_searchCtrl.text}'.",
-        buttonText: _allowQuickNewPatient
-            ? "Register New Patient"
-            : "Go Back",
+        buttonText: _allowQuickNewPatient ? "Register New Patient" : "Go Back",
         onPressed: () => _allowQuickNewPatient
             ? context.router.push(PatientFormRoute())
             : context.router.pop(),
@@ -103,7 +101,7 @@ class _SelectUserState extends State<SelectUser> {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: widget.patients.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         return PatientTile(
           patient: widget.patients[index],
@@ -219,10 +217,7 @@ class _SelectUserState extends State<SelectUser> {
           if (boundedHeight)
             Expanded(child: content)
           else
-            SizedBox(
-              height: _fallbackListHeight(context),
-              child: content,
-            ),
+            SizedBox(height: _fallbackListHeight(context), child: content),
         ],
       ),
     );
@@ -249,9 +244,7 @@ class _SelectUserState extends State<SelectUser> {
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildSearchCard(compact, boundedHeight: boundedHeight),
-          ],
+          children: [_buildSearchCard(compact, boundedHeight: boundedHeight)],
         );
       },
     );

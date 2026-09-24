@@ -93,14 +93,14 @@ class _PatientWalletHistoryScreenState
     try {
       final patientName = widget.patientName.trim().isNotEmpty
           ? widget.patientName
-          : (ref.read(patientWalletHistoryProvider(_query)).valueOrNull
+          : (ref.read(patientWalletHistoryProvider(_query)).value
                     ?.patientName ??
                 'Patient');
       final chartNumber =
           widget.chartNumber ??
           ref
               .read(patientWalletHistoryProvider(_query))
-              .valueOrNull
+              .value
               ?.patientChartNumber ??
           '';
 

@@ -13,7 +13,8 @@ class AnnouncementBannerHost extends ConsumerStatefulWidget {
       _AnnouncementBannerHostState();
 }
 
-class _AnnouncementBannerHostState extends ConsumerState<AnnouncementBannerHost> {
+class _AnnouncementBannerHostState
+    extends ConsumerState<AnnouncementBannerHost> {
   Set<String> _dismissedIds = {};
   bool _loadedDismissals = false;
 
@@ -45,7 +46,7 @@ class _AnnouncementBannerHostState extends ConsumerState<AnnouncementBannerHost>
     final async = ref.watch(activeAnnouncementsProvider);
     return async.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (active) {
         final visible = active
             .where((a) => !_dismissedIds.contains(a.id))

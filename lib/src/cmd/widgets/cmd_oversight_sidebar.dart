@@ -398,7 +398,7 @@ Future<void> showCmdOversightPerformanceDialog(
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: performance.length,
-                  separatorBuilder: (_, __) => const Divider(height: 16),
+                  separatorBuilder: (_, _) => const Divider(height: 16),
                   itemBuilder: (context, i) {
                     final row = performance[i];
                     return ListTile(

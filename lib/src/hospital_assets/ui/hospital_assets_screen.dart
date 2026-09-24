@@ -201,7 +201,7 @@ class _HospitalAssetsScreenState extends ConsumerState<HospitalAssetsScreen> {
       'name': payloadName,
       'assetTag': payloadTag,
       'kind': kind.apiValue,
-      if (accountType != null) 'accountType': accountType,
+      'accountType': ?accountType,
       if (payloadLocation.isNotEmpty) 'locationNote': payloadLocation,
     });
     await _load();

@@ -778,7 +778,7 @@ class _PurchasesStockTransferScreenState
 
     return ListView.separated(
       itemCount: drugs.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final d = drugs[index];
         final selected = _selectedDrug?.id == d.id;
@@ -878,7 +878,7 @@ class _PurchasesStockTransferScreenState
 
     return ListView.separated(
       itemCount: batches.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final b = batches[index];
         final selected = _selectedBatch?.id == b.id;
@@ -1035,7 +1035,7 @@ class _PurchasesStockTransferScreenState
                     )
                   : ListView.separated(
                       itemCount: _lines.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final line = _lines[index];
                         return ListTile(

@@ -400,7 +400,7 @@ Future<void> showCmdActivityDialog(
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: activity.length,
-                  separatorBuilder: (_, __) => const Divider(height: 16),
+                  separatorBuilder: (_, _) => const Divider(height: 16),
                   itemBuilder: (context, i) {
                     final item = activity[i];
                     return ListTile(

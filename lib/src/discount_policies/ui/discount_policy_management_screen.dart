@@ -67,7 +67,9 @@ class _DiscountPolicyManagementScreenState
                 ),
                 TextField(
                   controller: valueCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(labelText: 'Value'),
                 ),
                 DropdownButtonFormField<String>(
@@ -75,7 +77,10 @@ class _DiscountPolicyManagementScreenState
                   items: const [
                     DropdownMenuItem(value: 'CMD', child: Text('CMD')),
                     DropdownMenuItem(value: 'CMAC', child: Text('CMAC')),
-                    DropdownMenuItem(value: 'SUPER_ADMIN', child: Text('SUPER_ADMIN')),
+                    DropdownMenuItem(
+                      value: 'SUPER_ADMIN',
+                      child: Text('SUPER_ADMIN'),
+                    ),
                   ],
                   onChanged: (v) => setDialog(() => reason = v ?? reason),
                   decoration: const InputDecoration(labelText: 'Reason'),
@@ -215,7 +220,7 @@ class _DiscountPolicyManagementScreenState
                 ),
               );
             },
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemCount: _items.length,
           );
         },

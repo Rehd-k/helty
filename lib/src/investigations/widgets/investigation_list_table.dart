@@ -83,7 +83,7 @@ class InvestigationListTable extends StatelessWidget {
                 ),
               ),
             ),
-            if (trailing != null) trailing!,
+            ?trailing,
           ],
         ),
       );
@@ -133,7 +133,7 @@ class InvestigationListTable extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               itemCount: rows.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 return _InvestigationLineCard(
                   row: rows[index],
@@ -174,7 +174,7 @@ class InvestigationListTable extends StatelessWidget {
                         Expanded(
                           child: ListView.separated(
                             itemCount: rows.length,
-                            separatorBuilder: (_, __) => Divider(
+                            separatorBuilder: (_, _) => Divider(
                               height: 1,
                               color: cs.outline.withValues(alpha: 0.08),
                             ),

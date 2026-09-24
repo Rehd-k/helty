@@ -17,11 +17,22 @@ import 'windows_default_raw_printer.dart';
 /// Header lines printed under the logo.
 class ReceiptHospitalHeader {
   const ReceiptHospitalHeader({
-    this.name = 'Ibom Multi-Specialty Hospital',
-    this.address = 'Ikot Ekpene - Uyo Rd, Uyo, Akwa Ibom',
-    this.phone = '0802 181 4674',
-    this.email = '',
+    required this.name,
+    required this.address,
+    required this.phone,
+    required this.email,
   });
+
+  /// Name, address, phone, and email from the loaded [OrgConfig].
+  factory ReceiptHospitalHeader.fromOrg([OrgConfig? org]) {
+    final config = org ?? OrgConfig.instance;
+    return ReceiptHospitalHeader(
+      name: config.name,
+      address: config.addressesLine,
+      phone: config.phonesLine,
+      email: config.emailsLine,
+    );
+  }
 
   final String name;
   final String address;
@@ -581,7 +592,7 @@ class ReceiptEscposService {
 
   static Future<void> printReceipt({
     required Map<String, dynamic> data,
-    ReceiptHospitalHeader header = const ReceiptHospitalHeader(),
+    ReceiptHospitalHeader? header,
     ReceiptPrintSink sink = ReceiptPrintSink.windowsDefault,
 
     /// When set on Windows, sends the RAW job to this queue instead of the default.
@@ -593,7 +604,7 @@ class ReceiptEscposService {
   }) async {
     final bytes = await buildBytes(
       data: data,
-      header: header,
+      header: header ?? ReceiptHospitalHeader.fromOrg(),
       isCopy: isCopy,
       logoAssetPath: logoAssetPath,
     );

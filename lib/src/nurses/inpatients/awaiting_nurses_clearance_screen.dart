@@ -45,22 +45,24 @@ class _AwaitingNursesClearanceScreenState
   List<AdmissionModel> _filterRows(List<AdmissionModel> rows) {
     final q = _searchController.text.trim().toLowerCase();
     if (q.isEmpty) return rows;
-    return rows.where((r) {
-      final name = r.patient.displayName.toLowerCase();
-      final id = r.patient.patientId.toLowerCase();
-      final ward = (r.wardEntity?['name']?.toString() ?? r.ward ?? '')
-          .toLowerCase();
-      final room = (r.room ?? '').toLowerCase();
-      final diagnosis =
-          (r.primaryDiagnosis ?? r.provisionalDiagnosis ?? '').toLowerCase();
-      final doctor = (r.attendingDoctor?.displayName ?? '').toLowerCase();
-      return name.contains(q) ||
-          id.contains(q) ||
-          ward.contains(q) ||
-          room.contains(q) ||
-          diagnosis.contains(q) ||
-          doctor.contains(q);
-    }).toList(growable: false);
+    return rows
+        .where((r) {
+          final name = r.patient.displayName.toLowerCase();
+          final id = r.patient.patientId.toLowerCase();
+          final ward = (r.wardEntity?['name']?.toString() ?? r.ward ?? '')
+              .toLowerCase();
+          final room = (r.room ?? '').toLowerCase();
+          final diagnosis = (r.primaryDiagnosis ?? r.provisionalDiagnosis ?? '')
+              .toLowerCase();
+          final doctor = (r.attendingDoctor?.displayName ?? '').toLowerCase();
+          return name.contains(q) ||
+              id.contains(q) ||
+              ward.contains(q) ||
+              room.contains(q) ||
+              diagnosis.contains(q) ||
+              doctor.contains(q);
+        })
+        .toList(growable: false);
   }
 
   Future<void> _openPatientFile(AdmissionModel row) async {
@@ -94,10 +96,10 @@ class _AwaitingNursesClearanceScreenState
         content: Text(
           billingCleared
               ? 'Clear nursing for ${row.patient.displayName}? '
-                  'This will finalize discharge and move the patient to OPD.'
+                    'This will finalize discharge and move the patient to OPD.'
               : 'Clear nursing for ${row.patient.displayName}? '
-                  'Billing is still pending — discharge finalizes only after '
-                  'billing clearance too.',
+                    'Billing is still pending — discharge finalizes only after '
+                    'billing clearance too.',
         ),
         actions: [
           TextButton(
@@ -117,7 +119,8 @@ class _AwaitingNursesClearanceScreenState
     try {
       final updated = await _admissionService.nursesClearance(row.id);
       if (!mounted) return;
-      final finalized = updated.status.toUpperCase() == 'DISCHARGED' ||
+      final finalized =
+          updated.status.toUpperCase() == 'DISCHARGED' ||
           updated.status.toUpperCase() == 'DECEASED';
       _showSnack(
         finalized
@@ -141,8 +144,8 @@ class _AwaitingNursesClearanceScreenState
 
   String _wardName(AdmissionModel row) =>
       row.wardEntity?['name']?.toString().trim().isNotEmpty == true
-          ? row.wardEntity!['name'].toString()
-          : (row.ward?.trim().isNotEmpty == true ? row.ward! : '—');
+      ? row.wardEntity!['name'].toString()
+      : (row.ward?.trim().isNotEmpty == true ? row.ward! : '—');
 
   String _bedOrRoom(AdmissionModel row) {
     final bed = row.bedPreference ?? row.bed?['bedNumber']?.toString();
@@ -241,7 +244,11 @@ class _AwaitingNursesClearanceScreenState
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.local_hospital_outlined, size: 18, color: colorScheme.primary),
+          Icon(
+            Icons.local_hospital_outlined,
+            size: 18,
+            color: colorScheme.primary,
+          ),
           const SizedBox(width: 8),
           Text(
             total == null ? 'Loading...' : '$total pending',
@@ -359,7 +366,7 @@ class _AwaitingNursesClearanceScreenState
         onRefresh: () async => _reload(),
         child: ListView.separated(
           itemCount: rows.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, index) =>
               _buildMobileCard(colorScheme, rows[index]),
         ),
@@ -408,7 +415,7 @@ class _AwaitingNursesClearanceScreenState
           Expanded(
             child: ListView.separated(
               itemCount: rows.length,
-              separatorBuilder: (_, __) => Divider(
+              separatorBuilder: (_, _) => Divider(
                 height: 1,
                 color: colorScheme.outline.withValues(alpha: 0.08),
               ),
@@ -427,8 +434,7 @@ class _AwaitingNursesClearanceScreenState
     final billingCleared = row.billingClearedAt != null;
     final isOpening = _openingAdmissionId == row.id;
     final isClearing = _clearingAdmissionId == row.id;
-    final diagnosis =
-        row.primaryDiagnosis ?? row.provisionalDiagnosis ?? '—';
+    final diagnosis = row.primaryDiagnosis ?? row.provisionalDiagnosis ?? '—';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -475,10 +481,7 @@ class _AwaitingNursesClearanceScreenState
           ),
           Expanded(
             flex: 2,
-            child: _StatusBadge(
-              label: _billingLabel(row),
-              ok: billingCleared,
-            ),
+            child: _StatusBadge(label: _billingLabel(row), ok: billingCleared),
           ),
           Expanded(
             flex: 2,
@@ -488,9 +491,7 @@ class _AwaitingNursesClearanceScreenState
                 balance.toFinancial(isMoney: true),
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: balance > 0
-                      ? colorScheme.error
-                      : colorScheme.primary,
+                  color: balance > 0 ? colorScheme.error : colorScheme.primary,
                 ),
               ),
             ),
@@ -539,8 +540,7 @@ class _AwaitingNursesClearanceScreenState
     final billingCleared = row.billingClearedAt != null;
     final isOpening = _openingAdmissionId == row.id;
     final isClearing = _clearingAdmissionId == row.id;
-    final diagnosis =
-        row.primaryDiagnosis ?? row.provisionalDiagnosis ?? '—';
+    final diagnosis = row.primaryDiagnosis ?? row.provisionalDiagnosis ?? '—';
 
     return Card(
       child: Padding(
@@ -573,10 +573,7 @@ class _AwaitingNursesClearanceScreenState
                     ],
                   ),
                 ),
-                _StatusBadge(
-                  label: _billingLabel(row),
-                  ok: billingCleared,
-                ),
+                _StatusBadge(label: _billingLabel(row), ok: billingCleared),
               ],
             ),
             const SizedBox(height: 12),
@@ -602,8 +599,7 @@ class _AwaitingNursesClearanceScreenState
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed:
-                        isOpening ? null : () => _openPatientFile(row),
+                    onPressed: isOpening ? null : () => _openPatientFile(row),
                     child: isOpening
                         ? const SizedBox(
                             width: 16,
@@ -616,8 +612,7 @@ class _AwaitingNursesClearanceScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton(
-                    onPressed:
-                        isClearing ? null : () => _clearAdmission(row),
+                    onPressed: isClearing ? null : () => _clearAdmission(row),
                     child: isClearing
                         ? const SizedBox(
                             width: 16,
@@ -649,7 +644,9 @@ class _AwaitingNursesClearanceScreenState
       child: Row(
         children: [
           Text(
-            page.total == 0 ? '0 patients' : 'Showing $from–$to of ${page.total}',
+            page.total == 0
+                ? '0 patients'
+                : 'Showing $from–$to of ${page.total}',
             style: TextStyle(
               color: colorScheme.onSurface.withValues(alpha: 0.65),
             ),
@@ -659,7 +656,9 @@ class _AwaitingNursesClearanceScreenState
             tooltip: 'Previous',
             onPressed: canPrev
                 ? () {
-                    setState(() => _skip = (_skip - _pageSize).clamp(0, 1 << 30));
+                    setState(
+                      () => _skip = (_skip - _pageSize).clamp(0, 1 << 30),
+                    );
                     _reload();
                   }
                 : null,
@@ -699,7 +698,9 @@ class _HeaderCell extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.55),
         ),
       ),
     );
@@ -735,11 +736,7 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _InfoLine extends StatelessWidget {
-  const _InfoLine({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  const _InfoLine({required this.label, required this.value, this.valueColor});
 
   final String label;
   final String value;
@@ -747,7 +744,9 @@ class _InfoLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
+    final muted = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.6);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(

@@ -22,10 +22,10 @@ class StaffService {
       '/staff',
       queryParameters: {
         if (query != null && query.isNotEmpty) 'q': query,
-        if (staffRole != null) 'staffRole': staffRole,
-        if (departmentId != null) 'departmentId': departmentId,
+        'staffRole': ?staffRole,
+        'departmentId': ?departmentId,
         if (accountType != null) 'accountType': accountType.apiValue,
-        if (isActive != null) 'isActive': isActive,
+        'isActive': ?isActive,
         'page': page,
         'limit': limit,
       },

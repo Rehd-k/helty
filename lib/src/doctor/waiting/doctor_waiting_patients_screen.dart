@@ -497,7 +497,7 @@ class _DoctorWaitingPatientsScreenState
                             )
                           : ListView.separated(
                               itemCount: _patients.length,
-                              separatorBuilder: (_, __) => Divider(
+                              separatorBuilder: (_, _) => Divider(
                                 height: 1,
                                 color: colorScheme.outline.withValues(
                                   alpha: 0.08,
@@ -631,10 +631,7 @@ class _DoctorWaitingPatientsScreenState
               flex: 2,
               child: Text(
                 row.servicesLabel,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colorScheme.onSurface,
-                ),
+                style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -642,10 +639,7 @@ class _DoctorWaitingPatientsScreenState
               flex: 2,
               child: Text(
                 row.billLabel,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colorScheme.onSurface,
-                ),
+                style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
               ),
             ),
             Expanded(

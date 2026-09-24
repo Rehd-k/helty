@@ -113,7 +113,7 @@ class _HospitalReportScreenState extends State<HospitalReportScreen> {
           ? '-$_requestType'
           : '';
       final name = '${widget.kind.exportBasename}$type.$ext';
-      final path = await FilePicker.platform.saveFile(
+      final path = await FilePicker.saveFile(
         dialogTitle: 'Save report',
         fileName: name,
         bytes: bytes,

@@ -367,7 +367,7 @@ class _BreakdownTable extends StatelessWidget {
           ? const NeverScrollableScrollPhysics()
           : const AlwaysScrollableScrollPhysics(),
       itemCount: rows.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           Divider(height: 1, color: cs.outline.withValues(alpha: 0.08)),
       itemBuilder: (context, i) {
         final row = rows[i];

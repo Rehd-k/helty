@@ -415,7 +415,7 @@ Future<void> showWalkInNotesDialog(
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: notes.length,
-                  separatorBuilder: (_, __) => const Divider(height: 16),
+                  separatorBuilder: (_, _) => const Divider(height: 16),
                   itemBuilder: (context, i) {
                     final note = notes[i];
                     return ListTile(

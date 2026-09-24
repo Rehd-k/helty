@@ -96,10 +96,8 @@ class _HousekeepingSuppliesScreenState
                 items: [
                   const DropdownMenuItem(value: null, child: Text('No worker')),
                   ..._workers.map(
-                    (w) => DropdownMenuItem(
-                      value: w.id,
-                      child: Text(w.fullName),
-                    ),
+                    (w) =>
+                        DropdownMenuItem(value: w.id, child: Text(w.fullName)),
                   ),
                 ],
                 onChanged: (v) => workerId = v,
@@ -126,7 +124,7 @@ class _HousekeepingSuppliesScreenState
       'quantity': num.tryParse(qty.text.trim()) ?? 1,
       'unit': unit.text.trim(),
       'action': action.apiValue,
-      if (workerId != null) 'workerId': workerId,
+      'workerId': ?workerId,
     });
     await _load();
   }
