@@ -1,11 +1,6 @@
-FROM ghcr.io/cirruslabs/flutter:latest AS build
+FROM ghcr.io/cirruslabs/flutter:3.35.6 AS build
 
 WORKDIR /app
-
-# Ensure git handles directories owned by root without complaints
-RUN git config --global --add safe.directory /app \
-    && git config --global --add safe.directory /sdks/flutter
-
 COPY pubspec.* ./
 RUN flutter pub get
 
