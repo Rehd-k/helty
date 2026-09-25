@@ -51,6 +51,11 @@ List<AutoRoute> registrationRoutes({
         page: FamilyLinksRoute.page,
         guards: const [ProductModuleGuard()],
       ),
+    if (isHospital)
+      AutoRoute(
+        page: LinkOneTimePatientRoute.page,
+        guards: const [ProductModuleGuard()],
+      ),
     AutoRoute(
       page: PatientListRoute.page,
       guards: const [ProductModuleGuard()],

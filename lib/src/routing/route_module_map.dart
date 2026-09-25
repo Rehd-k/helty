@@ -14,6 +14,7 @@ const Map<String, AppModule> _routeModules = {
   'PendingDeviceApprovalsRoute': AppModule.registration,
   'PatientDevicesRoute': AppModule.registration,
   'FamilyLinksRoute': AppModule.registration,
+  'LinkOneTimePatientRoute': AppModule.registration,
   'PatientListRoute': AppModule.registration,
   'PatientFormRoute': AppModule.registration,
   'PatientChartSelectRoute': AppModule.registration,

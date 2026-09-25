@@ -79,6 +79,12 @@ List<MenuItem> get frontDesk => [
       icon: Icons.family_restroom,
       route: FamilyLinksRoute(),
     ),
+    MenuItem(
+      color: DepartmentColors.frontDesk,
+      label: 'Link one-time patient',
+      icon: Icons.link,
+      route: LinkOneTimePatientRoute(),
+    ),
   ],
 ];
 

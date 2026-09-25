@@ -18,6 +18,7 @@ import '../widgets/empty.widget.dart';
 import '../services/api_service.dart';
 import '../services/waiting_patient_service.dart';
 import 'patient_model.dart';
+import 'merge_patients_dialog.dart';
 import '../../app_router.gr.dart';
 
 @RoutePage()
@@ -751,6 +752,18 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
             ),
             child: Text(_isRegisterUse ? 'Register' : 'Open'),
           ),
+          if (_isRegisterUse && patient.hasPatientId) ...[
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: () => _linkToRegistered(patient),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text('Link'),
+            ),
+          ],
           PopupMenuButton<String>(
             tooltip: 'More actions',
             icon: Icon(
@@ -763,6 +776,8 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                   setState(() => _selectedPatient = patient);
                 case 'open':
                   if (_footerPrimaryEnabled(patient)) _goToRegister(patient);
+                case 'link':
+                  _linkToRegistered(patient);
               }
             },
             itemBuilder: (context) => [
@@ -772,6 +787,11 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                 enabled: _footerPrimaryEnabled(patient),
                 child: Text(_footerPrimaryLabel(patient)),
               ),
+              if (_isRegisterUse && patient.hasPatientId)
+                const PopupMenuItem(
+                  value: 'link',
+                  child: Text('Link to registered'),
+                ),
             ],
           ),
         ],
@@ -1069,6 +1089,17 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
                   ),
                   child: Text(_footerPrimaryLabel(patient)),
                 ),
+                if (_isRegisterUse && patient.hasPatientId) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () => _linkToRegistered(patient),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Text('Link to registered'),
+                  ),
+                ],
               ],
             ),
     );
@@ -1131,6 +1162,62 @@ class _WaitingPatientScreenState extends ConsumerState<NewPatientScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _linkToRegistered(_UnregisteredPatientTxn patient) async {
+    final uuid = patient.patientId?.trim() ?? '';
+    if (uuid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This row has no patient record to link.'),
+        ),
+      );
+      return;
+    }
+
+    final duplicate = Patient(
+      id: uuid,
+      // Empty hospital ID marks this as one-time for the link UI.
+      patientId: '',
+      cardNo: '',
+      title: '',
+      surname: patient.surname,
+      firstName: patient.firstName,
+      otherName: null,
+      dob: DateTime.now(),
+      gender: patient.gender ?? '',
+      maritalStatus: '',
+      nationality: '',
+      stateOfOrigin: '',
+      lga: '',
+      town: '',
+      permanentAddress: '',
+      religion: null,
+      email: null,
+      preferredLanguage: null,
+      phoneNumber: patient.phoneNumber,
+      addressOfResidence: null,
+      profession: null,
+      nextOfKinName: null,
+      nextOfKinPhone: null,
+      nextOfKinAddress: null,
+      nextOfKinRelationship: null,
+      hmo: null,
+      fingerprintData: null,
+      createdAt: null,
+      updatedAt: null,
+      createdBy: null,
+      updatedBy: null,
+    );
+
+    final merged = await runMergePatientsFlow(
+      context,
+      mode: MergePatientsMode.unregisteredOnly,
+      initialDuplicate: duplicate,
+    );
+    if (merged != null && mounted) {
+      _fetchPatients(reset: true);
+    }
   }
 
   void _goToRegister(_UnregisteredPatientTxn patient) {

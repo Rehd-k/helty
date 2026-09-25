@@ -74,6 +74,7 @@ class PatientService {
     String? sortBy,
     required bool isAscending,
     PatientListStatusFilter listStatusFilter = PatientListStatusFilter.none,
+    bool includeUnregistered = false,
   }) async {
     final resp = await _dio.get(
       '/patients',
@@ -88,6 +89,7 @@ class PatientService {
         'isAscending': isAscending,
         if (listStatusFilter != PatientListStatusFilter.none)
           'listStatusFilter': listStatusFilter.name,
+        if (includeUnregistered) 'includeUnregistered': true,
       },
     );
 
@@ -264,4 +266,15 @@ class PatientService {
 
   Future<List<Patient>> searchPatients(String query, bool isAscending) =>
       fetchPatients(query: query, take: 50, isAscending: isAscending);
+
+  /// Includes one-time patients (no hospital chart ID) for link/merge pickers.
+  Future<List<Patient>> searchPatientsIncludingUnregistered(
+    String query,
+    bool isAscending,
+  ) => fetchPatients(
+    query: query,
+    take: 50,
+    isAscending: isAscending,
+    includeUnregistered: true,
+  );
 }

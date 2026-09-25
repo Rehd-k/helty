@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'invoice.dart';
@@ -9,13 +9,13 @@ part of 'invoice.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Invoice {
 
- String get id; Patient get patient; Map<String, dynamic> get staff; String get patientId; String get status;// consider → @JsonKey(name: 'status') TransactionStatus status later
- String get createdById; String? get updatedById; String? get staffId; DateTime get createdAt; DateTime get updatedAt; List<ServiceModel> get invoiceItems; double get totalAmount; double get amountPaid; String? get encounterId; Map<String, dynamic>? get createdBy; Map<String, dynamic>? get count;/// Human-facing bill code (`invoiceID` from API), when present.
+ String get id; Patient get patient; Map<String, dynamic> get staff; String get patientId; String get status; String get createdById; String? get updatedById; String? get staffId; DateTime get createdAt; DateTime get updatedAt; List<ServiceModel> get invoiceItems; double get totalAmount; double get amountPaid; String? get encounterId; Map<String, dynamic>? get createdBy; Map<String, dynamic>? get count;/// Human-facing bill code (`invoiceID` from API), when present.
  String? get invoiceDisplayId;/// `OUTPATIENT` | `INPATIENT` from staff invoice detail.
  String? get billType;/// Ward name when [billType] is inpatient.
  String? get wardName;
@@ -29,16 +29,21 @@ $InvoiceCopyWith<Invoice> get copyWith => _$InvoiceCopyWithImpl<Invoice>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patient, patient) || other.patient == patient)&&const DeepCollectionEquality().equals(other.staff, staff)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other.invoiceItems, invoiceItems)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.amountPaid, amountPaid) || other.amountPaid == amountPaid)&&(identical(other.encounterId, encounterId) || other.encounterId == encounterId)&&const DeepCollectionEquality().equals(other.createdBy, createdBy)&&const DeepCollectionEquality().equals(other.count, count)&&(identical(other.invoiceDisplayId, invoiceDisplayId) || other.invoiceDisplayId == invoiceDisplayId)&&(identical(other.billType, billType) || other.billType == billType)&&(identical(other.wardName, wardName) || other.wardName == wardName));
+  final _this = this as Invoice;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Invoice&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.patient, _this.patient) || other.patient == _this.patient)&&const DeepCollectionEquality().equals(other.staff, _this.staff)&&(identical(other.patientId, _this.patientId) || other.patientId == _this.patientId)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.createdById, _this.createdById) || other.createdById == _this.createdById)&&(identical(other.updatedById, _this.updatedById) || other.updatedById == _this.updatedById)&&(identical(other.staffId, _this.staffId) || other.staffId == _this.staffId)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.updatedAt, _this.updatedAt) || other.updatedAt == _this.updatedAt)&&const DeepCollectionEquality().equals(other.invoiceItems, _this.invoiceItems)&&(identical(other.totalAmount, _this.totalAmount) || other.totalAmount == _this.totalAmount)&&(identical(other.amountPaid, _this.amountPaid) || other.amountPaid == _this.amountPaid)&&(identical(other.encounterId, _this.encounterId) || other.encounterId == _this.encounterId)&&const DeepCollectionEquality().equals(other.createdBy, _this.createdBy)&&const DeepCollectionEquality().equals(other.count, _this.count)&&(identical(other.invoiceDisplayId, _this.invoiceDisplayId) || other.invoiceDisplayId == _this.invoiceDisplayId)&&(identical(other.billType, _this.billType) || other.billType == _this.billType)&&(identical(other.wardName, _this.wardName) || other.wardName == _this.wardName));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,id,patient,const DeepCollectionEquality().hash(staff),patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(invoiceItems),totalAmount,amountPaid,encounterId,const DeepCollectionEquality().hash(createdBy),const DeepCollectionEquality().hash(count),invoiceDisplayId,billType,wardName]);
+int get hashCode {
+  final _this = this as Invoice;
+  return Object.hashAll([runtimeType,_this.id,_this.patient,const DeepCollectionEquality().hash(_this.staff),_this.patientId,_this.status,_this.createdById,_this.updatedById,_this.staffId,_this.createdAt,_this.updatedAt,const DeepCollectionEquality().hash(_this.invoiceItems),_this.totalAmount,_this.amountPaid,_this.encounterId,const DeepCollectionEquality().hash(_this.createdBy),const DeepCollectionEquality().hash(_this.count),_this.invoiceDisplayId,_this.billType,_this.wardName]);
+}
 
 @override
 String toString() {
-  return 'Invoice(id: $id, patient: $patient, staff: $staff, patientId: $patientId, status: $status, createdById: $createdById, updatedById: $updatedById, staffId: $staffId, createdAt: $createdAt, updatedAt: $updatedAt, invoiceItems: $invoiceItems, totalAmount: $totalAmount, amountPaid: $amountPaid, encounterId: $encounterId, createdBy: $createdBy, count: $count, invoiceDisplayId: $invoiceDisplayId, billType: $billType, wardName: $wardName)';
+  final _this = this as Invoice;
+  return 'Invoice(id: ${_this.id}, patient: ${_this.patient}, staff: ${_this.staff}, patientId: ${_this.patientId}, status: ${_this.status}, createdById: ${_this.createdById}, updatedById: ${_this.updatedById}, staffId: ${_this.staffId}, createdAt: ${_this.createdAt}, updatedAt: ${_this.updatedAt}, invoiceItems: ${_this.invoiceItems}, totalAmount: ${_this.totalAmount}, amountPaid: ${_this.amountPaid}, encounterId: ${_this.encounterId}, createdBy: ${_this.createdBy}, count: ${_this.count}, invoiceDisplayId: ${_this.invoiceDisplayId}, billType: ${_this.billType}, wardName: ${_this.wardName})';
 }
 
 
@@ -67,7 +72,7 @@ class _$InvoiceCopyWithImpl<$Res>
 /// Create a copy of Invoice
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? patient = null,Object? staff = null,Object? patientId = null,Object? status = null,Object? createdById = null,Object? updatedById = freezed,Object? staffId = freezed,Object? createdAt = null,Object? updatedAt = null,Object? invoiceItems = null,Object? totalAmount = null,Object? amountPaid = null,Object? encounterId = freezed,Object? createdBy = freezed,Object? count = freezed,Object? invoiceDisplayId = freezed,Object? billType = freezed,Object? wardName = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(Invoice(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,patient: null == patient ? _self.patient : patient // ignore: cast_nullable_to_non_nullable
 as Patient,staff: null == staff ? _self.staff : staff // ignore: cast_nullable_to_non_nullable
@@ -228,7 +233,7 @@ return $default(_that.id,_that.patient,_that.staff,_that.patientId,_that.status,
 
 
 class _Invoice extends Invoice {
-  const _Invoice({required this.id, required this.patient, required final  Map<String, dynamic> staff, required this.patientId, required this.status, required this.createdById, this.updatedById, this.staffId, required this.createdAt, required this.updatedAt, required final  List<ServiceModel> invoiceItems, required this.totalAmount, required this.amountPaid, this.encounterId, final  Map<String, dynamic>? createdBy, final  Map<String, dynamic>? count, this.invoiceDisplayId, this.billType, this.wardName}): _staff = staff,_invoiceItems = invoiceItems,_createdBy = createdBy,_count = count,super._();
+  const _Invoice({required this.id, required this.patient, required  Map<String, dynamic> staff, required this.patientId, required this.status, required this.createdById, this.updatedById, this.staffId, required this.createdAt, required this.updatedAt, required  List<ServiceModel> invoiceItems, required this.totalAmount, required this.amountPaid, this.encounterId,  Map<String, dynamic>? createdBy,  Map<String, dynamic>? count, this.invoiceDisplayId, this.billType, this.wardName}): _staff = staff,_invoiceItems = invoiceItems,_createdBy = createdBy,_count = count,super._();
   
 
 @override final  String id;
@@ -242,7 +247,6 @@ class _Invoice extends Invoice {
 
 @override final  String patientId;
 @override final  String status;
-// consider → @JsonKey(name: 'status') TransactionStatus status later
 @override final  String createdById;
 @override final  String? updatedById;
 @override final  String? staffId;
@@ -293,16 +297,18 @@ _$InvoiceCopyWith<_Invoice> get copyWith => __$InvoiceCopyWithImpl<_Invoice>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patient, patient) || other.patient == patient)&&const DeepCollectionEquality().equals(other._staff, _staff)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other._invoiceItems, _invoiceItems)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.amountPaid, amountPaid) || other.amountPaid == amountPaid)&&(identical(other.encounterId, encounterId) || other.encounterId == encounterId)&&const DeepCollectionEquality().equals(other._createdBy, _createdBy)&&const DeepCollectionEquality().equals(other._count, _count)&&(identical(other.invoiceDisplayId, invoiceDisplayId) || other.invoiceDisplayId == invoiceDisplayId)&&(identical(other.billType, billType) || other.billType == billType)&&(identical(other.wardName, wardName) || other.wardName == wardName));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Invoice&&(identical(other.id, id) || other.id == id)&&(identical(other.patient, patient) || other.patient == patient)&&const DeepCollectionEquality().equals(other.staff, _staff)&&(identical(other.patientId, patientId) || other.patientId == patientId)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdById, createdById) || other.createdById == createdById)&&(identical(other.updatedById, updatedById) || other.updatedById == updatedById)&&(identical(other.staffId, staffId) || other.staffId == staffId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&const DeepCollectionEquality().equals(other.invoiceItems, _invoiceItems)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.amountPaid, amountPaid) || other.amountPaid == amountPaid)&&(identical(other.encounterId, encounterId) || other.encounterId == encounterId)&&const DeepCollectionEquality().equals(other.createdBy, _createdBy)&&const DeepCollectionEquality().equals(other.count, _count)&&(identical(other.invoiceDisplayId, invoiceDisplayId) || other.invoiceDisplayId == invoiceDisplayId)&&(identical(other.billType, billType) || other.billType == billType)&&(identical(other.wardName, wardName) || other.wardName == wardName));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,id,patient,const DeepCollectionEquality().hash(_staff),patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(_invoiceItems),totalAmount,amountPaid,encounterId,const DeepCollectionEquality().hash(_createdBy),const DeepCollectionEquality().hash(_count),invoiceDisplayId,billType,wardName]);
+int get hashCode {
+    return Object.hashAll([runtimeType,id,patient,const DeepCollectionEquality().hash(_staff),patientId,status,createdById,updatedById,staffId,createdAt,updatedAt,const DeepCollectionEquality().hash(_invoiceItems),totalAmount,amountPaid,encounterId,const DeepCollectionEquality().hash(_createdBy),const DeepCollectionEquality().hash(_count),invoiceDisplayId,billType,wardName]);
+}
 
 @override
 String toString() {
-  return 'Invoice(id: $id, patient: $patient, staff: $staff, patientId: $patientId, status: $status, createdById: $createdById, updatedById: $updatedById, staffId: $staffId, createdAt: $createdAt, updatedAt: $updatedAt, invoiceItems: $invoiceItems, totalAmount: $totalAmount, amountPaid: $amountPaid, encounterId: $encounterId, createdBy: $createdBy, count: $count, invoiceDisplayId: $invoiceDisplayId, billType: $billType, wardName: $wardName)';
+    return 'Invoice(id: $id, patient: $patient, staff: $staff, patientId: $patientId, status: $status, createdById: $createdById, updatedById: $updatedById, staffId: $staffId, createdAt: $createdAt, updatedAt: $updatedAt, invoiceItems: $invoiceItems, totalAmount: $totalAmount, amountPaid: $amountPaid, encounterId: $encounterId, createdBy: $createdBy, count: $count, invoiceDisplayId: $invoiceDisplayId, billType: $billType, wardName: $wardName)';
 }
 
 
