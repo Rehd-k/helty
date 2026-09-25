@@ -1,16 +1,16 @@
-# Upgrade to latest or a version that packages Dart >=3.12.0
 FROM ghcr.io/cirruslabs/flutter:latest AS build
 
-# Use the non-root user provided by cirruslabs
-USER cirrus
 WORKDIR /app
 
-# Ensure proper permissions during copy
-COPY --chown=cirrus:cirrus pubspec.* ./
+# Ensure git handles directories owned by root without complaints
+RUN git config --global --add safe.directory /app \
+    && git config --global --add safe.directory /sdks/flutter
+
+COPY pubspec.* ./
 RUN flutter pub get
 
-COPY --chown=cirrus:cirrus . .
-RUN flutter build web --no-wasm-dry-run --no-web-resources-cdn --pwa-strategy=none
+COPY . .
+RUN flutter build web --no-tree-shake-icons --no-wasm-dry-run --no-web-resources-cdn --pwa-strategy=none
 
 FROM nginx:alpine
 COPY --from=build /app/build/web /usr/share/nginx/html
