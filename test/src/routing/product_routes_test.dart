@@ -56,6 +56,8 @@ void main() {
       expect(names, isNot(contains('DialysisDashboardRoute')));
       expect(names, isNot(contains('HubLabsRoute')));
       expect(names, contains('HubMedsRoute'));
+      expect(names, contains('AccountsDashboardRoute'));
+      expect(names, contains('ConsultationPaymentReportRoute'));
       expect(names, contains('SuperAdminStaffListRoute'));
       expect(names, contains('SuperAdminStaffDetailRoute'));
     });
@@ -73,6 +75,8 @@ void main() {
       expect(names, isNot(contains('HubMedsRoute')));
       expect(names, isNot(contains('DoctorDashboardRoute')));
       expect(names, isNot(contains('CMDDashboardRoute')));
+      expect(names, contains('AccountsDashboardRoute'));
+      expect(names, contains('ConsultationPaymentReportRoute'));
       expect(names, contains('SuperAdminStaffListRoute'));
       expect(names, contains('SuperAdminStaffDetailRoute'));
       expect(names, isNot(contains('HmoListRoute')));
@@ -86,6 +90,7 @@ void main() {
       expect(names, contains('PharmacyDashboardRoute'));
       expect(names, contains('LabDashboardRoute'));
       expect(names, contains('HmoListRoute'));
+      expect(names, contains('AccountsDashboardRoute'));
       expect(names, contains('HmoServicePricingRoute'));
       expect(names, contains('ReceivablesHmoRoute'));
       expect(names, isNot(contains('RadiologyDashboardRoute')));
@@ -182,6 +187,27 @@ void main() {
         ProductRoutes.isRouteAllowed(
           'LabDashboardRoute',
           AppProduct.labPharmacy,
+        ),
+        isTrue,
+      );
+      expect(
+        ProductRoutes.isRouteAllowed(
+          'AccountsDashboardRoute',
+          AppProduct.labPharmacy,
+        ),
+        isTrue,
+      );
+      expect(
+        ProductRoutes.isRouteAllowed(
+          'AccountsDashboardRoute',
+          AppProduct.pharmacy,
+        ),
+        isTrue,
+      );
+      expect(
+        ProductRoutes.isRouteAllowed(
+          'AccountsDashboardRoute',
+          AppProduct.diagnostics,
         ),
         isTrue,
       );

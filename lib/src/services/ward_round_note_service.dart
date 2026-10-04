@@ -32,8 +32,9 @@ class WardRoundNoteService {
       data: body,
     );
     final data = response.data;
-    if (data == null)
+    if (data == null) {
       throw StateError('Create ward round note returned no data');
+    }
     return WardRoundNoteModel.fromJson(data);
   }
 
@@ -81,8 +82,9 @@ class WardRoundNoteService {
       data: body,
     );
     final data = response.data;
-    if (data == null)
+    if (data == null) {
       throw StateError('Update ward round note returned no data');
+    }
     return WardRoundNoteModel.fromJson(data);
   }
 

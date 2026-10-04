@@ -7,6 +7,7 @@ class BuildModernTextField extends StatelessWidget {
   final String hint;
   final bool isNumber;
   final TextEditingController controller;
+  final TextInputType? keyboardType;
 
   const BuildModernTextField({
     super.key,
@@ -15,13 +16,16 @@ class BuildModernTextField extends StatelessWidget {
     required this.hint,
     required this.isNumber,
     required this.controller,
+    this.keyboardType,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      keyboardType:
+          keyboardType ??
+          (isNumber ? TextInputType.number : TextInputType.text),
       style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
         labelText: label,

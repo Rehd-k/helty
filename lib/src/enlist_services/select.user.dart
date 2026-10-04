@@ -1,5 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:helty/src/app/product_definition.dart';
+import 'package:helty/src/app/product_environment.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/services/api_service.dart';
@@ -40,6 +43,8 @@ class _SelectUserState extends State<SelectUser> {
   final TextEditingController age = TextEditingController();
   final TextEditingController gender = TextEditingController();
   final TextEditingController wardId = TextEditingController();
+  final TextEditingController phoneNumber = TextEditingController();
+  final TextEditingController email = TextEditingController();
 
   bool _isSearching = false;
 
@@ -49,6 +54,9 @@ class _SelectUserState extends State<SelectUser> {
       widget.serviceName == 'lab' ||
       widget.serviceName == 'ED';
 
+  bool get _collectContact =>
+      ProductEnvironment.currentProduct != AppProduct.hospital;
+
   void createNewPatient() async {
     if (wardId.text.trim().isEmpty) {
       ScaffoldMessenger.of(
@@ -57,26 +65,93 @@ class _SelectUserState extends State<SelectUser> {
       return;
     }
     try {
-      var newUser = await apiService.dio.post(
-        '/patients',
-        data: {
-          'firstName': firstName.text,
-          'surname': surname.text,
-          'age': age.text,
-          'gender': gender.text,
-          'wardId': wardId.text.trim(),
-        },
-      );
+      final data = <String, dynamic>{
+        'firstName': firstName.text,
+        'surname': surname.text,
+        'age': age.text,
+        'gender': gender.text,
+        'wardId': wardId.text.trim(),
+      };
+      if (_collectContact) {
+        data['phoneNumber'] = phoneNumber.text.trim();
+        final trimmedEmail = email.text.trim();
+        if (trimmedEmail.isNotEmpty) {
+          data['email'] = trimmedEmail;
+        }
+      }
 
-      widget.onPatientSelected(
-        Patient.fromJson(newUser.data as Map<String, dynamic>),
-      );
+      var newUser = await apiService.dio.post('/patients', data: data);
+      final patient = Patient.fromJson(newUser.data as Map<String, dynamic>);
+      if (!mounted) return;
+      if (_collectContact) {
+        await _showAssignedPatientId(patient.patientId);
+        if (!mounted) return;
+        phoneNumber.clear();
+        email.clear();
+      }
+      widget.onPatientSelected(patient);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
+  }
+
+  Future<void> _showAssignedPatientId(String patientId) {
+    final id = patientId.trim();
+    final displayId = id.isEmpty ? 'Not assigned' : id;
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Patient registered'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Hospital ID'),
+              const SizedBox(height: 8),
+              SelectableText(
+                displayId,
+                style: Theme.of(dialogContext).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.2),
+              ),
+            ],
+          ),
+          actions: [
+            if (id.isNotEmpty)
+              TextButton(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: id));
+                  if (!dialogContext.mounted) return;
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('Hospital ID copied')),
+                  );
+                },
+                child: const Text('Copy'),
+              ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    firstName.dispose();
+    surname.dispose();
+    age.dispose();
+    gender.dispose();
+    wardId.dispose();
+    phoneNumber.dispose();
+    email.dispose();
+    super.dispose();
   }
 
   Widget _buildContent() {
@@ -121,6 +196,8 @@ class _SelectUserState extends State<SelectUser> {
         gender,
         wardId,
         createNewPatient,
+        phoneNumber: _collectContact ? phoneNumber : null,
+        email: _collectContact ? email : null,
       ),
       icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
       label: const Text('New Patient'),

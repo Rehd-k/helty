@@ -49,7 +49,7 @@ void main() {
       );
     });
 
-    test('pharmacy enables registration, billing, pharmacy only', () {
+    test('pharmacy enables registration, billing, pharmacy, and accounting', () {
       ProductEnvironment.bind(AppProduct.pharmacy);
       expect(ProductEnvironment.displayName, 'Helty Pharmacy');
       expect(
@@ -58,13 +58,15 @@ void main() {
           AppModule.registration,
           AppModule.billing,
           AppModule.pharmacy,
+          AppModule.accounting,
         },
       );
       expect(ProductEnvironment.isModuleEnabled(AppModule.laboratory), isFalse);
       expect(ProductEnvironment.isModuleEnabled(AppModule.physician), isFalse);
     });
 
-    test('diagnostics enables registration, billing, lab, radiology', () {
+    test('diagnostics enables registration, billing, lab, radiology, and accounting',
+        () {
       ProductEnvironment.bind(AppProduct.diagnostics);
       expect(ProductEnvironment.displayName, 'Helty Diagnostics');
       expect(
@@ -74,12 +76,13 @@ void main() {
           AppModule.billing,
           AppModule.laboratory,
           AppModule.radiology,
+          AppModule.accounting,
         },
       );
       expect(ProductEnvironment.isModuleEnabled(AppModule.pharmacy), isFalse);
     });
 
-    test('lab and pharmacy enables lab, pharmacy, and hmo', () {
+    test('lab and pharmacy enables lab, pharmacy, hmo, and accounting', () {
       ProductEnvironment.bind(AppProduct.labPharmacy);
       expect(ProductEnvironment.displayName, 'Helty Lab & Pharmacy');
       expect(
@@ -90,6 +93,7 @@ void main() {
           AppModule.pharmacy,
           AppModule.laboratory,
           AppModule.hmo,
+          AppModule.accounting,
         },
       );
       expect(ProductEnvironment.isModuleEnabled(AppModule.radiology), isFalse);
@@ -248,14 +252,16 @@ void main() {
       expect(types, contains(AccountType.billing));
       expect(types, contains(AccountType.laboratory));
       expect(types, contains(AccountType.radiology));
+      expect(types, contains(AccountType.accounting));
       expect(types, contains(AccountType.super_admin));
       expect(types, isNot(contains(AccountType.pharmacy)));
       expect(types, isNot(contains(AccountType.physician)));
       expect(types, isNot(contains(AccountType.nurse)));
     });
 
-    test('allowedDepartmentTypes for pharmacy is registration+billing+pharmacy',
-        () {
+    test(
+      'allowedDepartmentTypes for pharmacy is registration, billing, pharmacy, and accounting',
+      () {
       ProductEnvironment.bind(AppProduct.pharmacy);
       final types = ProductModuleAccess.allowedDepartmentTypes();
       expect(
@@ -264,6 +270,7 @@ void main() {
           'front_desk',
           'billing',
           'pharmacy',
+          'accounting',
           'super_admin',
         },
       );
@@ -284,6 +291,10 @@ void main() {
         isTrue,
       );
       expect(
+        ProductModuleAccess.isAccountTypeAllowedForProduct('accounting'),
+        isTrue,
+      );
+      expect(
         ProductModuleAccess.isAccountTypeAllowedForProduct('radiology'),
         isFalse,
       );
@@ -300,6 +311,7 @@ void main() {
           'pharmacy',
           'laboratory',
           'hmo',
+          'accounting',
           'super_admin',
         },
       );
@@ -310,7 +322,7 @@ void main() {
       final hubs = ProductModuleAccess.allowedHubDepartments();
       expect(
         hubs.map((h) => h.previewAccountType).toSet(),
-        {'billing', 'laboratory', 'radiology', 'front_desk'},
+        {'billing', 'laboratory', 'radiology', 'front_desk', 'accounting'},
       );
     });
   });

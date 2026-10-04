@@ -24,6 +24,7 @@ class ReusableAsyncTable<T> extends StatefulWidget {
   final void Function(T item, dynamic value)? onContextMenuSelected;
   final int rowsPerPage;
   final bool showFooter;
+  final bool enableSelection;
 
   const ReusableAsyncTable({
     super.key,
@@ -37,6 +38,7 @@ class ReusableAsyncTable<T> extends StatefulWidget {
     this.onContextMenuSelected,
     this.rowsPerPage = 10,
     this.showFooter = true,
+    this.enableSelection = true,
   });
 
   @override
@@ -61,6 +63,7 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
         onRowTap: widget.onRowTap,
         contextMenuBuilder: widget.contextMenuBuilder,
         onContextMenuSelected: widget.onContextMenuSelected,
+        enableSelection: widget.enableSelection,
       );
       _initialized = true;
     }
@@ -82,6 +85,7 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
       onRowTap: widget.onRowTap,
       contextMenuBuilder: widget.contextMenuBuilder,
       onContextMenuSelected: widget.onContextMenuSelected,
+      enableSelection: widget.enableSelection,
     );
   }
 
@@ -103,10 +107,12 @@ class _ReusableAsyncTableState<T> extends State<ReusableAsyncTable<T>> {
       checkboxAlignment: Alignment.center,
       // hidePaginator: widget.showFooter,
       availableRowsPerPage: [20, 50, 100],
-      onSelectAll: (bool? isAll) {
-        // FIXED: Renamed method to avoid override conflict
-        _source.updateSelection(isAll);
-      },
+      showCheckboxColumn: widget.enableSelection,
+      onSelectAll: widget.enableSelection
+          ? (bool? isAll) {
+              _source.updateSelection(isAll);
+            }
+          : null,
     );
   }
 }
@@ -120,9 +126,14 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
   ValueChanged<T>? onRowTap;
   List<PopupMenuEntry<dynamic>> Function(T item)? contextMenuBuilder;
   void Function(T item, dynamic value)? onContextMenuSelected;
+  bool enableSelection;
 
   final Set<String> _selectedIds = {};
   final Map<String, T> _cachedItems = {};
+  PagedData<T>? _pageCache;
+  int? _pageStart;
+  int? _pageCount;
+  bool _reusePage = false;
 
   /// When [dispose] runs, [AsyncDataTableSource] may still complete an in-flight
   /// fetch and call [notifyListeners]. Suppress those to avoid
@@ -150,6 +161,7 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
     this.onRowTap,
     this.contextMenuBuilder,
     this.onContextMenuSelected,
+    this.enableSelection = true,
   }) {
     fetchData = initialFetchData;
     rowBuilder = initialRowBuilder;
@@ -164,6 +176,7 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
     ValueChanged<T>? onRowTap,
     List<PopupMenuEntry<dynamic>> Function(T item)? contextMenuBuilder,
     void Function(T item, dynamic value)? onContextMenuSelected,
+    required bool enableSelection,
   }) {
     this.fetchData = fetchData;
     this.rowBuilder = rowBuilder;
@@ -172,19 +185,27 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
     this.onRowTap = onRowTap;
     this.contextMenuBuilder = contextMenuBuilder;
     this.onContextMenuSelected = onContextMenuSelected;
+    this.enableSelection = enableSelection;
   }
 
-  // FIXED: Renamed from 'selectAll' to 'updateSelection'
+  /// Selects or clears the current page without refetching.
   void updateSelection(bool? isAll) {
+    final page = _pageCache;
+    if (page == null) return;
     if (isAll == true) {
-      for (var key in _cachedItems.keys) {
-        _selectedIds.add(key);
+      for (final item in page.items) {
+        final id = idGetter(item);
+        _selectedIds.add(id);
+        _cachedItems[id] = item;
       }
     } else {
-      _selectedIds.clear();
+      for (final item in page.items) {
+        _selectedIds.remove(idGetter(item));
+      }
     }
+    _reusePage = true;
     _notifySelection();
-    refreshDatasource();
+    notifyListeners();
   }
 
   void _notifySelection() {
@@ -201,14 +222,27 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
   @override
   Future<AsyncRowsResponse> getRows(int start, int count) async {
     try {
-      final PagedData<T> data = await fetchData(start, count);
+      final PagedData<T> data;
+      if (_reusePage &&
+          _pageCache != null &&
+          _pageStart == start &&
+          _pageCount == count) {
+        data = _pageCache!;
+        _reusePage = false;
+      } else {
+        data = await fetchData(start, count);
+        _pageCache = data;
+        _pageStart = start;
+        _pageCount = count;
+        _reusePage = false;
+      }
       final rows = data.items.map((item) {
         final id = idGetter(item);
         _cachedItems[id] = item;
 
         return DataRow2(
           key: ValueKey(id),
-          selected: _selectedIds.contains(id),
+          selected: enableSelection && _selectedIds.contains(id),
           onTap: onRowTap != null ? () => onRowTap!(item) : null,
           onSecondaryTapDown: contextMenuBuilder != null
               ? (details) async {
@@ -229,15 +263,18 @@ class _GenericDataSource<T> extends AsyncDataTableSource {
                   }
                 }
               : null,
-          onSelectChanged: (value) {
-            if (value == true) {
-              _selectedIds.add(id);
-            } else {
-              _selectedIds.remove(id);
-            }
-            _notifySelection();
-            refreshDatasource();
-          },
+          onSelectChanged: enableSelection
+              ? (value) {
+                  if (value == true) {
+                    _selectedIds.add(id);
+                  } else {
+                    _selectedIds.remove(id);
+                  }
+                  _reusePage = true;
+                  _notifySelection();
+                  notifyListeners();
+                }
+              : null,
           cells: rowBuilder(item),
         );
       }).toList();

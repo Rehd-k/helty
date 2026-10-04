@@ -46,6 +46,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   String?
   _selectedPaymentMethod; // 'Cash', 'Transfer', 'Cheque', 'Card', or null
   bool _isFiltersOpen = false;
+  bool _showDeleted = false;
+  bool _deleting = false;
+  List<TransactionMap> _selectedForDelete = [];
 
   // ─── Fetched data (one page for totals + table client-side pagination) ─────
   static const int _fetchPageSize = 500;
@@ -76,7 +79,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       search: _searchQuery.trim().isEmpty ? null : _searchQuery.trim(),
       fromDate: _dateFrom,
       toDate: _dateTo,
-      status: _status?.label.toUpperCase().replaceAll(' ', '_'),
       initiatedBy: _initiatedById?.trim().isNotEmpty == true
           ? _initiatedById!.trim()
           : null,
@@ -84,6 +86,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           _selectedPaymentMethod != null && _selectedPaymentMethod!.isNotEmpty
           ? _selectedPaymentMethod!.toUpperCase()
           : null,
+      invoiceStatus: _showDeleted ? 'DELETED' : null,
+      status: _showDeleted
+          ? null
+          : _status?.label.toUpperCase().replaceAll(' ', '_'),
       skip: skip,
       take: take,
       sortBy: 'createdAt',
@@ -138,6 +144,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           _initiatedById = null;
         }
         _tableDataGeneration++;
+        _selectedForDelete = [];
         _rebindSelectedTransaction();
         _loading = false;
       });
@@ -183,6 +190,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       _myTransactionsOnly = false;
       _initiatedById = null;
       _selectedPaymentMethod = null;
+      _showDeleted = false;
+      _selectedForDelete = [];
       _isFiltersOpen = false;
     });
     _loadTransactions();
@@ -191,6 +200,69 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   void _onSearchSubmitted(String value) {
     setState(() => _searchQuery = value);
     _loadTransactions();
+  }
+
+  Future<void> _deleteSelectedInvoices() async {
+    final invoiceIds = _selectedForDelete
+        .map((txn) => txn['invoiceId']?.toString().trim() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    if (invoiceIds.isEmpty || _deleting) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete invoices'),
+        content: Text(
+          invoiceIds.length == 1
+              ? 'This marks the invoice as deleted. It stays in Deleted transactions, drops out of live totals, and pending lab, radiology, pharmacy, and other requests are removed.'
+              : 'This marks ${invoiceIds.length} invoices as deleted. They stay in Deleted transactions, drop out of live totals, and pending department requests are removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    try {
+      final result = await _transactionService.softDeleteInvoices(invoiceIds);
+      if (!mounted) return;
+      final rejected = result.rejected
+          .map((issue) => issue.reason)
+          .where((reason) => reason.isNotEmpty)
+          .toSet()
+          .join(' ');
+      final message = StringBuffer()
+        ..write('${result.deleted.length} deleted');
+      if (result.skipped.isNotEmpty) {
+        message.write(', ${result.skipped.length} already deleted');
+      }
+      if (result.rejected.isNotEmpty) {
+        message.write(', ${result.rejected.length} not deleted');
+        if (rejected.isNotEmpty) message.write(': $rejected');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message.toString())),
+      );
+      await _loadTransactions();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete invoices: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
   }
 
   Future<PagedData<TransactionMap>> _fetchTransactions(
@@ -386,6 +458,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       ref.watch(authProvider).staff,
     );
     final canRefund = canRequestInvoiceItemRefund(ref.watch(authProvider).staff);
+    final canDelete = canDeleteInpatientInvoice(ref.watch(authProvider).staff);
     final totals = calculateTransactionTotals(_transactionMaps);
 
     return Scaffold(
@@ -432,6 +505,22 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         onSubmitted: _onSearchSubmitted,
                       ),
                     ),
+                    if (canDelete &&
+                        !_showDeleted &&
+                        _selectedForDelete.isNotEmpty)
+                      FilledButton.icon(
+                        onPressed: _deleting ? null : _deleteSelectedInvoices,
+                        icon: _deleting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.delete_outline, size: 18),
+                        label: Text(
+                          'Delete selected (${_selectedForDelete.map((txn) => txn['invoiceId']).whereType<String>().toSet().length})',
+                        ),
+                      ),
                     OutlinedButton.icon(
                       onPressed: () => setState(() => _isFiltersOpen = true),
                       icon: const Icon(Icons.filter_list, size: 18),
@@ -459,7 +548,29 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   },
                   selectedPaymentMethod: _selectedPaymentMethod,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('Transactions')),
+                      ButtonSegment(
+                        value: true,
+                        label: Text('Deleted transactions'),
+                      ),
+                    ],
+                    selected: {_showDeleted},
+                    onSelectionChanged: (selection) {
+                      setState(() {
+                        _showDeleted = selection.first;
+                        _selectedForDelete = [];
+                        _selectedTransaction = null;
+                      });
+                      _loadTransactions();
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 if (_loadError != null)
                   Padding(
@@ -502,22 +613,31 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       secondFlex: 1,
                       gap: bp.isMobile ? 12 : 24,
                       first: ResponsiveDataTable(
+                        horizontalScroll: false,
                         child: ReusableAsyncTable<TransactionMap>(
                             key: ValueKey(
-                              '$_searchQuery$_dateFrom$_dateTo$_status$_selectedPaymentMethod$_initiatedById$_tableDataGeneration',
+                              '$_searchQuery$_dateFrom$_dateTo$_status$_selectedPaymentMethod$_initiatedById$_showDeleted$_tableDataGeneration',
                             ),
-                            columns: const [
-                              DataColumn2(label: Text('Transaction ID')),
-                              DataColumn2(label: Text('Patient Name')),
-                              DataColumn2(label: Text('Services')),
-                              DataColumn2(label: Text('Amount Due')),
-                              DataColumn2(label: Text('Amount Paid')),
-                              DataColumn2(label: Text('Payment Method')),
-                              DataColumn2(label: Text('Discount')),
-                              DataColumn2(label: Text('Date & Time')),
-                              DataColumn2(label: Text('Outstanding Debt')),
-                              DataColumn2(label: Text('Initiated By')),
-                              DataColumn2(label: Text('Status')),
+                            enableSelection: canDelete && !_showDeleted,
+                            onSelectionChanged: (selected) {
+                              setState(() => _selectedForDelete = selected);
+                            },
+                            columns: [
+                              const DataColumn2(label: Text('Transaction ID')),
+                              const DataColumn2(label: Text('Patient Name')),
+                              const DataColumn2(label: Text('Services')),
+                              const DataColumn2(label: Text('Amount Due')),
+                              const DataColumn2(label: Text('Amount Paid')),
+                              const DataColumn2(label: Text('Payment Method')),
+                              const DataColumn2(label: Text('Discount')),
+                              const DataColumn2(label: Text('Date & Time')),
+                              const DataColumn2(label: Text('Outstanding Debt')),
+                              const DataColumn2(label: Text('Initiated By')),
+                              const DataColumn2(label: Text('Status')),
+                              if (_showDeleted) ...[
+                                const DataColumn2(label: Text('Deleted by')),
+                                const DataColumn2(label: Text('Deleted at')),
+                              ],
                             ],
                             fetchData: _fetchTransactions,
                             idGetter: (txn) {
@@ -641,6 +761,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                   },
                                 ),
                               ),
+                              if (_showDeleted) ...[
+                                DataCell(
+                                  Text((txn['deletedBy'] as String?) ?? '—'),
+                                ),
+                                DataCell(
+                                  Text((txn['deletedAt'] as String?) ?? '—'),
+                                ),
+                              ],
                             ],
                             onRowTap: (txn) =>
                                 setState(() => _selectedTransaction = txn),

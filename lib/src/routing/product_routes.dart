@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 
 import '../app/product_definition.dart';
 import '../app/product_environment.dart';
+import 'route_groups/accounting_routes.dart';
 import 'route_groups/billing_routes.dart';
 import 'route_groups/hmo_routes.dart';
 import 'route_groups/hospital_routes.dart';
@@ -15,9 +16,9 @@ import 'route_module_map.dart';
 /// Composes Home child routes for the active [AppProduct].
 ///
 /// Hospital = shared + registration + billing + pharmacy + lab + radiology + hospital-only.
-/// Pharmacy = shared + registration + billing + pharmacy.
-/// Diagnostics = shared + registration + billing + laboratory + radiology.
-/// Lab & pharmacy = shared + registration + billing + pharmacy + laboratory + HMO.
+/// Pharmacy = shared + registration + billing + pharmacy + accounting.
+/// Diagnostics = shared + registration + billing + laboratory + radiology + accounting.
+/// Lab & pharmacy = shared + registration + billing + pharmacy + laboratory + HMO + accounting.
 class ProductRoutes {
   ProductRoutes._();
 
@@ -41,6 +42,7 @@ class ProductRoutes {
       if (modules.contains(AppModule.laboratory)) ...laboratoryRoutes(),
       if (modules.contains(AppModule.radiology)) ...radiologyRoutes(),
       if (modules.contains(AppModule.hmo)) ...hmoRoutes(),
+      if (modules.contains(AppModule.accounting)) ...accountingRoutes(),
       if (isHospital) ...hospitalOnlyRoutes(initialCmd: true),
     ];
   }

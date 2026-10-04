@@ -14,6 +14,7 @@ class ResponsiveDataTable extends StatefulWidget {
     this.minHeight = 260,
     this.maxHeight = 2000,
     this.horizontalScrollController,
+    this.horizontalScroll = true,
   });
 
   final Widget child;
@@ -22,6 +23,9 @@ class ResponsiveDataTable extends StatefulWidget {
   final double minHeight;
   final double maxHeight;
   final ScrollController? horizontalScrollController;
+
+  /// When false, the child handles its own horizontal scrolling.
+  final bool horizontalScroll;
 
   @override
   State<ResponsiveDataTable> createState() => _ResponsiveDataTableState();
@@ -76,27 +80,31 @@ class _ResponsiveDataTableState extends State<ResponsiveDataTable> {
             ? constraints.maxHeight.clamp(widget.minHeight, double.infinity)
             : _fallbackHeight(context);
 
-        final table = Scrollbar(
-          controller: _horizontalController,
-          thumbVisibility: widget.horizontalScrollController != null,
-          notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
-          child: SingleChildScrollView(
-            controller: _horizontalController,
-            scrollDirection: Axis.horizontal,
-            // Horizontal scroll views pass unbounded max width. Pin both
-            // min and max so Column/Row stretch children get finite constraints.
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: tableMinW,
-                maxWidth: tableMinW,
-              ),
-              child: SizedBox(
-                height: height,
-                child: widget.child,
-              ),
-            ),
-          ),
+        final sizedChild = SizedBox(
+          height: height,
+          width: widget.horizontalScroll ? null : availableW,
+          child: widget.child,
         );
+        final table = widget.horizontalScroll
+            ? Scrollbar(
+                controller: _horizontalController,
+                thumbVisibility: widget.horizontalScrollController != null,
+                notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+                child: SingleChildScrollView(
+                  controller: _horizontalController,
+                  scrollDirection: Axis.horizontal,
+                  // Horizontal scroll views pass unbounded max width. Pin both
+                  // min and max so Column/Row stretch children get finite constraints.
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: tableMinW,
+                      maxWidth: tableMinW,
+                    ),
+                    child: sizedChild,
+                  ),
+                ),
+              )
+            : sizedChild;
 
         return Card(
           elevation: 0,

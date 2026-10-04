@@ -12,8 +12,10 @@ Future<void> showNewPatientInvoiceForm(
   TextEditingController age,
   TextEditingController gender,
   TextEditingController wardId,
-  Function createNewPatient,
-) {
+  Function createNewPatient, {
+  TextEditingController? phoneNumber,
+  TextEditingController? email,
+}) {
   final colorScheme = Theme.of(context).colorScheme;
   final wardService = WardService();
   final wardsFuture = wardService.fetchWards();
@@ -155,6 +157,28 @@ Future<void> showNewPatientInvoiceForm(
                     ),
                   ],
                 ),
+                if (phoneNumber != null) ...[
+                  const SizedBox(height: 20),
+                  BuildModernTextField(
+                    colorScheme: colorScheme,
+                    label: "Phone number",
+                    hint: "Phone number",
+                    isNumber: false,
+                    keyboardType: TextInputType.phone,
+                    controller: phoneNumber,
+                  ),
+                ],
+                if (email != null) ...[
+                  const SizedBox(height: 20),
+                  BuildModernTextField(
+                    colorScheme: colorScheme,
+                    label: "Email",
+                    hint: "Email (optional)",
+                    isNumber: false,
+                    keyboardType: TextInputType.emailAddress,
+                    controller: email,
+                  ),
+                ],
                 FutureBuilder<List<Ward>>(
                   future: wardsFuture,
                   builder: (context, snapshot) {
@@ -184,6 +208,8 @@ Future<void> showNewPatientInvoiceForm(
               age.clear();
               gender.clear();
               wardId.clear();
+              phoneNumber?.clear();
+              email?.clear();
               Navigator.pop(context);
             },
             child: Text(
@@ -195,6 +221,12 @@ Future<void> showNewPatientInvoiceForm(
           ),
           ElevatedButton.icon(
             onPressed: () {
+              if (phoneNumber != null && phoneNumber.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Phone number is required')),
+                );
+                return;
+              }
               createNewPatient();
               Navigator.pop(context);
             },

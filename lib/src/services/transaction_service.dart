@@ -114,6 +114,7 @@ class TransactionQuery {
     this.take = 10,
     this.sortBy,
     this.sortOrder = 'desc',
+    this.invoiceStatus,
   });
 
   final String? search; // generic full-text search
@@ -133,6 +134,9 @@ class TransactionQuery {
   final int take;
   final String? sortBy; // e.g. 'createdAt', 'amountDue', ...
   final String sortOrder; // 'asc' | 'desc'
+
+  /// `DELETED` lists soft-deleted invoices. Null excludes them.
+  final String? invoiceStatus;
 
   /// Maps UI payment labels to backend enum strings.
   static String? paymentMethodForApi(String? raw) {
@@ -164,6 +168,8 @@ class TransactionQuery {
     'take': take,
     if (sortBy != null && sortBy!.isNotEmpty) 'sortBy': sortBy,
     'sortOrder': sortOrder,
+    if (invoiceStatus != null && invoiceStatus!.isNotEmpty)
+      'invoiceStatus': invoiceStatus,
   };
 }
 
@@ -298,6 +304,30 @@ class TransactionService {
   /// DELETE /transaction/:id — soft-deletes or cancels a transaction.
   Future<void> deleteTransaction(String id) async {
     await _dio.delete('/invoices/payments/$id');
+  }
+
+  /// POST /invoices/soft-delete — marks invoices deleted without removing them.
+  Future<SoftDeleteInvoicesResult> softDeleteInvoices(
+    List<String> invoiceIds,
+  ) async {
+    final resp = await _dio.post(
+      '/invoices/soft-delete',
+      data: {'invoiceIds': invoiceIds},
+    );
+    final body = resp.data;
+    if (body is! Map) {
+      return const SoftDeleteInvoicesResult(
+        deleted: [],
+        skipped: [],
+        rejected: [],
+      );
+    }
+    final map = Map<String, dynamic>.from(body);
+    return SoftDeleteInvoicesResult(
+      deleted: _idList(map['deleted']),
+      skipped: _reasonList(map['skipped']),
+      rejected: _reasonList(map['rejected']),
+    );
   }
 
   // ── Banks ─────────────────────────────────────────────────────────────────
@@ -450,6 +480,8 @@ class TransactionService {
         return TransactionStatus.cancelled;
       case 'refunded':
         return TransactionStatus.refunded;
+      case 'deleted':
+        return TransactionStatus.deleted;
       default:
         return TransactionStatus.active;
     }
@@ -588,6 +620,15 @@ class TransactionService {
       );
     }).toList();
 
+    final deletedByRaw = invoice['deletedBy'];
+    final deletedBy = deletedByRaw is Map
+        ? _staffName(Map<String, dynamic>.from(deletedByRaw))
+        : null;
+    final deletedAtRaw = invoice['deletedAt'];
+    final deletedAt = deletedAtRaw == null
+        ? null
+        : _toDateTime(deletedAtRaw);
+
     return TransactionModel(
       id: (j['id'] ?? '').toString(),
       invoiceId: (j['invoiceId'] ?? invoice['id'])?.toString(),
@@ -619,6 +660,46 @@ class TransactionService {
       createdBy: who.isEmpty ? (j['receivedById'] ?? '').toString() : who,
       admissionId: null,
       notes: j['notes']?.toString(),
+      deletedBy: deletedBy == null || deletedBy.isEmpty ? null : deletedBy,
+      deletedAt: deletedAt,
     );
   }
+
+  static List<String> _idList(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => e['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+  }
+
+  static List<SoftDeleteInvoiceIssue> _reasonList(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((e) {
+      return SoftDeleteInvoiceIssue(
+        id: e['id']?.toString() ?? '',
+        reason: e['reason']?.toString() ?? '',
+      );
+    }).toList();
+  }
+}
+
+class SoftDeleteInvoiceIssue {
+  const SoftDeleteInvoiceIssue({required this.id, required this.reason});
+
+  final String id;
+  final String reason;
+}
+
+class SoftDeleteInvoicesResult {
+  const SoftDeleteInvoicesResult({
+    required this.deleted,
+    required this.skipped,
+    required this.rejected,
+  });
+
+  final List<String> deleted;
+  final List<SoftDeleteInvoiceIssue> skipped;
+  final List<SoftDeleteInvoiceIssue> rejected;
 }

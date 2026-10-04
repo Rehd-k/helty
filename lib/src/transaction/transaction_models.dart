@@ -15,7 +15,8 @@ enum TransactionStatus {
   partiallyPaid,
   paid,
   cancelled,
-  refunded;
+  refunded,
+  deleted;
 
   String get label => switch (this) {
     TransactionStatus.draft => 'Draft',
@@ -24,6 +25,7 @@ enum TransactionStatus {
     TransactionStatus.paid => 'Paid',
     TransactionStatus.cancelled => 'Cancelled',
     TransactionStatus.refunded => 'Refunded',
+    TransactionStatus.deleted => 'Deleted',
   };
 }
 
@@ -138,6 +140,8 @@ class TransactionModel {
     required this.createdBy,
     this.admissionId,
     this.notes,
+    this.deletedBy,
+    this.deletedAt,
   });
 
   final String id;
@@ -164,6 +168,8 @@ class TransactionModel {
 
   final String? admissionId;
   final String? notes;
+  final String? deletedBy;
+  final DateTime? deletedAt;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -418,6 +424,9 @@ TransactionMap transactionModelToMap(TransactionModel m) {
     if (reference != null && reference.trim().isNotEmpty)
       'reference': reference,
     'id': m.id,
+    if (m.deletedBy != null && m.deletedBy!.trim().isNotEmpty)
+      'deletedBy': m.deletedBy,
+    if (m.deletedAt != null) 'deletedAt': DateFormatter.dateTime(m.deletedAt!),
   };
 }
 

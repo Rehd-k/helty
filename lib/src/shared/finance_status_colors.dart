@@ -23,6 +23,7 @@ abstract final class FinanceStatusColors {
         'PARTIALLY_PAID' => DepartmentColors.billing,
         'CANCELLED' => DepartmentColors.emergency,
         'REFUNDED' => DepartmentColors.laboratory,
+        'DELETED' => scheme.error,
         'ACTIVE' => scheme.primary,
         _ => scheme.onSurface.withValues(alpha: 0.5),
       };

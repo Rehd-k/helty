@@ -76,6 +76,7 @@ const kPharmacyProduct = ProductDefinition(
     AppModule.registration,
     AppModule.billing,
     AppModule.pharmacy,
+    AppModule.accounting,
   },
 );
 
@@ -87,10 +88,11 @@ const kDiagnosticsProduct = ProductDefinition(
     AppModule.billing,
     AppModule.laboratory,
     AppModule.radiology,
+    AppModule.accounting,
   },
 );
 
-/// Laboratory, pharmacy, and HMO — without radiology or hospital clinical ops.
+/// Laboratory, pharmacy, HMO, and accounting — without radiology or hospital clinical ops.
 const kLabPharmacyProduct = ProductDefinition(
   product: AppProduct.labPharmacy,
   displayName: 'Helty Lab & Pharmacy',
@@ -100,6 +102,7 @@ const kLabPharmacyProduct = ProductDefinition(
     AppModule.pharmacy,
     AppModule.laboratory,
     AppModule.hmo,
+    AppModule.accounting,
   },
 );
 

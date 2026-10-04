@@ -137,7 +137,7 @@ const Map<String, AppModule> _routeModules = {
   'DoctorPendingImagingRoute': AppModule.physician,
   'DoctorPendingPrescriptionsRoute': AppModule.physician,
   'DoctorCompletedEncountersRoute': AppModule.physician,
-  'ConsultationPaymentReportRoute': AppModule.physician,
+  'ConsultationPaymentReportRoute': AppModule.accounting,
   'HospitalReportsHubRoute': AppModule.medicalRecords,
   'HospitalReportRoute': AppModule.medicalRecords,
   'HealthCampaignsAdminRoute': AppModule.medicalRecords,
@@ -272,8 +272,8 @@ const Map<String, AppModule> _routeModules = {
   'HmoFormRoute': AppModule.hmo,
   'HmoServicePricingRoute': AppModule.hmo,
 
-  // Medical records extras (beyond shared patient registration)
-  // ConsultationPaymentReport is physician-adjacent; chart remains registration.
+  // Medical records extras (beyond shared patient registration).
+  // Consultation payment report is registered with accounting.
 
   // ICT
   'DashboardRoute': AppModule.ict,
