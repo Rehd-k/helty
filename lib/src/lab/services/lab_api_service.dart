@@ -313,6 +313,25 @@ class LabApiService {
     return LabOrder.fromJson(data);
   }
 
+  Future<void> sendResultsToPatient({
+    required String patientId,
+    required bool sendEmail,
+    required bool sendSms,
+    String? pdfBase64,
+    String? smsText,
+  }) async {
+    await _dio.post(
+      '$_prefix/orders/send-to-patient',
+      data: {
+        'patientId': patientId,
+        'sendEmail': sendEmail,
+        'sendSms': sendSms,
+        'pdfBase64': ?pdfBase64,
+        'smsText': ?smsText,
+      },
+    );
+  }
+
   Future<LabOrder> updateOrderStatus(String id, LabOrderStatus status) async {
     final response = await _dio.patch<Map<String, dynamic>>(
       '$_prefix/orders/$id',

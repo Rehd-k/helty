@@ -14,6 +14,7 @@ import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/lab/ui/widgets/lab_clinical_ui.dart';
+import 'package:helty/src/lab/widgets/send_lab_results_dialog.dart';
 import 'package:helty/src/models/super_admin_department_preview.dart';
 import 'package:helty/src/printing/pdf/lab_order_pdf.dart';
 import 'package:helty/src/printing/pdf/report_template_picker.dart';
@@ -936,10 +937,12 @@ class _PatientOrdersTile extends ConsumerStatefulWidget {
 class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
   final Set<String> _selectedItemIds = {};
   bool _printing = false;
+  bool _sending = false;
   bool _expanded = false;
   bool _loadingResults = false;
   Object? _loadError;
   Map<String, LabOrder>? _enrichedOrders;
+  Future<void>? _resultsLoad;
 
   List<LabOrder> get _displayOrders =>
       widget.group.orders.map((o) => _enrichedOrders?[o.id] ?? o).toList();
@@ -978,15 +981,24 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
     }
   }
 
-  Future<void> _loadOrderResults() async {
-    if (_loadingResults) return;
+  Future<void> _loadOrderResults() {
+    final inFlight = _resultsLoad;
+    if (inFlight != null) return inFlight;
 
     final orderIds = widget.group.orders.map((o) => o.id).toList();
     final allLoaded =
         _enrichedOrders != null &&
         orderIds.every((id) => _enrichedOrders!.containsKey(id));
-    if (allLoaded) return;
+    if (allLoaded) return Future.value();
 
+    final future = _fetchOrderResults(orderIds);
+    _resultsLoad = future;
+    return future.whenComplete(() {
+      if (identical(_resultsLoad, future)) _resultsLoad = null;
+    });
+  }
+
+  Future<void> _fetchOrderResults(List<String> orderIds) async {
     setState(() {
       _loadingResults = true;
       _loadError = null;
@@ -1103,6 +1115,85 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
     }
   }
 
+  List<({LabOrder order, LabOrderItem item})> _entriesForSend() {
+    final selected = <({LabOrder order, LabOrderItem item})>[];
+    final all = <({LabOrder order, LabOrderItem item})>[];
+    for (final order in _displayOrders) {
+      for (final item in order.items) {
+        if (!labOrderItemHasPrintableResults(item)) continue;
+        final entry = (order: order, item: item);
+        all.add(entry);
+        if (_selectedItemIds.contains(item.id)) selected.add(entry);
+      }
+    }
+    return selected.isNotEmpty ? selected : all;
+  }
+
+  LabOrderPatient? get _patientForSend {
+    for (final order in _displayOrders) {
+      final patient = order.patient;
+      if (patient != null && patient.id.isNotEmpty) return patient;
+    }
+    return widget.group.patient;
+  }
+
+  Future<void> _sendToPatient() async {
+    if (_sending) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    setState(() => _sending = true);
+    try {
+      await _loadOrderResults();
+      if (!mounted) return;
+      if (_loadError != null && (_enrichedOrders == null || _enrichedOrders!.isEmpty)) {
+        messenger?.showSnackBar(
+          SnackBar(content: Text('Unable to load results. $_loadError')),
+        );
+        return;
+      }
+      final patient = _patientForSend;
+      if (patient == null || patient.id.isEmpty) {
+        messenger?.showSnackBar(
+          const SnackBar(content: Text('Patient information is missing.')),
+        );
+        return;
+      }
+      final entries = _entriesForSend();
+      if (entries.isEmpty) {
+        messenger?.showSnackBar(
+          const SnackBar(content: Text('No printable results to send.')),
+        );
+        return;
+      }
+      final choice = await showSendLabResultsToPatientDialog(
+        context,
+        patient: patient,
+      );
+      if (choice == null || !mounted) return;
+      await sendLabResultsToPatient(
+        api: ref.read(labApiServiceProvider),
+        patient: patient,
+        entries: entries,
+        sendEmail: choice.sendEmail,
+        sendSms: choice.sendSms,
+      );
+      if (!mounted) return;
+      final channels = [
+        if (choice.sendEmail) 'email',
+        if (choice.sendSms) 'phone',
+      ].join(' and ');
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Results sent by $channels.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        SnackBar(content: Text(labSendErrorText(e))),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1181,6 +1272,8 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
                   _onExpansionChanged(!_expanded);
                 case 'print':
                   _printSelected();
+                case 'send':
+                  _sendToPatient();
               }
             },
             itemBuilder: (context) => [
@@ -1192,6 +1285,12 @@ class _PatientOrdersTileState extends ConsumerState<_PatientOrdersTile> {
                 value: 'print',
                 enabled: _hasPrintableSelection && !_printing,
                 child: const Text('Print selected tests'),
+              ),
+              PopupMenuItem(
+                value: 'send',
+                enabled: !_sending &&
+                    (_enrichedOrders == null || _printableItems.isNotEmpty),
+                child: const Text('Send to patient'),
               ),
             ],
           ),

@@ -883,7 +883,11 @@ class PayBillState extends ConsumerState<PayBill> {
   }
 
   void _openReceiptPrinterPicker() {
-    showReceiptPrinterPickerSheet(context, data: _receiptDataForPrinter());
+    showReceiptPrinterPickerSheet(
+      context,
+      data: _receiptDataForPrinter(),
+      askCopyCount: true,
+    );
   }
 
   // --- UI Builders ---

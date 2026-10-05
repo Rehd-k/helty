@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:helty/src/app/org_config.dart';
 import 'package:helty/src/core/platform/helty_platform.dart';
@@ -12,6 +13,7 @@ Future<void> showReceiptPrinterPickerSheet(
   ReceiptHospitalHeader? header,
   bool isCopy = false,
   String? logoAssetPath,
+  bool askCopyCount = false,
 }) async {
   if (!HeltyPlatform.isWindows) {
     if (!context.mounted) return;
@@ -37,6 +39,7 @@ Future<void> showReceiptPrinterPickerSheet(
       header: resolvedHeader,
       isCopy: isCopy,
       logoAssetPath: resolvedLogo,
+      askCopyCount: askCopyCount,
     ),
   );
 }
@@ -47,12 +50,14 @@ class _ReceiptPrinterPickerBody extends StatefulWidget {
     required this.header,
     required this.isCopy,
     required this.logoAssetPath,
+    required this.askCopyCount,
   });
 
   final Map<String, dynamic> data;
   final ReceiptHospitalHeader header;
   final bool isCopy;
   final String logoAssetPath;
+  final bool askCopyCount;
 
   @override
   State<_ReceiptPrinterPickerBody> createState() =>
@@ -91,17 +96,37 @@ class _ReceiptPrinterPickerBodyState extends State<_ReceiptPrinterPickerBody> {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final nav = Navigator.of(context);
     try {
-      await ReceiptEscposService.printReceipt(
-        data: widget.data,
-        header: widget.header,
-        sink: ReceiptPrintSink.windowsDefault,
-        windowsPrinterName: name,
-        isCopy: widget.isCopy,
-        logoAssetPath: widget.logoAssetPath,
-      );
+      var copies = 1;
+      if (widget.askCopyCount) {
+        final chosen = await showDialog<int>(
+          context: context,
+          builder: (context) => const _ReceiptCopyCountDialog(),
+        );
+        if (!mounted) return;
+        if (chosen == null) return;
+        copies = chosen;
+      }
+      for (var i = 0; i < copies; i++) {
+        await ReceiptEscposService.printReceipt(
+          data: widget.data,
+          header: widget.header,
+          sink: ReceiptPrintSink.windowsDefault,
+          windowsPrinterName: name,
+          isCopy: widget.isCopy,
+          logoAssetPath: widget.logoAssetPath,
+        );
+      }
       if (!mounted) return;
       nav.pop();
-      messenger?.showSnackBar(SnackBar(content: Text('Receipt sent to $name')));
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            copies == 1
+                ? 'Receipt sent to $name'
+                : '$copies copies sent to $name',
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       messenger?.showSnackBar(SnackBar(content: Text('Print failed: $e')));
@@ -213,6 +238,65 @@ class _ReceiptPrinterPickerBodyState extends State<_ReceiptPrinterPickerBody> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReceiptCopyCountDialog extends StatefulWidget {
+  const _ReceiptCopyCountDialog();
+
+  @override
+  State<_ReceiptCopyCountDialog> createState() => _ReceiptCopyCountDialogState();
+}
+
+class _ReceiptCopyCountDialogState extends State<_ReceiptCopyCountDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: '1');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  int? get _copies {
+    final count = int.tryParse(_controller.text.trim());
+    if (count == null || count < 1) return null;
+    return count;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final copies = _copies;
+    return AlertDialog(
+      title: const Text('How many copies?'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: const InputDecoration(
+          labelText: 'Copies',
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: copies == null
+              ? null
+              : () => Navigator.pop(context, copies),
+          child: const Text('Print'),
+        ),
+      ],
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:helty/src/lab/models/lab_models.dart';
 import 'package:helty/src/lab/providers/lab_providers.dart';
 import 'package:helty/src/lab/widgets/lab_ast_result_grid.dart';
 import 'package:helty/src/lab/widgets/lab_dynamic_result_form.dart';
+import 'package:helty/src/lab/widgets/send_lab_results_dialog.dart';
 import 'package:helty/src/providers/auth_provider.dart';
 
 @RoutePage()
@@ -34,6 +35,9 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
   bool _loading = true;
   String? _error;
   bool _saving = false;
+  bool _sending = false;
+  bool _offerSendToPatient = false;
+  LabOrder? _order;
   String? _testName;
   String? _testVersionId;
   bool _hasExistingResults = false;
@@ -53,6 +57,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
     try {
       final order =
           await ref.read(labOrderByIdProvider(widget.orderId).future);
+      _order = order;
       final matching =
           order.items.where((e) => e.id == widget.orderItemId).toList();
       final item = matching.isEmpty ? null : matching.first;
@@ -384,22 +389,30 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
             ],
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: _saving || staff == null
+              onPressed: _saving || _sending
                   ? null
-                  : () => _submit(context),
+                  : _offerSendToPatient
+                      ? () => _sendSavedResults(context)
+                      : staff == null
+                          ? null
+                          : () => _submit(context),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: _saving
+              child: _saving || _sending
                   ? const SizedBox(
                       height: 24,
                       width: 24,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save results'),
+                  : Text(
+                      _offerSendToPatient
+                          ? 'Send to patient'
+                          : 'Save results',
+                    ),
             ),
           ],
         ),
@@ -424,7 +437,7 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
     });
 
     final api = ref.read(labApiServiceProvider);
-    final router = context.router;
+    final messenger = ScaffoldMessenger.maybeOf(context);
 
     try {
       if (_fields != null && _fields!.isNotEmpty) {
@@ -467,13 +480,83 @@ class _LabResultEntryScreenState extends ConsumerState<LabResultEntryScreen> {
 
       if (!mounted) return;
       invalidateLabOrderCaches(ref, orderId: widget.orderId);
-      router.maybePop();
+      ref.invalidate(labOrdersFutureProvider);
+      LabOrder? refreshed;
+      try {
+        refreshed =
+            await ref.read(labOrderByIdProvider(widget.orderId).future);
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        if (refreshed != null) _order = refreshed;
+        _offerSendToPatient = true;
+        _saving = false;
+      });
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Results saved. Order marked completed.')),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _saving = false;
       });
+    }
+  }
+
+  Future<void> _sendSavedResults(BuildContext context) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final order = _order;
+    final patient = order?.patient;
+    if (order == null || patient == null || patient.id.isEmpty) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Patient information is missing.')),
+      );
+      return;
+    }
+    final matches =
+        order.items.where((item) => item.id == widget.orderItemId).toList();
+    if (matches.isEmpty) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Order item not found.')),
+      );
+      return;
+    }
+
+    final choice = await showSendLabResultsToPatientDialog(
+      context,
+      patient: patient,
+    );
+    if (choice == null || !mounted) return;
+
+    setState(() {
+      _error = null;
+      _sending = true;
+    });
+    try {
+      await sendLabResultsToPatient(
+        api: ref.read(labApiServiceProvider),
+        patient: patient,
+        entries: [(order: order, item: matches.first)],
+        sendEmail: choice.sendEmail,
+        sendSms: choice.sendSms,
+      );
+      if (!mounted) return;
+      final channels = [
+        if (choice.sendEmail) 'email',
+        if (choice.sendSms) 'phone',
+      ].join(' and ');
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Results sent by $channels.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = labSendErrorText(e));
+      messenger?.showSnackBar(
+        SnackBar(content: Text(labSendErrorText(e))),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 }

@@ -378,6 +378,8 @@ class LabOrderPatient {
     this.gender,
     this.dob,
     this.avatarUrl,
+    this.email,
+    this.phoneNumber,
   });
 
   final String id;
@@ -389,6 +391,8 @@ class LabOrderPatient {
   final String? gender;
   final DateTime? dob;
   final String? avatarUrl;
+  final String? email;
+  final String? phoneNumber;
 
   String get displayName => patientDisplayNameFromJson({
         'title': title,
@@ -419,6 +423,8 @@ class LabOrderPatient {
             ? DateTime.tryParse(json['dob'] as String)
             : null,
         avatarUrl: avatarUrlFromJson(json),
+        email: json['email'] as String?,
+        phoneNumber: json['phoneNumber'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -430,6 +436,8 @@ class LabOrderPatient {
         if (patientId != null) 'patientId': patientId,
         if (gender != null) 'gender': gender,
         if (dob != null) 'dob': dob!.toIso8601String(),
+        if (email != null) 'email': email,
+        if (phoneNumber != null) 'phoneNumber': phoneNumber,
       };
 }
 
