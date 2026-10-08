@@ -1,10 +1,21 @@
-FROM instrumentisto/flutter:latest AS build
+# Stage 1: Build Flutter Web using official Flutter stable
+FROM ubuntu:24.04 AS build
+
+# Install prerequisites
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git unzip ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone Flutter stable directly from official repo
+RUN git clone https://github.com/flutter/flutter.git --depth 1 -b stable /sdks/flutter
+ENV PATH="/sdks/flutter/bin:$PATH"
+
+# Pre-download web artifacts
+RUN flutter precache --web
 
 WORKDIR /app
 
 COPY pubspec.* ./
-
-RUN flutter --version
 RUN flutter pub get
 
 COPY . .
@@ -15,6 +26,7 @@ RUN flutter build web \
     --no-web-resources-cdn \
     --pwa-strategy=none
 
+# Stage 2: Serve via Nginx
 FROM nginx:alpine
 
 COPY --from=build /app/build/web /usr/share/nginx/html
