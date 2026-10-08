@@ -636,6 +636,9 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
 
     return IconButton(
       tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       icon: Icon(
         canCancel ? Icons.cancel_outlined : Icons.undo_outlined,
         size: 22,
@@ -1869,6 +1872,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
           children: [
             Text(
               effectivePatientName.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 18,
                 color: colorScheme.onSurfaceVariant,
@@ -1876,6 +1881,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             ),
             Text(
               'Invoice ID: $invoiceDisplayId',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 12,
                 color: colorScheme.onSurfaceVariant,
@@ -1889,38 +1896,74 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
             tooltip: 'Reload invoice',
             onPressed: _loadBillingData,
           ),
-          IconButton(
-            icon: const Icon(Icons.print_outlined),
-            tooltip: 'Print Invoice',
-            onPressed: () => _printInvoice(
-              patientDisplayId: patientDisplayId,
-              invoiceDisplayId: invoiceDisplayId,
-              effectivePatientName: effectivePatientName,
-              charges: charges,
-              totalCharges: totalCharges,
-              totalPayments: totalPayments,
-              balanceDue: balanceDue,
-              walletBalance: walletBalance,
+          if (MediaQuery.sizeOf(context).width >= 600) ...[
+            IconButton(
+              icon: const Icon(Icons.print_outlined),
+              tooltip: 'Print Invoice',
+              onPressed: () => _printInvoice(
+                patientDisplayId: patientDisplayId,
+                invoiceDisplayId: invoiceDisplayId,
+                effectivePatientName: effectivePatientName,
+                charges: charges,
+                totalCharges: totalCharges,
+                totalPayments: totalPayments,
+                balanceDue: balanceDue,
+                walletBalance: walletBalance,
+              ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.ios_share_rounded),
-            tooltip: 'Save as PDF',
-            onPressed: () => _shareInvoice(
-              patientDisplayId: patientDisplayId,
-              invoiceDisplayId: invoiceDisplayId,
-              effectivePatientName: effectivePatientName,
-              charges: charges,
-              totalCharges: totalCharges,
-              totalPayments: totalPayments,
-              balanceDue: balanceDue,
-              walletBalance: walletBalance,
+            IconButton(
+              icon: const Icon(Icons.ios_share_rounded),
+              tooltip: 'Save as PDF',
+              onPressed: () => _shareInvoice(
+                patientDisplayId: patientDisplayId,
+                invoiceDisplayId: invoiceDisplayId,
+                effectivePatientName: effectivePatientName,
+                charges: charges,
+                totalCharges: totalCharges,
+                totalPayments: totalPayments,
+                balanceDue: balanceDue,
+                walletBalance: walletBalance,
+              ),
             ),
-          ),
+          ] else
+            PopupMenuButton<String>(
+              tooltip: 'Invoice actions',
+              onSelected: (value) {
+                if (value == 'print') {
+                  _printInvoice(
+                    patientDisplayId: patientDisplayId,
+                    invoiceDisplayId: invoiceDisplayId,
+                    effectivePatientName: effectivePatientName,
+                    charges: charges,
+                    totalCharges: totalCharges,
+                    totalPayments: totalPayments,
+                    balanceDue: balanceDue,
+                    walletBalance: walletBalance,
+                  );
+                } else if (value == 'share') {
+                  _shareInvoice(
+                    patientDisplayId: patientDisplayId,
+                    invoiceDisplayId: invoiceDisplayId,
+                    effectivePatientName: effectivePatientName,
+                    charges: charges,
+                    totalCharges: totalCharges,
+                    totalPayments: totalPayments,
+                    balanceDue: balanceDue,
+                    walletBalance: walletBalance,
+                  );
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'print', child: Text('Print invoice')),
+                PopupMenuItem(value: 'share', child: Text('Save as PDF')),
+              ],
+            ),
         ],
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(text: 'Itemized Charges'),
             Tab(text: 'Payment History'),
@@ -1961,127 +2004,140 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         top: false,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed: () => _showAddActionSheet(
-                  context,
-                  patientUuid,
-                  effectivePatientName,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final buttons = <Widget>[
+                FilledButton.icon(
+                  onPressed: () => _showAddActionSheet(
+                    context,
+                    patientUuid,
+                    effectivePatientName,
+                  ),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Service'),
                 ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add Service'),
-              ),
-              FilledButton.tonalIcon(
-                onPressed:
-                    invoiceDetail == null ||
-                        (invoiceDetail.effectivePayable -
-                                invoiceDetail.amountPaid) <=
-                            0.001
-                    ? null
-                    : () {
-                        final lines = _selectedLineIdsForPay.isEmpty
-                            ? invoiceDetail.invoiceItems.toList()
-                            : invoiceDetail.invoiceItems
-                                  .where(
-                                    (e) =>
-                                        _selectedLineIdsForPay.contains(e.id),
-                                  )
-                                  .toList();
-                        if (lines.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('No bill lines to pay'),
-                            ),
-                          );
-                          return;
-                        }
-                        _openPayBillForItems(lines);
-                      },
-                icon: const Icon(Icons.payments_outlined, size: 18),
-                label: Text(
-                  _selectedLineIdsForPay.isEmpty
-                      ? 'Pay bill (all)'
-                      : 'Pay selected (${_selectedLineIdsForPay.length})',
+                FilledButton.tonalIcon(
+                  onPressed:
+                      invoiceDetail == null ||
+                          (invoiceDetail.effectivePayable -
+                                  invoiceDetail.amountPaid) <=
+                              0.001
+                      ? null
+                      : () {
+                          final lines = _selectedLineIdsForPay.isEmpty
+                              ? invoiceDetail.invoiceItems.toList()
+                              : invoiceDetail.invoiceItems
+                                    .where(
+                                      (e) =>
+                                          _selectedLineIdsForPay.contains(e.id),
+                                    )
+                                    .toList();
+                          if (lines.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('No bill lines to pay'),
+                              ),
+                            );
+                            return;
+                          }
+                          _openPayBillForItems(lines);
+                        },
+                  icon: const Icon(Icons.payments_outlined, size: 18),
+                  label: Text(
+                    _selectedLineIdsForPay.isEmpty
+                        ? 'Pay bill (all)'
+                        : 'Pay selected (${_selectedLineIdsForPay.length})',
+                  ),
                 ),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: patientUuid.isEmpty
-                    ? null
-                    : () => context.router.push(
-                        PatientWalletHistoryRoute(
+                FilledButton.tonalIcon(
+                  onPressed: patientUuid.isEmpty
+                      ? null
+                      : () => context.router.push(
+                          PatientWalletHistoryRoute(
+                            patientUuid: patientUuid,
+                            patientName: effectivePatientName,
+                            chartNumber: patientDisplayId,
+                          ),
+                        ),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('View history'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: patientUuid.isEmpty
+                      ? null
+                      : () => WalletDepositDialog.show(
+                          context,
+                          ref: ref,
                           patientUuid: patientUuid,
                           patientName: effectivePatientName,
                           chartNumber: patientDisplayId,
+                          onSuccess: _loadBillingData,
                         ),
-                      ),
-                icon: const Icon(Icons.history, size: 18),
-                label: const Text('View history'),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: patientUuid.isEmpty
-                    ? null
-                    : () => WalletDepositDialog.show(
-                        context,
-                        ref: ref,
-                        patientUuid: patientUuid,
-                        patientName: effectivePatientName,
-                        chartNumber: patientDisplayId,
-                        onSuccess: _loadBillingData,
-                      ),
-                icon: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 18,
-                ),
-                label: const Text('Deposit Wallet'),
-              ),
-              FilledButton.tonalIcon(
-                onPressed:
-                    invoiceDetail == null ||
-                        invoiceDetail.invoiceItems
-                            .where((e) => e.isRecurringDaily)
-                            .isEmpty
-                    ? null
-                    : () => _showRecurringControlDialog(context, invoiceDetail),
-                icon: const Icon(Icons.pause_circle_outline, size: 18),
-                label: const Text('Pause/Resume'),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: () => _showDischargeDialog(
-                  context,
-                  patientUuid,
-                  effectivePatientName,
-                ),
-                icon: const Icon(Icons.logout, size: 18),
-                label: const Text('Discharge'),
-              ),
-              if (canDeleteInvoice)
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: colorScheme.error,
-                    side: BorderSide(color: colorScheme.error),
+                  icon: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 18,
                   ),
-                  onPressed: _deletingInvoice || invoiceDetail == null
-                      ? null
-                      : () => _deleteInvoiceAndAllItems(
-                          invoiceDisplayId: invoiceDisplayId,
-                          detail: invoiceDetail,
-                        ),
-                  icon: _deletingInvoice
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: colorScheme.error,
-                          ),
-                        )
-                      : const Icon(Icons.delete_forever_outlined, size: 18),
-                  label: const Text('Delete invoice'),
+                  label: const Text('Deposit Wallet'),
                 ),
-            ],
+                FilledButton.tonalIcon(
+                  onPressed:
+                      invoiceDetail == null ||
+                          invoiceDetail.invoiceItems
+                              .where((e) => e.isRecurringDaily)
+                              .isEmpty
+                      ? null
+                      : () =>
+                            _showRecurringControlDialog(context, invoiceDetail),
+                  icon: const Icon(Icons.pause_circle_outline, size: 18),
+                  label: const Text('Pause/Resume'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _showDischargeDialog(
+                    context,
+                    patientUuid,
+                    effectivePatientName,
+                  ),
+                  icon: const Icon(Icons.logout, size: 18),
+                  label: const Text('Discharge'),
+                ),
+                if (canDeleteInvoice)
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorScheme.error,
+                      side: BorderSide(color: colorScheme.error),
+                    ),
+                    onPressed: _deletingInvoice || invoiceDetail == null
+                        ? null
+                        : () => _deleteInvoiceAndAllItems(
+                            invoiceDisplayId: invoiceDisplayId,
+                            detail: invoiceDetail,
+                          ),
+                    icon: _deletingInvoice
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colorScheme.error,
+                            ),
+                          )
+                        : const Icon(Icons.delete_forever_outlined, size: 18),
+                    label: const Text('Delete invoice'),
+                  ),
+              ];
+              if (constraints.maxWidth >= 720) {
+                return Wrap(spacing: 8, runSpacing: 8, children: buttons);
+              }
+              return SizedBox(
+                height: 48,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: buttons.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, index) => buttons[index],
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -2158,200 +2214,145 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         ? '$hmoName (${patientHmoDefaultCoveragePercent.round()}% default)'
         : hmoName;
 
+    Widget moneyLine(String label, String value, {Color? valueColor}) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  color: valueColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final balance = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Total Balance Due',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          displayBalanceDue.toFinancial(isMoney: true),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isPaidOff ? DepartmentColors.pharmacy : colorScheme.error,
+          ),
+        ),
+        if (isPaidOff)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: DepartmentColors.pharmacy.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'CLEARED',
+              style: TextStyle(
+                color: DepartmentColors.pharmacy,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+      ],
+    );
+
+    final breakdown = Column(
+      children: [
+        moneyLine('Total Charges:', totalCharges.toFinancial(isMoney: true)),
+        moneyLine(
+          'Covered/Discount:',
+          coveredAmount.toFinancial(isMoney: true),
+          valueColor: Colors.deepPurple,
+        ),
+        moneyLine(
+          'Effective Payable:',
+          effectivePayable.toFinancial(isMoney: true),
+        ),
+        moneyLine(
+          'Total Paid:',
+          totalPayments.toFinancial(isMoney: true),
+          valueColor: DepartmentColors.pharmacy,
+        ),
+        moneyLine(
+          'Wallet Balance:',
+          walletBalance.toFinancial(isMoney: true),
+          valueColor: DepartmentColors.outpatientClinic,
+        ),
+        if (hmoLabel != null)
+          moneyLine('HMO:', hmoLabel, valueColor: colorScheme.primary),
+      ],
+    );
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
           bottom: BorderSide(color: colorScheme.outlineVariant, width: 1),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 640) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Total Balance Due',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  displayBalanceDue.toFinancial(isMoney: true),
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isPaidOff
-                        ? DepartmentColors.pharmacy
-                        : colorScheme.error,
-                  ),
-                ),
-                if (isPaidOff)
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: DepartmentColors.pharmacy.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'CLEARED',
-                      style: TextStyle(
-                        color: DepartmentColors.pharmacy,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                balance,
+                const SizedBox(height: 12),
+                Divider(height: 1, color: colorScheme.outlineVariant),
+                const SizedBox(height: 12),
+                breakdown,
               ],
-            ),
-          ),
-          Container(width: 1, height: 40, color: colorScheme.outlineVariant),
-          Expanded(
-            flex: 3,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 16.0),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total Charges:',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        totalCharges.toFinancial(isMoney: true),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Covered/Discount:',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        coveredAmount.toFinancial(isMoney: true),
-                        style: const TextStyle(
-                          color: Colors.deepPurple,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Effective Payable:',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        effectivePayable.toFinancial(isMoney: true),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total Paid:',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        totalPayments.toFinancial(isMoney: true),
-                        style: const TextStyle(
-                          color: DepartmentColors.pharmacy,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Wallet Balance:',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        walletBalance.toFinancial(isMoney: true),
-                        style: const TextStyle(
-                          color: DepartmentColors.outpatientClinic,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (hmoLabel != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'HMO:',
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 13,
-                          ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            hmoLabel,
-                            textAlign: TextAlign.end,
-                            style: TextStyle(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 2, child: balance),
+              Container(
+                width: 1,
+                height: 40,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                color: colorScheme.outlineVariant,
               ),
-            ),
-          ),
-        ],
+              Expanded(flex: 3, child: breakdown),
+            ],
+          );
+        },
       ),
     );
   }
@@ -2516,6 +2517,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                   ),
                                   title: Text(
                                     item.description,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                     style: theme.textTheme.titleSmall?.copyWith(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
@@ -2545,14 +2548,18 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                       else
                                         Row(
                                           children: [
-                                            Text(
-                                              _formatDate(item.date),
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(
-                                                    color: theme
-                                                        .colorScheme
-                                                        .onSurfaceVariant,
-                                                  ),
+                                            Flexible(
+                                              child: Text(
+                                                _formatDate(item.date),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                              ),
                                             ),
                                             if (item.quantity > 1) ...[
                                               const SizedBox(width: 8),
@@ -2582,6 +2589,8 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                         const SizedBox(height: 2),
                                         Text(
                                           'Added by ${line!.createdByName}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: theme.textTheme.labelSmall
                                               ?.copyWith(
                                                 color: theme
@@ -2591,129 +2600,144 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                                               ),
                                         ),
                                       ],
-                                    ],
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            trailingAmount.toFinancial(
-                                              isMoney: true,
-                                            ),
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                              color: item.isLineFullyPaid
-                                                  ? theme.colorScheme.tertiary
-                                                  : null,
-                                            ),
-                                          ),
-                                          if (item.lineAmountDue > 0.001 &&
-                                              item.amountPaid > 0.001)
+                                      const SizedBox(height: 6),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
                                             Text(
-                                              'due',
+                                              trailingAmount.toFinancial(
+                                                isMoney: true,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                fontSize: 10,
-                                                color: theme
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                                color: item.isLineFullyPaid
+                                                    ? theme.colorScheme.tertiary
+                                                    : null,
                                               ),
                                             ),
-                                          if (item.quantity > 1)
-                                            Text(
-                                              '${item.amount.toFinancial(isMoney: true)} / unit',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: theme
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
+                                            if (item.lineAmountDue > 0.001 &&
+                                                item.amountPaid > 0.001)
+                                              Text(
+                                                'due',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
                                               ),
-                                            ),
-                                        ],
+                                            if (item.quantity > 1)
+                                              Text(
+                                                '${item.amount.toFinancial(isMoney: true)} / unit',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
                                       ),
-                                      Builder(
-                                        builder: (btnCtx) {
-                                          final refundBtn = line == null
-                                              ? null
-                                              : _lineRefundActionButton(line);
-                                          final deletingLine =
-                                              line != null &&
-                                              _deletingLineIds.contains(
-                                                line.id,
-                                              );
-                                          return Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              ?refundBtn,
-                                              if (canDeleteLine && line != null)
-                                                IconButton(
-                                                  tooltip: 'Delete item',
-                                                  icon: deletingLine
-                                                      ? SizedBox(
-                                                          width: 18,
-                                                          height: 18,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                                strokeWidth: 2,
-                                                                color: theme
-                                                                    .colorScheme
-                                                                    .error,
-                                                              ),
-                                                        )
-                                                      : Icon(
-                                                          Icons.delete_outline,
-                                                          size: 22,
-                                                          color: theme
-                                                              .colorScheme
-                                                              .error,
-                                                        ),
-                                                  onPressed: deletingLine
-                                                      ? null
-                                                      : () =>
-                                                            _deleteInvoiceLine(
-                                                              line: line,
-                                                              charge: item,
-                                                            ),
-                                                ),
-                                              IconButton(
-                                                tooltip: 'Payment options',
-                                                icon: const Icon(
-                                                  Icons.payment_outlined,
-                                                  size: 22,
-                                                ),
-                                                onPressed:
-                                                    line == null ||
-                                                        item.isLineFullyPaid
-                                                    ? null
-                                                    : () {
-                                                        final box =
-                                                            btnCtx.findRenderObject()
-                                                                as RenderBox?;
-                                                        if (box == null) return;
-                                                        final o = box
-                                                            .localToGlobal(
-                                                              Offset.zero,
-                                                            );
-                                                        _showLinePaymentMenuAt(
-                                                          o +
-                                                              Offset(
-                                                                0,
-                                                                box.size.height,
-                                                              ),
-                                                          line,
-                                                          item,
-                                                        );
-                                                      },
+                                      const SizedBox(height: 4),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Builder(
+                                    builder: (btnCtx) {
+                                      final refundBtn = line == null
+                                          ? null
+                                          : _lineRefundActionButton(line);
+                                      final deletingLine =
+                                          line != null &&
+                                          _deletingLineIds.contains(line.id);
+                                      return Wrap(
+                                        alignment: WrapAlignment.end,
+                                        children: [
+                                          ?refundBtn,
+                                          if (canDeleteLine && line != null)
+                                            IconButton(
+                                              tooltip: 'Delete item',
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(
+                                                minWidth: 36,
+                                                minHeight: 36,
                                               ),
-                                            ],
-                                          );
-                                        },
+                                              icon: deletingLine
+                                                  ? SizedBox(
+                                                      width: 18,
+                                                      height: 18,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: theme
+                                                                .colorScheme
+                                                                .error,
+                                                          ),
+                                                    )
+                                                  : Icon(
+                                                      Icons.delete_outline,
+                                                      size: 22,
+                                                      color: theme
+                                                          .colorScheme
+                                                          .error,
+                                                    ),
+                                              onPressed: deletingLine
+                                                  ? null
+                                                  : () => _deleteInvoiceLine(
+                                                      line: line,
+                                                      charge: item,
+                                                    ),
+                                            ),
+                                          IconButton(
+                                            tooltip: 'Payment options',
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(
+                                              minWidth: 36,
+                                              minHeight: 36,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.payment_outlined,
+                                              size: 22,
+                                            ),
+                                            onPressed:
+                                                line == null ||
+                                                    item.isLineFullyPaid
+                                                ? null
+                                                : () {
+                                                    final box =
+                                                        btnCtx.findRenderObject()
+                                                            as RenderBox?;
+                                                    if (box == null) return;
+                                                    final o = box.localToGlobal(
+                                                      Offset.zero,
+                                                    );
+                                                    _showLinePaymentMenuAt(
+                                                      o +
+                                                          Offset(
+                                                            0,
+                                                            box.size.height,
+                                                          ),
+                                                      line,
+                                                      item,
+                                                    );
+                                                  },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
                                       ),
                                     ],
                                   ),
@@ -2732,17 +2756,33 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
         ),
         Padding(
           padding: const EdgeInsets.only(top: 6, right: 4),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Total: ${chargeSectionTotal(items).toFinancial(isMoney: true)}   '
-              'Paid: ${chargeSectionPaid(items).toFinancial(isMoney: true)}   '
-              'Due: ${chargeSectionDue(items).toFinancial(isMoney: true)}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              Text(
+                'Total: ${chargeSectionTotal(items).toFinancial(isMoney: true)}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
+              Text(
+                'Paid: ${chargeSectionPaid(items).toFinancial(isMoney: true)}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                'Due: ${chargeSectionDue(items).toFinancial(isMoney: true)}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -2835,21 +2875,35 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 return ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  title: Text('${c.kind} · ${c.scope} · ${c.status}'),
+                  title: Text(
+                    '${c.kind} · ${c.scope} · ${c.status}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   subtitle: Text(
                     [
                       '${c.mode ?? '-'} ${c.value ?? c.percent ?? ''} · ${c.appliedByName ?? c.appliedById ?? 'N/A'}',
                       if (windowLabel.isNotEmpty) windowLabel,
                     ].join('\n'),
                   ),
-                  trailing: Wrap(
-                    spacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  trailing: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(c.computedAmount.toFinancial(isMoney: true)),
+                      Text(
+                        c.computedAmount.toFinancial(isMoney: true),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       if (canUndoThis)
                         IconButton(
                           tooltip: isHmo ? 'Uncover HMO' : 'Reverse coverage',
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
                           onPressed: _coverageBusy
                               ? null
                               : () => _reverseCoverage(c),
@@ -2891,38 +2945,45 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
               row.method != null && row.method!.trim().isNotEmpty
                   ? 'Invoice payment (${row.method})'
                   : 'Invoice payment',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text(
-              [
-                '${_formatDate((row.paidAt ?? row.createdAt) ?? DateTime.now())} • ${row.source}',
-
-                if (row.receivedByName != null &&
-                    row.receivedByName!.trim().isNotEmpty)
-                  'Received by: ${row.receivedByName}',
-                if ((row.receivedByName == null ||
-                        row.receivedByName!.trim().isEmpty) &&
-                    row.receivedById != null &&
-                    row.receivedById!.trim().isNotEmpty)
-                  'Received by ID: ${row.receivedById}',
-                if (row.createdByName != null &&
-                    row.createdByName!.trim().isNotEmpty &&
-                    row.createdByName != row.receivedByName)
-                  'Created by: ${row.createdByName}',
-                if (row.walletTransactionId != null &&
-                    row.walletTransactionId!.trim().isNotEmpty)
-                  'Wallet Txn: ${row.walletTransactionId}',
-                if (row.notes != null && row.notes!.trim().isNotEmpty)
-                  'Note: ${row.notes}',
-              ].join('\n'),
-            ),
-            trailing: Text(
-              row.amount.toFinancial(isMoney: true),
-              style: const TextStyle(
-                color: DepartmentColors.pharmacy,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  [
+                    '${_formatDate((row.paidAt ?? row.createdAt) ?? DateTime.now())} • ${row.source}',
+                    if (row.receivedByName != null &&
+                        row.receivedByName!.trim().isNotEmpty)
+                      'Received by: ${row.receivedByName}',
+                    if ((row.receivedByName == null ||
+                            row.receivedByName!.trim().isEmpty) &&
+                        row.receivedById != null &&
+                        row.receivedById!.trim().isNotEmpty)
+                      'Received by ID: ${row.receivedById}',
+                    if (row.createdByName != null &&
+                        row.createdByName!.trim().isNotEmpty &&
+                        row.createdByName != row.receivedByName)
+                      'Created by: ${row.createdByName}',
+                    if (row.walletTransactionId != null &&
+                        row.walletTransactionId!.trim().isNotEmpty)
+                      'Wallet Txn: ${row.walletTransactionId}',
+                    if (row.notes != null && row.notes!.trim().isNotEmpty)
+                      'Note: ${row.notes}',
+                  ].join('\n'),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  row.amount.toFinancial(isMoney: true),
+                  style: const TextStyle(
+                    color: DepartmentColors.pharmacy,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -3024,7 +3085,11 @@ class _PatientBillingScreenState extends ConsumerState<PatientBillingScreen>
                 side: BorderSide(color: colorScheme.outlineVariant),
               ),
               child: ListTile(
-                title: Text(lineLabel(r)),
+                title: Text(
+                  lineLabel(r),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 subtitle: Text(
                   [
                     'Status: ${r.status}',

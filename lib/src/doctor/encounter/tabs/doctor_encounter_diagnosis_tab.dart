@@ -10,6 +10,7 @@ import 'package:helty/src/doctor/encounter/encounter_amend_helper.dart';
 import 'package:helty/src/doctor/encounter/encounter_tab_reload.dart';
 import 'package:helty/src/models/icd10_model.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_tab_scroll_shell.dart';
@@ -487,7 +488,7 @@ class _DoctorEncounterDiagnosisTabState
       builder: (ctx) => AlertDialog(
         title: const Text('Custom primary diagnosis'),
         content: SizedBox(
-          width: 400,
+          width: inpatientDialogBodyWidth(ctx, preferred: 400),
           child: TextField(
             controller: ctrl,
             maxLines: 4,
@@ -541,7 +542,7 @@ class _DoctorEncounterDiagnosisTabState
       builder: (ctx) => AlertDialog(
         title: const Text('Custom secondary diagnosis'),
         content: SizedBox(
-          width: 400,
+          width: inpatientDialogBodyWidth(ctx, preferred: 400),
           child: TextField(
             controller: ctrl,
             maxLines: 3,
@@ -676,7 +677,7 @@ class _AddSecondaryIcd10DialogState extends State<_AddSecondaryIcd10Dialog> {
     return AlertDialog(
       title: const Text('Add secondary diagnosis (ICD-10)'),
       content: SizedBox(
-        width: 400,
+        width: inpatientDialogBodyWidth(context, preferred: 400),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

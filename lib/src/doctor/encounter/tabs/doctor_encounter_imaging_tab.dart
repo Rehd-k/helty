@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
 import 'package:helty/src/doctor/encounter/widgets/encounter_side_panel.dart';
@@ -253,16 +254,19 @@ class _DoctorEncounterImagingTabState extends State<DoctorEncounterImagingTab> {
           : '${_orders.length} order${_orders.length == 1 ? '' : 's'}'
                 '${_encounterOnly ? ' on this encounter' : ''}',
       controls: SegmentedButton<bool>(
+        style: const ButtonStyle(visualDensity: VisualDensity.compact),
         segments: const [
           ButtonSegment<bool>(
             value: false,
-            label: Text('All patient'),
-            icon: Icon(Icons.person_outline, size: 18),
+            label: Text('All'),
+            icon: Icon(Icons.person_outline, size: 16),
+            tooltip: 'All patient',
           ),
           ButtonSegment<bool>(
             value: true,
-            label: Text('This encounter'),
-            icon: Icon(Icons.event_note_outlined, size: 18),
+            label: Text('Encounter'),
+            icon: Icon(Icons.event_note_outlined, size: 16),
+            tooltip: 'This encounter',
           ),
         ],
         selected: {_encounterOnly},
@@ -692,7 +696,7 @@ class _OrderImagingDialogState extends State<_OrderImagingDialog> {
     return AlertDialog(
       title: const Text('Order Imaging'),
       content: SizedBox(
-        width: 440,
+        width: inpatientDialogBodyWidth(context, preferred: 440),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(

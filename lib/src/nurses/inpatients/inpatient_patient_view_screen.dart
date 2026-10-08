@@ -258,6 +258,7 @@ class _InpatientPatientViewScreenState
                     builder: (context, bp) {
                       final showRail =
                           bp.maxWidth >= kInpatientSidebarBreakpoint;
+                      final mobile = bp.isMobile;
                       final compact = !showRail;
 
                       final tabContent =
@@ -280,14 +281,24 @@ class _InpatientPatientViewScreenState
                           _buildHeaderRow(
                             context,
                             compact: compact,
+                            mobile: mobile,
                             isDoctor: isDoctor,
+                            onOpenTools: mobile
+                                ? () => _openBedsideTools(context)
+                                : null,
                           ),
-                          const SizedBox(height: 10),
+                          SizedBox(height: mobile ? 8 : 10),
                           _buildPatientHeader(context),
-                          const SizedBox(height: 10),
-                          _buildTabsStrip(context, compact: compact),
-                          const SizedBox(height: 10),
+                          SizedBox(height: mobile ? 8 : 10),
+                          _buildTabsStrip(
+                            context,
+                            compact: compact,
+                            mobile: mobile,
+                          ),
+                          SizedBox(height: mobile ? 8 : 10),
                           Expanded(child: tabContent),
+                          if (draftForChip != null && mobile)
+                            const SizedBox(height: 72),
                         ],
                       );
 
@@ -301,6 +312,8 @@ class _InpatientPatientViewScreenState
                           ],
                         );
                       }
+
+                      if (mobile) return mainColumn;
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -339,39 +352,72 @@ class _InpatientPatientViewScreenState
       elevation: 6,
       borderRadius: BorderRadius.circular(12),
       color: colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(
-              Icons.edit_note_outlined,
-              color: colorScheme.onPrimaryContainer,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Ward round note in progress',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onPrimaryContainer,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow =
+                  !constraints.hasBoundedWidth ||
+                  constraints.maxWidth < AppBreakpoints.tabletMin;
+              final message = Expanded(
+                child: Text(
+                  'Ward round note in progress',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
                 ),
-              ),
-            ),
-            TextButton(
-              onPressed: _discardWardRoundDraft,
-              child: Text(
-                'Discard',
-                style: TextStyle(color: colorScheme.onPrimaryContainer),
-              ),
-            ),
-            const SizedBox(width: 4),
-            FilledButton(
-              onPressed: () => _resumeOrOpenWardRoundNote(draft: draft),
-              child: const Text('Resume'),
-            ),
-          ],
+              );
+              final actions = Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  TextButton(
+                    onPressed: _discardWardRoundDraft,
+                    child: Text(
+                      'Discard',
+                      style: TextStyle(color: colorScheme.onPrimaryContainer),
+                    ),
+                  ),
+                  FilledButton(
+                    onPressed: () => _resumeOrOpenWardRoundNote(draft: draft),
+                    child: const Text('Resume'),
+                  ),
+                ],
+              );
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.edit_note_outlined,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 10),
+                        message,
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    actions,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Icon(
+                    Icons.edit_note_outlined,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                  const SizedBox(width: 10),
+                  message,
+                  actions,
+                ],
+              );
+            },
+          ),
         ),
-      ),
     );
   }
 
@@ -406,15 +452,71 @@ class _InpatientPatientViewScreenState
     );
   }
 
+  void _openBedsideTools(BuildContext context) {
+    final scope = InpatientViewScope.of(context);
+    if (scope == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.62,
+          minChildSize: 0.4,
+          maxChildSize: 0.92,
+          builder: (context, scrollController) {
+            return InpatientViewScope(
+              patientId: scope.patientId,
+              admissionId: scope.admissionId,
+              encounterId: scope.encounterId,
+              embeddedMedicationOrders: scope.embeddedMedicationOrders,
+              patientDisplayName: scope.patientDisplayName,
+              hospitalNumber: scope.hospitalNumber,
+              staffId: scope.staffId,
+              role: scope.role,
+              accountType: scope.accountType,
+              isDoctor: scope.isDoctor,
+              isNurse: scope.isNurse,
+              admissionStatus: scope.admissionStatus,
+              isOutpatient: scope.isOutpatient,
+              readOnly: scope.readOnly,
+              onSelectTab: (index) {
+                Navigator.pop(sheetContext);
+                scope.onSelectTab?.call(index);
+              },
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                children: [
+                  InpatientSidebar(
+                    admission: _admission,
+                    onLocationUpdated: () {
+                      Navigator.pop(sheetContext);
+                      _loadPatient();
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildHeaderRow(
     BuildContext context, {
     required bool compact,
+    required bool mobile,
     required bool isDoctor,
+    VoidCallback? onOpenTools,
   }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    const title = 'Inpatient Patient View';
+    final title = mobile ? 'Bedside' : 'Inpatient Patient View';
     final subtitle = widget.readOnly
         ? 'Read-only clinical record'
         : 'Bedside overview';
@@ -431,49 +533,55 @@ class _InpatientPatientViewScreenState
             (admission.dischargeSummary?.trim().isNotEmpty ?? false) ||
             admission.clinicallyDischargedAt != null);
 
-    final actions = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: compact ? WrapAlignment.start : WrapAlignment.end,
-      children: [
-        if (admission != null && showDischargeSummary)
-          _headerPill(
-            label: 'Discharge summary',
-            icon: Icons.description_outlined,
-            color: InpatientMetrics.iconIndigo,
-            onPressed: () => showDischargeSummaryDialog(
-              context: context,
-              admission: admission,
-              onOpenEncounter: hasEncounter ? _openEncounter : null,
-            ),
+    final menuActions = <_HeaderMenuAction>[
+      if (admission != null && showDischargeSummary)
+        _HeaderMenuAction(
+          label: 'Discharge summary',
+          icon: Icons.description_outlined,
+          color: InpatientMetrics.iconIndigo,
+          onPressed: () => showDischargeSummaryDialog(
+            context: context,
+            admission: admission,
+            onOpenEncounter: hasEncounter ? _openEncounter : null,
           ),
-        if (!widget.readOnly && isDoctor && hasEncounter)
-          _headerPill(
-            label: 'Encounter',
-            icon: Icons.medical_information_outlined,
-            color: InpatientMetrics.iconBlue,
-            onPressed: _openEncounter,
-          ),
-        if (!widget.readOnly &&
-            _admission != null &&
-            _admission!.isPendingBillingClearance &&
-            _admission!.nursesClearedAt == null)
-          _headerPill(
-            label: 'Clear for discharge',
-            icon: Icons.check_circle_outline,
-            color: InpatientMetrics.waitAmber,
-            onPressed: _clearingNurses ? null : _clearNursesForDischarge,
-          )
-        else if (!widget.readOnly &&
-            _admission != null &&
-            _admission!.isActiveAdmission)
-          _headerPill(
-            label: 'Discharge',
-            icon: Icons.logout,
-            color: InpatientMetrics.waitGreen,
-            onPressed: _attemptDischarge,
-          ),
-        Container(
+        ),
+      if (!widget.readOnly && isDoctor && hasEncounter)
+        _HeaderMenuAction(
+          label: 'Encounter',
+          icon: Icons.medical_information_outlined,
+          color: InpatientMetrics.iconBlue,
+          onPressed: _openEncounter,
+        ),
+      if (!widget.readOnly &&
+          _admission != null &&
+          _admission!.isPendingBillingClearance &&
+          _admission!.nursesClearedAt == null)
+        _HeaderMenuAction(
+          label: 'Clear for discharge',
+          icon: Icons.check_circle_outline,
+          color: InpatientMetrics.waitAmber,
+          onPressed: _clearingNurses ? null : _clearNursesForDischarge,
+        )
+      else if (!widget.readOnly &&
+          _admission != null &&
+          _admission!.isActiveAdmission)
+        _HeaderMenuAction(
+          label: 'Discharge',
+          icon: Icons.logout,
+          color: InpatientMetrics.waitGreen,
+          onPressed: _attemptDischarge,
+        ),
+    ];
+
+    final actionChildren = <Widget>[
+      for (final action in menuActions)
+        _headerPill(
+          label: action.label,
+          icon: action.icon,
+          color: action.color,
+          onPressed: action.onPressed,
+        ),
+      Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: widget.readOnly
@@ -502,8 +610,16 @@ class _InpatientPatientViewScreenState
             ],
           ),
         ),
-      ],
-    );
+    ];
+
+    Widget actionsFor(WrapAlignment alignment) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: alignment,
+        children: actionChildren,
+      );
+    }
 
     final titleBlock = Row(
       children: [
@@ -544,20 +660,74 @@ class _InpatientPatientViewScreenState
       ],
     );
 
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [titleBlock, const SizedBox(height: 10), actions],
+    if (mobile) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(child: titleBlock),
+          if (onOpenTools != null)
+            IconButton(
+              tooltip: 'Bedside tools',
+              onPressed: onOpenTools,
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.dashboard_customize_outlined),
+            ),
+          if (menuActions.isNotEmpty)
+            PopupMenuButton<int>(
+              tooltip: 'Actions',
+              icon: const Icon(Icons.more_vert),
+              onSelected: (index) => menuActions[index].onPressed?.call(),
+              itemBuilder: (context) {
+                return [
+                  for (var i = 0; i < menuActions.length; i++)
+                    PopupMenuItem<int>(
+                      value: i,
+                      enabled: menuActions[i].onPressed != null,
+                      child: Row(
+                        children: [
+                          Icon(menuActions[i].icon, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(menuActions[i].label)),
+                        ],
+                      ),
+                    ),
+                ];
+              },
+            ),
+        ],
       );
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: titleBlock),
-        const SizedBox(width: 12),
-        actions,
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final stack = compact || width < AppBreakpoints.desktopMin;
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              titleBlock,
+              const SizedBox(height: 10),
+              actionsFor(WrapAlignment.start),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleBlock),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: actionsFor(WrapAlignment.end),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -694,32 +864,62 @@ class _InpatientPatientViewScreenState
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
-                awaitingPayment
-                    ? Icons.payments_outlined
-                    : Icons.local_hospital_outlined,
-                color: fg,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  message,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              if (!widget.readOnly &&
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final showClear =
+                  !widget.readOnly &&
                   admission.nursesClearedAt == null &&
-                  !awaitingPayment)
-                FilledButton(
-                  onPressed: _clearingNurses ? null : _clearNursesForDischarge,
-                  child: const Text('Clear for discharge'),
+                  !awaitingPayment;
+              final narrow =
+                  showClear &&
+                  (!constraints.hasBoundedWidth ||
+                      constraints.maxWidth < AppBreakpoints.tabletMin);
+              final messageText = Text(
+                message,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w700,
                 ),
-            ],
+              );
+              final clearButton = FilledButton(
+                onPressed: _clearingNurses ? null : _clearNursesForDischarge,
+                child: const Text('Clear for discharge'),
+              );
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          awaitingPayment
+                              ? Icons.payments_outlined
+                              : Icons.local_hospital_outlined,
+                          color: fg,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(child: messageText),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Align(alignment: Alignment.centerLeft, child: clearButton),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Icon(
+                    awaitingPayment
+                        ? Icons.payments_outlined
+                        : Icons.local_hospital_outlined,
+                    color: fg,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: messageText),
+                  if (showClear) clearButton,
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -920,14 +1120,18 @@ class _InpatientPatientViewScreenState
     );
   }
 
-  Widget _buildTabsStrip(BuildContext context, {required bool compact}) {
+  Widget _buildTabsStrip(
+    BuildContext context, {
+    required bool compact,
+    required bool mobile,
+  }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final labels = InpatientUiTabs.labels;
 
     final tabPadding = EdgeInsets.symmetric(
-      horizontal: compact ? 12 : 14,
-      vertical: compact ? 10 : 8,
+      horizontal: mobile ? 10 : (compact ? 12 : 14),
+      vertical: mobile ? 6 : 8,
     );
 
     return Container(
@@ -972,4 +1176,18 @@ class _InpatientPatientViewScreenState
       ),
     );
   }
+}
+
+class _HeaderMenuAction {
+  const _HeaderMenuAction({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onPressed;
 }

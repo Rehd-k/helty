@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:helty/src/core/layout/app_breakpoints.dart';
 import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/widgets/helty_surface.dart';
@@ -74,17 +75,17 @@ class InpatientTabToolbar extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 560) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final bp = AppBreakpoints.fromWidth(width);
+        if (bp.isMobile) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               titleBlock,
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: actions,
-              ),
+              Wrap(spacing: 8, runSpacing: 8, children: actions),
             ],
           );
         }
@@ -93,7 +94,17 @@ class InpatientTabToolbar extends StatelessWidget {
           children: [
             Expanded(child: titleBlock),
             const SizedBox(width: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: actions),
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: actions,
+                ),
+              ),
+            ),
           ],
         );
       },
@@ -142,8 +153,8 @@ class InpatientChartTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final footerText = footerLabel ??
-        (rowCount == 1 ? '1 record' : '$rowCount records');
+    final footerText =
+        footerLabel ?? (rowCount == 1 ? '1 record' : '$rowCount records');
 
     Widget header() {
       return Container(
@@ -190,10 +201,7 @@ class InpatientChartTable extends StatelessWidget {
         children: [
           for (var i = 0; i < rowCount; i++) ...[
             if (i > 0)
-              Divider(
-                height: 1,
-                color: cs.outline.withValues(alpha: 0.08),
-              ),
+              Divider(height: 1, color: cs.outline.withValues(alpha: 0.08)),
             ColoredBox(
               color: InpatientMetrics.zebraFill(cs, i),
               child: Padding(
@@ -350,7 +358,11 @@ class InpatientKpiRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 820 && tiles.length >= 3) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final bp = AppBreakpoints.fromWidth(width);
+        if (bp.isDesktop && tiles.length >= 2) {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
@@ -365,7 +377,7 @@ class InpatientKpiRow extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           itemCount: tiles.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: constraints.maxWidth >= 520 ? 2 : 1,
+            crossAxisCount: bp.isMobile ? 1 : 2,
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
             mainAxisExtent: 72,

@@ -6,8 +6,9 @@ import 'package:helty/src/core/layout/app_breakpoints.dart';
 
 /// Shared layout thresholds for inpatient nurse/doctor flows.
 ///
-/// Aligns with [InpatientPatientViewScreen] shell and [PatientHeaderCard].
-const double kInpatientCompactBreakpoint = 720;
+/// Compact layouts follow [AppBreakpoints.tabletMin] and are measured with
+/// [LayoutBuilder], not the window width.
+const double kInpatientCompactBreakpoint = AppBreakpoints.tabletMin;
 
 /// Full-height utility rail beside main content (Walk-in Queue pattern).
 const double kInpatientSidebarBreakpoint = AppBreakpoints.desktopMin;

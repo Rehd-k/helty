@@ -692,54 +692,79 @@ class _ConsumableRowState extends State<_ConsumableRow> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    widget.name,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow =
+                    !constraints.hasBoundedWidth ||
+                    constraints.maxWidth < AppBreakpoints.tabletMin;
+                final name = Text(
+                  widget.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
-                ),
-                SizedBox(
-                  width: 88,
-                  child: TextField(
-                    controller: _priceCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Price',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (v) => widget.onRowUpdated({'unitPrice': v}),
+                );
+                final price = TextField(
+                  controller: _priceCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                ),
-                SizedBox(
-                  width: 72,
-                  child: TextField(
-                    controller: _qtyCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Qty',
-                      isDense: true,
-                      border: const OutlineInputBorder(),
-                      helperText: _loadingStock
-                          ? '...'
-                          : (_maxQuantity > 0 ? 'Max $_maxQuantity' : null),
-                      helperMaxLines: 1,
-                    ),
-                    onChanged: _onQtyChanged,
+                  decoration: const InputDecoration(
+                    labelText: 'Price',
+                    isDense: true,
+                    border: OutlineInputBorder(),
                   ),
-                ),
-                IconButton(
+                  onChanged: (v) => widget.onRowUpdated({'unitPrice': v}),
+                );
+                final qty = TextField(
+                  controller: _qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Qty',
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                    helperText: _loadingStock
+                        ? '...'
+                        : (_maxQuantity > 0 ? 'Max $_maxQuantity' : null),
+                    helperMaxLines: 1,
+                  ),
+                  onChanged: _onQtyChanged,
+                );
+                final remove = IconButton(
                   icon: const Icon(Icons.remove_circle_outline),
                   onPressed: widget.onRemove,
-                ),
-              ],
+                );
+                if (narrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: name),
+                          remove,
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(child: price),
+                          const SizedBox(width: 8),
+                          Expanded(child: qty),
+                        ],
+                      ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(flex: 2, child: name),
+                    SizedBox(width: 88, child: price),
+                    SizedBox(width: 72, child: qty),
+                    remove,
+                  ],
+                );
+              },
             ),
             if (_maxQuantity > 0 && !_loadingStock)
               Text(

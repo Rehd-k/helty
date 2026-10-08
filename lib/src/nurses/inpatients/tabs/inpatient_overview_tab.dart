@@ -355,7 +355,6 @@ class _InpatientOverviewScreenState extends State<InpatientOverviewScreen> {
     final latest = _latestVitals();
     final intakeToday = _ioTodaySum('INTAKE');
     final outputToday = _ioTodaySum('OUTPUT');
-    final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.tabletMin;
 
     final vitalsCard = _VitalsCard(latest: latest);
     final ioCard = _IoCard(intake: intakeToday, output: outputToday);
@@ -387,43 +386,51 @@ class _InpatientOverviewScreenState extends State<InpatientOverviewScreen> {
 
     return ResponsiveBody(
       expand: false,
-      builder: (context, bp) => SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: vitalsCard),
-                  const SizedBox(width: 12),
-                  Expanded(child: ioCard),
+      builder: (context, bp) => LayoutBuilder(
+        builder: (context, constraints) {
+          final contentWidth = constraints.hasBoundedWidth
+              ? constraints.maxWidth
+              : bp.maxWidth;
+          final pairCards = contentWidth >= AppBreakpoints.desktopMin;
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (pairCards)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: vitalsCard),
+                      const SizedBox(width: 12),
+                      Expanded(child: ioCard),
+                    ],
+                  )
+                else ...[
+                  vitalsCard,
+                  const SizedBox(height: 12),
+                  ioCard,
                 ],
-              )
-            else ...[
-              vitalsCard,
-              const SizedBox(height: 12),
-              ioCard,
-            ],
-            const SizedBox(height: 12),
-            shortcuts,
-            const SizedBox(height: 12),
-            if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: notesCard),
-                  const SizedBox(width: 12),
-                  Expanded(child: activityCard),
+                const SizedBox(height: 12),
+                shortcuts,
+                const SizedBox(height: 12),
+                if (pairCards)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: notesCard),
+                      const SizedBox(width: 12),
+                      Expanded(child: activityCard),
+                    ],
+                  )
+                else ...[
+                  notesCard,
+                  const SizedBox(height: 12),
+                  activityCard,
                 ],
-              )
-            else ...[
-              notesCard,
-              const SizedBox(height: 12),
-              activityCard,
-            ],
-          ],
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -495,42 +502,31 @@ class _VitalsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _VitalTile(
-                  icon: Icons.thermostat_outlined,
-                  color: InpatientMetrics.waitRed,
-                  value: temp,
-                  label: 'Temp',
-                ),
+          _OverviewTileRow(
+            tiles: [
+              _VitalTile(
+                icon: Icons.thermostat_outlined,
+                color: InpatientMetrics.waitRed,
+                value: temp,
+                label: 'Temp',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _VitalTile(
-                  icon: Icons.speed_outlined,
-                  color: InpatientMetrics.iconIndigo,
-                  value: bp,
-                  label: 'BP',
-                ),
+              _VitalTile(
+                icon: Icons.speed_outlined,
+                color: InpatientMetrics.iconIndigo,
+                value: bp,
+                label: 'BP',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _VitalTile(
-                  icon: Icons.favorite_outline,
-                  color: InpatientMetrics.iconPink,
-                  value: hr,
-                  label: 'HR',
-                ),
+              _VitalTile(
+                icon: Icons.favorite_outline,
+                color: InpatientMetrics.iconPink,
+                value: hr,
+                label: 'HR',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _VitalTile(
-                  icon: Icons.air,
-                  color: InpatientMetrics.iconTeal,
-                  value: spo2,
-                  label: 'SpO₂',
-                ),
+              _VitalTile(
+                icon: Icons.air,
+                color: InpatientMetrics.iconTeal,
+                value: spo2,
+                label: 'SpO₂',
               ),
             ],
           ),
@@ -545,6 +541,41 @@ class _VitalsCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _OverviewTileRow extends StatelessWidget {
+  const _OverviewTileRow({required this.tiles});
+
+  final List<Widget> tiles;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
+        final bp = AppBreakpoints.fromWidth(width);
+        if (bp.isMobile) {
+          const gap = 8.0;
+          final tileWidth = width > gap ? (width - gap) / 2 : width;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final tile in tiles) SizedBox(width: tileWidth, child: tile),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            for (var i = 0; i < tiles.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(child: tiles[i]),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -657,33 +688,25 @@ class _IoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _VitalTile(
-                  icon: Icons.arrow_downward,
-                  color: InpatientMetrics.iconBlue,
-                  value: ml(intake),
-                  label: 'Intake',
-                ),
+          _OverviewTileRow(
+            tiles: [
+              _VitalTile(
+                icon: Icons.arrow_downward,
+                color: InpatientMetrics.iconBlue,
+                value: ml(intake),
+                label: 'Intake',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _VitalTile(
-                  icon: Icons.arrow_upward,
-                  color: InpatientMetrics.iconIndigo,
-                  value: ml(output),
-                  label: 'Output',
-                ),
+              _VitalTile(
+                icon: Icons.arrow_upward,
+                color: InpatientMetrics.iconTeal,
+                value: ml(output),
+                label: 'Output',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _VitalTile(
-                  icon: Icons.balance_outlined,
-                  color: netColor,
-                  value: ml(net),
-                  label: 'Net',
-                ),
+              _VitalTile(
+                icon: Icons.balance_outlined,
+                color: netColor,
+                value: ml(net),
+                label: 'Net',
               ),
             ],
           ),
@@ -772,13 +795,17 @@ class _ShortcutRow extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 700) {
+        final width = constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
+        final bp = AppBreakpoints.fromWidth(width);
+        if (!bp.isDesktop) {
+          final cols = bp.isMobile ? 2 : 3;
+          final gap = 8.0 * (cols - 1);
+          final tileWidth = width > gap ? (width - gap) / cols : width;
           return Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final t in tiles)
-                SizedBox(width: (constraints.maxWidth - 8) / 2, child: t),
+              for (final t in tiles) SizedBox(width: tileWidth, child: t),
             ],
           );
         }

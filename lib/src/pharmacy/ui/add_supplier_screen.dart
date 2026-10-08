@@ -1,10 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/pharmacy/widgets/pharmacy_page_chrome.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
+import '../inputs/morden.form.inpts.dart';
 import '../models/pharmacy_model.dart';
 import '../services/pharmacy_service.dart';
-import '../inputs/morden.form.inpts.dart';
 
 @RoutePage()
 class AddSupplierScreen extends StatefulWidget {
@@ -17,9 +20,8 @@ class AddSupplierScreen extends StatefulWidget {
 class _AddSupplierScreenState extends State<AddSupplierScreen> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = PharmacyApiService();
+  final _searchCtrl = TextEditingController();
   bool _isLoading = false;
-
-  final _suppliersScrollController = ScrollController();
 
   final _nameCtrl = TextEditingController();
   final _licenseCtrl = TextEditingController();
@@ -29,6 +31,8 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
   final _emailCtrl = TextEditingController();
 
   bool _isBlacklisted = false;
+  int _page = 1;
+  static const int _pageSize = 20;
 
   PaginatedResponse<Supplier>? _suppliersPage;
   bool _isLoadingSuppliers = false;
@@ -37,12 +41,13 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
   @override
   void initState() {
     super.initState();
+    _searchCtrl.addListener(() => setState(() {}));
     _loadSuppliers();
   }
 
   @override
   void dispose() {
-    _suppliersScrollController.dispose();
+    _searchCtrl.dispose();
     _nameCtrl.dispose();
     _licenseCtrl.dispose();
     _creditTermsCtrl.dispose();
@@ -60,8 +65,9 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
 
     try {
       final page = await _apiService.getSuppliers(
-        const PharmacyQueryParams(
-          pageSize: 20,
+        PharmacyQueryParams(
+          page: _page,
+          pageSize: _pageSize,
           sortBy: 'name',
           sortOrder: SortOrder.asc,
         ),
@@ -100,7 +106,21 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
     return value?.toString();
   }
 
+  List<Supplier> get _visibleSuppliers {
+    final suppliers = _suppliersPage?.items ?? [];
+    final q = _searchCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return suppliers;
+    return suppliers.where((s) {
+      final phone = (_contactField(s, 'phone') ?? '').toLowerCase();
+      final email = (_contactField(s, 'email') ?? '').toLowerCase();
+      return s.name.toLowerCase().contains(q) ||
+          phone.contains(q) ||
+          email.contains(q);
+    }).toList();
+  }
+
   void _showSupplierSuppliesDialog(Supplier supplier) {
+    final width = MediaQuery.sizeOf(context).width;
     showDialog(
       context: context,
       builder: (ctx) {
@@ -119,362 +139,111 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
           );
         }
 
-        return AlertDialog(
-          title: Text('Supplies from ${supplier.name}'),
-          content: SizedBox(
-            width: 800,
-            height: 400,
-            child: FutureBuilder<PaginatedResponse<DrugBatch>>(
-              future: _apiService.getDrugBatches(
-                PharmacyQueryParams(filters: {'supplierId': supplier.id}),
-              ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      snapshot.error.toString(),
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  );
-                }
-                final data = snapshot.data;
-                final batches = data?.items ?? [];
-                if (batches.isEmpty) {
-                  return const Center(
-                    child: Text('No supplies found for this supplier.'),
-                  );
-                }
-
-                return ResponsiveDataTable(
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Drug')),
-                      DataColumn(label: Text('Batch')),
-                      DataColumn(label: Text('Qty')),
-                      DataColumn(label: Text('Unit Cost')),
-                      DataColumn(label: Text('Expiry')),
-                      DataColumn(label: Text('Received At')),
-                    ],
-                    rows: batches.map((b) {
-                      final drug = b.drug;
-                      final drugName = (drug?.brandName.isNotEmpty == true)
-                          ? drug!.brandName
-                          : (drug?.genericName ?? '');
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(drugName.isEmpty ? '-' : drugName)),
-                          DataCell(Text(b.batchNumber ?? '-')),
-                          DataCell(Text(b.quantityReceived.toString())),
-                          DataCell(
-                            Text(
-                              b.costPrice != null
-                                  ? b.costPrice!.toStringAsFixed(2)
-                                  : '-',
-                            ),
+        return Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: width < 560 ? width - 32 : 720,
+              maxHeight: 480,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const HeltySolidIcon(
+                        icon: Icons.inventory_2_outlined,
+                        color: PharmacyAccent.teal,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: HeltyEllipsisText(
+                          text: 'Supplies from ${supplier.name}',
+                          style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
-                          DataCell(Text(_formatDate(b.expiryDate))),
-                          DataCell(Text(_formatDate(b.createdAt))),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildSupplierForm(BuildContext context, ThemeData theme) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ModernTextField(
-                  label: 'Supplier Name',
-                  hint: 'e.g., Global Pharma Distributors',
-                  controller: _nameCtrl,
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
-                ),
-                ModernTextField(
-                  label: 'License Number',
-                  hint: 'Operating license ID',
-                  controller: _licenseCtrl,
-                ),
-                const Divider(height: 32),
-                ModernTextField(
-                  label: 'Email Address',
-                  hint: 'contact@supplier.com',
-                  controller: _emailCtrl,
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                ModernTextField(
-                  label: 'Phone Number',
-                  hint: '+1 234 567 890',
-                  controller: _phoneCtrl,
-                  icon: Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
-                ),
-                const Divider(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Credit Terms',
-                        hint: 'e.g., Net 30',
-                        controller: _creditTermsCtrl,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ModernTextField(
-                        label: 'Lead Time (Days)',
-                        hint: 'e.g., 5',
-                        controller: _leadTimeCtrl,
-                        keyboardType: TextInputType.number,
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close),
                       ),
-                    ),
-                  ],
-                ),
-                ModernSwitchCard(
-                  title: 'Blacklist Supplier',
-                  subtitle:
-                      'Prevent future purchase orders from being issued to this supplier.',
-                  value: _isBlacklisted,
-                  onChanged: (v) => setState(() => _isBlacklisted = v),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: Colors.white,
+                    ],
                   ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : const Text('Save Supplier'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSuppliersTableSection(BuildContext context) {
-    if (_isLoadingSuppliers) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_suppliersError != null) {
-      return Center(
-        child: Text(
-          _suppliersError!,
-          style: const TextStyle(color: Colors.red),
-        ),
-      );
-    }
-
-    final suppliers = _suppliersPage?.items ?? [];
-
-    if (suppliers.isEmpty) {
-      return const Center(child: Text('No suppliers found.'));
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final theme = Theme.of(context);
-        const cardMinWidth = 260.0;
-        final crossAxisCount = (constraints.maxWidth / (cardMinWidth + 16))
-            .floor()
-            .clamp(1, 4);
-
-        final gridWidth =
-            (cardMinWidth + 16) * crossAxisCount.toDouble() + 16.0;
-
-        return Scrollbar(
-          controller: _suppliersScrollController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _suppliersScrollController,
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: gridWidth.clamp(constraints.maxWidth, double.infinity),
-              child: GridView.builder(
-                padding: const EdgeInsets.only(top: 8, right: 8, bottom: 8),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 3.4,
-                ),
-                itemCount: suppliers.length,
-                itemBuilder: (context, index) {
-                  final s = suppliers[index];
-                  final phone = _contactField(s, 'phone') ?? '-';
-                  final email = _contactField(s, 'email') ?? '-';
-                  final isBlacklisted = s.isBlacklisted;
-
-                  return Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: theme.colorScheme.outlineVariant),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: s.id == null || s.id!.isEmpty
-                          ? null
-                          : () => _showSupplierSuppliesDialog(s),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    s.name,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: FutureBuilder<PaginatedResponse<DrugBatch>>(
+                      future: _apiService.getDrugBatches(
+                        PharmacyQueryParams(
+                          filters: {'supplierId': supplier.id},
+                        ),
+                      ),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return Center(child: Text(snapshot.error.toString()));
+                        }
+                        final batches = snapshot.data?.items ?? [];
+                        if (batches.isEmpty) {
+                          return const Center(
+                            child: Text('No supplies found for this supplier.'),
+                          );
+                        }
+                        return ListView.separated(
+                          itemCount: batches.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final b = batches[index];
+                            final drug = b.drug;
+                            final drugName =
+                                (drug?.brandName.isNotEmpty == true)
+                                ? drug!.brandName
+                                : (drug?.genericName ?? '');
+                            final cs = Theme.of(context).colorScheme;
+                            return Material(
+                              color: pharmacyZebra(cs, index),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 8,
                                 ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isBlacklisted
-                                        ? Colors.red.withValues(alpha: 0.1)
-                                        : Colors.green.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    isBlacklisted ? 'Blacklisted' : 'Active',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: isBlacklisted
-                                          ? Colors.red[700]
-                                          : Colors.green[700],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.phone, size: 14),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    phone,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.email_outlined, size: 14),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    email,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Spacer(),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    s.creditTerms?.isNotEmpty == true
-                                        ? s.creditTerms!
-                                        : 'No credit terms',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.timer_outlined, size: 14),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      s.leadTimeDays != null
-                                          ? '${s.leadTimeDays}d'
-                                          : '--',
-                                      style: const TextStyle(fontSize: 12),
+                                    HeltyEllipsisText(
+                                      text: drugName.isEmpty ? '—' : drugName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    HeltyEllipsisText(
+                                      text:
+                                          'Batch ${b.batchNumber ?? '—'} · Qty ${b.quantityReceived} · '
+                                          '${b.costPrice != null ? b.costPrice!.toStringAsFixed(2) : '—'} · '
+                                          'Exp ${_formatDate(b.expiryDate)}',
+                                      style: TextStyle(
+                                        color: cs.onSurfaceVariant,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: s.id == null || s.id!.isEmpty
-                                    ? null
-                                    : () => _showSupplierSuppliesDialog(s),
-                                icon: const Icon(
-                                  Icons.list_alt_outlined,
-                                  size: 16,
-                                ),
-                                label: const Text('View supplies'),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
+                            );
+                          },
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
           ),
@@ -498,11 +267,21 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
       );
 
       await _apiService.createSupplier(supplier);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Supplier added successfully!')),
-        );
-      }
+      if (!mounted) return;
+      _nameCtrl.clear();
+      _licenseCtrl.clear();
+      _creditTermsCtrl.clear();
+      _leadTimeCtrl.clear();
+      _phoneCtrl.clear();
+      _emailCtrl.clear();
+      setState(() {
+        _isBlacklisted = false;
+        _page = 1;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Supplier added successfully!')),
+      );
+      await _loadSuppliers();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -515,64 +294,676 @@ class _AddSupplierScreenState extends State<AddSupplierScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final suppliers = _suppliersPage?.items ?? [];
+    final visible = _visibleSuppliers;
+    final ready = !_isLoadingSuppliers && _suppliersError == null;
+    final active = suppliers.where((s) => !s.isBlacklisted).length;
+    final blocked = suppliers.where((s) => s.isBlacklisted).length;
+    final total = _suppliersPage?.total ?? 0;
+    final totalPages = (_suppliersPage?.totalPages ?? 1).clamp(1, 1000000);
 
     return Scaffold(
+      backgroundColor: cs.surface,
       body: ResponsiveBody(
         center: false,
         builder: (context, bp) {
-          final formSection = _buildSupplierForm(context, theme);
-          final tableSection = Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Suppliers',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Refresh suppliers',
-                        onPressed: _isLoadingSuppliers ? null : _loadSuppliers,
-                        icon: const Icon(Icons.refresh),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(child: _buildSuppliersTableSection(context)),
-                ],
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final showRail = width >= PharmacyAccent.railBreakpoint;
+          final useCards = width < PharmacyAccent.cardBreakpoint;
+
+          final header = PharmacyPageHeader(
+            title: 'Add Supplier',
+            subtitle: 'Register a supplier and review who can receive orders.',
+            icon: Icons.local_shipping_outlined,
+            iconColor: DepartmentColors.pharmacy,
+            onRefresh: _isLoadingSuppliers ? null : _loadSuppliers,
+          );
+          final kpis = PharmacyKpiStrip(
+            items: [
+              PharmacyKpiItem(
+                label: 'Suppliers',
+                value: ready ? '$total' : '—',
+                caption: 'Registered',
+                icon: Icons.groups_outlined,
+                accent: PharmacyAccent.blue,
               ),
+              PharmacyKpiItem(
+                label: 'On this page',
+                value: ready ? '${suppliers.length}' : '—',
+                caption: 'Loaded',
+                icon: Icons.list_alt_outlined,
+                accent: PharmacyAccent.teal,
+              ),
+              PharmacyKpiItem(
+                label: 'Active',
+                value: ready ? '$active' : '—',
+                caption: 'On this page',
+                icon: Icons.check_circle_outline,
+                accent: PharmacyAccent.green,
+              ),
+              PharmacyKpiItem(
+                label: 'Blacklisted',
+                value: ready ? '$blocked' : '—',
+                caption: 'On this page',
+                icon: Icons.block_outlined,
+                accent: PharmacyAccent.amber,
+              ),
+            ],
+          );
+          final filters = TextField(
+            controller: _searchCtrl,
+            style: const TextStyle(fontSize: 12),
+            decoration: pharmacyFieldDecoration(
+              context,
+              label: 'Search',
+              hint: 'Name, phone, or email on this page…',
+              icon: Icons.search,
+              iconColor: PharmacyAccent.indigo,
             ),
           );
+          final list = _SupplierList(
+            suppliers: visible,
+            loading: _isLoadingSuppliers && suppliers.isEmpty,
+            error: suppliers.isEmpty ? _suppliersError : null,
+            useCards: useCards,
+            total: total,
+            page: _page,
+            totalPages: totalPages,
+            onPrev: _page > 1
+                ? () {
+                    setState(() => _page -= 1);
+                    _loadSuppliers();
+                  }
+                : null,
+            onNext: _page < totalPages
+                ? () {
+                    setState(() => _page += 1);
+                    _loadSuppliers();
+                  }
+                : null,
+            onView: _showSupplierSuppliesDialog,
+            phoneOf: (s) => _contactField(s, 'phone') ?? '—',
+            emailOf: (s) => _contactField(s, 'email') ?? '—',
+            onRetry: _loadSuppliers,
+          );
+          final form = _SupplierForm(
+            formKey: _formKey,
+            nameCtrl: _nameCtrl,
+            licenseCtrl: _licenseCtrl,
+            emailCtrl: _emailCtrl,
+            phoneCtrl: _phoneCtrl,
+            creditTermsCtrl: _creditTermsCtrl,
+            leadTimeCtrl: _leadTimeCtrl,
+            isBlacklisted: _isBlacklisted,
+            isLoading: _isLoading,
+            onBlacklistChanged: (v) => setState(() => _isBlacklisted = v),
+            onSubmit: _submitForm,
+          );
 
-          if (bp.stackPanels) {
-            return Column(
+          final main = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: 10),
+              kpis,
+              const SizedBox(height: 10),
+              filters,
+              if (_suppliersError != null && suppliers.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                HeltyEllipsisText(
+                  text: _suppliersError!,
+                  style: TextStyle(color: cs.error),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Expanded(child: list),
+            ],
+          );
+
+          if (showRail) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                formSection,
-                const SizedBox(height: 16),
-                SizedBox(height: 400, child: tableSection),
+                Expanded(flex: 9, child: main),
+                const SizedBox(width: 12),
+                Expanded(flex: 3, child: SingleChildScrollView(child: form)),
               ],
             );
           }
 
-          return ResponsiveRowColumn(
-            gap: 16,
-            firstFlex: 2,
-            secondFlex: 3,
-            first: formSection,
-            second: SizedBox(
-              height: MediaQuery.sizeOf(context).height - 80,
-              child: tableSection,
-            ),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: main),
+              const SizedBox(height: 10),
+              SizedBox(height: 280, child: SingleChildScrollView(child: form)),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _SupplierForm extends StatelessWidget {
+  const _SupplierForm({
+    required this.formKey,
+    required this.nameCtrl,
+    required this.licenseCtrl,
+    required this.emailCtrl,
+    required this.phoneCtrl,
+    required this.creditTermsCtrl,
+    required this.leadTimeCtrl,
+    required this.isBlacklisted,
+    required this.isLoading,
+    required this.onBlacklistChanged,
+    required this.onSubmit,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController nameCtrl;
+  final TextEditingController licenseCtrl;
+  final TextEditingController emailCtrl;
+  final TextEditingController phoneCtrl;
+  final TextEditingController creditTermsCtrl;
+  final TextEditingController leadTimeCtrl;
+  final bool isBlacklisted;
+  final bool isLoading;
+  final ValueChanged<bool> onBlacklistChanged;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return HeltySurfaceCard(
+      padding: const EdgeInsets.all(12),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const HeltySolidIcon(
+                  icon: Icons.person_add_alt_1,
+                  color: PharmacyAccent.green,
+                  size: 26,
+                  iconSize: 14,
+                  radius: 7,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'New supplier',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ModernTextField(
+              label: 'Supplier Name',
+              hint: 'e.g., Global Pharma Distributors',
+              controller: nameCtrl,
+              validator: (v) => v!.isEmpty ? 'Required' : null,
+            ),
+            ModernTextField(
+              label: 'License Number',
+              hint: 'Operating license ID',
+              controller: licenseCtrl,
+            ),
+            ModernTextField(
+              label: 'Email Address',
+              hint: 'contact@supplier.com',
+              controller: emailCtrl,
+              icon: Icons.email_outlined,
+              keyboardType: TextInputType.emailAddress,
+            ),
+            ModernTextField(
+              label: 'Phone Number',
+              hint: '+1 234 567 890',
+              controller: phoneCtrl,
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+            ),
+            ModernTextField(
+              label: 'Credit Terms',
+              hint: 'e.g., Net 30',
+              controller: creditTermsCtrl,
+            ),
+            ModernTextField(
+              label: 'Lead Time (Days)',
+              hint: 'e.g., 5',
+              controller: leadTimeCtrl,
+              keyboardType: TextInputType.number,
+            ),
+            ModernSwitchCard(
+              title: 'Blacklist Supplier',
+              subtitle:
+                  'Prevent future purchase orders from being issued to this supplier.',
+              value: isBlacklisted,
+              onChanged: onBlacklistChanged,
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: isLoading ? null : onSubmit,
+              child: isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save supplier'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SupplierList extends StatelessWidget {
+  const _SupplierList({
+    required this.suppliers,
+    required this.loading,
+    required this.error,
+    required this.useCards,
+    required this.total,
+    required this.page,
+    required this.totalPages,
+    required this.onPrev,
+    required this.onNext,
+    required this.onView,
+    required this.phoneOf,
+    required this.emailOf,
+    required this.onRetry,
+  });
+
+  final List<Supplier> suppliers;
+  final bool loading;
+  final String? error;
+  final bool useCards;
+  final int total;
+  final int page;
+  final int totalPages;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final ValueChanged<Supplier> onView;
+  final String Function(Supplier) phoneOf;
+  final String Function(Supplier) emailOf;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = suppliers.isEmpty ? 0 : ((page - 1) * 20) + 1;
+    final end = suppliers.isEmpty ? 0 : start + suppliers.length - 1;
+    final footer = PharmacyPaginationFooter(
+      label: suppliers.isEmpty
+          ? 'No suppliers to display'
+          : 'Showing $start–$end of $total',
+      page: page,
+      canPrev: onPrev != null,
+      canNext: onNext != null,
+      onPrev: onPrev,
+      onNext: onNext,
+    );
+
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final body = suppliers.isEmpty
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  HeltySolidIcon(
+                    icon: error == null
+                        ? Icons.local_shipping_outlined
+                        : Icons.error_outline,
+                    color: error == null
+                        ? DepartmentColors.pharmacy
+                        : Theme.of(context).colorScheme.error,
+                    size: 48,
+                    iconSize: 26,
+                    radius: 12,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    error ?? 'No suppliers found.',
+                    textAlign: TextAlign.center,
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: onRetry,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          )
+        : useCards
+        ? ListView.builder(
+            itemCount: suppliers.length,
+            itemBuilder: (context, index) => _SupplierCard(
+              supplier: suppliers[index],
+              phone: phoneOf(suppliers[index]),
+              email: emailOf(suppliers[index]),
+              onView: () => onView(suppliers[index]),
+            ),
+          )
+        : _SupplierTable(
+            suppliers: suppliers,
+            phoneOf: phoneOf,
+            emailOf: emailOf,
+            onView: onView,
+          );
+
+    return HeltySurfaceCard(
+      child: Column(
+        children: [
+          Expanded(child: body),
+          footer,
+        ],
+      ),
+    );
+  }
+}
+
+class _SupplierTable extends StatelessWidget {
+  const _SupplierTable({
+    required this.suppliers,
+    required this.phoneOf,
+    required this.emailOf,
+    required this.onView,
+  });
+
+  final List<Supplier> suppliers;
+  final String Function(Supplier) phoneOf;
+  final String Function(Supplier) emailOf;
+  final ValueChanged<Supplier> onView;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return LayoutBuilder(
+      builder: (context, inner) {
+        const minWidth = 860.0;
+        final tableWidth = inner.maxWidth < minWidth
+            ? minWidth
+            : inner.maxWidth;
+        final sheet = SizedBox(
+          width: tableWidth,
+          height: inner.maxHeight,
+          child: Column(
+            children: [
+              Container(
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Row(
+                  children: [
+                    _head(context, 'SUPPLIER', flex: 3),
+                    const SizedBox(width: 20),
+                    _head(context, 'PHONE', flex: 2),
+                    const SizedBox(width: 20),
+                    _head(context, 'EMAIL', flex: 3),
+                    const SizedBox(width: 20),
+                    _head(context, 'TERMS', flex: 2),
+                    const SizedBox(width: 20),
+                    _head(context, 'LEAD', flex: 1),
+                    const SizedBox(width: 20),
+                    _head(context, 'STATUS', flex: 2),
+                    const SizedBox(width: 20),
+                    _head(context, 'ACTIONS', flex: 2, alignEnd: true),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: suppliers.length,
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    color: cs.outline.withValues(alpha: 0.08),
+                  ),
+                  itemBuilder: (context, index) {
+                    final s = suppliers[index];
+                    return Material(
+                      color: pharmacyZebra(cs, index),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: HeltyEllipsisText(
+                                text: s.name,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 2,
+                              child: HeltyEllipsisText(text: phoneOf(s)),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 3,
+                              child: HeltyEllipsisText(text: emailOf(s)),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 2,
+                              child: HeltyEllipsisText(
+                                text: s.creditTerms?.trim().isNotEmpty == true
+                                    ? s.creditTerms!
+                                    : '—',
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 1,
+                              child: HeltyEllipsisText(
+                                text: s.leadTimeDays != null
+                                    ? '${s.leadTimeDays}d'
+                                    : '—',
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 2,
+                              child: HeltyEllipsisChip(
+                                label: s.isBlacklisted
+                                    ? 'Blacklisted'
+                                    : 'Active',
+                                color: s.isBlacklisted
+                                    ? cs.error
+                                    : PharmacyAccent.green,
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 2,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton(
+                                  onPressed: s.id == null || s.id!.isEmpty
+                                      ? null
+                                      : () => onView(s),
+                                  style: OutlinedButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    shape: const StadiumBorder(),
+                                  ),
+                                  child: const Text('View'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+        if (inner.maxWidth >= minWidth) return sheet;
+        return _HScroll(child: sheet);
+      },
+    );
+  }
+
+  Widget _head(
+    BuildContext context,
+    String label, {
+    required int flex,
+    bool alignEnd = false,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        label,
+        textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.55),
+        ),
+      ),
+    );
+  }
+}
+
+class _HScroll extends StatefulWidget {
+  const _HScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_HScroll> createState() => _HScrollState();
+}
+
+class _HScrollState extends State<_HScroll> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      notificationPredicate: (notification) => notification.depth == 0,
+      child: SingleChildScrollView(
+        controller: _controller,
+        primary: false,
+        scrollDirection: Axis.horizontal,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _SupplierCard extends StatelessWidget {
+  const _SupplierCard({
+    required this.supplier,
+    required this.phone,
+    required this.email,
+    required this.onView,
+  });
+
+  final Supplier supplier;
+  final String phone;
+  final String email;
+  final VoidCallback onView;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return HeltySurfaceCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      onTap: supplier.id == null || supplier.id!.isEmpty ? null : onView,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: HeltyEllipsisText(
+                    text: supplier.name,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                HeltyStatusChip(
+                  label: supplier.isBlacklisted ? 'Blacklisted' : 'Active',
+                  color: supplier.isBlacklisted
+                      ? cs.error
+                      : PharmacyAccent.green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            HeltyEllipsisText(
+              text: phone,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            HeltyEllipsisText(
+              text: email,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            HeltyEllipsisText(
+              text:
+                  '${supplier.creditTerms?.trim().isNotEmpty == true ? supplier.creditTerms : 'No credit terms'}'
+                  ' · ${supplier.leadTimeDays != null ? '${supplier.leadTimeDays}d lead' : '—'}',
+              style: theme.textTheme.bodySmall,
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton(
+                onPressed: supplier.id == null || supplier.id!.isEmpty
+                    ? null
+                    : onView,
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('View'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

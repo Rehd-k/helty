@@ -27,6 +27,8 @@ Widget buildModernGrid(
               flex: 3,
               child: Text(
                 'Description/Service',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -37,6 +39,8 @@ Widget buildModernGrid(
               child: Text(
                 'QTY',
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -47,6 +51,8 @@ Widget buildModernGrid(
               child: Text(
                 'Unit Price',
                 textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -57,6 +63,8 @@ Widget buildModernGrid(
               child: Text(
                 'Total',
                 textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -82,6 +90,8 @@ Widget buildModernGrid(
                     flex: 3,
                     child: Text(
                       item.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
@@ -89,13 +99,20 @@ Widget buildModernGrid(
                   ),
                   Expanded(
                     flex: 1,
-                    child: Text('${item.qty}', textAlign: TextAlign.center),
+                    child: Text(
+                      '${item.qty}',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   Expanded(
                     flex: 2,
                     child: Text(
                       item.cost.toFinancial(isMoney: true),
                       textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Expanded(
@@ -103,6 +120,8 @@ Widget buildModernGrid(
                     child: Text(
                       (item.qty! * item.cost).toFinancial(isMoney: true),
                       textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: cs.primary,

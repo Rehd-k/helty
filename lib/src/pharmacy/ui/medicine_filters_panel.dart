@@ -35,6 +35,8 @@ class MedicineFiltersPanel extends StatelessWidget {
     required this.expiryDateTo,
     required this.onExpiryDateFromChanged,
     required this.onExpiryDateToChanged,
+    this.showSearch = true,
+    this.showQuickFilters = true,
   });
 
   final ThemeData theme;
@@ -69,6 +71,12 @@ class MedicineFiltersPanel extends StatelessWidget {
   final ValueChanged<DateTime?> onExpiryDateFromChanged;
   final ValueChanged<DateTime?> onExpiryDateToChanged;
 
+  /// Search field and search button. Hidden when search lives on the page.
+  final bool showSearch;
+
+  /// Status chips. Hidden when those chips live on the page.
+  final bool showQuickFilters;
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -76,27 +84,30 @@ class MedicineFiltersPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
-          _buildSearchRow(context),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onPerformSearch,
-              icon: const Icon(Icons.search, size: 18),
-              label: const Text('Search'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+          if (showSearch) ...[
+            const SizedBox(height: 8),
+            _buildSearchRow(context),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onPerformSearch,
+                icon: const Icon(Icons.search, size: 18),
+                label: const Text('Search'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
-          ),
-
-          const SizedBox(height: 12),
-          _buildPillsRow(),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
+          if (showQuickFilters) ...[
+            _buildPillsRow(),
+            const SizedBox(height: 12),
+          ],
           _buildDropdownsAndDates(context),
         ],
       ),
@@ -323,8 +334,9 @@ class MedicineFiltersPanel extends StatelessWidget {
     required ValueChanged<DateTime?> onFrom,
     required ValueChanged<DateTime?> onTo,
   }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
         SizedBox(
           width: 140,
@@ -375,7 +387,6 @@ class MedicineFiltersPanel extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 8),
         SizedBox(
           width: 140,
           child: Column(

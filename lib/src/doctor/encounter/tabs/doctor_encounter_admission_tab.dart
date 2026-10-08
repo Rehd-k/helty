@@ -554,25 +554,27 @@ class _DoctorEncounterAdmissionTabState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Update ward location',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: cs.onSurface,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Update ward location',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: cs.onSurface,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Transfer the patient to another ward or bed (e.g. ICU, surgical).',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
+                        const SizedBox(height: 4),
+                        Text(
+                          'Transfer the patient to another ward or bed (e.g. ICU, surgical).',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Icon(Icons.swap_horiz, color: cs.primary),
                 ],
@@ -631,8 +633,10 @@ class _DoctorEncounterAdmissionTabState
               _buildWardBedAvailabilityHint(cs),
               const SizedBox(height: 24),
               if (!readOnly)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
                   children: [
                     if (_canDischarge)
                       OutlinedButton.icon(
@@ -640,7 +644,6 @@ class _DoctorEncounterAdmissionTabState
                         icon: const Icon(Icons.logout, size: 18),
                         label: const Text('Discharge'),
                       ),
-                    if (_canDischarge) const SizedBox(width: 12),
                     FilledButton.icon(
                       onPressed: _canSubmitTransfer
                           ? _updateAdmissionLocation
@@ -710,25 +713,27 @@ class _DoctorEncounterAdmissionTabState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Admit patient',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: cs.onSurface,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Admit patient',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: cs.onSurface,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Choose ward and bed, then confirm admission.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
+                        const SizedBox(height: 4),
+                        Text(
+                          'Choose ward and bed, then confirm admission.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Icon(Icons.local_hospital_outlined, color: cs.primary),
                 ],

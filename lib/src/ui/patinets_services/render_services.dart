@@ -282,6 +282,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
 
   // Mock Selected Items (The Cart)
   final List<ServiceModel> _selectedItems = [];
+  bool _mobileCartOpen = false;
 
   // Calculate Total (unit cost × quantity)
   double get _totalDue => _selectedItems.fold(
@@ -548,49 +549,138 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
         ],
       ),
       body: ResponsiveBody(
-        builder: (context, bp) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ParkedBillingChipsBar(onResume: _resumeParkedSession),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ==========================================
-                  // LEFT PANE: SEARCH & AVAILABLE SERVICES
-                  // ==========================================
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildSearchAndFilterCard(),
-                        const SizedBox(height: 16),
-                        Expanded(child: _buildAvailableServicesList()),
-                        const SizedBox(height: 8),
-                        _buildPagination(),
-                      ],
-                    ),
+        builder: (context, bp) {
+          final showCart = bp.isMobile && _mobileCartOpen;
+          return PopScope(
+            canPop: !showCart,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop || !showCart) return;
+              setState(() => _mobileCartOpen = false);
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!showCart)
+                  ParkedBillingChipsBar(onResume: _resumeParkedSession),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: showCart
+                        ? _buildMobileCart(
+                            selectedPatient: selectedPatient,
+                            auth: auth,
+                          )
+                        : bp.isMobile
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: _buildServicesPane()),
+                              const SizedBox(height: 8),
+                              _buildMobileCartBar(),
+                            ],
+                          )
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 5, child: _buildServicesPane()),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                flex: 4,
+                                child: _buildSelectedServicesPanel(
+                                  selectedPatient,
+                                  auth,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
-                  const SizedBox(width: 16),
+  Widget _buildServicesPane() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSearchAndFilterCard(),
+        const SizedBox(height: 16),
+        Expanded(child: _buildAvailableServicesList()),
+        const SizedBox(height: 8),
+        _buildPagination(),
+      ],
+    );
+  }
 
-                  // ==========================================
-                  // RIGHT PANE: SELECTED SERVICES TABLE
-                  // ==========================================
-                  Expanded(
-                    flex: 4,
-                    child: _buildSelectedServicesPanel(selectedPatient, auth),
-                  ),
-                ],
+  Widget _buildMobileCartBar() {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final count = _selectedItems.length;
+    final summary = count == 0
+        ? 'No services selected'
+        : _flowConfig.hideServicePrices
+        ? '$count selected'
+        : '$count selected · ${_totalDue.toFinancial(isMoney: true)}';
+    return DecoratedBox(
+      decoration: _surfacePanelDecoration(
+        borderColor: cs.primary.withValues(alpha: 0.28),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                summary,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: () => setState(() => _mobileCartOpen = true),
+              child: const Text('Review'),
+            ),
+          ],
+        ),
       ),
-      ),
+    );
+  }
+
+  Widget _buildMobileCart({
+    required Patient? selectedPatient,
+    required AuthState auth,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              tooltip: 'Back to services',
+              onPressed: () => setState(() => _mobileCartOpen = false),
+              icon: const Icon(Icons.arrow_back),
+            ),
+            Expanded(
+              child: Text(
+                'Selected services',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Expanded(child: _buildSelectedServicesPanel(selectedPatient, auth)),
+      ],
     );
   }
 
@@ -609,7 +699,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
             decoration: BoxDecoration(
               color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: 0.5),
+              ),
             ),
             child: TextField(
               onChanged: (val) {
@@ -768,7 +860,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           color: isSelected ? cs.primary : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.4),
+            color: isSelected
+                ? cs.primary
+                : cs.outlineVariant.withValues(alpha: 0.4),
           ),
         ),
         child: Row(
@@ -821,59 +915,120 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                   hoverColor: cs.primaryContainer.withValues(alpha: 0.35),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.name,
-                                style: tt.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final stacked = constraints.maxWidth < 280;
+                        final details = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: tt.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Text(
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
                                     item.serviceId,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: tt.bodySmall?.copyWith(
                                       color: cs.onSurfaceVariant,
                                     ),
                                   ),
+                                ),
+                                if ((item.departmentName ?? '')
+                                    .trim()
+                                    .isNotEmpty) ...[
                                   const SizedBox(width: 8),
-                                  _buildCategoryBadge(
-                                    item.departmentName ?? '',
+                                  Flexible(
+                                    child: Tooltip(
+                                      message: item.departmentName!,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: _categoryAccent(
+                                            item.departmentName!,
+                                          ).withValues(alpha: 0.14),
+                                          borderRadius: BorderRadius.circular(
+                                            AppTheme.radiusSm,
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          child: Text(
+                                            item.departmentName!,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: tt.labelSmall?.copyWith(
+                                              color: _categoryAccent(
+                                                item.departmentName!,
+                                              ),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                              ],
+                            ),
+                          ],
+                        );
+                        final price = Column(
+                          crossAxisAlignment: stacked
+                              ? CrossAxisAlignment.start
+                              : CrossAxisAlignment.end,
                           children: [
                             if (!_flowConfig.hideServicePrices)
                               Text(
                                 _effectiveUnitPrice(
                                   item,
                                 ).toFinancial(isMoney: true),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: tt.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                             const SizedBox(height: 4),
                             Text(
-                              'Click to Add',
+                              'Tap to add',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: tt.labelSmall?.copyWith(
                                 color: cs.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
-                        ),
-                      ],
+                        );
+                        if (stacked) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              details,
+                              const SizedBox(height: 8),
+                              price,
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(child: details),
+                            const SizedBox(width: 8),
+                            price,
+                          ],
+                        );
+                      },
                     ),
                   ),
                 );
@@ -895,65 +1050,62 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
     final to = _skip + showing;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: _surfacePanelDecoration(),
-      child: Row(
-        children: [
-          // Item range label (left)
-          if (showing > 0)
-            Text(
-              showing == 0 ? '' : '$from–$to${_hasMore ? '+' : ''}',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 280;
+          final showMore = _hasMore && constraints.maxWidth >= 520;
+          return Row(
+            children: [
+              Expanded(
+                child: Text(
+                  showing > 0 ? '$from–$to${_hasMore ? '+' : ''}' : '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
-            ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: canGoBack ? _prevPage : null,
-            color: canGoBack
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outlineVariant,
-            tooltip: 'Previous page',
-          ),
-          const SizedBox(width: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer.withValues(
-                alpha: 0.45,
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: canGoBack ? _prevPage : null,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                color: canGoBack
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outlineVariant,
+                tooltip: 'Previous page',
               ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Page $_currentPage',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.primary,
+              Text(
+                compact ? '$_currentPage' : 'Page $_currentPage',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: canGoNext ? _nextPage : null,
-            color: canGoNext
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outlineVariant,
-            tooltip: 'Next page',
-          ),
-          const Spacer(),
-          // "more" badge on the right
-          AnimatedOpacity(
-            opacity: _hasMore ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: HeltyStatusChip(
-              label: 'More pages ›',
-              color: DepartmentColors.billing,
-              dense: true,
-            ),
-          ),
-        ],
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: canGoNext ? _nextPage : null,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                color: canGoNext
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outlineVariant,
+                tooltip: 'Next page',
+              ),
+              if (showMore)
+                HeltyStatusChip(
+                  label: 'More pages ›',
+                  color: DepartmentColors.billing,
+                  dense: true,
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1008,8 +1160,10 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 ),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   'Selected Services',
@@ -1034,8 +1188,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                       ),
                     ),
                   ),
-                if (_selectedItems.isNotEmpty) ...[
-                  const SizedBox(width: 4),
+                if (_selectedItems.isNotEmpty)
                   TextButton.icon(
                     onPressed: _emptySelection,
                     icon: Icon(Icons.delete_sweep, size: 18, color: cs.error),
@@ -1047,7 +1200,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                       ),
                     ),
                   ),
-                ],
               ],
             ),
           ),
@@ -1088,7 +1240,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'No services selected yet.\nClick on a service from the left to add it.',
+                          'No services selected yet.\n${MediaQuery.sizeOf(context).width < 600 ? 'Go back and tap a service to add it.' : 'Click on a service from the left to add it.'}',
                           textAlign: TextAlign.center,
                           style: tt.bodyMedium?.copyWith(
                             color: cs.onSurfaceVariant,
@@ -1150,6 +1302,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                 flex: 2,
                                 child: Text(
                                   item.cost.toFinancial(isMoney: true),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: tt.bodyMedium?.copyWith(
                                     color: cs.onSurfaceVariant,
                                   ),
@@ -1161,6 +1315,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                                   (item.cost * (item.qty ?? 1)).toFinancial(
                                     isMoney: true,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: tt.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1202,30 +1358,64 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
                 ),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked = constraints.maxWidth < 480;
+                final dueLabel = Text(
                   'AMOUNT DUE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: tt.labelLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: cs.onSurfaceVariant,
                     letterSpacing: 0.8,
                   ),
-                ),
-                if (!_flowConfig.hideServicePrices)
-                  Text(
-                    _totalDue.toFinancial(isMoney: true),
-                    style: tt.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: cs.primary,
-                    ),
-                  ),
-                _footerCheckoutButton(
+                );
+                final dueAmount = !_flowConfig.hideServicePrices
+                    ? Text(
+                        _totalDue.toFinancial(isMoney: true),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: tt.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: cs.primary,
+                        ),
+                      )
+                    : null;
+                final checkout = _footerCheckoutButton(
                   auth: auth,
                   selectedPatient: selectedPatient,
-                ),
-              ],
+                );
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: dueLabel),
+                          if (dueAmount != null) ...[
+                            const SizedBox(width: 8),
+                            Flexible(child: dueAmount),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      checkout,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: dueLabel),
+                    if (dueAmount != null) ...[
+                      const SizedBox(width: 8),
+                      dueAmount,
+                      const SizedBox(width: 12),
+                    ],
+                    checkout,
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -1275,9 +1465,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
               )
             : Text(
                 'Pay',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
               ),
       );
     }
@@ -1288,9 +1478,9 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
           : () => _handleSendToBill(selectedPatient: selectedPatient),
       child: Text(
         _flowConfig.isModuleFlow ? 'Send To Bill' : 'Send To Bills',
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1404,8 +1594,7 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       context,
       ref: ref,
       patientUuid: patientUuid,
-      patientName:
-          selectedPatient.displayName.trim(),
+      patientName: selectedPatient.displayName.trim(),
       chartNumber: selectedPatient.patientId,
       offerReceipt: printReceiptForBilling,
     );
@@ -1435,6 +1624,8 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       flex: flex,
       child: Text(
         title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.w700,
           color: cs.onSurfaceVariant,
@@ -1458,14 +1649,6 @@ class _BillingServicesViewState extends ConsumerState<RenderServiceScreen> {
       default:
         return Theme.of(context).colorScheme.outline;
     }
-  }
-
-  Widget _buildCategoryBadge(String category) {
-    if (category.trim().isEmpty) return const SizedBox.shrink();
-    return HeltyStatusChip(
-      label: category,
-      color: _categoryAccent(category),
-    );
   }
 }
 
@@ -1646,7 +1829,9 @@ class _PatientStatusDialogState extends State<_PatientStatusDialog> {
     return AlertDialog(
       title: const Text('Change Patient Status'),
       content: SizedBox(
-        width: 420,
+        width: MediaQuery.sizeOf(context).width < 468
+            ? MediaQuery.sizeOf(context).width - 48
+            : 420,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

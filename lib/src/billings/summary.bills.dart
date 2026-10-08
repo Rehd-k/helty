@@ -58,17 +58,25 @@ class SummaryBills extends ConsumerWidget {
 
             // Total Row
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Total Amount',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                const Expanded(
+                  child: Text(
+                    'Total Amount',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
-                Text(
-                  invoice.total.toFinancial(isMoney: true),
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: scheme.primary,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    invoice.total.toFinancial(isMoney: true),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: scheme.primary,
+                    ),
                   ),
                 ),
               ],
@@ -108,18 +116,28 @@ class SummaryBills extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: isDiscount ? discountColor : scheme.onSurfaceVariant,
-              fontWeight: isDiscount ? FontWeight.w600 : FontWeight.normal,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: isDiscount ? discountColor : scheme.onSurfaceVariant,
+                fontWeight: isDiscount ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
           ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: isDiscount ? discountColor : scheme.onSurface,
-              fontWeight: isDiscount ? FontWeight.bold : FontWeight.w500,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: isDiscount ? discountColor : scheme.onSurface,
+                fontWeight: isDiscount ? FontWeight.bold : FontWeight.w500,
+              ),
             ),
           ),
         ],

@@ -536,7 +536,7 @@ class _DoctorEncounterViewScreenState
                 builder: (context, bp) => Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildHeaderRow(context, compact: bp.isMobile),
+                    _buildHeaderRow(context, compact: !bp.isDesktop),
                     if (_buildEditMetaBanner(context) != null) ...[
                       const SizedBox(height: 10),
                       _buildEditMetaBanner(context)!,
@@ -1022,28 +1022,47 @@ class _DoctorEncounterViewScreenState
       ],
     );
 
-    final actions = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: compact ? WrapAlignment.start : WrapAlignment.end,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [overflow, primaryAction(), moduleChip],
-    );
-
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [titleBlock, const SizedBox(height: 10), actions],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: titleBlock),
-        const SizedBox(width: 12),
-        actions,
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final stack = compact || width < AppBreakpoints.desktopMin;
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              titleBlock,
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [overflow, primaryAction(), moduleChip],
+              ),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleBlock),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [overflow, primaryAction(), moduleChip],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

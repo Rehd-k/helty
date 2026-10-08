@@ -1,15 +1,34 @@
+import 'dart:math' as math;
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/helper/date.formatter.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/core/responsive.dart';
+import 'package:helty/src/pharmacy/widgets/pharmacy_page_chrome.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../models/pharmacy_model.dart';
 import '../services/pharmacy_service.dart';
 import 'add_drug_screen.dart';
 import 'medicine_filters_panel.dart';
+
+Color drugStatusColor(String status) {
+  switch (status) {
+    case 'In Stock':
+      return PharmacyAccent.green;
+    case 'Low Stock':
+    case 'Expiring Soon':
+      return PharmacyAccent.amber;
+    case 'Out of Stock':
+      return const Color(0xFFDC2626);
+    default:
+      return PharmacyAccent.indigo;
+  }
+}
 
 @RoutePage()
 class MedicineInventoryScreen extends StatefulWidget {
@@ -36,7 +55,6 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   String? _sortBy;
 
   Drug? _selectedDrug;
-  bool _isFiltersOpen = false;
   final TextEditingController _searchController = TextEditingController();
   SearchFieldType _searchFieldType = SearchFieldType.brandName;
   FilterPillType _filterPill = FilterPillType.all;
@@ -53,9 +71,6 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   List<Manufacturer> _manufacturers = [];
   List<Supplier> _suppliers = [];
   bool _filtersLoaded = false;
-  final Map<String, List<DrugLocationQuantity>> _drugLocationQuantities = {};
-  final Set<String> _loadingDrugLocationIds = {};
-  final Map<String, String> _drugLocationErrors = {};
 
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
@@ -153,23 +168,25 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
 
     try {
       final response = await _drugService.searchDrugs(_buildSearchParams());
+      if (!mounted) return;
+      final showRail =
+          MediaQuery.sizeOf(context).width >= PharmacyAccent.railBreakpoint;
 
       setState(() {
         _drugs = response.items;
         _totalItems = response.total;
-        if (_drugs.isNotEmpty && _selectedDrug == null) {
+        if (showRail && _drugs.isNotEmpty && _selectedDrug == null) {
           _selectedDrug = _drugs.first;
         }
       });
-      if (_selectedDrug?.id != null) {
-        await _fetchDrugLocationQuantities(_selectedDrug!.id!);
-      }
     } on AppException catch (e) {
+      if (!mounted) return;
       setState(() => _errorMessage = e.message);
     } catch (e) {
+      if (!mounted) return;
       setState(() => _errorMessage = e.toString());
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -189,49 +206,57 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     _fetchData();
   }
 
-  Future<void> _fetchDrugLocationQuantities(String drugId) async {
-    if (drugId.trim().isEmpty) return;
-    if (_loadingDrugLocationIds.contains(drugId)) return;
-
-    setState(() {
-      _loadingDrugLocationIds.add(drugId);
-      _drugLocationErrors.remove(drugId);
-    });
-
-    try {
-      final locations = await _drugService.getDrugLocationQuantities(drugId);
-      if (!mounted) return;
-      setState(() {
-        _drugLocationQuantities[drugId] = locations;
-      });
-    } on AppException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _drugLocationErrors[drugId] = e.message;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _drugLocationErrors[drugId] = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loadingDrugLocationIds.remove(drugId);
-        });
-      }
+  void _onDrugPressed(Drug drug, {required bool useSheet}) {
+    if (useSheet) {
+      _showDrugSheet(drug);
+      return;
     }
+    setState(() => _selectedDrug = drug);
   }
 
-  void _selectDrug(Drug drug) {
-    setState(() {
-      _selectedDrug = drug;
-      if (_isFiltersOpen) _isFiltersOpen = false;
-    });
-    final id = drug.id;
-    if (id != null && id.isNotEmpty) {
-      _fetchDrugLocationQuantities(id);
-    }
+  Future<void> _showDrugSheet(Drug drug) async {
+    setState(() => _selectedDrug = drug);
+    final theme = Theme.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        void afterClose(VoidCallback action) {
+          Navigator.of(sheetContext).pop();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            action();
+          });
+        }
+
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.78,
+          minChildSize: 0.42,
+          maxChildSize: 0.95,
+          builder: (_, scrollController) {
+            return _MedicineDrugDetails(
+              drug: drug,
+              drugService: _drugService,
+              scrollController: scrollController,
+              onEdit: () => afterClose(
+                () => _showEditMedicineModal(context, theme, drug),
+              ),
+              onHide: () => afterClose(() => _hideDrug(drug)),
+              onOrder: () =>
+                  afterClose(() => _showOrderModal(context, theme, drug)),
+              onPricing: () => afterClose(() {
+                final id = drug.id;
+                if (id == null || id.trim().isEmpty) return;
+                context.router.push(BatchesPreviewWardPricingRoute(id: id));
+              }),
+            );
+          },
+        );
+      },
+    );
   }
 
   bool _hasSellableStock(Drug drug) => (drug.stock ?? 0) > 0;
@@ -271,11 +296,11 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              '� The drug will no longer appear in searches or new orders.',
+              '• The drug will no longer appear in searches or new orders.',
             ),
-            const Text('� Past prescriptions and invoices are not affected.'),
+            const Text('• Past prescriptions and invoices are not affected.'),
             const Text(
-              '� You cannot hide a drug while sellable stock remains.',
+              '• You cannot hide a drug while sellable stock remains.',
             ),
           ],
         ),
@@ -304,14 +329,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
         if (_selectedDrug?.id == id) {
           _selectedDrug = _drugs.isNotEmpty ? _drugs.first : null;
         }
-        _drugLocationQuantities.remove(id);
-        _drugLocationErrors.remove(id);
-        _loadingDrugLocationIds.remove(id);
       });
-      final selectedId = _selectedDrug?.id;
-      if (selectedId != null && selectedId.isNotEmpty) {
-        _fetchDrugLocationQuantities(selectedId);
-      }
     } on AppException catch (e) {
       if (mounted) _showSnack(e.message, isError: true);
     } catch (e) {
@@ -322,275 +340,338 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: cs.surface,
       body: ResponsiveBody(
         center: false,
-        builder: (context, bp) => Stack(
-          children: [
-            if (bp.stackPanels)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: _buildMainSection(theme, bp)),
-                  if (_selectedDrug != null)
-                    SizedBox(
-                      height: 360,
-                      child: _buildDetailsPanel(theme, _selectedDrug!),
-                    ),
-                ],
-              )
-            else
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 7, child: _buildMainSection(theme, bp)),
-                  SizedBox(
-                    width: 380,
-                    child: _selectedDrug == null
-                        ? const Center(
-                            child: Text('Select a medicine to view details'),
-                          )
-                        : _buildDetailsPanel(theme, _selectedDrug!),
-                  ),
-                ],
-              ),
-            if (_isFiltersOpen)
-              Positioned(
-                top: 0,
-                right: 0,
-                bottom: 0,
-                child: Material(
-                  elevation: 8,
-                  child: Container(
-                    width: bp.isMobile ? bp.maxWidth : 360,
-                    color: theme.scaffoldBackgroundColor,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Filters',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close),
-                                tooltip: 'Close filters',
-                                onPressed: () =>
-                                    setState(() => _isFiltersOpen = false),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Divider(height: 1),
-                        Expanded(
-                          child: MedicineFiltersPanel(
-                            theme: theme,
-                            searchController: _searchController,
-                            searchFieldType: _searchFieldType,
-                            onSearchFieldTypeChanged: (v) {
-                              setState(() => _searchFieldType = v);
-                            },
-                            onPerformSearch: () {
-                              setState(() => _currentPage = 1);
-                              _fetchData();
-                            },
-                            filterPill: _filterPill,
-                            onFilterPillChanged: (pill) {
-                              setState(() {
-                                _filterPill = pill;
-                                _currentPage = 1;
-                              });
-                              _fetchData();
-                            },
-                            manufacturers: _manufacturers,
-                            suppliers: _suppliers,
-                            selectedManufacturerId: _manufacturerId,
-                            onManufacturerChanged: (v) {
-                              setState(() {
-                                _manufacturerId = v;
-                                _currentPage = 1;
-                              });
-                              _fetchData();
-                            },
-                            selectedSupplierId: _supplierId,
-                            onSupplierChanged: (v) {
-                              setState(() {
-                                _supplierId = v;
-                                _currentPage = 1;
-                              });
-                              _fetchData();
-                            },
-                            isControlledFilter: _isControlledFilter,
-                            onControlledFilterChanged: (v) {
-                              setState(() {
-                                _isControlledFilter = v;
-                                _currentPage = 1;
-                              });
-                              _fetchData();
-                            },
-                            manufacturingDateFrom: _manufacturingDateFrom,
-                            manufacturingDateTo: _manufacturingDateTo,
-                            onManufacturingDateFromChanged: (d) {
-                              setState(() {
-                                _manufacturingDateFrom = d;
-                                _currentPage = 1;
-                              });
-                              _fetchData();
-                            },
-                            onManufacturingDateToChanged: (d) {
-                              setState(() {
-                                _manufacturingDateTo = d;
-                                _currentPage = 1;
-                              });
-                              _fetchData();
-                            },
-                            expiryDateFrom: _expiryDateFrom,
-                            expiryDateTo: _expiryDateTo,
-                            onExpiryDateFromChanged: (d) {
-                              setState(() {
-                                _expiryDateFrom = d;
-                                _currentPage = 1;
-                              });
-                              _fetchData();
-                            },
-                            onExpiryDateToChanged: (d) {
-                              setState(() {
-                                _expiryDateTo = d;
-                                _currentPage = 1;
-                              });
-                              _fetchData();
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final useCards = width < PharmacyAccent.cardBreakpoint;
+          final showRail = width >= PharmacyAccent.railBreakpoint;
+
+          final main = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(theme),
+              const SizedBox(height: 10),
+              _buildFilterBar(compact: useCards),
+              const SizedBox(height: 8),
+              _buildQuickFilters(),
+              const SizedBox(height: 10),
+              Expanded(
+                child: _buildInventoryBody(
+                  theme,
+                  useCards: useCards,
+                  useSheet: !showRail,
                 ),
               ),
-          ],
-        ),
+            ],
+          );
+
+          if (!showRail) return main;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(flex: 7, child: main),
+              const SizedBox(width: 12),
+              SizedBox(width: 380, child: _buildDetailsRail(theme)),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildMainSection(ThemeData theme, AppBreakpoints bp) {
-    final cs = theme.colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildHeader(ThemeData theme) {
+    final subtitle = _isLoading
+        ? 'Manage stock, track expiries, and update details'
+        : '$_totalItems medicines in this view';
+    return PharmacyPageHeader(
+      title: 'Medicine Inventory',
+      subtitle: subtitle,
+      icon: Icons.medication_outlined,
+      iconColor: DepartmentColors.pharmacy,
+      onRefresh: _isLoading ? null : _fetchData,
+    );
+  }
+
+  Widget _buildFilterBar({required bool compact}) {
+    final search = TextField(
+      controller: _searchController,
+      style: const TextStyle(fontSize: 13),
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) {
+        setState(() => _currentPage = 1);
+        _fetchData();
+      },
+      decoration: pharmacyFieldDecoration(
+        context,
+        label: 'Search',
+        hint: _searchFieldType == SearchFieldType.brandName
+            ? 'Brand name'
+            : 'Generic name',
+        icon: Icons.search,
+        iconColor: PharmacyAccent.indigo,
+        suffixIcon: IconButton(
+          tooltip: 'Search',
+          onPressed: () {
+            setState(() => _currentPage = 1);
+            _fetchData();
+          },
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          icon: const Icon(Icons.search, size: 18),
+        ),
+      ),
+    );
+
+    final fieldType = PopupMenuButton<SearchFieldType>(
+      tooltip: 'Search field',
+      initialValue: _searchFieldType,
+      onSelected: (value) => setState(() => _searchFieldType = value),
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: SearchFieldType.brandName,
+          child: Text('Brand name'),
+        ),
+        PopupMenuItem(
+          value: SearchFieldType.genericName,
+          child: Text('Generic name'),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _searchFieldType == SearchFieldType.brandName
+                  ? 'Brand'
+                  : 'Generic',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+            const Icon(Icons.arrow_drop_down, size: 18),
+          ],
+        ),
+      ),
+    );
+
+    final add = compact
+        ? IconButton(
+            tooltip: 'Add medicine',
+            onPressed: () => _showAddMedicineModal(context, Theme.of(context)),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            icon: const HeltySolidIcon(
+              icon: Icons.add,
+              color: PharmacyAccent.teal,
+              size: 32,
+              iconSize: 18,
+              radius: 8,
+            ),
+          )
+        : FilledButton.icon(
+            onPressed: () => _showAddMedicineModal(context, Theme.of(context)),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add medicine'),
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+          );
+
+    return Row(
       children: [
-        _buildHeader(theme, bp),
-        const SizedBox(height: 24),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: cs.surfaceContainer,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.1),
+        fieldType,
+        const SizedBox(width: 4),
+        Expanded(child: search),
+        const SizedBox(width: 8),
+        PharmacyFilterButton(onPressed: _openFilters),
+        const SizedBox(width: 4),
+        add,
+      ],
+    );
+  }
+
+  Widget _buildQuickFilters() {
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: FilterPillType.values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final pill = FilterPillType.values[index];
+          final selected = _filterPill == pill;
+          return FilterChip(
+            label: Text(_pillLabel(pill)),
+            selected: selected,
+            visualDensity: VisualDensity.compact,
+            onSelected: (_) {
+              setState(() {
+                _filterPill = pill;
+                _currentPage = 1;
+              });
+              _fetchData();
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  String _pillLabel(FilterPillType pill) {
+    switch (pill) {
+      case FilterPillType.all:
+        return 'All';
+      case FilterPillType.lowStock:
+        return 'Low stock';
+      case FilterPillType.expiringSoon:
+        return 'Expiring';
+      case FilterPillType.antibiotics:
+        return 'Antibiotics';
+      case FilterPillType.painkillers:
+        return 'Painkillers';
+    }
+  }
+
+  Future<void> _openFilters() {
+    return showPharmacyFilterDialog(
+      context: context,
+      body: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            void apply(VoidCallback change) {
+              setState(() {
+                change();
+                _currentPage = 1;
+              });
+              setDialogState(() {});
+              _fetchData();
+            }
+
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+              ),
+              child: MedicineFiltersPanel(
+                theme: Theme.of(context),
+                showSearch: false,
+                showQuickFilters: false,
+                searchController: _searchController,
+                searchFieldType: _searchFieldType,
+                onSearchFieldTypeChanged: (v) =>
+                    setState(() => _searchFieldType = v),
+                onPerformSearch: () {},
+                filterPill: _filterPill,
+                onFilterPillChanged: (pill) => apply(() => _filterPill = pill),
+                manufacturers: _manufacturers,
+                suppliers: _suppliers,
+                selectedManufacturerId: _manufacturerId,
+                onManufacturerChanged: (v) => apply(() => _manufacturerId = v),
+                selectedSupplierId: _supplierId,
+                onSupplierChanged: (v) => apply(() => _supplierId = v),
+                isControlledFilter: _isControlledFilter,
+                onControlledFilterChanged: (v) =>
+                    apply(() => _isControlledFilter = v),
+                manufacturingDateFrom: _manufacturingDateFrom,
+                manufacturingDateTo: _manufacturingDateTo,
+                onManufacturingDateFromChanged: (d) =>
+                    apply(() => _manufacturingDateFrom = d),
+                onManufacturingDateToChanged: (d) =>
+                    apply(() => _manufacturingDateTo = d),
+                expiryDateFrom: _expiryDateFrom,
+                expiryDateTo: _expiryDateTo,
+                onExpiryDateFromChanged: (d) => apply(() => _expiryDateFrom = d),
+                onExpiryDateToChanged: (d) => apply(() => _expiryDateTo = d),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildInventoryBody(
+    ThemeData theme, {
+    required bool useCards,
+    required bool useSheet,
+  }) {
+    final body = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _errorMessage.isNotEmpty
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                _errorMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: theme.colorScheme.error),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _errorMessage.isNotEmpty
-                      ? Center(
-                          child: Text(
-                            _errorMessage,
-                            style: TextStyle(color: theme.colorScheme.error),
-                          ),
-                        )
-                      : _buildTable(theme),
-                ),
-                _buildPagination(theme, bp),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+          )
+        : _drugs.isEmpty
+        ? const Center(child: Text('No medicines found.'))
+        : useCards
+        ? _buildCards(theme)
+        : _buildTable(theme, useSheet: useSheet);
 
-  Widget _buildHeader(ThemeData theme, AppBreakpoints bp) {
-    final cs = theme.colorScheme;
-    final actions = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        OutlinedButton.icon(
-          onPressed: () {
-            setState(() => _isFiltersOpen = true);
-          },
-          icon: const Icon(Icons.filter_list, size: 18),
-          label: const Text('Filters'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
-          ),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton.icon(
-          onPressed: () => _showAddMedicineModal(context, theme),
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Add Medicine'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: theme.colorScheme.onPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-      ],
-    );
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Medicine Inventory',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Manage stock, track expiries, and update details',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: cs.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-    if (bp.stackPanels) {
-      return Column(
+    return HeltySurfaceCard(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          title,
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 8, children: actions.children),
+          Expanded(child: body),
+          _buildPagination(theme),
         ],
-      );
-    }
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [title, actions],
+      ),
     );
   }
 
-  Widget _buildTable(ThemeData theme) {
+  Widget _buildDetailsRail(ThemeData theme) {
+    final drug = _selectedDrug;
+    return HeltySurfaceCard(
+      child: drug == null
+          ? const Center(child: Text('Select a medicine to view details'))
+          : _MedicineDrugDetails(
+              key: ValueKey(drug.id),
+              drug: drug,
+              drugService: _drugService,
+              onEdit: () => _showEditMedicineModal(context, theme, drug),
+              onHide: () => _hideDrug(drug),
+              onOrder: () => _showOrderModal(context, theme, drug),
+              onPricing: () {
+                final id = drug.id;
+                if (id == null || id.trim().isEmpty) return;
+                context.router.push(BatchesPreviewWardPricingRoute(id: id));
+              },
+            ),
+    );
+  }
+
+  Widget _buildCards(ThemeData theme) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+      itemCount: _drugs.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final drug = _drugs[index];
+        final canHide =
+            !_hasSellableStock(drug) && (drug.id?.trim().isNotEmpty ?? false);
+        return _MedicineInventoryCard(
+          drug: drug,
+          onTap: () => _onDrugPressed(drug, useSheet: true),
+          onHide: canHide ? () => _hideDrug(drug) : null,
+        );
+      },
+    );
+  }
+
+  Widget _buildTable(ThemeData theme, {required bool useSheet}) {
     final cs = theme.colorScheme;
     final columnHeaderStyle = TextStyle(
       fontWeight: FontWeight.bold,
@@ -640,7 +721,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                 selected: isSelected,
                 onSelectChanged: (selected) {
                   if (selected != null && selected) {
-                    _selectDrug(drug);
+                    _onDrugPressed(drug, useSheet: useSheet);
                   }
                 },
                 color: WidgetStateProperty.resolveWith<Color?>((
@@ -662,18 +743,12 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                             color: theme.colorScheme.primary,
                             margin: const EdgeInsets.only(right: 8),
                           ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.1,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.medication,
-                            color: theme.colorScheme.primary,
-                          ),
+                        const HeltySolidIcon(
+                          icon: Icons.medication,
+                          color: PharmacyAccent.teal,
+                          size: 36,
+                          iconSize: 18,
+                          radius: 8,
                         ),
                         const SizedBox(width: 12),
                         Flexible(
@@ -753,7 +828,7 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                         Text(
                           drug.expiryDate != null
                               ? DateFormatter.monthYear(drug.expiryDate!)
-                              : '�',
+                              : '—',
                           style: TextStyle(
                             color: drug.displayStatus == 'Expiring Soon'
                                 ? Colors.orange[800]
@@ -763,7 +838,12 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
                       ],
                     ),
                   ),
-                  DataCell(_buildStatusChip(cs, drug.displayStatus)),
+                  DataCell(
+                    HeltyStatusChip(
+                      label: drug.displayStatus,
+                      color: drugStatusColor(drug.displayStatus),
+                    ),
+                  ),
                   DataCell(
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert, size: 20),
@@ -808,583 +888,77 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
     );
   }
 
-  Widget _buildStatusChip(ColorScheme cs, String status) {
-    Color color;
-    Color bgColor;
-
-    switch (status) {
-      case 'In Stock':
-        color = Colors.green;
-        bgColor = Colors.green.withValues(alpha: 0.1);
-        break;
-      case 'Low Stock':
-        color = Colors.orange;
-        bgColor = Colors.orange.withValues(alpha: 0.1);
-        break;
-      case 'Expiring Soon':
-        color = Colors.orange[800]!;
-        bgColor = Colors.orange.withValues(alpha: 0.1);
-        break;
-      case 'Out of Stock':
-        color = Colors.red;
-        bgColor = Colors.red.withValues(alpha: 0.1);
-        break;
-      default:
-        color = cs.onSurfaceVariant;
-        bgColor = cs.onSurfaceVariant.withValues(alpha: 0.1);
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPagination(ThemeData theme, AppBreakpoints bp) {
+  Widget _buildPagination(ThemeData theme) {
     final cs = theme.colorScheme;
-    int totalPages = (_totalItems / _pageSize).ceil();
+    var totalPages = (_totalItems / _pageSize).ceil();
     if (totalPages == 0) totalPages = 1;
-    final start = (_currentPage - 1) * _pageSize + 1;
+    final start = _totalItems == 0 ? 0 : (_currentPage - 1) * _pageSize + 1;
     final end = (_currentPage * _pageSize).clamp(0, _totalItems);
-
-    final pageInfo = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Page $_currentPage of $totalPages',
-          style: TextStyle(color: cs.onSurfaceVariant),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.chevron_left),
-          onPressed: _currentPage > 1
-              ? () => _onPageChanged(_currentPage - 1)
-              : null,
-        ),
-        IconButton(
-          icon: const Icon(Icons.chevron_right),
-          onPressed: _currentPage < totalPages
-              ? () => _onPageChanged(_currentPage + 1)
-              : null,
-        ),
-      ],
-    );
-
-    final showing = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Showing ${_totalItems == 0 ? 0 : start}�$end of $_totalItems',
-          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-        ),
-        const SizedBox(width: 16),
-        Text(
-          'Per page:',
-          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-        ),
-        const SizedBox(width: 8),
-        DropdownButton<int>(
-          value: _pageSize,
-          underline: const SizedBox(),
-          items: const [
-            DropdownMenuItem(value: 10, child: Text('10')),
-            DropdownMenuItem(value: 25, child: Text('25')),
-            DropdownMenuItem(value: 50, child: Text('50')),
-            DropdownMenuItem(value: 100, child: Text('100')),
-          ],
-          onChanged: (v) {
-            if (v != null) {
-              setState(() {
-                _pageSize = v;
-                _currentPage = 1;
-              });
-              _fetchData();
-            }
-          },
-        ),
-      ],
-    );
+    final label = _totalItems == 0
+        ? 'No medicines to display'
+        : 'Showing $start–$end of $_totalItems';
 
     return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: bp.stackPanels
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [showing, const SizedBox(height: 8), pageInfo],
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [showing, pageInfo],
-            ),
-    );
-  }
-
-  // --- Right Panel Details ---
-
-  Widget _buildDetailsPanel(ThemeData theme, Drug drug) {
-    final cs = theme.colorScheme;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      child: Row(
         children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.medication,
-                  color: theme.colorScheme.primary,
-                  size: 32,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.edit, color: cs.onSurfaceVariant),
-                    onPressed: () =>
-                        _showEditMedicineModal(context, theme, drug),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.sell_outlined, color: cs.onSurfaceVariant),
-                    tooltip: 'Batch & ward pricing preview',
-                    onPressed: drug.id == null || drug.id!.trim().isEmpty
-                        ? null
-                        : () => context.router.push(
-                            BatchesPreviewWardPricingRoute(id: drug.id!),
-                          ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.visibility_off_outlined,
-                      color:
-                          _hasSellableStock(drug) ||
-                              drug.id == null ||
-                              drug.id!.trim().isEmpty
-                          ? cs.onSurfaceVariant.withValues(alpha: 0.4)
-                          : Colors.red,
-                    ),
-                    tooltip: 'Hide drug from catalog',
-                    onPressed:
-                        _hasSellableStock(drug) ||
-                            drug.id == null ||
-                            drug.id!.trim().isEmpty
-                        ? null
-                        : () => _hideDrug(drug),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            drug.brandName,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            '${drug.therapeuticClass ?? '�'} � ID: ${drug.id ?? '�'}',
-            style: TextStyle(color: cs.onSurfaceVariant),
-          ),
-          if (drug.createdByName != null &&
-              drug.createdByName!.trim().isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Created by: ${drug.createdByName}',
+          Expanded(
+            child: HeltyEllipsisText(
+              text: label,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant,
               ),
             ),
-          ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildStatusChip(cs, drug.displayStatus),
-              const SizedBox(width: 8),
-              if (drug.displayStatus == 'Expiring Soon' &&
-                  drug.expiryDate != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        size: 14,
-                        color: Colors.orange,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Expires in ${drug.expiryDate!.difference(DateTime.now()).inDays} days',
-                        style: TextStyle(
-                          color: Colors.orange[800],
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+          ),
+          PopupMenuButton<int>(
+            tooltip: 'Rows per page',
+            initialValue: _pageSize,
+            onSelected: (value) {
+              setState(() {
+                _pageSize = value;
+                _currentPage = 1;
+              });
+              _fetchData();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 10, child: Text('10 / page')),
+              PopupMenuItem(value: 25, child: Text('25 / page')),
+              PopupMenuItem(value: 50, child: Text('50 / page')),
+              PopupMenuItem(value: 100, child: Text('100 / page')),
             ],
-          ),
-          if (_hasSellableStock(drug)) ...[
-            const SizedBox(height: 12),
-            Text(
-              'Deplete or transfer stock before hiding.',
-              style: TextStyle(
-                color: cs.onSurfaceVariant,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-
-          // Stats Row
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  cs,
-                  theme,
-                  'Total Stock',
-                  '${drug.displayStock}',
-                  drug.displayUnit,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(child: _buildPricesCard(cs, theme, drug.prices)),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Composition Card
-          _buildInfoCard(
-            cs,
-            theme,
-            'Drug Composition',
-            Icons.science_outlined,
-            [
-              _buildInfoRow(
-                cs,
-                'Generic Name',
-                drug.genericName,
-                isFullWidth: true,
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildInfoRow(cs, 'Strength', drug.strength ?? '�'),
-                  ),
-                  Expanded(
-                    child: _buildInfoRow(
-                      cs,
-                      'Dosage Form',
-                      drug.dosageForm ?? '�',
-                    ),
-                  ),
-                ],
-              ),
-              _buildInfoRow(
-                cs,
-                'Manufacturer',
-                drug.manufacturerName ?? drug.manufacturerId ?? '�',
-                isFullWidth: true,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Locations Card
-          _buildInfoCard(
-            cs,
-            theme,
-            'Stock Locations',
-            Icons.storefront_outlined,
-            [..._buildStockLocationChildren(cs, theme, drug)],
-          ),
-          const SizedBox(height: 24),
-          // Order button
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => _showOrderModal(context, theme, drug),
-              icon: const Icon(Icons.shopping_cart_outlined, size: 20),
-              label: Text('Order ${drug.brandName}'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: Text(
+                '$_pageSize',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-    ColorScheme cs,
-    ThemeData theme,
-    String title,
-    String value,
-    String suffix,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+          IconButton(
+            tooltip: 'Previous page',
+            onPressed: _currentPage > 1
+                ? () => _onPageChanged(_currentPage - 1)
+                : null,
+            icon: const Icon(Icons.chevron_left),
           ),
-          const SizedBox(height: 8),
-          RichText(
-            text: TextSpan(
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              children: [
-                TextSpan(text: value),
-                TextSpan(
-                  text: ' $suffix',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-              ],
+          Text(
+            '$_currentPage/$totalPages',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPricesCard(
-    ColorScheme cs,
-    ThemeData theme,
-    List<DrugPrice>? prices,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Selling Prices',
-            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          if (prices == null || prices.isEmpty)
-            Text(
-              '�',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: prices.map((price) {
-                final wardName = price.wardName ?? 'Unknown Ward';
-                final priceText = price.price.toFinancial(isMoney: true);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '$wardName: $priceText/unit',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(
-    ColorScheme cs,
-    ThemeData theme,
-    String title,
-    IconData icon,
-    List<Widget> children,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: cs.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    ColorScheme cs,
-    String label,
-    String value, {
-    bool isFullWidth = false,
-  }) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: isFullWidth ? 12.0 : 0.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-          ),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationRow(ColorScheme cs, String location, int quantity) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.inventory_2_outlined,
-                size: 16,
-                color: cs.onSurfaceVariant,
-              ),
-              const SizedBox(width: 8),
-              Text(location, style: TextStyle(color: cs.onSurface)),
-            ],
-          ),
-          Text(
-            quantity.toString(),
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          IconButton(
+            tooltip: 'Next page',
+            onPressed: _currentPage < totalPages
+                ? () => _onPageChanged(_currentPage + 1)
+                : null,
+            icon: const Icon(Icons.chevron_right),
           ),
         ],
       ),
     );
-  }
-
-  List<Widget> _buildStockLocationChildren(
-    ColorScheme cs,
-    ThemeData theme,
-    Drug drug,
-  ) {
-    final id = drug.id;
-    if (id == null || id.isEmpty) {
-      return [
-        Text(
-          'No stock locations available.',
-          style: TextStyle(color: cs.onSurfaceVariant),
-        ),
-      ];
-    }
-
-    if (_loadingDrugLocationIds.contains(id)) {
-      return const [
-        Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        ),
-      ];
-    }
-
-    final error = _drugLocationErrors[id];
-    if (error != null && error.isNotEmpty) {
-      return [
-        Text(
-          error,
-          style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
-        ),
-      ];
-    }
-
-    final locations =
-        _drugLocationQuantities[id] ?? const <DrugLocationQuantity>[];
-    if (locations.isEmpty) {
-      return [
-        Text(
-          'No stock locations available.',
-          style: TextStyle(color: cs.onSurfaceVariant),
-        ),
-      ];
-    }
-
-    final rows = <Widget>[];
-    for (var i = 0; i < locations.length; i++) {
-      final loc = locations[i];
-      rows.add(_buildLocationRow(cs, loc.locationName, loc.quantity));
-      if (i < locations.length - 1) {
-        rows.add(const Divider());
-      }
-    }
-    return rows;
   }
 
   void _showAddMedicineModal(BuildContext context, ThemeData theme) {
@@ -1445,6 +1019,546 @@ class _MedicineInventoryScreenState extends State<MedicineInventoryScreen> {
 
 // ??? Add/Edit Medicine dialog (reusable) ???????????????????????????????????
 
+class _MedicineInventoryCard extends StatelessWidget {
+  const _MedicineInventoryCard({
+    required this.drug,
+    required this.onTap,
+    required this.onHide,
+  });
+
+  final Drug drug;
+  final VoidCallback onTap;
+  final VoidCallback? onHide;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final expiry = drug.expiryDate == null
+        ? 'No expiry'
+        : DateFormatter.monthYear(drug.expiryDate!);
+
+    return Material(
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 4, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const HeltySolidIcon(
+                    icon: Icons.medication,
+                    color: PharmacyAccent.teal,
+                    size: 34,
+                    iconSize: 18,
+                    radius: 8,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HeltyEllipsisText(
+                          text: drug.brandName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        HeltyEllipsisText(
+                          text: drug.genericName,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    tooltip: 'Actions',
+                    onSelected: (value) {
+                      if (value == 'hide') onHide?.call();
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem<String>(
+                        value: 'hide',
+                        enabled: onHide != null,
+                        child: const Text('Hide from catalog'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              HeltyStatusChip(
+                label: drug.displayStatus,
+                color: drugStatusColor(drug.displayStatus),
+              ),
+              const SizedBox(height: 6),
+              HeltyEllipsisText(
+                text: '${drug.displayStock} ${drug.displayUnit} · $expiry',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MedicineDrugDetails extends StatefulWidget {
+  const _MedicineDrugDetails({
+    super.key,
+    required this.drug,
+    required this.drugService,
+    required this.onEdit,
+    required this.onHide,
+    required this.onOrder,
+    required this.onPricing,
+    this.scrollController,
+  });
+
+  final Drug drug;
+  final PharmacyApiService drugService;
+  final VoidCallback onEdit;
+  final VoidCallback onHide;
+  final VoidCallback onOrder;
+  final VoidCallback onPricing;
+  final ScrollController? scrollController;
+
+  @override
+  State<_MedicineDrugDetails> createState() => _MedicineDrugDetailsState();
+}
+
+class _MedicineDrugDetailsState extends State<_MedicineDrugDetails> {
+  List<DrugLocationQuantity>? _locations;
+  bool _loadingLocations = false;
+  String? _locationError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocations();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MedicineDrugDetails oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.drug.id != widget.drug.id) _loadLocations();
+  }
+
+  Future<void> _loadLocations() async {
+    final id = widget.drug.id;
+    if (id == null || id.trim().isEmpty) {
+      setState(() {
+        _locations = const [];
+        _locationError = null;
+        _loadingLocations = false;
+      });
+      return;
+    }
+    setState(() {
+      _loadingLocations = true;
+      _locationError = null;
+    });
+    try {
+      final locations = await widget.drugService.getDrugLocationQuantities(id);
+      if (!mounted) return;
+      setState(() => _locations = locations);
+    } on AppException catch (e) {
+      if (!mounted) return;
+      setState(() => _locationError = e.message);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _locationError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingLocations = false);
+    }
+  }
+
+  bool get _canHide {
+    final id = widget.drug.id;
+    return (widget.drug.stock ?? 0) <= 0 && id != null && id.trim().isNotEmpty;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final drug = widget.drug;
+    final daysLeft = drug.expiryDate?.difference(DateTime.now()).inDays;
+
+    return Material(
+      color: cs.surface,
+      child: ListView(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        children: [
+          Row(
+            children: [
+              const HeltySolidIcon(
+                icon: Icons.medication,
+                color: PharmacyAccent.teal,
+                size: 40,
+                iconSize: 20,
+                radius: 10,
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Edit',
+                icon: Icon(Icons.edit, color: cs.onSurfaceVariant),
+                onPressed: widget.onEdit,
+              ),
+              IconButton(
+                tooltip: 'Batch and ward pricing',
+                icon: Icon(Icons.sell_outlined, color: cs.onSurfaceVariant),
+                onPressed: drug.id == null || drug.id!.trim().isEmpty
+                    ? null
+                    : widget.onPricing,
+              ),
+              IconButton(
+                tooltip: 'Hide from catalog',
+                icon: Icon(
+                  Icons.visibility_off_outlined,
+                  color: _canHide
+                      ? const Color(0xFFDC2626)
+                      : cs.onSurfaceVariant.withValues(alpha: 0.4),
+                ),
+                onPressed: _canHide ? widget.onHide : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            drug.brandName,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${drug.therapeuticClass ?? '—'} · ${drug.id ?? '—'}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          if (drug.createdByName != null &&
+              drug.createdByName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Created by ${drug.createdByName}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              HeltyStatusChip(
+                label: drug.displayStatus,
+                color: drugStatusColor(drug.displayStatus),
+                dense: false,
+              ),
+              if (drug.displayStatus == 'Expiring Soon' && daysLeft != null)
+                HeltyStatusChip(
+                  label: 'Expires in $daysLeft days',
+                  color: PharmacyAccent.amber,
+                  dense: false,
+                ),
+            ],
+          ),
+          if ((drug.stock ?? 0) > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Deplete or transfer stock before hiding.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stock = _statCard(
+                cs,
+                theme,
+                'Total stock',
+                '${drug.displayStock}',
+                drug.displayUnit,
+              );
+              final prices = _pricesCard(cs, theme, drug.prices);
+              if (constraints.maxWidth < 340) {
+                return Column(
+                  children: [
+                    stock,
+                    const SizedBox(height: 8),
+                    prices,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: stock),
+                  const SizedBox(width: 8),
+                  Expanded(child: prices),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _infoCard(cs, 'Drug composition', Icons.science_outlined, [
+            _infoRow(cs, 'Generic name', drug.genericName),
+            _infoRow(cs, 'Strength', drug.strength ?? '—'),
+            _infoRow(cs, 'Dosage form', drug.dosageForm ?? '—'),
+            _infoRow(
+              cs,
+              'Manufacturer',
+              drug.manufacturerName ?? drug.manufacturerId ?? '—',
+            ),
+          ]),
+          const SizedBox(height: 12),
+          _infoCard(
+            cs,
+            'Stock locations',
+            Icons.storefront_outlined,
+            _locationChildren(cs, theme),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: widget.onOrder,
+            icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+            label: Text(
+              'Order ${drug.brandName}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statCard(
+    ColorScheme cs,
+    ThemeData theme,
+    String title,
+    String value,
+    String suffix,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text.rich(
+            TextSpan(
+              text: value,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+              children: [
+                TextSpan(
+                  text: ' $suffix',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pricesCard(ColorScheme cs, ThemeData theme, List<DrugPrice>? prices) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Selling prices',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          if (prices == null || prices.isEmpty)
+            Text(
+              '—',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            )
+          else
+            ...prices.map((price) {
+              final wardName = price.wardName ?? 'Unknown ward';
+              final priceText = price.price.toFinancial(isMoney: true);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: HeltyEllipsisText(
+                  text: '$wardName: $priceText/unit',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoCard(
+    ColorScheme cs,
+    String title,
+    IconData icon,
+    List<Widget> children,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: cs.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(ColorScheme cs, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+          ),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _locationChildren(ColorScheme cs, ThemeData theme) {
+    if (_loadingLocations) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      ];
+    }
+    final error = _locationError;
+    if (error != null && error.isNotEmpty) {
+      return [
+        Text(
+          error,
+          style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+        ),
+      ];
+    }
+    final locations = _locations ?? const <DrugLocationQuantity>[];
+    if (locations.isEmpty) {
+      return [
+        Text(
+          'No stock locations available.',
+          style: TextStyle(color: cs.onSurfaceVariant),
+        ),
+      ];
+    }
+    return [
+      for (final loc in locations)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Icon(
+                Icons.inventory_2_outlined,
+                size: 16,
+                color: cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  loc.locationName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                loc.quantity.toString(),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+        ),
+    ];
+  }
+}
+
 class _AddMedicineDialog extends StatefulWidget {
   const _AddMedicineDialog({
     required this.theme,
@@ -1468,11 +1582,12 @@ class _AddMedicineDialogState extends State<_AddMedicineDialog> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existingDrug != null;
+    final media = MediaQuery.sizeOf(context);
     return Dialog(
-      insetPadding: const EdgeInsets.all(24.0),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: SizedBox(
-        width: 800,
-        height: 600,
+        width: math.min(800, media.width - 32),
+        height: math.min(640, media.height - 48),
         child: AddDrugScreen(
           existingDrug: widget.existingDrug,
           service: widget.drugService,
@@ -1561,7 +1676,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
     return AlertDialog(
       title: Text('Order ${widget.drug.brandName}'),
       content: SizedBox(
-        width: 400,
+        width: math.min(400, MediaQuery.sizeOf(context).width - 64),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1590,7 +1705,7 @@ class _OrderMedicineDialogState extends State<_OrderMedicineDialog> {
                 items: [
                   const DropdownMenuItem(
                     value: null,
-                    child: Text('� Select supplier �'),
+                    child: Text('Select supplier'),
                   ),
                   ...widget.suppliers.map(
                     (s) => DropdownMenuItem<String?>(

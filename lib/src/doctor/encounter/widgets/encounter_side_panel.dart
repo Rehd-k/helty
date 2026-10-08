@@ -69,9 +69,16 @@ class EncounterSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bp = AppBreakpoints.of(context);
-    if (!bp.isDesktop || forceStacked) return _buildMobile(context);
-    return _buildSide(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final bp = AppBreakpoints.fromWidth(width);
+        if (!bp.isDesktop || forceStacked) return _buildMobile(context);
+        return _buildSide(context);
+      },
+    );
   }
 
   Widget _buildMobile(BuildContext context) {
@@ -260,25 +267,32 @@ class EncounterTabLayout extends StatelessWidget {
       );
     }
 
-    final bp = AppBreakpoints.of(context);
-    if (!bp.isDesktop) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          sidePanel,
-          const SizedBox(height: 10),
-          Expanded(child: child),
-        ],
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final bp = AppBreakpoints.fromWidth(width);
+        if (!bp.isDesktop) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              sidePanel,
+              const SizedBox(height: 10),
+              Expanded(child: child),
+            ],
+          );
+        }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: child),
-        const SizedBox(width: 12),
-        sidePanel,
-      ],
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: child),
+            const SizedBox(width: 12),
+            sidePanel,
+          ],
+        );
+      },
     );
   }
 }

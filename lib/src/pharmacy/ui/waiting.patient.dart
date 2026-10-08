@@ -71,6 +71,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   bool _loadingDispensaryLocations = false;
   String? _dispensaryLoadError;
   bool _deepLinkHandled = false;
+  bool _mobileDetailOpen = false;
   final _searchCtrl = TextEditingController();
 
   @override
@@ -121,6 +122,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
         }
         _sortOrdersInPlace();
         _selectedOrder = order;
+        _mobileDetailOpen = true;
         _loading = false;
       });
       await _enrichSelectedOrder(order);
@@ -499,7 +501,10 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
   }
 
   Future<void> _onSelectOrder(QueueOrder order) async {
-    setState(() => _selectedOrder = order);
+    setState(() {
+      _selectedOrder = order;
+      _mobileDetailOpen = true;
+    });
     await _enrichSelectedOrder(order);
   }
 
@@ -791,8 +796,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     final deleteButton = _buildDeleteMedicationButton(order, med, colorScheme);
 
     if (!hasDrug) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        alignment: WrapAlignment.end,
         children: [
           IconButton(
             onPressed: null,
@@ -806,8 +811,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     }
 
     if (!hasLocation) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        alignment: WrapAlignment.end,
         children: [
           IconButton(
             onPressed: null,
@@ -821,8 +826,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     }
 
     if (oos) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        alignment: WrapAlignment.end,
         children: [
           if (requiresPaymentBeforeDispense)
             IconButton(
@@ -860,8 +865,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     }
 
     if (requiresPaymentBeforeDispense) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Wrap(
+        alignment: WrapAlignment.end,
         children: [
           IconButton(
             onPressed: null,
@@ -874,8 +879,8 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       );
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      alignment: WrapAlignment.end,
       children: [
         IconButton.filled(
           onPressed: () => _dispenseMedication(order, med),
@@ -937,94 +942,116 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       body: SafeArea(
         child: ResponsiveBody(
           center: false,
-          builder: (context, bp) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: bp.stackPanels
-                    ? Column(
-                        children: [
-                          SizedBox(
-                            height: 220,
-                            child: _buildQueueList(context, colorScheme),
-                          ),
-                          Expanded(
-                            child: _selectedOrder == null
-                                ? Center(
-                                    child: Text(
-                                      'Select an order',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  )
-                                : _buildPrescriptionDetails(
-                                    _selectedOrder!,
-                                    colorScheme,
+          builder: (context, bp) {
+            final showMobileDetail =
+                bp.isMobile && _mobileDetailOpen && _selectedOrder != null;
+            return PopScope(
+              canPop: !showMobileDetail,
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop || !showMobileDetail) return;
+                setState(() => _mobileDetailOpen = false);
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: showMobileDetail
+                        ? _buildMobileDetail(_selectedOrder!, colorScheme)
+                        : bp.isMobile
+                        ? _buildQueueList(context, colorScheme)
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Flexible(
+                                flex: 0,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 200,
+                                    maxWidth: 280,
                                   ),
-                          ),
-                          if (_selectedOrder != null)
-                            SizedBox(
-                              height: 200,
-                              child: _buildPatientSidebar(
-                                _selectedOrder!,
-                                colorScheme,
+                                  child: _buildQueueList(context, colorScheme),
+                                ),
                               ),
-                            ),
-                        ],
-                      )
-                    : Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Flexible(
-                            flex: 0,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                minWidth: 200,
-                                maxWidth: 280,
-                              ),
-                              child: _buildQueueList(context, colorScheme),
-                            ),
-                          ),
-                          Expanded(
-                            child: _selectedOrder == null
-                                ? Center(
-                                    child: Text(
-                                      'Select an order',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: colorScheme.onSurfaceVariant,
+                              Expanded(
+                                child: _selectedOrder == null
+                                    ? Center(
+                                        child: Text(
+                                          'Select an order',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      )
+                                    : _buildPrescriptionDetails(
+                                        _selectedOrder!,
+                                        colorScheme,
                                       ),
-                                    ),
-                                  )
-                                : _buildPrescriptionDetails(
-                                    _selectedOrder!,
-                                    colorScheme,
-                                  ),
-                          ),
-                          Flexible(
-                            flex: 0,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                minWidth: 180,
-                                maxWidth: 260,
                               ),
-                              child: _selectedOrder == null
-                                  ? const SizedBox.shrink()
-                                  : _buildPatientSidebar(
-                                      _selectedOrder!,
-                                      colorScheme,
-                                    ),
-                            ),
+                              Flexible(
+                                flex: 0,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 180,
+                                    maxWidth: 260,
+                                  ),
+                                  child: _selectedOrder == null
+                                      ? const SizedBox.shrink()
+                                      : _buildPatientSidebar(
+                                          _selectedOrder!,
+                                          colorScheme,
+                                        ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                  ),
+                ],
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileDetail(QueueOrder order, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              tooltip: 'Back to queue',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => setState(() => _mobileDetailOpen = false),
+              icon: const Icon(Icons.arrow_back),
+            ),
+            Expanded(
+              child: Text(
+                order.patient.name,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            _buildInvoiceStatusBadge(order.invoiceStatus, colorScheme),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 16),
+            children: [
+              _buildPatientSidebar(order, colorScheme, embedded: true),
+              _buildPrescriptionDetails(order, colorScheme, scroll: false),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -1077,9 +1104,17 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             if (bp.stackPanels)
               TextField(
                 controller: _searchCtrl,
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
-                  hintText: 'Search by patient hospital number, name, or drug…',
+                  hintText: 'Search patient, hospital number, or drug',
                   prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: IconButton(
+                    tooltip: 'Search',
+                    onPressed: _loading || _loadingMore
+                        ? null
+                        : () => _refreshOrders(reset: true),
+                    icon: const Icon(Icons.search),
+                  ),
                   filled: true,
                   fillColor: colorScheme.surface,
                   border: OutlineInputBorder(
@@ -1163,16 +1198,18 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
+        SizedBox(
+          height: 32,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
               _buildTab('All (${_orders.length})', 0, colorScheme),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               _buildTab('Cleared ($_clearedCount)', 1, colorScheme),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               _buildTab('Uncleared ($_unclearedCount)', 2, colorScheme),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               _buildTab('Pending ($_pendingCount)', 3, colorScheme),
             ],
           ),
@@ -1358,6 +1395,7 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
               !visible.any((o) => o.id == _selectedOrder!.id)) {
             _selectedOrder = visible.isNotEmpty ? visible.first : null;
           }
+          if (_selectedOrder == null) _mobileDetailOpen = false;
           toEnrich = _selectedOrder;
         });
         if (toEnrich != null) _enrichSelectedOrder(toEnrich!);
@@ -1409,238 +1447,257 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     );
   }
 
-  Widget _buildPrescriptionDetails(QueueOrder order, ColorScheme colorScheme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
+  Widget _buildPrescriptionDetails(
+    QueueOrder order,
+    ColorScheme colorScheme, {
+    bool scroll = true,
+  }) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '#${order.id}',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '#${order.id}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                if (_loadingDispensaryLocations)
-                  Row(
-                    children: [
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Loading dispensaries...',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  )
-                else ...[
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedDispensaryId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Dispensary location',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
-                      ),
-                    ),
-                    items: _dispensaryLocations
-                        .where((l) => l.id != null && l.id!.isNotEmpty)
-                        .map(
-                          (location) => DropdownMenuItem<String>(
-                            value: location.id!,
-                            child: Text(
-                              location.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedDispensaryId = value;
-                      });
-                      if (_selectedOrder != null) {
-                        _enrichSelectedOrder(_selectedOrder!);
-                      }
-                    },
                   ),
-                  if (_dispensaryLoadError != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _dispensaryLoadError!,
-                      style: TextStyle(fontSize: 10, color: colorScheme.error),
-                    ),
-                  ],
                 ],
-                const SizedBox(height: 8),
+              ),
+              const SizedBox(height: 8),
+              if (_loadingDispensaryLocations)
                 Row(
                   children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 12,
-                      color: colorScheme.onSurfaceVariant,
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
                     Text(
-                      DateFormatter.dateTime(order.timestamp.toLocal()),
+                      'Loading dispensaries...',
                       style: TextStyle(
                         fontSize: 11,
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.person,
-                      size: 12,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        order.department.isNotEmpty
-                            ? '${order.doctorDisplayName} (${order.department})'
-                            : order.doctorDisplayName,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
                   ],
-                ),
-                if (order.doctorNotes != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: colorScheme.secondaryContainer.withValues(
-                        alpha: 0.3,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: colorScheme.secondaryContainer),
+                )
+              else ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedDispensaryId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Dispensary location',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.notes,
-                              size: 14,
-                              color: colorScheme.onSecondaryContainer,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "Doctor's Notes",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 10,
-                                color: colorScheme.onSecondaryContainer,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          order.doctorNotes!,
-                          style: TextStyle(
-                            height: 1.4,
-                            fontSize: 11,
-                            color: colorScheme.onSecondaryContainer,
+                  ),
+                  items: _dispensaryLocations
+                      .where((l) => l.id != null && l.id!.isNotEmpty)
+                      .map(
+                        (location) => DropdownMenuItem<String>(
+                          value: location.id!,
+                          child: Text(
+                            location.name,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 5,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedDispensaryId = value;
+                    });
+                    if (_selectedOrder != null) {
+                      _enrichSelectedOrder(_selectedOrder!);
+                    }
+                  },
+                ),
+                if (_dispensaryLoadError != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _dispensaryLoadError!,
+                    style: TextStyle(fontSize: 10, color: colorScheme.error),
                   ),
                 ],
               ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Prescribed Medications',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ...order.medicationsSorted.map(
-            (med) => _buildMedicationCard(order, med, colorScheme),
-          ),
-          if (order.medications.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.5,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-                ),
+              const SizedBox(height: 8),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  Widget metaRow(IconData icon, String text) {
+                    return Row(
+                      children: [
+                        Icon(
+                          icon,
+                          size: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            text,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  final dateText = DateFormatter.dateTime(
+                    order.timestamp.toLocal(),
+                  );
+                  final doctorText = order.department.isNotEmpty
+                      ? '${order.doctorDisplayName} (${order.department})'
+                      : order.doctorDisplayName;
+                  if (constraints.maxWidth < 420) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        metaRow(Icons.calendar_today, dateText),
+                        const SizedBox(height: 4),
+                        metaRow(Icons.person, doctorText),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: metaRow(Icons.calendar_today, dateText)),
+                      const SizedBox(width: 12),
+                      Expanded(child: metaRow(Icons.person, doctorText)),
+                    ],
+                  );
+                },
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Medications total',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
+              if (order.doctorNotes != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondaryContainer.withValues(
+                      alpha: 0.3,
                     ),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: colorScheme.secondaryContainer),
                   ),
-                  Text(
-                    order.medicationsSubtotal.toFinancial(isMoney: true),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.notes,
+                            size: 14,
+                            color: colorScheme.onSecondaryContainer,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "Doctor's Notes",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                              color: colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        order.doctorNotes!,
+                        style: TextStyle(
+                          height: 1.4,
+                          fontSize: 11,
+                          color: colorScheme.onSecondaryContainer,
+                        ),
+                        maxLines: 5,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Prescribed Medications',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 10),
+        ...order.medicationsSorted.map(
+          (med) => _buildMedicationCard(order, med, colorScheme),
+        ),
+        if (order.medications.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.4),
               ),
             ),
-          ],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Medications total',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  order.medicationsSubtotal.toFinancial(isMoney: true),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
-      ),
+      ],
+    );
+    if (!scroll) return content;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: content,
     );
   }
 
@@ -1818,15 +1875,13 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
                             ),
                           ],
                           const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              _buildMedicationTrailingActions(
-                                order,
-                                med,
-                                colorScheme,
-                              ),
-                            ],
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: _buildMedicationTrailingActions(
+                              order,
+                              med,
+                              colorScheme,
+                            ),
                           ),
                         ],
                       ),
@@ -1962,7 +2017,11 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
     );
   }
 
-  Widget _buildPatientSidebar(QueueOrder order, ColorScheme colorScheme) {
+  Widget _buildPatientSidebar(
+    QueueOrder order,
+    ColorScheme colorScheme, {
+    bool embedded = false,
+  }) {
     final patient = _sidebarPatient(order);
     final commaIndex = patient.name.indexOf(',');
     final String? sidebarFirstName;
@@ -1979,79 +2038,238 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
       sidebarFirstName = parts.isNotEmpty ? parts.first : null;
       sidebarSurname = parts.length > 1 ? parts.last : null;
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_patientLoading)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Loading patient…',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (_patientError != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                _patientError!,
-                style: TextStyle(fontSize: 10, color: colorScheme.error),
-              ),
-            ),
-          InkWell(
-            onTap: () => _openPatientHub(patient),
-            borderRadius: BorderRadius.circular(8),
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_patientLoading)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               children: [
-                _detailPatient != null
-                    ? PatientAvatar.fromPatient(_detailPatient!, size: 36)
-                    : PatientAvatar(
-                        firstName: sidebarFirstName,
-                        surname: sidebarSurname,
-                        displayName: patient.name,
-                        size: 36,
-                        backgroundColor: colorScheme.primaryContainer,
-                        foregroundColor: colorScheme.onPrimaryContainer,
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Loading patient…',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (_patientError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              _patientError!,
+              style: TextStyle(fontSize: 10, color: colorScheme.error),
+            ),
+          ),
+        InkWell(
+          onTap: () => _openPatientHub(patient),
+          borderRadius: BorderRadius.circular(8),
+          child: Row(
+            children: [
+              _detailPatient != null
+                  ? PatientAvatar.fromPatient(_detailPatient!, size: 36)
+                  : PatientAvatar(
+                      firstName: sidebarFirstName,
+                      surname: sidebarSurname,
+                      displayName: patient.name,
+                      size: 36,
+                      backgroundColor: colorScheme.primaryContainer,
+                      foregroundColor: colorScheme.onPrimaryContainer,
+                    ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      patient.name,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
-                const SizedBox(width: 10),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${patient.gender.isEmpty ? '—' : patient.gender} • ${patient.age}y',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Weight',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      patient.weight,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Height',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      patient.height,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Divider(height: 1, color: colorScheme.outlineVariant),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(Icons.warning, color: colorScheme.error, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              'ALLERGIES',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 10,
+                letterSpacing: 0.5,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (patient.allergies.isEmpty)
+          Text(
+            'None',
+            style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+          )
+        else
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: patient.allergies.map((a) {
+              final isSevere = a.isSevere;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isSevere
+                      ? Colors.red.withValues(alpha: 0.1)
+                      : Colors.orange.withValues(alpha: 0.1),
+                  border: Border.all(
+                    color: isSevere
+                        ? Colors.red.withValues(alpha: 0.5)
+                        : Colors.orange.withValues(alpha: 0.5),
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${a.name} (${isSevere ? 'Severe' : 'Mild'})',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isSevere ? Colors.redAccent : Colors.orangeAccent,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        if (patient.interactionWarning != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.1),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, color: Colors.amber, size: 14),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        patient.name,
-                        style: const TextStyle(
-                          fontSize: 12,
+                      const Text(
+                        'Interaction',
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                          color: Colors.amber,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        '${patient.gender.isEmpty ? '—' : patient.gender} • ${patient.age}y',
+                        patient.interactionWarning!,
                         style: TextStyle(
                           fontSize: 10,
-                          color: colorScheme.onSurfaceVariant,
+                          color: Colors.amber.shade800,
+                          height: 1.3,
                         ),
-                        maxLines: 1,
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -2060,269 +2278,109 @@ class _WaitingPatientScreenState extends State<WaitingPatientScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Weight',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      Text(
-                        patient.weight,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Height',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      Text(
-                        patient.height,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Divider(height: 1, color: colorScheme.outlineVariant),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.warning, color: colorScheme.error, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                'ALLERGIES',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
-                  letterSpacing: 0.5,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (patient.allergies.isEmpty)
+        ],
+        const SizedBox(height: 16),
+        Divider(height: 1, color: colorScheme.outlineVariant),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(Icons.history, color: colorScheme.onSurface, size: 14),
+            const SizedBox(width: 6),
             Text(
-              'None',
+              'RECENT MEDS',
               style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            )
-          else
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: patient.allergies.map((a) {
-                final isSevere = a.isSevere;
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSevere
-                        ? Colors.red.withValues(alpha: 0.1)
-                        : Colors.orange.withValues(alpha: 0.1),
-                    border: Border.all(
-                      color: isSevere
-                          ? Colors.red.withValues(alpha: 0.5)
-                          : Colors.orange.withValues(alpha: 0.5),
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${a.name} (${isSevere ? 'Severe' : 'Mild'})',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isSevere ? Colors.redAccent : Colors.orangeAccent,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          if (patient.interactionWarning != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.1),
-                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.amber, size: 14),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Interaction',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                            color: Colors.amber,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          patient.interactionWarning!,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.amber.shade800,
-                            height: 1.3,
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                fontWeight: FontWeight.w600,
+                fontSize: 10,
+                letterSpacing: 0.5,
+                color: colorScheme.onSurface,
               ),
             ),
           ],
-          const SizedBox(height: 16),
-          Divider(height: 1, color: colorScheme.outlineVariant),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.history, color: colorScheme.onSurface, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                'RECENT MEDS',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
-                  letterSpacing: 0.5,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (patient.history.isEmpty)
-            Text(
-              'None',
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            )
-          else
-            ...patient.history.map(
-              (h) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      h.name,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
+        if (patient.history.isEmpty)
+          Text(
+            'None',
+            style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
+          )
+        else
+          ...patient.history.map(
+            (h) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    h.name,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
-                    if (h.detail != null && h.detail!.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        h.detail!,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: colorScheme.onSurfaceVariant,
-                          height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (h.detail != null && h.detail!.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      '${h.date}${h.isDiscontinued ? ' • Discontinued' : ''}',
+                      h.detail!,
                       style: TextStyle(
                         fontSize: 10,
                         color: colorScheme.onSurfaceVariant,
+                        height: 1.3,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'View history',
-                style: TextStyle(fontSize: 11, color: colorScheme.primary),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${h.date}${h.isDiscontinued ? ' • Discontinued' : ''}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        const SizedBox(height: 8),
+        Center(
+          child: TextButton(
+            onPressed: () {},
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'View history',
+              style: TextStyle(fontSize: 11, color: colorScheme.primary),
+            ),
+          ),
+        ),
+      ],
+    );
+    if (embedded) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: body,
+      );
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: body,
     );
   }
 }

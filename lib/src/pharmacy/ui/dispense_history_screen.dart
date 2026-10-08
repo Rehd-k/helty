@@ -6,6 +6,9 @@ import 'package:helty/app_router.gr.dart';
 import 'package:helty/src/core/extensions/number.extention.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/helper/date.formatter.dart';
+import 'package:helty/src/pharmacy/widgets/pharmacy_page_chrome.dart';
+import 'package:helty/src/shared/department_colors.dart';
+import 'package:helty/src/widgets/helty_surface.dart';
 
 import '../models/pharmacy_model.dart';
 import '../models/pharmacy_queue_models.dart';
@@ -46,7 +49,6 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
   final PharmacyApiService _api = PharmacyApiService();
   final PharmacyQueueApiService _queueApi = PharmacyQueueApiService();
   final TextEditingController _patientCtrl = TextEditingController();
-  final ScrollController _tableVerticalScrollController = ScrollController();
   final int _take = 25;
 
   DateTime _from = _startOfDay(DateTime.now());
@@ -85,7 +87,6 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
   void dispose() {
     _debounce?.cancel();
     _patientCtrl.dispose();
-    _tableVerticalScrollController.dispose();
     super.dispose();
   }
 
@@ -334,336 +335,807 @@ class _DispenseHistoryScreenState extends State<DispenseHistoryScreen> {
     }
   }
 
-  Widget _summaryCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required IconData icon,
+  @override
+  Widget build(BuildContext context) {
+    final totalPages = (_total / _take).ceil().clamp(1, 1000000);
+    final cs = Theme.of(context).colorScheme;
+    final metricsReady = !_loading && _error.isEmpty && !_summaryLoading;
+    final qtyValue = metricsReady
+        ? _aggTotalQty.toFinancial(isMoney: false)
+        : '—';
+    final paidValue = metricsReady
+        ? _aggAmountPaid.toFinancial(isMoney: true)
+        : '—';
+    final linesValue = _loading || _error.isNotEmpty ? '—' : '$_total';
+    final unpaidValue = metricsReady ? '$_aggUnpaidCount' : '—';
+
+    return Scaffold(
+      backgroundColor: cs.surface,
+      body: ResponsiveBody(
+        center: false,
+        builder: (context, bp) {
+          final width = bp.maxWidth > 0
+              ? bp.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final compact = width < PharmacyAccent.cardBreakpoint;
+          final showRail = width >= PharmacyAccent.railBreakpoint;
+
+          final header = PharmacyPageHeader(
+            title: 'Dispense History',
+            subtitle: 'Review dispensed lines and return unpaid stock.',
+            icon: Icons.receipt_long_outlined,
+            iconColor: DepartmentColors.pharmacy,
+            onRefresh: _loading ? null : _fetchHistory,
+          );
+          final kpis = PharmacyKpiStrip(
+            items: [
+              PharmacyKpiItem(
+                label: 'Lines',
+                value: linesValue,
+                caption: 'Matching records',
+                icon: Icons.list_alt,
+                accent: PharmacyAccent.blue,
+              ),
+              PharmacyKpiItem(
+                label: 'Quantity',
+                value: qtyValue,
+                caption: 'Units dispensed',
+                icon: Icons.numbers,
+                accent: PharmacyAccent.teal,
+              ),
+              PharmacyKpiItem(
+                label: 'Collected',
+                value: paidValue,
+                caption: 'Amount paid',
+                icon: Icons.payments_outlined,
+                accent: PharmacyAccent.green,
+              ),
+              PharmacyKpiItem(
+                label: 'Unpaid',
+                value: unpaidValue,
+                caption: 'Lines still open',
+                icon: Icons.money_off_csred_outlined,
+                accent: PharmacyAccent.amber,
+              ),
+            ],
+          );
+          final filters = _DispenseFilterBar(
+            controller: _patientCtrl,
+            compact: compact,
+            drugLabel: _selectedDrugName,
+            onPickDrug: _pickDrug,
+            onOpenFilters: _openFilters,
+          );
+
+          final table = _DispenseTable(
+            rows: _rows,
+            loading: _loading,
+            error: _error,
+            useCards: compact,
+            page: _page,
+            total: _total,
+            take: _take,
+            totalPages: totalPages,
+            onPrev: _page > 1
+                ? () {
+                    setState(() => _page -= 1);
+                    _syncQueryState();
+                    _fetchHistory();
+                  }
+                : null,
+            onNext: _page < totalPages
+                ? () {
+                    setState(() => _page += 1);
+                    _syncQueryState();
+                    _fetchHistory();
+                  }
+                : null,
+            onReturn: _onDoReturn,
+            onRetry: _fetchHistory,
+          );
+
+          final rail = _DispenseRail(
+            gross: metricsReady
+                ? _aggGrossValue.toFinancial(isMoney: true)
+                : '—',
+            patients: metricsReady ? '$_aggDistinctPatients' : '—',
+            included: metricsReady ? '$_aggRowCount' : '—',
+            capMessage: _summaryCapMessage,
+            canClearDrug: _selectedDrugId != null,
+            onClearDrug: () {
+              setState(() {
+                _selectedDrugId = null;
+                _selectedDrugName = null;
+                _page = 1;
+              });
+              _syncQueryState();
+              _fetchHistory();
+            },
+            onRefresh: _loading ? null : _fetchHistory,
+          );
+
+          final main = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: 10),
+              kpis,
+              const SizedBox(height: 10),
+              filters,
+              const SizedBox(height: 10),
+              Expanded(child: table),
+            ],
+          );
+
+          if (showRail) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 9, child: main),
+                const SizedBox(width: 12),
+                Expanded(flex: 3, child: rail),
+              ],
+            );
+          }
+
+          return Column(
+            children: [
+              Expanded(child: main),
+              const SizedBox(height: 10),
+              rail,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openFilters() async {
+    await showPharmacyFilterDialog(
+      context: context,
+      body: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Date range',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await _pickDateRange();
+                    setDialogState(() {});
+                  },
+                  icon: const Icon(Icons.date_range, size: 18),
+                  label: Text(
+                    '${DateFormatter.shortDate(_from)} – ${DateFormatter.shortDate(_to)}',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ActionChip(
+                      label: const Text('Today'),
+                      onPressed: () {
+                        _applyQuickRange(_QuickRange.today);
+                        setDialogState(() {});
+                      },
+                    ),
+                    ActionChip(
+                      label: const Text('Last 7 days'),
+                      onPressed: () {
+                        _applyQuickRange(_QuickRange.last7);
+                        setDialogState(() {});
+                      },
+                    ),
+                    ActionChip(
+                      label: const Text('This month'),
+                      onPressed: () {
+                        _applyQuickRange(_QuickRange.thisMonth);
+                        setDialogState(() {});
+                      },
+                    ),
+                  ],
+                ),
+                if (_selectedDrugId != null) ...[
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedDrugId = null;
+                          _selectedDrugName = null;
+                          _page = 1;
+                        });
+                        _syncQueryState();
+                        _fetchHistory();
+                        Navigator.of(ctx).maybePop();
+                      },
+                      child: const Text('Clear drug'),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DispenseFilterBar extends StatelessWidget {
+  const _DispenseFilterBar({
+    required this.controller,
+    required this.compact,
+    required this.drugLabel,
+    required this.onPickDrug,
+    required this.onOpenFilters,
+  });
+
+  final TextEditingController controller;
+  final bool compact;
+  final String? drugLabel;
+  final VoidCallback onPickDrug;
+  final VoidCallback onOpenFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    final search = TextField(
+      controller: controller,
+      style: const TextStyle(fontSize: 12),
+      decoration: pharmacyFieldDecoration(
+        context,
+        label: 'Search',
+        hint: 'Patient name or hospital number…',
+        icon: Icons.search,
+        iconColor: PharmacyAccent.indigo,
+      ),
+    );
+    final drug = OutlinedButton.icon(
+      onPressed: onPickDrug,
+      icon: const Icon(Icons.medication_outlined, size: 18),
+      label: HeltyEllipsisText(text: drugLabel ?? 'All drugs'),
+    );
+    return Row(
+      children: [
+        Expanded(flex: 3, child: search),
+        if (!compact) ...[
+          const SizedBox(width: 8),
+          Expanded(flex: 2, child: drug),
+        ],
+        const SizedBox(width: 8),
+        PharmacyFilterButton(onPressed: onOpenFilters),
+      ],
+    );
+  }
+}
+
+class _DispenseTable extends StatelessWidget {
+  const _DispenseTable({
+    required this.rows,
+    required this.loading,
+    required this.error,
+    required this.useCards,
+    required this.page,
+    required this.total,
+    required this.take,
+    required this.totalPages,
+    required this.onPrev,
+    required this.onNext,
+    required this.onReturn,
+    required this.onRetry,
+  });
+
+  final List<DispenseHistoryItem> rows;
+  final bool loading;
+  final String error;
+  final bool useCards;
+  final int page;
+  final int total;
+  final int take;
+  final int totalPages;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+  final ValueChanged<DispenseHistoryItem> onReturn;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = rows.isEmpty ? 0 : ((page - 1) * take) + 1;
+    final end = rows.isEmpty ? 0 : start + rows.length - 1;
+    final footer = PharmacyPaginationFooter(
+      label: rows.isEmpty
+          ? 'No dispense records to display'
+          : 'Showing $start–$end of $total',
+      page: page,
+      canPrev: onPrev != null,
+      canNext: onNext != null && page < totalPages,
+      onPrev: onPrev,
+      onNext: onNext,
+    );
+
+    if (loading && rows.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final body = error.isNotEmpty && rows.isEmpty
+        ? Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(error, textAlign: TextAlign.center),
+                const SizedBox(height: 8),
+                FilledButton(onPressed: onRetry, child: const Text('Retry')),
+              ],
+            ),
+          )
+        : rows.isEmpty
+        ? const Center(child: Text('No dispense records found.'))
+        : useCards
+        ? ListView.builder(
+            itemCount: rows.length,
+            itemBuilder: (context, index) => _DispenseCard(
+              row: rows[index],
+              onReturn: () => onReturn(rows[index]),
+            ),
+          )
+        : _DispenseRows(rows: rows, onReturn: onReturn);
+
+    return HeltySurfaceCard(
+      child: Column(
+        children: [
+          Expanded(child: body),
+          footer,
+        ],
+      ),
+    );
+  }
+}
+
+class _DispenseRows extends StatelessWidget {
+  const _DispenseRows({required this.rows, required this.onReturn});
+
+  final List<DispenseHistoryItem> rows;
+  final ValueChanged<DispenseHistoryItem> onReturn;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return LayoutBuilder(
+      builder: (context, inner) {
+        const minWidth = 980.0;
+        final width = inner.maxWidth < minWidth ? minWidth : inner.maxWidth;
+        final sheet = SizedBox(
+          width: width,
+          height: inner.maxHeight,
+          child: Column(
+            children: [
+              Container(
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Row(
+                  children: [
+                    _head(context, 'PATIENT', flex: 3),
+                    const SizedBox(width: 20),
+                    _head(context, 'DRUG', flex: 3),
+                    const SizedBox(width: 20),
+                    _head(context, 'QTY', flex: 1),
+                    const SizedBox(width: 20),
+                    _head(context, 'PAID', flex: 2),
+                    const SizedBox(width: 20),
+                    _head(context, 'STATUS', flex: 2),
+                    const SizedBox(width: 20),
+                    _head(context, 'ACTIONS', flex: 2, alignEnd: true),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  primary: false,
+                  itemCount: rows.length,
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    color: cs.outline.withValues(alpha: 0.08),
+                  ),
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    final unpaid = _isUnpaidDispenseLine(row);
+                    final when = row.dispensedAt == null
+                        ? '—'
+                        : DateFormatter.dateTime(row.dispensedAt!);
+                    return Material(
+                      color: pharmacyZebra(cs, index),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  HeltyEllipsisText(
+                                    text: row.patient.name,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  HeltyEllipsisText(
+                                    text: row.patient.patientId,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 3,
+                              child: Tooltip(
+                                message:
+                                    '$when · ${row.dispensedBy?.name ?? '—'} · ${row.dispensary?.name ?? '—'} · ${row.invoiceId}',
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    HeltyEllipsisText(
+                                      text: row.drug.name,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    HeltyEllipsisText(
+                                      text: when,
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: cs.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 1,
+                              child: HeltyEllipsisText(text: '${row.quantity}'),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 2,
+                              child: HeltyEllipsisText(
+                                text: row.amountPaid.toFinancial(isMoney: true),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 2,
+                              child: HeltyEllipsisChip(
+                                label: unpaid ? 'Unpaid' : 'Paid',
+                                color: unpaid
+                                    ? PharmacyAccent.amber
+                                    : PharmacyAccent.green,
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 2,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: SizedBox(
+                                  height: 40,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Tooltip(
+                                      message: unpaid
+                                          ? 'Return units to stock'
+                                          : 'Paid lines cannot be returned',
+                                      child: OutlinedButton(
+                                        onPressed: unpaid
+                                            ? () => onReturn(row)
+                                            : null,
+                                        style: OutlinedButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                          shape: const StadiumBorder(),
+                                        ),
+                                        child: const Text('Return'),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+        if (inner.maxWidth >= minWidth) return sheet;
+        return _DispenseHScroll(child: sheet);
+      },
+    );
+  }
+
+  Widget _head(
+    BuildContext context,
+    String label, {
+    required int flex,
+    bool alignEnd = false,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.only(right: 8, bottom: 8),
+    return Expanded(
+      flex: flex,
+      child: Text(
+        label,
+        textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.55),
+        ),
+      ),
+    );
+  }
+}
+
+class _DispenseHScroll extends StatefulWidget {
+  const _DispenseHScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_DispenseHScroll> createState() => _DispenseHScrollState();
+}
+
+class _DispenseHScrollState extends State<_DispenseHScroll> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      notificationPredicate: (notification) => notification.depth == 0,
+      child: SingleChildScrollView(
+        controller: _controller,
+        primary: false,
+        scrollDirection: Axis.horizontal,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _DispenseCard extends StatelessWidget {
+  const _DispenseCard({required this.row, required this.onReturn});
+
+  final DispenseHistoryItem row;
+  final VoidCallback onReturn;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final unpaid = _isUnpaidDispenseLine(row);
+    final when = row.dispensedAt == null
+        ? '—'
+        : DateFormatter.dateTime(row.dispensedAt!);
+    return HeltySurfaceCard(
+      margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 20, color: scheme.primary),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+            Row(
+              children: [
+                Expanded(
+                  child: HeltyEllipsisText(
+                    text: row.patient.name,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                HeltyStatusChip(
+                  label: unpaid ? 'Unpaid' : 'Paid',
+                  color: unpaid ? PharmacyAccent.amber : PharmacyAccent.green,
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            HeltyEllipsisText(
+              text: row.drug.name,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            HeltyEllipsisText(
+              text:
+                  '$when · Qty ${row.quantity} · ${row.amountPaid.toFinancial(isMoney: true)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton(
+                onPressed: unpaid ? onReturn : null,
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Return'),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+class _DispenseRail extends StatelessWidget {
+  const _DispenseRail({
+    required this.gross,
+    required this.patients,
+    required this.included,
+    required this.capMessage,
+    required this.canClearDrug,
+    required this.onClearDrug,
+    required this.onRefresh,
+  });
+
+  final String gross;
+  final String patients;
+  final String included;
+  final String? capMessage;
+  final bool canClearDrug;
+  final VoidCallback onClearDrug;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    final totalPages = (_total / _take).ceil().clamp(1, 1000000);
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Dispense History'),
-      ),
-      body: ResponsiveBody(
-        center: false,
-        builder: (context, bp) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _pickDateRange,
-                  icon: const Icon(Icons.date_range),
-                  label: Text(
-                    '${DateFormatter.shortDate(_from)} - ${DateFormatter.shortDate(_to)}',
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        HeltySurfaceCard(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const HeltySolidIcon(
+                    icon: Icons.flash_on,
+                    color: PharmacyAccent.amber,
+                    size: 26,
+                    iconSize: 14,
+                    radius: 7,
                   ),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _applyQuickRange(_QuickRange.today),
-                  child: const Text('Today'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _applyQuickRange(_QuickRange.last7),
-                  child: const Text('Last 7 days'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _applyQuickRange(_QuickRange.thisMonth),
-                  child: const Text('This month'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _pickDrug,
-                  icon: const Icon(Icons.medication_outlined),
-                  label: Text(_selectedDrugName ?? 'Drug'),
-                ),
-                SizedBox(
-                  width: 220,
-                  child: TextField(
-                    controller: _patientCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Patient search',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
-                      isDense: true,
+                  const SizedBox(width: 8),
+                  Text(
+                    'Quick Actions',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-                if (_selectedDrugId != null)
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedDrugId = null;
-                        _selectedDrugName = null;
-                        _page = 1;
-                      });
-                      _syncQueryState();
-                      _fetchHistory();
-                    },
-                    child: const Text('Clear drug'),
-                  ),
-              ],
-            ),
-            if (!_loading && _error.isEmpty) ...[
-              if (_summaryLoading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 4, bottom: 8),
-                  child: LinearProgressIndicator(minHeight: 3),
-                ),
-              if (_summaryCapMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    _summaryCapMessage!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.tertiary,
-                    ),
-                  ),
-                ),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  return Wrap(
-                    spacing: 0,
-                    runSpacing: 0,
-                    children: [
-                      SizedBox(
-                        width: constraints.maxWidth >= 1200
-                            ? (constraints.maxWidth - 32) / 6
-                            : constraints.maxWidth >= 800
-                            ? (constraints.maxWidth - 24) / 3
-                            : constraints.maxWidth,
-                        child: _summaryCard(
-                          context,
-                          title: 'Total quantity',
-                          value: _aggTotalQty.toFinancial(isMoney: false),
-                          icon: Icons.numbers,
-                        ),
-                      ),
-                      SizedBox(
-                        width: constraints.maxWidth >= 1200
-                            ? (constraints.maxWidth - 32) / 6
-                            : constraints.maxWidth >= 800
-                            ? (constraints.maxWidth - 24) / 3
-                            : constraints.maxWidth,
-                        child: _summaryCard(
-                          context,
-                          title: 'Money collected',
-                          value: _aggAmountPaid.toFinancial(isMoney: true),
-                          icon: Icons.payments_outlined,
-                        ),
-                      ),
-                      SizedBox(
-                        width: constraints.maxWidth >= 1200
-                            ? (constraints.maxWidth - 32) / 6
-                            : constraints.maxWidth >= 800
-                            ? (constraints.maxWidth - 24) / 3
-                            : constraints.maxWidth,
-                        child: _summaryCard(
-                          context,
-                          title: 'Gross line value',
-                          value: _aggGrossValue.toFinancial(isMoney: true),
-                          icon: Icons.receipt_long_outlined,
-                        ),
-                      ),
-                      SizedBox(
-                        width: constraints.maxWidth >= 1200
-                            ? (constraints.maxWidth - 32) / 6
-                            : constraints.maxWidth >= 800
-                            ? (constraints.maxWidth - 24) / 3
-                            : constraints.maxWidth,
-                        child: _summaryCard(
-                          context,
-                          title: 'Dispense lines',
-                          value: '$_aggRowCount',
-                          icon: Icons.list_alt,
-                        ),
-                      ),
-                      SizedBox(
-                        width: constraints.maxWidth >= 1200
-                            ? (constraints.maxWidth - 32) / 6
-                            : constraints.maxWidth >= 800
-                            ? (constraints.maxWidth - 24) / 3
-                            : constraints.maxWidth,
-                        child: _summaryCard(
-                          context,
-                          title: 'Unpaid lines',
-                          value: '$_aggUnpaidCount',
-                          icon: Icons.money_off_csred_outlined,
-                        ),
-                      ),
-                      SizedBox(
-                        width: constraints.maxWidth >= 1200
-                            ? (constraints.maxWidth - 32) / 6
-                            : constraints.maxWidth >= 800
-                            ? (constraints.maxWidth - 24) / 3
-                            : constraints.maxWidth,
-                        child: _summaryCard(
-                          context,
-                          title: 'Distinct patients',
-                          value: '$_aggDistinctPatients',
-                          icon: Icons.people_outline,
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                ],
+              ),
+              const SizedBox(height: 10),
+              PharmacyRailButton(
+                label: 'Refresh',
+                icon: Icons.refresh,
+                colors: [
+                  PharmacyAccent.green,
+                  Color.lerp(PharmacyAccent.green, cs.primary, 0.25)!,
+                ],
+                onPressed: onRefresh,
+              ),
+              const SizedBox(height: 8),
+              PharmacyRailButton(
+                label: 'Clear drug',
+                icon: Icons.medication_outlined,
+                colors: [
+                  PharmacyAccent.teal,
+                  Color.lerp(PharmacyAccent.teal, cs.primary, 0.25)!,
+                ],
+                onPressed: canClearDrug ? onClearDrug : null,
               ),
             ],
-            const SizedBox(height: 12),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error.isNotEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_error, textAlign: TextAlign.center),
-                          const SizedBox(height: 8),
-                          FilledButton(
-                            onPressed: _fetchHistory,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _rows.isEmpty
-                  ? const Center(child: Text('No dispense records found.'))
-                  : ResponsiveDataTable(
-                      child: Scrollbar(
-                        controller: _tableVerticalScrollController,
-                        child: SingleChildScrollView(
-                          controller: _tableVerticalScrollController,
-                          child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('Dispensed At')),
-                              DataColumn(label: Text('Dispensed By')),
-                              DataColumn(label: Text('Dispensary')),
-                              DataColumn(label: Text('Drug')),
-                              DataColumn(label: Text('Patient')),
-                              DataColumn(label: Text('Invoice')),
-                              DataColumn(label: Text('Qty')),
-                              DataColumn(label: Text('Unit Price')),
-                              DataColumn(label: Text('Amount Paid')),
-                              DataColumn(label: Text('Actions')),
-                            ],
-                            rows: _rows.map((row) {
-                              final canReturn = _isUnpaidDispenseLine(row);
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      row.dispensedAt == null
-                                          ? '—'
-                                          : DateFormatter.dateTime(
-                                              row.dispensedAt!,
-                                            ),
-                                    ),
-                                  ),
-                                  DataCell(Text(row.dispensedBy?.name ?? '—')),
-                                  DataCell(Text(row.dispensary?.name ?? '—')),
-                                  DataCell(Text(row.drug.name)),
-                                  DataCell(
-                                    Text(
-                                      '${row.patient.name} (${row.patient.patientId})',
-                                    ),
-                                  ),
-                                  DataCell(Text(row.invoiceId)),
-                                  DataCell(Text('${row.quantity}')),
-                                  DataCell(
-                                    Text(
-                                      row.unitPrice.toFinancial(isMoney: true),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      row.amountPaid.toFinancial(isMoney: true),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Tooltip(
-                                      message: canReturn
-                                          ? 'Return units to stock'
-                                          : 'Paid lines cannot be returned',
-                                      child: TextButton(
-                                        onPressed: canReturn
-                                            ? () => _onDoReturn(row)
-                                            : null,
-                                        child: const Text('Do return'),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text('Page $_page of $totalPages'),
-                const Spacer(),
-                IconButton(
-                  onPressed: _page > 1
-                      ? () {
-                          setState(() => _page -= 1);
-                          _syncQueryState();
-                          _fetchHistory();
-                        }
-                      : null,
-                  icon: const Icon(Icons.chevron_left),
+          ),
+        ),
+        const SizedBox(height: 10),
+        HeltySurfaceCard(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Gross line value',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
                 ),
-                IconButton(
-                  onPressed: _page < totalPages
-                      ? () {
-                          setState(() => _page += 1);
-                          _syncQueryState();
-                          _fetchHistory();
-                        }
-                      : null,
-                  icon: const Icon(Icons.chevron_right),
+              ),
+              Text(
+                gross,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Distinct patients',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                patients,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Rows in totals',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                included,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (capMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  capMessage!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.tertiary,
+                  ),
                 ),
               ],
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

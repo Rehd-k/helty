@@ -41,6 +41,7 @@ class PendingBillsScreen extends ConsumerStatefulWidget {
 
 class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   Invoice? selectedInvoice;
+  bool _mobileDetailOpen = false;
 
   /// Current filter from the search bar and date range.
   InvoiceFilter _filter = const InvoiceFilter(limit: 500, allowIP: false);
@@ -96,7 +97,10 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
   }
 
   void _handleSelect(Invoice invoice) {
-    setState(() => selectedInvoice = invoice);
+    setState(() {
+      selectedInvoice = invoice;
+      _mobileDetailOpen = true;
+    });
   }
 
   bool _canDeleteInvoice(Invoice invoice, String? currentStaffId) {
@@ -417,257 +421,310 @@ class PendingBillsState extends ConsumerState<PendingBillsScreen> {
     return Scaffold(
       body: ResponsiveBody(
         center: false,
-        builder: (context, bp) => Column(
+        builder: (context, bp) {
+          final showMobileDetail =
+              bp.isMobile && _mobileDetailOpen && selectedInvoice != null;
+          return Column(
+            children: [
+              if (!showMobileDetail)
+                PatientsFilterWidget(
+                  searchCategories: const [
+                    {'name': 'patientId', 'value': 'Patient ID'},
+                    {'name': 'services', 'value': 'Services'},
+                    {'name': 'fullName', 'value': 'Patient Name'},
+                  ],
+                  onFilterChanged: _onInvoiceFilterChanged,
+                  doRefresh: _loadInvoices,
+                  dateFilter: true,
+                ),
+              Expanded(
+                child: _pendingBillsBody(context, bp, auth, currentStaffId),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _pendingBillsBody(
+    BuildContext context,
+    AppBreakpoints bp,
+    AuthState auth,
+    String? currentStaffId,
+  ) {
+    final showMobileDetail =
+        bp.isMobile && _mobileDetailOpen && selectedInvoice != null;
+    final list = _buildInvoiceList(context, auth, currentStaffId);
+    return PopScope(
+      canPop: !showMobileDetail,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || !showMobileDetail) return;
+        setState(() => _mobileDetailOpen = false);
+      },
+      child: showMobileDetail
+          ? _buildMobileBillDetail(selectedInvoice!)
+          : bp.isMobile
+          ? list
+          : ResponsiveRowColumn(
+              firstFlex: 2,
+              secondFlex: 1,
+              gap: 16,
+              first: list,
+              second: selectedInvoice == null
+                  ? const Center(
+                      child: Text('Please Select Bill To See Details'),
+                    )
+                  : SummaryBills(invoice: selectedInvoice!),
+            ),
+    );
+  }
+
+  Widget _buildMobileBillDetail(Invoice invoice) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
           children: [
-            PatientsFilterWidget(
-              searchCategories: const [
-                {'name': 'patientId', 'value': 'Patient ID'},
-                {'name': 'services', 'value': 'Services'},
-                {'name': 'fullName', 'value': 'Patient Name'},
-              ],
-              onFilterChanged: _onInvoiceFilterChanged,
-              doRefresh: _loadInvoices,
-              dateFilter: true,
+            IconButton(
+              tooltip: 'Back to bills',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => setState(() => _mobileDetailOpen = false),
+              icon: const Icon(Icons.arrow_back),
             ),
             Expanded(
-              child: ResponsiveRowColumn(
-                firstFlex: 2,
-                secondFlex: 1,
-                gap: bp.isMobile ? 12 : 16,
-                first: Builder(
-                  builder: (context) {
-                    if (_isLoading) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    }
-
-                    if (_error != null) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'Failed to load invoices: $_error',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    }
-
-                    if (_invoices.isEmpty) {
-                      return const Center(child: Text('No pending invoices'));
-                    }
-
-                    return ListView.builder(
-                      itemCount: _invoices.length,
-                      itemBuilder: (context, index) {
-                        final invoice = _invoices[index];
-
-                        return Slidable(
-                          key: Key(invoice.id),
-                          startActionPane: ActionPane(
-                            motion: const ScrollMotion(),
-                            children: [
-                              SlidableAction(
-                                onPressed: (_) {},
-                                backgroundColor:
-                                    DepartmentColors.outpatientClinic,
-                                icon: Icons.edit,
-                                label: 'Edit',
-                              ),
-                              SlidableAction(
-                                onPressed: (_) {},
-                                backgroundColor: DepartmentColors.billing,
-                                icon: Icons.archive,
-                                label: 'Archive',
-                              ),
-                              SlidableAction(
-                                onPressed: (_) {},
-                                backgroundColor: DepartmentColors.emergency,
-                                icon: Icons.delete,
-                                label: 'Delete',
-                              ),
-                            ],
-                          ),
-                          child: GestureDetector(
-                            onTap: () => _handleSelect(invoice),
-                            onSecondaryTapDown: (details) {
-                              _showContextMenu(
-                                context,
-                                details.globalPosition,
-                                invoice,
-                                auth,
-                                _handleSelect,
-                                onHmoChanged: _loadInvoices,
-                              );
-                            },
-                            child: Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.all(16),
-                                title: Text(
-                                  invoice.patient.displayName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Text("Status: ${invoice.status}"),
-                                    Text(
-                                      "Initiator: ${invoice.staff['firstName']} ${invoice.staff['lastName']}",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                    Builder(
-                                      builder: (context) {
-                                        final created = formatStaffName(
-                                          invoice.createdBy,
-                                        );
-                                        if (created == null) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        return Text(
-                                          'Created by: $created',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.onSurfaceVariant,
-                                              ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      DateFormatter.dateTime(invoice.createdAt),
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        if (_canDeleteInvoice(
-                                          invoice,
-                                          currentStaffId,
-                                        ))
-                                          FilledButton.icon(
-                                            onPressed:
-                                                _deletingInvoiceIds.contains(
-                                                  invoice.id,
-                                                )
-                                                ? null
-                                                : () => _deleteInvoice(invoice),
-                                            icon:
-                                                _deletingInvoiceIds.contains(
-                                                  invoice.id,
-                                                )
-                                                ? const SizedBox(
-                                                    width: 14,
-                                                    height: 14,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                        ),
-                                                  )
-                                                : const Icon(
-                                                    Icons.delete_outline,
-                                                    size: 16,
-                                                  ),
-                                            label: const Text('Delete'),
-                                            style: FilledButton.styleFrom(
-                                              backgroundColor: Theme.of(
-                                                context,
-                                              ).colorScheme.error,
-                                              minimumSize: const Size(0, 34),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                  ),
-                                            ),
-                                          ),
-                                        const SizedBox(width: 8),
-                                        OutlinedButton.icon(
-                                          onPressed:
-                                              _splittingInvoiceIds.contains(
-                                                invoice.id,
-                                              )
-                                              ? null
-                                              : () => _showSplitInvoiceDialog(
-                                                  invoice,
-                                                ),
-                                          icon:
-                                              _splittingInvoiceIds.contains(
-                                                invoice.id,
-                                              )
-                                              ? const SizedBox(
-                                                  width: 14,
-                                                  height: 14,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                )
-                                              : const Icon(
-                                                  Icons.call_split,
-                                                  size: 16,
-                                                ),
-                                          label: const Text('Split'),
-                                          style: OutlinedButton.styleFrom(
-                                            minimumSize: const Size(0, 34),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                trailing: Text(
-                                  invoice.total.toFinancial(isMoney: true),
-                                  style: TextStyle(
-                                    color: FinanceStatusColors.success(
-                                      Theme.of(context).colorScheme,
-                                    ),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
+              child: Text(
+                invoice.patient.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
                 ),
-                second: selectedInvoice == null
-                    ? const Center(
-                        child: Text('Please Select Bill To See Details'),
-                      )
-                    : SummaryBills(invoice: selectedInvoice!),
               ),
             ),
           ],
         ),
-      ),
+        Expanded(child: SummaryBills(invoice: invoice)),
+      ],
+    );
+  }
+
+  Widget _buildInvoiceList(
+    BuildContext context,
+    AuthState auth,
+    String? currentStaffId,
+  ) {
+    return Builder(
+      builder: (context) {
+        if (_isLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (_error != null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Failed to load invoices: $_error',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        if (_invoices.isEmpty) {
+          return const Center(child: Text('No pending invoices'));
+        }
+
+        return ListView.builder(
+          itemCount: _invoices.length,
+          itemBuilder: (context, index) {
+            final invoice = _invoices[index];
+
+            return Slidable(
+              key: Key(invoice.id),
+              startActionPane: ActionPane(
+                motion: const ScrollMotion(),
+                children: [
+                  SlidableAction(
+                    onPressed: (_) {},
+                    backgroundColor: DepartmentColors.outpatientClinic,
+                    icon: Icons.edit,
+                    label: 'Edit',
+                  ),
+                  SlidableAction(
+                    onPressed: (_) {},
+                    backgroundColor: DepartmentColors.billing,
+                    icon: Icons.archive,
+                    label: 'Archive',
+                  ),
+                  SlidableAction(
+                    onPressed: (_) {},
+                    backgroundColor: DepartmentColors.emergency,
+                    icon: Icons.delete,
+                    label: 'Delete',
+                  ),
+                ],
+              ),
+              child: GestureDetector(
+                onTap: () => _handleSelect(invoice),
+                onSecondaryTapDown: (details) {
+                  _showContextMenu(
+                    context,
+                    details.globalPosition,
+                    invoice,
+                    auth,
+                    _handleSelect,
+                    onHmoChanged: _loadInvoices,
+                  );
+                },
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                invoice.patient.displayName,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              invoice.total.toFinancial(isMoney: true),
+                              style: TextStyle(
+                                color: FinanceStatusColors.success(
+                                  Theme.of(context).colorScheme,
+                                ),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Status: ${invoice.status}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          "Initiator: ${invoice.staff['firstName']} ${invoice.staff['lastName']}",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                        Builder(
+                          builder: (context) {
+                            final created = formatStaffName(invoice.createdBy);
+                            if (created == null) {
+                              return const SizedBox.shrink();
+                            }
+                            return Text(
+                              'Created by: $created',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormatter.dateTime(invoice.createdAt),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (_canDeleteInvoice(invoice, currentStaffId))
+                              FilledButton.icon(
+                                onPressed:
+                                    _deletingInvoiceIds.contains(invoice.id)
+                                    ? null
+                                    : () => _deleteInvoice(invoice),
+                                icon: _deletingInvoiceIds.contains(invoice.id)
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.delete_outline,
+                                        size: 16,
+                                      ),
+                                label: const Text('Delete'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.error,
+                                  minimumSize: const Size(0, 34),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                ),
+                              ),
+                            OutlinedButton.icon(
+                              onPressed:
+                                  _splittingInvoiceIds.contains(invoice.id)
+                                  ? null
+                                  : () => _showSplitInvoiceDialog(invoice),
+                              icon: _splittingInvoiceIds.contains(invoice.id)
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.call_split, size: 16),
+                              label: const Text('Split'),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 34),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

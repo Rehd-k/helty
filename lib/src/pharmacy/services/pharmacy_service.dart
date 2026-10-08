@@ -551,8 +551,8 @@ class PharmacyApiService {
 
   /// Builds query for batch search: backend expects limit, skip, sortBy, sortOrder + filters.
   Map<String, dynamic> _buildBatchSearchQuery(PharmacyQueryParams q) {
-    final skip = ((q.page - 1) * q.pageSize).clamp(0, 0x7fffffff);
-    final limit = q.pageSize.clamp(1, 100);
+    final skip = ((q.page - 1) * q.pageSize).clamp(0, 0x7fffffff).toInt();
+    final limit = q.pageSize.clamp(1, 100).toInt();
     final map = <String, dynamic>{
       'limit': limit,
       'skip': skip,

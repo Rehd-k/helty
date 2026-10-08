@@ -11,6 +11,7 @@ import 'package:helty/src/helper/quill_content_helper.dart';
 import 'package:helty/src/models/ward_round_note_model.dart';
 import 'package:helty/src/nurses/inpatients/ward_round_note_draft.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_view_scope.dart';
 import 'package:helty/src/nurses/inpatients/widgets/section_card.dart';
@@ -818,15 +819,15 @@ class _SoapEditorSlot {
 }
 
 double _wardRoundDialogWidth(BuildContext context) {
-  final size = MediaQuery.sizeOf(context);
-  final pad = MediaQuery.paddingOf(context).horizontal;
-  return math.max(360.0, math.min(980.0, size.width - pad - 24));
+  return inpatientDialogBodyWidth(context, preferred: 980);
 }
 
 double _wardRoundDialogHeight(BuildContext context) {
   final size = MediaQuery.sizeOf(context);
   final pad = MediaQuery.paddingOf(context).vertical;
-  return math.max(520.0, math.min(size.height - pad - 32, size.height * 0.88));
+  final available = size.height - pad - 32;
+  if (available <= 0) return 0;
+  return math.min(available, size.height * 0.88);
 }
 
 class _SoapCollapsedHeader extends StatelessWidget {
@@ -1385,10 +1386,11 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Row(
-                children: [
-                  Wrap(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final chips = Wrap(
                     spacing: 6,
+                    runSpacing: 6,
                     children: [
                       for (final slot in _slots)
                         FilterChip(
@@ -1402,24 +1404,50 @@ class _AddWardRoundNoteDialogState extends State<_AddWardRoundNoteDialog> {
                           checkmarkColor: slot.color,
                         ),
                     ],
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: _saving ? null : _discardAndClose,
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: _saving ? null : _save,
-                    child: _saving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Save note'),
-                  ),
-                ],
+                  );
+                  final buttons = Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: _saving ? null : _discardAndClose,
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: _saving ? null : _save,
+                        child: _saving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Save note'),
+                      ),
+                    ],
+                  );
+                  final width = constraints.hasBoundedWidth
+                      ? constraints.maxWidth
+                      : 0.0;
+                  if (width < AppBreakpoints.tabletMin) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        chips,
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: buttons,
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: chips),
+                      const SizedBox(width: 8),
+                      buttons,
+                    ],
+                  );
+                },
               ),
             ),
           ],

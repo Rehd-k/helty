@@ -340,57 +340,7 @@ class _InpatientsListScreenState extends ConsumerState<InpatientsListScreen> {
             );
           }
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final bounded = constraints.maxHeight.isFinite;
-              if (bounded) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: mainColumn),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 280,
-                      child: SingleChildScrollView(child: sidebar),
-                    ),
-                  ],
-                );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  header,
-                  const SizedBox(height: 10),
-                  kpis,
-                  const SizedBox(height: 10),
-                  filters,
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: compact ? 480 : 520,
-                    child: useCards
-                        ? _CensusCardList(
-                            rows: _filteredRows,
-                            loading: _isLoadingWardDetails,
-                            emptyMessage: _emptyMessage,
-                            isDoctor: isDoctor,
-                            onOpenView: _openInpatientView,
-                            onOpenEncounter: _openEncounter,
-                          )
-                        : _CensusTable(
-                            rows: _filteredRows,
-                            loading: _isLoadingWardDetails,
-                            emptyMessage: _emptyMessage,
-                            isDoctor: isDoctor,
-                            onOpenView: _openInpatientView,
-                            onOpenEncounter: _openEncounter,
-                          ),
-                  ),
-                  const SizedBox(height: 10),
-                  sidebar,
-                ],
-              );
-            },
-          );
+          return mainColumn;
         },
       ),
     );
@@ -538,7 +488,10 @@ class _CensusFilterBar extends StatelessWidget {
       ),
       items: [
         for (final w in wards)
-          DropdownMenuItem(value: w.id, child: Text(w.name)),
+          DropdownMenuItem(
+            value: w.id,
+            child: Text(w.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
       ],
       onChanged: loadingWards ? null : onWardChanged,
     );

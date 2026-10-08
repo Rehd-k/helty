@@ -186,6 +186,8 @@ class _DoctorCompletedEncounterViewScreenState
             if (patient != null && patient.gender.isNotEmpty) patient.gender,
           ].join(' • ');
           final hospitalNumber = patient?.patientId ?? widget.patientId;
+          final editActions = _buildEditMetaActions(context, encounter);
+          final actionsInAppBar = AppBreakpoints.of(context).isDesktop;
 
           return Scaffold(
             backgroundColor: colorScheme.surface,
@@ -196,7 +198,7 @@ class _DoctorCompletedEncounterViewScreenState
                 onPressed: () => context.router.maybePop(),
               ),
               actions: [
-                ..._buildEditMetaActions(context, encounter),
+                if (actionsInAppBar) ...editActions,
                 IconButton(
                   tooltip: 'Specialty forms',
                   icon: const Icon(Icons.grid_view_rounded),
@@ -229,6 +231,15 @@ class _DoctorCompletedEncounterViewScreenState
                 builder: (context, bp) => Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (!actionsInAppBar && editActions.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: editActions,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     DoctorEncounterPatientHeader(
                       patientName: name.trim(),
                       ageGender: ageGender,

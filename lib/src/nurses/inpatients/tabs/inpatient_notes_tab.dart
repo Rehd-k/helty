@@ -377,32 +377,7 @@ class _NotesKpiStrip extends StatelessWidget {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 820) {
-          return Row(
-            children: [
-              for (var i = 0; i < items.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
-                Expanded(child: items[i]),
-              ],
-            ],
-          );
-        }
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            mainAxisExtent: 72,
-          ),
-          itemBuilder: (context, i) => items[i],
-        );
-      },
-    );
+    return InpatientKpiRow(tiles: items);
   }
 }
 

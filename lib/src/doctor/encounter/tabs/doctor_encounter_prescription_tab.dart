@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_chart_table.dart';
+import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_metrics.dart';
 import 'package:helty/src/core/responsive.dart';
 import 'package:helty/src/doctor/encounter/doctor_encounter_view_screen.dart';
@@ -116,7 +117,7 @@ class _DoctorEncounterPrescriptionTabState
         builder: (context, setLocal) => AlertDialog(
           title: Text('Authorize ${order.drugName}'),
           content: SizedBox(
-            width: 420,
+            width: inpatientDialogBodyWidth(context, preferred: 420),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -392,7 +393,7 @@ class _DoctorEncounterPrescriptionTabState
         expanded: _sidePanelExpanded,
         onToggleExpanded: () =>
             setState(() => _sidePanelExpanded = !_sidePanelExpanded),
-        forceStacked: widget.embedded,
+        forceStacked: widget.embedded || !bp.isDesktop,
       );
 
       final list = _orders.isEmpty
@@ -456,7 +457,7 @@ class _DoctorEncounterPrescriptionTabState
         );
       }
 
-      if (bp.isMobile) {
+      if (!bp.isDesktop) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -556,8 +557,9 @@ class _PrescriptionSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bp = AppBreakpoints.of(context);
-    if (bp.isMobile || forceStacked) return _buildMobile(context);
+    if (!AppBreakpoints.of(context).isDesktop || forceStacked) {
+      return _buildMobile(context);
+    }
     return _buildSide(context);
   }
 
@@ -1033,6 +1035,8 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                               else
                                 Text(
                                   order.currentDrugLabel,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: -0.2,
@@ -1181,7 +1185,10 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                     const SizedBox(height: 12),
                     const Divider(height: 1),
                     const SizedBox(height: 10),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (requestCount > 0)
                           TextButton.icon(
@@ -1204,7 +1211,6 @@ class _EncounterPrescriptionCard extends StatelessWidget {
                               fontStyle: FontStyle.italic,
                             ),
                           ),
-                        const Spacer(),
                         if (isUpdating)
                           const SizedBox(
                             width: 22,
@@ -1514,80 +1520,125 @@ class _PharmacyRequestTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: medicationRequestStatusColor(
-                context,
-                request.status,
-              ).withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.local_pharmacy_outlined,
-              size: 16,
-              color: medicationRequestStatusColor(context, request.status),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow =
+              !constraints.hasBoundedWidth ||
+              constraints.maxWidth < AppBreakpoints.tabletMin;
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Qty ${request.requestedQuantity}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  MedicationRequestStatusBadge(status: request.status),
+                ],
+              ),
+              const SizedBox(height: 6),
+              MedicationRequestAttribution(request: request, compact: true),
+              if (request.createdAt != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    DateFormatter.dateTime(request.createdAt!),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+            ],
+          );
+          final actions = canModify
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Edit quantity',
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: doctorId.isEmpty ? null : onEdit,
+                    ),
+                    IconButton(
+                      tooltip: 'Cancel request',
+                      icon: Icon(
+                        Icons.delete_outline,
+                        size: 18,
+                        color: scheme.error,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: doctorId.isEmpty ? null : onCancel,
+                    ),
+                  ],
+                )
+              : null;
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Qty ${request.requestedQuantity}',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: medicationRequestStatusColor(
+                          context,
+                          request.status,
+                        ).withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.local_pharmacy_outlined,
+                        size: 16,
+                        color: medicationRequestStatusColor(
+                          context,
+                          request.status,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    MedicationRequestStatusBadge(status: request.status),
+                    const SizedBox(width: 12),
+                    Expanded(child: details),
                   ],
                 ),
-                const SizedBox(height: 6),
-                MedicationRequestAttribution(request: request, compact: true),
-                if (request.createdAt != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      DateFormatter.dateTime(request.createdAt!),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
+                if (actions != null)
+                  Align(alignment: Alignment.centerRight, child: actions),
               ],
-            ),
-          ),
-          if (canModify)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: 'Edit quantity',
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: doctorId.isEmpty ? null : onEdit,
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: medicationRequestStatusColor(
+                    context,
+                    request.status,
+                  ).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
                 ),
-                IconButton(
-                  tooltip: 'Cancel request',
-                  icon: Icon(
-                    Icons.delete_outline,
-                    size: 18,
-                    color: scheme.error,
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: doctorId.isEmpty ? null : onCancel,
+                child: Icon(
+                  Icons.local_pharmacy_outlined,
+                  size: 16,
+                  color: medicationRequestStatusColor(context, request.status),
                 ),
-              ],
-            ),
-        ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: details),
+              ?actions,
+            ],
+          );
+        },
       ),
     );
   }

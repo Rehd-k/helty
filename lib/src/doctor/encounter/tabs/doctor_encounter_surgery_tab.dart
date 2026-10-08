@@ -277,7 +277,25 @@ class _DoctorEncounterSurgeryTabState
         children: [
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(request.service?.name ?? 'Surgery'),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    request.service?.name ?? 'Surgery',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TheatreStatusChip(status: request.status),
+                if (_canCancel(request))
+                  IconButton(
+                    icon: const Icon(Icons.cancel_outlined),
+                    tooltip: 'Cancel',
+                    onPressed: () => _cancelRequest(request),
+                  ),
+              ],
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -294,18 +312,6 @@ class _DoctorEncounterSurgeryTabState
                 if (request.clinicalNotes != null &&
                     request.clinicalNotes!.isNotEmpty)
                   Text(request.clinicalNotes!),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TheatreStatusChip(status: request.status),
-                if (_canCancel(request))
-                  IconButton(
-                    icon: const Icon(Icons.cancel_outlined),
-                    tooltip: 'Cancel',
-                    onPressed: () => _cancelRequest(request),
-                  ),
               ],
             ),
           ),

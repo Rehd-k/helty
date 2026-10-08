@@ -243,10 +243,12 @@ class _DoctorEncounterNotesTabState extends State<DoctorEncounterNotesTab> {
                     color: theme.colorScheme.onPrimaryContainer,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Note locked (after $_lockAfterMinutes min). Add addendum below.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
+                  Expanded(
+                    child: Text(
+                      'Note locked (after $_lockAfterMinutes min). Add addendum below.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
                     ),
                   ),
                 ],

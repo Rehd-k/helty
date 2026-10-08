@@ -31,24 +31,30 @@ class SetupFormHeader extends StatelessWidget {
           child: Icon(icon, color: cs.primary, size: 24),
         ),
         const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurface,
+                ),
               ),
-            ),
-            Text(
-              subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontStyle: FontStyle.italic,
-                color: cs.onSurfaceVariant,
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: cs.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -109,6 +115,7 @@ class SetupDropdown extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return DropdownButtonFormField<String>(
       initialValue: value,
+      isExpanded: true,
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
@@ -149,6 +156,8 @@ class SetupDropdown extends StatelessWidget {
             itemLabels != null && i < itemLabels!.length
                 ? itemLabels![i]
                 : items[i],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),

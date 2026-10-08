@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:helty/src/core/widgets/patient_avatar.dart';
@@ -60,8 +62,13 @@ class PatientHeaderCard extends StatelessWidget {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < kInpatientCompactBreakpoint;
         return HeltySurfaceCard(
-          padding: const EdgeInsets.all(12),
-          child: compact ? _compact(context) : _wide(context),
+          padding: EdgeInsets.all(compact ? 10 : 12),
+          child: compact
+              ? _MobilePatientHeader(
+                  collapsed: _collapsed(context),
+                  expanded: _compact(context),
+                )
+              : _wide(context),
         );
       },
     );
@@ -119,74 +126,71 @@ class PatientHeaderCard extends StatelessWidget {
     );
   }
 
+  Widget _collapsed(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final place = [
+      if (ward.trim().isNotEmpty && ward != '—') ward,
+      if (bedNumber.trim().isNotEmpty && bedNumber != '—') 'Bed $bedNumber',
+    ].join(' · ');
+    final allergy = allergies.isEmpty ? null : allergies.join(', ');
+
+    return Row(
+      children: [
+        PatientAvatar(
+          avatarUrl: avatarUrl,
+          firstName: firstName,
+          surname: surname,
+          displayName: patientName,
+          size: 40,
+          backgroundColor: InpatientMetrics.iconPurple,
+          foregroundColor: Colors.white,
+          fontWeight: FontWeight.w800,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HeltyEllipsisText(
+                text: patientName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                ),
+              ),
+              if (place.isNotEmpty)
+                HeltyEllipsisText(
+                  text: place,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              if (allergy != null)
+                HeltyEllipsisText(
+                  text: 'Allergies: $allergy',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.error,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Icon(Icons.expand_more, color: cs.onSurfaceVariant),
+      ],
+    );
+  }
+
   Widget _wide(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(flex: 3, child: _identity(context, avatarSize: 64)),
         const SizedBox(width: 12),
-        Expanded(
-          flex: 6,
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _infoCell(
-                context,
-                icon: Icons.apartment_outlined,
-                color: InpatientMetrics.iconIndigo,
-                label: 'Ward',
-                value: ward,
-              ),
-              _infoCell(
-                context,
-                icon: Icons.bed_outlined,
-                color: InpatientMetrics.iconTeal,
-                label: 'Bed',
-                value: bedNumber,
-              ),
-              _infoCell(
-                context,
-                icon: Icons.medical_information_outlined,
-                color: InpatientMetrics.iconPurple,
-                label: 'Attending Doctor',
-                value: attendingDoctor,
-              ),
-              _infoCell(
-                context,
-                icon: Icons.monitor_heart_outlined,
-                color: InpatientMetrics.waitAmber,
-                label: 'Reason',
-                value: diagnosis,
-              ),
-              _infoCell(
-                context,
-                icon: Icons.event_outlined,
-                color: InpatientMetrics.iconPink,
-                label: 'Admission Date',
-                value: admissionDate,
-              ),
-              if (lengthOfStay != null && lengthOfStay!.trim().isNotEmpty)
-                _infoCell(
-                  context,
-                  icon: Icons.schedule_outlined,
-                  color: InpatientMetrics.waitGreen,
-                  label: 'Length of stay',
-                  value: lengthOfStay!,
-                ),
-              if (createdBy != null && createdBy!.trim().isNotEmpty)
-                _infoCell(
-                  context,
-                  icon: Icons.badge_outlined,
-                  color: InpatientMetrics.iconBlue,
-                  label: 'Created by',
-                  value: createdBy!,
-                ),
-            ],
-          ),
-        ),
+        Expanded(flex: 6, child: _infoWrap(context, twoColumn: false)),
         const SizedBox(width: 8),
-        SizedBox(width: 170, child: _safetyColumn(context, alignEnd: true)),
+        Expanded(flex: 3, child: _safetyColumn(context, alignEnd: true)),
       ],
     );
   }
@@ -197,71 +201,97 @@ class PatientHeaderCard extends StatelessWidget {
       children: [
         _identity(context, avatarSize: 52),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _infoCell(
-              context,
-              icon: Icons.apartment_outlined,
-              color: InpatientMetrics.iconIndigo,
-              label: 'Ward',
-              value: ward,
-            ),
-            _infoCell(
-              context,
-              icon: Icons.bed_outlined,
-              color: InpatientMetrics.iconTeal,
-              label: 'Bed',
-              value: bedNumber,
-            ),
-            _infoCell(
-              context,
-              icon: Icons.medical_information_outlined,
-              color: InpatientMetrics.iconPurple,
-              label: 'Attending Doctor',
-              value: attendingDoctor,
-            ),
-            _infoCell(
-              context,
-              icon: Icons.monitor_heart_outlined,
-              color: InpatientMetrics.waitAmber,
-              label: 'Reason',
-              value: diagnosis,
-            ),
-            _infoCell(
-              context,
-              icon: Icons.event_outlined,
-              color: InpatientMetrics.iconPink,
-              label: 'Admission Date',
-              value: admissionDate,
-            ),
-            if (lengthOfStay != null && lengthOfStay!.trim().isNotEmpty)
-              _infoCell(
-                context,
-                icon: Icons.schedule_outlined,
-                color: InpatientMetrics.waitGreen,
-                label: 'Length of stay',
-                value: lengthOfStay!,
-              ),
-            if (createdBy != null && createdBy!.trim().isNotEmpty)
-              _infoCell(
-                context,
-                icon: Icons.badge_outlined,
-                color: InpatientMetrics.iconBlue,
-                label: 'Created by',
-                value: createdBy!,
-              ),
-          ],
-        ),
+        _infoWrap(context, twoColumn: true),
         const SizedBox(height: 10),
         _safetyColumn(context, alignEnd: false),
       ],
     );
   }
 
+  Widget _infoWrap(BuildContext context, {required bool twoColumn}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : 180.0;
+        final cellWidth = twoColumn && available > 8
+            ? (available - 8) / 2
+            : math.min(180.0, math.max(available, 0)).toDouble();
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _infoCells(context, cellWidth),
+        );
+      },
+    );
+  }
+
+  List<Widget> _infoCells(BuildContext context, double cellWidth) {
+    return [
+      _infoCell(
+        context,
+        width: cellWidth,
+        icon: Icons.apartment_outlined,
+        color: InpatientMetrics.iconIndigo,
+        label: 'Ward',
+        value: ward,
+      ),
+      _infoCell(
+        context,
+        width: cellWidth,
+        icon: Icons.bed_outlined,
+        color: InpatientMetrics.iconTeal,
+        label: 'Bed',
+        value: bedNumber,
+      ),
+      _infoCell(
+        context,
+        width: cellWidth,
+        icon: Icons.medical_information_outlined,
+        color: InpatientMetrics.iconPurple,
+        label: 'Attending Doctor',
+        value: attendingDoctor,
+      ),
+      _infoCell(
+        context,
+        width: cellWidth,
+        icon: Icons.monitor_heart_outlined,
+        color: InpatientMetrics.waitAmber,
+        label: 'Reason',
+        value: diagnosis,
+      ),
+      _infoCell(
+        context,
+        width: cellWidth,
+        icon: Icons.event_outlined,
+        color: InpatientMetrics.iconPink,
+        label: 'Admission Date',
+        value: admissionDate,
+      ),
+      if (lengthOfStay != null && lengthOfStay!.trim().isNotEmpty)
+        _infoCell(
+          context,
+          width: cellWidth,
+          icon: Icons.schedule_outlined,
+          color: InpatientMetrics.waitGreen,
+          label: 'Length of stay',
+          value: lengthOfStay!,
+        ),
+      if (createdBy != null && createdBy!.trim().isNotEmpty)
+        _infoCell(
+          context,
+          width: cellWidth,
+          icon: Icons.badge_outlined,
+          color: InpatientMetrics.iconBlue,
+          label: 'Created by',
+          value: createdBy!,
+        ),
+    ];
+  }
+
   Widget _infoCell(
     BuildContext context, {
+    required double width,
     required IconData icon,
     required Color color,
     required String label,
@@ -270,7 +300,7 @@ class PatientHeaderCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return SizedBox(
-      width: 180,
+      width: width,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -370,6 +400,49 @@ class PatientHeaderCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MobilePatientHeader extends StatefulWidget {
+  const _MobilePatientHeader({
+    required this.collapsed,
+    required this.expanded,
+  });
+
+  final Widget collapsed;
+  final Widget expanded;
+
+  @override
+  State<_MobilePatientHeader> createState() => _MobilePatientHeaderState();
+}
+
+class _MobilePatientHeaderState extends State<_MobilePatientHeader> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_open) {
+      return InkWell(
+        onTap: () => setState(() => _open = true),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: widget.collapsed,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            tooltip: 'Hide patient details',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() => _open = false),
+            icon: const Icon(Icons.expand_less),
+          ),
+        ),
+        widget.expanded,
+      ],
     );
   }
 }

@@ -56,6 +56,7 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
 
   // ── tab ───────────────────────────────────────────────────────────────────
   SetupTab _currentTab = SetupTab.departments;
+  bool _mobileFormOpen = false;
 
   // ── list data (loaded from API) ───────────────────────────────────────────
   List<Department> _departments = [];
@@ -171,12 +172,14 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
 
   void _editDepartment(Department d) => setState(() {
     _currentTab = SetupTab.departments;
+    _mobileFormOpen = true;
     _editingDeptId = d.id;
     _deptNameCtrl.text = d.name;
     _selectedHeadId = d.description; // head stored as description
   });
 
   void _clearDeptForm() => setState(() {
+    _mobileFormOpen = false;
     _editingDeptId = null;
     _deptNameCtrl.clear();
     _selectedHeadId = null;
@@ -219,12 +222,14 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
 
   void _editCategory(ServiceCategory c) => setState(() {
     _currentTab = SetupTab.categories;
+    _mobileFormOpen = true;
     _editingCatId = c.id;
     _catNameCtrl.text = c.name;
     _catDescCtrl.text = c.description ?? '';
   });
 
   void _clearCatForm() => setState(() {
+    _mobileFormOpen = false;
     _editingCatId = null;
     _catNameCtrl.clear();
     _catDescCtrl.clear();
@@ -287,6 +292,7 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
 
   void _editService(ServiceModel s) => setState(() {
     _currentTab = SetupTab.services;
+    _mobileFormOpen = true;
     _editingSrvId = s.id;
     _srvNameCtrl.text = s.name;
     _srvDescCtrl.text = s.description ?? '';
@@ -296,6 +302,7 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
   });
 
   void _clearSrvForm() => setState(() {
+    _mobileFormOpen = false;
     _editingSrvId = null;
     _srvNameCtrl.clear();
     _srvDescCtrl.clear();
@@ -355,85 +362,182 @@ class _SystemSetupScreenState extends ConsumerState<SystemSetupScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ResponsiveBody(
               center: false,
-              builder: (context, bp) => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  ResponsiveToolbar(
-                    leading: Text(
-                      'System Configuration',
-                      style: TextStyle(
-                        fontSize: bp.isMobile ? 20 : 24,
-                        fontWeight: FontWeight.bold,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    actions: [
-                      SegmentedButton<SetupTab>(
-                        segments: const [
-                          ButtonSegment(
-                            value: SetupTab.departments,
-                            label: Text(
-                              'Departments',
-                              style: TextStyle(fontSize: 13),
+              builder: (context, bp) {
+                final formOpen = bp.isMobile && _mobileFormOpen;
+                final addLabel = switch (_currentTab) {
+                  SetupTab.departments => 'Add department',
+                  SetupTab.categories => 'Add category',
+                  SetupTab.services => 'Add service',
+                };
+                void closeForm() {
+                  switch (_currentTab) {
+                    case SetupTab.departments:
+                      _clearDeptForm();
+                    case SetupTab.categories:
+                      _clearCatForm();
+                    case SetupTab.services:
+                      _clearSrvForm();
+                  }
+                }
+
+                final tabs = bp.isMobile
+                    ? SizedBox(
+                        height: 40,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            for (final tab in SetupTab.values)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(_setupTabLabel(tab)),
+                                  selected: _currentTab == tab,
+                                  onSelected: (_) => setState(() {
+                                    _currentTab = tab;
+                                    _mobileFormOpen = false;
+                                  }),
+                                ),
+                              ),
+                          ],
+                        ),
+                      )
+                    : SegmentedButton<SetupTab>(
+                        segments: [
+                          for (final tab in SetupTab.values)
+                            ButtonSegment(
+                              value: tab,
+                              label: Text(
+                                _setupTabLabel(tab),
+                                style: const TextStyle(fontSize: 13),
+                              ),
                             ),
-                          ),
-                          ButtonSegment(
-                            value: SetupTab.categories,
-                            label: Text(
-                              'Categories',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          ),
-                          ButtonSegment(
-                            value: SetupTab.services,
-                            label: Text(
-                              'Services',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          ),
                         ],
                         selected: {_currentTab},
                         onSelectionChanged: (s) =>
                             setState(() => _currentTab = s.first),
+                      );
+
+                return PopScope(
+                  canPop: !formOpen,
+                  onPopInvokedWithResult: (didPop, _) {
+                    if (didPop || !formOpen) return;
+                    closeForm();
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!formOpen)
+                        ResponsiveToolbar(
+                          leading: Text(
+                            'System Configuration',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: bp.isMobile ? 20 : 24,
+                              fontWeight: FontWeight.bold,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          actions: [tabs],
+                        ),
+                      SizedBox(height: bp.isMobile ? 12 : 24),
+                      Expanded(
+                        child: formOpen
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Back to list',
+                                        onPressed: closeForm,
+                                        icon: const Icon(Icons.arrow_back),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          addLabel,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: _setupPanel(
+                                      child: _buildCurrentForm(
+                                        canManageServices,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : bp.isMobile
+                            ? _setupPanel(
+                                child: _buildCurrentTable(canManageServices),
+                              )
+                            : ResponsiveRowColumn(
+                                firstFlex: 1,
+                                secondFlex: 2,
+                                gap: 24,
+                                first: _setupPanel(
+                                  padding: const EdgeInsets.all(24),
+                                  child: _buildCurrentForm(canManageServices),
+                                ),
+                                second: _setupPanel(
+                                  child: _buildCurrentTable(canManageServices),
+                                ),
+                              ),
                       ),
+                      if (bp.isMobile && !formOpen)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: FilledButton.icon(
+                            onPressed: () =>
+                                setState(() => _mobileFormOpen = true),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: Text(addLabel),
+                          ),
+                        ),
                     ],
                   ),
-                  SizedBox(height: bp.isMobile ? 16 : 24),
-                  Expanded(
-                    child: ResponsiveRowColumn(
-                      firstFlex: 1,
-                      secondFlex: 2,
-                      gap: bp.isMobile ? 16 : 24,
-                      first: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: cs.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: cs.outline.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: _buildCurrentForm(canManageServices),
-                      ),
-                      second: Container(
-                        decoration: BoxDecoration(
-                          color: cs.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: cs.outline.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: _buildCurrentTable(canManageServices),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
     );
   }
 
   // ── form router ───────────────────────────────────────────────────────────
+
+  String _setupTabLabel(SetupTab tab) {
+    switch (tab) {
+      case SetupTab.departments:
+        return 'Departments';
+      case SetupTab.categories:
+        return 'Categories';
+      case SetupTab.services:
+        return 'Services';
+    }
+  }
+
+  Widget _setupPanel({required Widget child, EdgeInsetsGeometry? padding}) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
+      ),
+      child: child,
+    );
+  }
 
   Widget _buildCurrentForm(bool canManageServices) {
     switch (_currentTab) {
@@ -777,6 +881,27 @@ class _DepartmentTableState extends State<_DepartmentTable> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final totalW = _cols.fold(0.0, (s, c) => s + c.width) + 40;
+    if (MediaQuery.sizeOf(context).width < 768) {
+      return _narrowSetupList(
+        emptyLabel: 'No departments yet.',
+        itemCount: widget.rows.length,
+        cardBuilder: (index) {
+          final item = widget.rows[index];
+          return _narrowSetupCard(
+            title: item.name,
+            lines: [
+              'Head: ${_headName(item.description)}',
+              if (item.createdAt != null)
+                _fmtDate(item.createdAt!.toIso8601String()),
+              if ((item.createdByName ?? '').isNotEmpty)
+                'Added by ${item.createdByName}',
+            ],
+            onEdit: () => widget.onEdit(item),
+            onDelete: () => widget.onDelete(item),
+          );
+        },
+      );
+    }
 
     return Column(
       children: [
@@ -890,6 +1015,22 @@ class _CategoryTableState extends State<_CategoryTable> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final totalW = _cols.fold(0.0, (s, c) => s + c.width) + 40;
+    if (MediaQuery.sizeOf(context).width < 768) {
+      return _narrowSetupList(
+        emptyLabel: 'No categories yet.',
+        itemCount: widget.rows.length,
+        cardBuilder: (index) {
+          final item = widget.rows[index];
+          final description = (item.description ?? '').trim();
+          return _narrowSetupCard(
+            title: item.name,
+            lines: [if (description.isNotEmpty) description],
+            onEdit: () => widget.onEdit(item),
+            onDelete: () => widget.onDelete(item),
+          );
+        },
+      );
+    }
 
     return Column(
       children: [
@@ -1149,7 +1290,6 @@ class _ServiceTableState extends State<_ServiceTable> {
     final cs = Theme.of(context).colorScheme;
     final totalW = _cols.fold(0.0, (s, c) => s + c.width) + 40;
     final page = _clampedPageIndex;
-    final pagesLeft = (_pageCount - 1 - page).clamp(0, _pageCount);
     final startItem = _total == 0 ? 0 : page * _pageSize + 1;
     final endItem = (page * _pageSize + _rows.length).clamp(0, _total);
 
@@ -1208,161 +1348,213 @@ class _ServiceTableState extends State<_ServiceTable> {
             },
           ),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: totalW,
-            child: SetupTableHeader(columns: _cols),
+        if (MediaQuery.sizeOf(context).width >= 768)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: totalW,
+              child: SetupTableHeader(columns: _cols),
+            ),
           ),
-        ),
         Expanded(
-          child: _fetching && _rows.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null && _rows.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: cs.error),
-                    ),
-                  ),
-                )
-              : Scrollbar(
-                  controller: _scrollCtrl,
-                  child: SingleChildScrollView(
-                    controller: _scrollCtrl,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: totalW,
-                        child: Column(
-                          children: _rows.isEmpty
-                              ? [
-                                  Padding(
-                                    padding: const EdgeInsets.all(32),
-                                    child: Text(
-                                      _searchCtrl.text.trim().isNotEmpty
-                                          ? 'No services match your search.'
-                                          : 'No services yet.',
-                                      style: TextStyle(
-                                        color: cs.onSurface.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ]
-                              : _rows
-                                    .map(
-                                      (item) => Column(
-                                        children: [
-                                          SetupRowGesture(
-                                            menuEnabled:
-                                                widget.canManageServices,
-                                            onEdit: () => widget.onEdit(item),
-                                            onDelete: () =>
-                                                widget.onDelete(item),
-                                            child: SetupTableRow(
-                                              cells: [
-                                                SizedBox(
-                                                  width: 200,
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Text(
-                                                        item.name,
-                                                        style: TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontSize: 13,
-                                                          color: cs.onSurface,
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        item.description ?? '',
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          color: cs.onSurface
-                                                              .withValues(
-                                                                alpha: 0.5,
-                                                              ),
-                                                        ),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  width: 130,
-                                                  child: Text(
-                                                    item.cost.toFinancial(
-                                                      isMoney: true,
-                                                    ),
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: Colors.green[700],
-                                                    ),
-                                                  ),
-                                                ),
-                                                _cell(
-                                                  _catName(item),
-                                                  160,
-                                                  cs.onSurface.withValues(
-                                                    alpha: 0.8,
-                                                  ),
-                                                  fontSize: 12,
-                                                ),
-                                                _cell(
-                                                  _deptName(item),
-                                                  160,
-                                                  cs.onSurface.withValues(
-                                                    alpha: 0.8,
-                                                  ),
-                                                  fontSize: 12,
-                                                ),
-                                                _cell(
-                                                  _fmtDate(item.createdAtIso),
-                                                  140,
-                                                  cs.onSurface.withValues(
-                                                    alpha: 0.6,
-                                                  ),
-                                                  fontSize: 11,
-                                                ),
-                                                _cell(
-                                                  item.createdByName ?? '',
-                                                  140,
-                                                  cs.onSurface.withValues(
-                                                    alpha: 0.6,
-                                                  ),
-                                                  fontSize: 11,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Divider(
-                                            height: 1,
-                                            color: cs.outline.withValues(
-                                              alpha: 0.05,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                    .toList(),
-                        ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 768) {
+                if (_fetching && _rows.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (_error != null && _rows.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: cs.error),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                }
+                return _narrowSetupList(
+                  emptyLabel: _searchCtrl.text.trim().isNotEmpty
+                      ? 'No services match your search.'
+                      : 'No services yet.',
+                  itemCount: _rows.length,
+                  cardBuilder: (index) {
+                    final item = _rows[index];
+                    return _narrowSetupCard(
+                      title: item.name,
+                      lines: [
+                        item.cost.toFinancial(isMoney: true),
+                        '${_catName(item)} · ${_deptName(item)}',
+                        if ((item.description ?? '').trim().isNotEmpty)
+                          item.description!.trim(),
+                      ],
+                      menuEnabled: widget.canManageServices,
+                      onEdit: () => widget.onEdit(item),
+                      onDelete: () => widget.onDelete(item),
+                    );
+                  },
+                );
+              }
+              return _fetching && _rows.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null && _rows.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: cs.error),
+                        ),
+                      ),
+                    )
+                  : Scrollbar(
+                      controller: _scrollCtrl,
+                      child: SingleChildScrollView(
+                        controller: _scrollCtrl,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: totalW,
+                            child: Column(
+                              children: _rows.isEmpty
+                                  ? [
+                                      Padding(
+                                        padding: const EdgeInsets.all(32),
+                                        child: Text(
+                                          _searchCtrl.text.trim().isNotEmpty
+                                              ? 'No services match your search.'
+                                              : 'No services yet.',
+                                          style: TextStyle(
+                                            color: cs.onSurface.withValues(
+                                              alpha: 0.6,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ]
+                                  : _rows
+                                        .map(
+                                          (item) => Column(
+                                            children: [
+                                              SetupRowGesture(
+                                                menuEnabled:
+                                                    widget.canManageServices,
+                                                onEdit: () =>
+                                                    widget.onEdit(item),
+                                                onDelete: () =>
+                                                    widget.onDelete(item),
+                                                child: SetupTableRow(
+                                                  cells: [
+                                                    SizedBox(
+                                                      width: 200,
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            item.name,
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              fontSize: 13,
+                                                              color:
+                                                                  cs.onSurface,
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            item.description ??
+                                                                '',
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              color: cs
+                                                                  .onSurface
+                                                                  .withValues(
+                                                                    alpha: 0.5,
+                                                                  ),
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    SizedBox(
+                                                      width: 130,
+                                                      child: Text(
+                                                        item.cost.toFinancial(
+                                                          isMoney: true,
+                                                        ),
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color:
+                                                              Colors.green[700],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    _cell(
+                                                      _catName(item),
+                                                      160,
+                                                      cs.onSurface.withValues(
+                                                        alpha: 0.8,
+                                                      ),
+                                                      fontSize: 12,
+                                                    ),
+                                                    _cell(
+                                                      _deptName(item),
+                                                      160,
+                                                      cs.onSurface.withValues(
+                                                        alpha: 0.8,
+                                                      ),
+                                                      fontSize: 12,
+                                                    ),
+                                                    _cell(
+                                                      _fmtDate(
+                                                        item.createdAtIso,
+                                                      ),
+                                                      140,
+                                                      cs.onSurface.withValues(
+                                                        alpha: 0.6,
+                                                      ),
+                                                      fontSize: 11,
+                                                    ),
+                                                    _cell(
+                                                      item.createdByName ?? '',
+                                                      140,
+                                                      cs.onSurface.withValues(
+                                                        alpha: 0.6,
+                                                      ),
+                                                      fontSize: 11,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Divider(
+                                                height: 1,
+                                                color: cs.outline.withValues(
+                                                  alpha: 0.05,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                        .toList(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+            },
+          ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -1398,13 +1590,13 @@ class _ServiceTableState extends State<_ServiceTable> {
                       },
               ),
               const Spacer(),
-              Flexible(
+              Expanded(
                 child: Text(
                   _total == 0
                       ? 'No services'
-                      : 'Showing $startItem–$endItem of $_total · '
-                            'Page ${page + 1} of $_pageCount · '
-                            '$pagesLeft page${pagesLeft == 1 ? '' : 's'} left',
+                      : '$startItem–$endItem of $_total',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
                   style: TextStyle(
                     fontSize: 12,
@@ -1414,6 +1606,7 @@ class _ServiceTableState extends State<_ServiceTable> {
               ),
               IconButton(
                 tooltip: 'Previous page',
+                visualDensity: VisualDensity.compact,
                 onPressed: !_fetching && page > 0
                     ? () async {
                         setState(() => _pageIndex = page - 1);
@@ -1424,6 +1617,7 @@ class _ServiceTableState extends State<_ServiceTable> {
               ),
               IconButton(
                 tooltip: 'Next page',
+                visualDensity: VisualDensity.compact,
                 onPressed: !_fetching && page < _pageCount - 1
                     ? () async {
                         setState(() => _pageIndex = page + 1);
@@ -1458,3 +1652,65 @@ Widget _cell(
     overflow: TextOverflow.ellipsis,
   ),
 );
+
+Widget _narrowSetupList({
+  required String emptyLabel,
+  required int itemCount,
+  required Widget Function(int index) cardBuilder,
+}) {
+  if (itemCount == 0) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(emptyLabel, textAlign: TextAlign.center),
+      ),
+    );
+  }
+  return ListView.separated(
+    padding: const EdgeInsets.all(12),
+    itemCount: itemCount,
+    separatorBuilder: (_, _) => const SizedBox(height: 8),
+    itemBuilder: (context, index) => cardBuilder(index),
+  );
+}
+
+Widget _narrowSetupCard({
+  required String title,
+  required List<String> lines,
+  required VoidCallback onEdit,
+  required VoidCallback onDelete,
+  bool menuEnabled = true,
+}) {
+  return Card(
+    margin: EdgeInsets.zero,
+    child: SetupRowGesture(
+      menuEnabled: menuEnabled,
+      onEdit: onEdit,
+      onDelete: onDelete,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            for (final line in lines)
+              if (line.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    line,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+          ],
+        ),
+      ),
+    ),
+  );
+}

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:helty/src/helper/theme.dart';
 import 'package:helty/src/nurses/inpatients/widgets/inpatient_layout_constants.dart';
@@ -192,7 +194,7 @@ class _DoctorEncounterPatientHeaderState
             if (compact) ...[
               _identity(context, avatarSize: 48),
               const SizedBox(height: 10),
-              Wrap(spacing: 8, runSpacing: 8, children: _infoCells(context)),
+              _infoWrap(context),
               const SizedBox(height: 10),
               _allergiesChip(context, expand: true),
             ] else
@@ -201,16 +203,12 @@ class _DoctorEncounterPatientHeaderState
                 children: [
                   Expanded(flex: 3, child: _identity(context, avatarSize: 56)),
                   const SizedBox(width: 12),
-                  Expanded(
-                    flex: 5,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _infoCells(context),
-                    ),
-                  ),
+                  Expanded(flex: 5, child: _infoWrap(context)),
                   const SizedBox(width: 12),
-                  _allergiesChip(context, expand: false),
+                  Expanded(
+                    flex: 3,
+                    child: _allergiesChip(context, expand: true),
+                  ),
                 ],
               ),
           ],
@@ -219,7 +217,23 @@ class _DoctorEncounterPatientHeaderState
     );
   }
 
-  List<Widget> _infoCells(BuildContext context) {
+  Widget _infoWrap(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : 180.0;
+        final cellWidth = math.min(180.0, math.max(available, 0)).toDouble();
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _infoCells(context, cellWidth),
+        );
+      },
+    );
+  }
+
+  List<Widget> _infoCells(BuildContext context, double cellWidth) {
     final doctor = widget.doctorName?.trim();
     final created = widget.createdByName?.trim();
     final updated = widget.lastUpdatedByName?.trim();
@@ -230,6 +244,7 @@ class _DoctorEncounterPatientHeaderState
       if (doctor != null && doctor.isNotEmpty)
         _infoCell(
           context,
+          width: cellWidth,
           icon: Icons.medical_services_outlined,
           color: InpatientMetrics.iconPurple,
           label: widget.doctorLabel,
@@ -238,6 +253,7 @@ class _DoctorEncounterPatientHeaderState
       if (created != null && created.isNotEmpty)
         _infoCell(
           context,
+          width: cellWidth,
           icon: Icons.person_add_alt_1_outlined,
           color: InpatientMetrics.iconBlue,
           label: 'Created by',
@@ -246,6 +262,7 @@ class _DoctorEncounterPatientHeaderState
       if (updated != null && updated.isNotEmpty)
         _infoCell(
           context,
+          width: cellWidth,
           icon: Icons.edit_outlined,
           color: InpatientMetrics.iconIndigo,
           label: 'Last updated',
@@ -253,6 +270,7 @@ class _DoctorEncounterPatientHeaderState
         ),
       _infoCell(
         context,
+        width: cellWidth,
         icon: Icons.local_hotel_outlined,
         color: InpatientMetrics.iconTeal,
         label: 'Past admissions',
@@ -263,6 +281,7 @@ class _DoctorEncounterPatientHeaderState
       if (insurance != null && insurance.isNotEmpty)
         _infoCell(
           context,
+          width: cellWidth,
           icon: Icons.health_and_safety_outlined,
           color: InpatientMetrics.iconPink,
           label: 'Insurance',
@@ -271,6 +290,7 @@ class _DoctorEncounterPatientHeaderState
       if (chronic.isNotEmpty)
         _infoCell(
           context,
+          width: cellWidth,
           icon: Icons.monitor_heart_outlined,
           color: InpatientMetrics.waitAmber,
           label: 'Chronic conditions',
@@ -295,6 +315,7 @@ class _DoctorEncounterPatientHeaderState
 
   Widget _infoCell(
     BuildContext context, {
+    required double width,
     required IconData icon,
     required Color color,
     required String label,
@@ -303,7 +324,7 @@ class _DoctorEncounterPatientHeaderState
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return SizedBox(
-      width: 180,
+      width: width,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

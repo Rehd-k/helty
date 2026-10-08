@@ -1612,44 +1612,56 @@ class _HistoryAdministrationRow extends StatelessWidget {
           : null,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             flex: _kHistoryColumnFlex[0],
-            child: Text(_InpatientMedicationsScreenState._formatHistoryTime(a)),
+            child: HeltyEllipsisText(
+              text: _InpatientMedicationsScreenState._formatHistoryTime(a),
+            ),
           ),
           Expanded(
             flex: _kHistoryColumnFlex[1],
-            child: Text(a.drugName ?? '—', style: headerStyle),
+            child: HeltyEllipsisText(
+              text: a.drugName ?? '—',
+              style: headerStyle,
+            ),
           ),
-          Expanded(flex: _kHistoryColumnFlex[2], child: Text(a.dose ?? '')),
-          Expanded(flex: _kHistoryColumnFlex[3], child: Text(a.route ?? '')),
+          Expanded(
+            flex: _kHistoryColumnFlex[2],
+            child: HeltyEllipsisText(text: a.dose ?? ''),
+          ),
+          Expanded(
+            flex: _kHistoryColumnFlex[3],
+            child: HeltyEllipsisText(text: a.route ?? ''),
+          ),
           Expanded(
             flex: _kHistoryColumnFlex[4],
-            child: Text(
-              _InpatientMedicationsScreenState._formatAdministeredQuantity(
+            child: HeltyEllipsisText(
+              text: _InpatientMedicationsScreenState._formatAdministeredQuantity(
                 a.quantity,
               ),
             ),
           ),
           Expanded(
             flex: _kHistoryColumnFlex[5],
-            child: Text(_InpatientMedicationsScreenState._formatDispensary(a)),
+            child: HeltyEllipsisText(
+              text: _InpatientMedicationsScreenState._formatDispensary(a),
+            ),
           ),
           Expanded(
             flex: _kHistoryColumnFlex[6],
-            child: Text(
-              _InpatientMedicationsScreenState._statusLabel(a.status),
+            child: HeltyEllipsisText(
+              text: _InpatientMedicationsScreenState._statusLabel(a.status),
               style: TextStyle(color: statusColor, fontWeight: FontWeight.w600),
             ),
           ),
           Expanded(
             flex: _kHistoryColumnFlex[7],
-            child: Text(a.nurseDisplayName ?? '—'),
+            child: HeltyEllipsisText(text: a.nurseDisplayName ?? '—'),
           ),
           Expanded(
             flex: _kHistoryColumnFlex[8],
-            child: Text(a.reasonIfNotGiven ?? ''),
+            child: HeltyEllipsisText(text: a.reasonIfNotGiven ?? ''),
           ),
         ],
       ),
@@ -2129,7 +2141,7 @@ class _RequestMedicationDialogState extends State<_RequestMedicationDialog> {
     return AlertDialog(
       title: const Text('Request medication'),
       content: SizedBox(
-        width: 420,
+        width: inpatientDialogBodyWidth(context, preferred: 420),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2239,31 +2251,6 @@ class _MedicationsKpiStrip extends StatelessWidget {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 820) {
-          return Row(
-            children: [
-              for (var i = 0; i < items.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
-                Expanded(child: items[i]),
-              ],
-            ],
-          );
-        }
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            mainAxisExtent: 72,
-          ),
-          itemBuilder: (context, i) => items[i],
-        );
-      },
-    );
+    return InpatientKpiRow(tiles: items);
   }
 }
