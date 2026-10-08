@@ -1,16 +1,21 @@
-FROM ghcr.io/cirruslabs/flutter:3.47.6 AS build
+FROM ghcr.io/cirruslabs/flutter:stable AS build
 
+# Switch to cirrus user to avoid root permission warnings
+USER cirrus
 WORKDIR /app
 
+# Upgrade Flutter to pull the latest stable Dart SDK (>=3.13.0)
+RUN flutter channel stable && flutter upgrade
+
 # Copy dependency definitions
-COPY pubspec.* ./
+COPY --chown=cirrus:cirrus pubspec.* ./
 
 # Verify SDK version and resolve packages
 RUN flutter --version
 RUN flutter pub get
 
 # Copy source code and build web bundle
-COPY . .
+COPY --chown=cirrus:cirrus . .
 
 RUN flutter build web \
     --no-tree-shake-icons \
